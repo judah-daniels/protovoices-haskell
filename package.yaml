@@ -1,0 +1,72 @@
+name:                proto-voice-model
+version:             0.1.0.0
+github:              "chfin/proto-voice-model"
+license:             BSD3
+author:              "Christoph Finkensiep"
+maintainer:          "chfin@chfin.de"
+copyright:           "Christoph Finkensiep"
+
+extra-source-files:
+- README.md
+- ChangeLog.md
+
+# Metadata used when publishing your package
+# synopsis:            Short description of your package
+# category:            Web
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description:         Please see the README on GitHub at <https://github.com/chfin/proto-voice-model#readme>
+
+dependencies:
+- base >= 4.7 && < 5
+- musicology-core
+- musicology-musicxml
+- text
+- containers
+- unordered-containers
+- hashable
+- algebraic-graphs
+- semirings
+- parallel
+- deepseq
+- data-default
+- diagrams-lib
+- diagrams-svg
+- colour
+
+library:
+  source-dirs: src
+
+executables:
+  parse:
+    main:                app/MainParsing.hs
+    #source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - proto-voice-model
+
+#   proto-voice-model-exe:
+#     main:                Main.hs
+#     source-dirs:         app
+#     ghc-options:
+#     - -threaded
+#     - -rtsopts
+#     - -with-rtsopts=-N
+#     dependencies:
+#     - proto-voice-model
+
+tests:
+  proto-voice-model-test:
+    main:                Spec.hs
+    source-dirs:         test
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - proto-voice-model
