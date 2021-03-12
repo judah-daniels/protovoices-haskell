@@ -17,11 +17,28 @@ module Scoring where
 -- This allows to add some additional information around whatever fr returns.
 -- SBoth combines the two as a function @fb :: (s -> s) -> s -> s@
 -- that expects a function on its right and a value on its left.
+--
+-- As a shorthand notation, we use @a-b@ to indicate a value
+-- that depends on @a@ on its left and on @b@ on its right.
+-- If the value does not depend on anything on either side, we use @()@,
+-- i.e. @()-a@ stands for @SLeft _ a@ and @()-()@ stands for @SVal _@.
 data Score s i = SVal !s
                | SLeft !((s -> s) -> s) !i
                | SRight !i !(s -> s)
                | SBoth !i !((s -> s) -> s -> s) !i
   deriving ()
+
+leftSide :: Score s i -> Maybe i
+leftSide (SVal _     ) = Nothing
+leftSide (SLeft  _ _ ) = Nothing
+leftSide (SRight i _ ) = Just i
+leftSide (SBoth i _ _) = Just i
+
+rightSide :: Score s i -> Maybe i
+rightSide (SVal _     ) = Nothing
+rightSide (SLeft  _ i ) = Just i
+rightSide (SRight _ _ ) = Nothing
+rightSide (SBoth _ _ i) = Just i
 
 instance (Show i) => Show (Score s i) where
   show (SVal _       ) = "()-()"
@@ -29,8 +46,11 @@ instance (Show i) => Show (Score s i) where
   show (SRight i _   ) = show i <> "-()"
   show (SBoth il _ ir) = show il <> "-" <> show ir
 
--- | Combines two partially applied scores
+-- | Combines two partially applied scores.
 -- Shapes and IDs at the adjacent sides must match, otherwise @Nothing@ is returned.
+-- @
+--   a-b × b-c -> a-c
+-- @
 combine :: (Semigroup s, Eq i) => Score s i -> Score s i -> Maybe (Score s i)
 -- creates value
 combine (SVal s1) (SVal s2) = Just $ SVal $ s1 <> s2
@@ -53,19 +73,9 @@ emptyScore :: (Monoid s) => Score s i
 emptyScore = SVal mempty
 
 -- | Checks if two scores can be combined.
+-- (a-b, c-d) -> b==c
 compatible :: (Eq i) => Score s i -> Score s i -> Bool
--- always
-compatible (SVal _      ) (SVal _      ) = True
-compatible (SRight _ _  ) (SVal _      ) = True
-compatible (SVal _      ) (SLeft  _  _ ) = True
-compatible (SRight _ _  ) (SLeft  _  _ ) = True
--- if IDs match
-compatible (SLeft  _ il ) (SRight ir _ ) = ir == il
-compatible (SLeft  _ il ) (SBoth ir _ _) = ir == il
-compatible (SBoth _ _ il) (SRight ir _ ) = ir == il
-compatible (SBoth _ _ il) (SBoth ir _ _) = ir == il
--- otherwise: never
-compatible _              _              = False
+compatible l r = rightSide l == leftSide r
 
 -----------
 -- rules --
@@ -90,8 +100,8 @@ mergeScores op left right = do
 -- @
 --   ()-b   b-c   c-d
 --   ---------------------------------
---   left: ()-i
---   right: i-b × b-c × c-d = i-d
+--   left: ()-I
+--   right: I-b × b-c × c-d = I-d
 -- @
 vertScores
   :: (Semigroup s, Eq i)
