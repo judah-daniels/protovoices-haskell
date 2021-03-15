@@ -115,7 +115,6 @@ isStop _    = False
 data Slice a = Slice { sFirst :: Int
                      , sLast :: Int
                      , sContent :: StartStop a
-                     , sMarker :: Maybe (Slice a, Slice a)
                      }
   deriving (Ord, Eq, Generic)
 -- TODO: change to (start,length) indices?
@@ -125,11 +124,11 @@ data Slice a = Slice { sFirst :: Int
 instance (NFData a) => NFData (Slice a)
 
 instance (Show a) => Show (Slice a) where
-  show (Slice f l c _) = show f <> "," <> show c <> "," <> show l
+  show (Slice f l c) = show f <> "," <> show c <> "," <> show l
 
 -- | Return the length of a slice.
 sliceLen :: Slice a -> Int
-sliceLen (Slice f l _ _) = l - f + 1
+sliceLen (Slice f l _) = l - f + 1
 
 -- Transition
 -------------
@@ -535,7 +534,7 @@ parse eval inSlices = R.sum $ iValue <$> tcGoals tfinal totalLen
   inputLen = length inSlices
   totalLen = inputLen + 2 -- includes ⋊ and ⋉
   slices   = (:⋊) : (Inner <$> inSlices) <> [(:⋉)]
-  mkSlice a i = s := evalTermSlice eval s where s = Slice i i a Nothing
+  mkSlice a i = s := evalTermSlice eval s where s = Slice i i a
   sinit = scFromFoldable $ zipWith mkSlice slices [0 ..]
   inf0 =
     tcFromFoldable $ inferTrans (evalInfer eval) totalLen sinit tcEmpty 1 1

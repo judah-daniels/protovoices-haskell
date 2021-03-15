@@ -276,7 +276,7 @@ mkVoiceEvaluator parseSplit parseHoris suggestEdges fromSplit fromHori fromEdges
  where
   merge t1 s t2 = mkResults (\r -> fromSplit r t1 s t2) results
    where
-    wrap e = Transition (tLeftSlice t1) (tRightSlice t2) Nothing Nothing e -- wrap edges into a transition
+    wrap e = Transition (tLeftSlice t1) (tRightSlice t2) e -- wrap edges into a transition
     results = wrap <$> parseSplit (tEdges t1) (sContent s) (tEdges t2)
   vert s1 t s2 = mkResults (\r -> fromHori r s1 t s2) results
    where
@@ -286,7 +286,7 @@ mkVoiceEvaluator parseSplit parseHoris suggestEdges fromSplit fromHori fromEdges
    where
     -- TODO: this is incorrect (verticalized transitions should have correct dependencies)
     -- but fixing it requires restructuring the whole parser
-    wrap e = Transition s1 s2 Nothing Nothing e -- wrap edges into a transition
+    wrap e = Transition s1 s2 e -- wrap edges into a transition
     results = wrap <$> suggestEdges (sContent s1) (sContent s2)
   mkResults f results = fmap (\r -> (r, f r)) results
 
@@ -529,7 +529,7 @@ pvSliceToNodes (Slice f t (:⋊)) = [PVNode (:⋊) f t]
 pvSliceToNodes (Slice f t (:⋉)) = [PVNode (:⋉) f t]
 
 -- | Returns the proto-voice graph corresponding to a transition.
-pvTransToEdges (Transition (Slice f1 t1 _) (Slice f2 t2 _) _ _ (Edges t nt _))
+pvTransToEdges (Transition (Slice f1 t1 _) (Slice f2 t2 _) (Edges t nt _))
   = (mkEdge <$> S.toList t, mkNtEdge <$> S.toList nt)
  where
   mkEdge (n1, n2) = (PVNode n1 f1 t1, PVNode n2 f2 t2)
