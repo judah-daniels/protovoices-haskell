@@ -2,7 +2,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 module ParserViz where
 
-import Parser
+import ParserOld
 import PVGrammar
 import Musicology.Core
 

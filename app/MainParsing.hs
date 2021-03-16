@@ -3,7 +3,7 @@ module Main where
 
 --import Musicology.Internal.Helpers
 import           Musicology.MusicXML
-import           Parser
+import           ParserOld
 import           PVGrammar
 import           ParserViz
 import           Musicology.Core

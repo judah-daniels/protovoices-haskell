@@ -7,7 +7,7 @@
 {-# LANGUAGE RankNTypes #-}
 module PVGrammar where
 
-import Parser
+import ParserOld
 
 import           Musicology.Core               as MT
 

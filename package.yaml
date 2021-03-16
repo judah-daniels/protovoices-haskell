@@ -26,6 +26,7 @@ dependencies:
 - text
 - containers
 - unordered-containers
+- mtl
 - hashable
 - algebraic-graphs
 - semirings
