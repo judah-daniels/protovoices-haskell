@@ -8,6 +8,7 @@ module Scoring
   , leftSide
   , rightSide
   , sides
+  , score
   , -- * Semiring operations
     --
     -- Semiring operations can be lifted to partial scores,
@@ -90,6 +91,11 @@ sides (SVal _       ) = (Nothing, Nothing)
 sides (SLeft  _ i   ) = (Nothing, Just i)
 sides (SRight i _   ) = (Just i, Nothing)
 sides (SBoth il _ ir) = (Just il, Just ir)
+
+-- | Returns the value inside a score, if it is fully applied (i.e. 'SVal').
+score :: Score s i -> Maybe s
+score (SVal s) = Just s
+score _        = Nothing
 
 instance (Show i) => Show (Score s i) where
   show (SVal _       ) = "()-()"
@@ -176,9 +182,8 @@ vertScoresLeft
   :: (Eq i)
   => i                 -- ^ The new ID that marks both parent edges
   -> Score s i         -- ^ The 'Score' of the left child edge.
-  -> Maybe i           -- ^ The left side of the middle child edge.
   -> Maybe (Score s i) -- ^ The 'Score' of the left parent edge, if it exists.
-vertScoresLeft newid l sm = if rightSide l == sm then wrap l else Nothing
+vertScoresLeft newid = wrap
  where
   -- wrap the left input score into a new layer with a new ID
   wrap (SVal val  ) = Just $ SLeft (\fr -> fr val) newid
