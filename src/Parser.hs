@@ -7,6 +7,7 @@ import qualified Scoring                       as S
 
 import qualified Data.Map.Strict               as M
 import qualified Data.HashMap.Strict           as HM
+import qualified Data.IntMap.Strict            as IM
 import qualified Data.Semiring                 as R
 
 import           Control.Monad.State           as ST
@@ -19,6 +20,7 @@ import           Data.Foldable                  ( foldlM
 import           Data.Maybe                     ( fromMaybe
                                                 , catMaybes
                                                 )
+import           Control.Monad.Reader
 
 -- Basic Types
 -- ===========
@@ -57,6 +59,11 @@ onlyInner []              = []
 onlyInner (Inner a : rst) = a : onlyInner rst
 onlyInner (_       : rst) = onlyInner rst
 
+-- | Returns the content of an 'Inner', or 'Nothing'.
+getInner :: StartStop a -> Maybe a
+getInner (Inner a) = Just a
+getInner _         = Nothing
+
 isInner (Inner a) = True
 isInner _         = False
 
@@ -87,11 +94,12 @@ data Transition e a = Transition
   { tLeftSlice  :: Slice a
   , tContent    :: e
   , tRightSlice :: Slice a
+  , t2nd        :: Bool
   }
   deriving (Eq, Ord, Generic)
 
 transLen :: Transition e a -> Int
-transLen (Transition l _ r) = sLast r - sFirst l + 1
+transLen (Transition l _ r _) = sLast r - sFirst l + 1
 
 -- Items
 --------
@@ -136,192 +144,131 @@ lookupId key idMap = case M.lookup key idMap of
 -- vert chart
 -------------
 
-data VCell e a v = VCell
-  { vcIDs :: M.Map (StartStop a, Slice a, Maybe Int) Int
-  , vcLeftMap :: M.Map (Slice a, Maybe Int) [(Slice a, Int)]
-  , vcRightMap :: M.Map (Maybe Int, Slice a) [Vert e a v]
-  }
+-- ops:
+-- - get all of len n
+-- - get all with left child = x
+-- - get all with right child = x
+-- - check ID for (top,left,leftid)
 
-vcInsert
-  :: Ord a
-  => Maybe (VCell e a v)
-  -> (StartStop a, v, TItem e a v)
-  -> WithID (VCell e a v)
-vcInsert cell (top, op, mid@(tmid := vmid)) = do
-  (i, ids') <- lookupId keyIDs ids
-  let left'  = M.insertWith (<>) keyLeft [(topSlice, i)] leftMap
-      right' = M.insertWith (<>) keyRight [Vert i topSlice op mid] rightMap
-  pure $ VCell ids' left' right'
- where
-  (ids, leftMap, rightMap) = case cell of
-    Just (VCell is lm rm) -> (is, lm, rm)
-    Nothing               -> (mempty, mempty, mempty)
-  keyIDs   = (top, tLeftSlice tmid, S.leftSide vmid)
-  keyLeft  = (tLeftSlice tmid, S.leftSide vmid)
-  keyRight = (S.rightSide vmid, tRightSlice tmid)
-  topSlice = Slice (sFirst $ tLeftSlice tmid) top (sLast $ tRightSlice tmid)
-
--- | A verticalization chart.
--- Stores verticalization items by pair indices @(at,n)@,
--- where @at@ is the offset on the surface.
--- and @n@ is the length of the resulting slice (or the verticalized edge) wrt. the surface.
--- Each such pair index contains several items, but items with the same interface
--- are grouped and their values are added in the respective semiring.
 data VChart e a v = VChart
-  { vcCells :: HM.HashMap (Int,Int) (VCell e a v)
-  , vcNextID :: Int
+  { vcNextId :: Int
+  , vcIDs :: M.Map (Slice a, Slice a, Maybe Int) Int
+  , vcByLength :: IM.IntMap [Vert e a v]
+  , vcByLeftChild :: M.Map (Slice a) [Vert e a v]
+  , vcByRightChild :: M.Map (Slice a) [Vert e a v]
   }
 
--- | The empty slice chart.
-vcEmpty :: VChart a e v
-vcEmpty = VChart mempty 0
+vcEmpty :: VChart e a v
+vcEmpty = VChart 0 M.empty IM.empty M.empty M.empty
 
--- | Creates a slice chart from a collection of slice items.
-vcFromFoldable
-  :: (R.Semiring v, Eq a, Ord a, Foldable t)
-  => t (StartStop a, v, TItem e a v)
-  -> VChart e a v
-vcFromFoldable = vcMerge vcEmpty
+vcInsert :: Ord a => VChart e a v -> (a, v, TItem e a v) -> VChart e a v
+vcInsert (VChart nextid ids bylen byleft byright) (topContent, op, mid@(tmid := vmid))
+  = let left                = tLeftSlice tmid
+        right               = tRightSlice tmid
+        top = Slice (sFirst left) (Inner topContent) (sLast right)
+        idKey               = (top, left, S.leftSide vmid)
+        (nextid', ids', id) = case M.lookup idKey ids of
+          Just id -> (nextid, ids, id)
+          Nothing -> (nextid + 1, M.insert idKey nextid ids, nextid)
+        vert     = [Vert id top op mid]
+        bylen'   = IM.insertWith (<>) (transLen tmid) vert bylen
+        byleft'  = M.insertWith (<>) left vert byleft
+        byright' = M.insertWith (<>) right vert byright
+    in  VChart nextid' ids' bylen' byleft' byright'
 
--- | Merges a collection of slice items into a slice chart,
--- adding the values of duplicate items.
 vcMerge
-  :: (R.Semiring v, Foldable t, Eq a, Ord a)
+  :: (Foldable t, Ord a)
   => VChart e a v
-  -> t (StartStop a, v, TItem e a v)
+  -> t (a, v, TItem e a v)
   -> VChart e a v
-vcMerge (VChart chart nextid) ss = VChart chart' nextid'
- where
-  (chart', nextid') = runState (foldlM merge chart ss) nextid
-  merge chart new@(_, _, mid@(tmid := _)) = do
-    cell' <- vcInsert (HM.lookup key chart) new
-    pure $ HM.insert key cell' chart
-   where
-    at  = sFirst $ tLeftSlice tmid
-    n   = transLen tmid
-    key = (at, n)
+vcMerge = foldl' vcInsert
 
--- | Returns the list of slice items starting at @at@ with length @len@.
-vcGetFromLeft
-  :: Ord a
-  => VChart e a v
-  -> Int
-  -> Int
-  -> Slice a
-  -> Maybe Int
-  -> [(Slice a, Int)]
-vcGetFromLeft (VChart chart _) at len lSlice lSide =
-  case HM.lookup (at, len) chart of
-    Nothing                  -> []
-    Just (VCell _ leftMap _) -> M.findWithDefault [] (lSlice, lSide) leftMap
+vcGetByLength :: (VChart e a v -> Int -> [Vert e a v])
+vcGetByLength chart len = fromMaybe [] $ IM.lookup len $ vcByLength chart
 
--- | The number of items in layer @n@ (i.e. with length @n@).
-vcItemsInLayer :: VChart e a v -> Int -> Int
-vcItemsInLayer (VChart chart _) n =
-  sum $ vcLen <$> HM.filterWithKey inLayer chart
- where
-  inLayer (_, len) _ = len == n
-  vcLen (VCell _ l _) = sum $ length <$> l
+vcGetByLeftChild :: (Ord a0 => VChart e a0 v -> Slice a0 -> [Vert e a0 v])
+vcGetByLeftChild chart left =
+  fromMaybe [] $ M.lookup left $ vcByLeftChild chart
+
+vcGetByRightChild :: (Ord a0 => VChart e a0 v -> Slice a0 -> [Vert e a0 v])
+vcGetByRightChild chart right =
+  fromMaybe [] $ M.lookup right $ vcByRightChild chart
 
 -- transition chart
 -------------------
 
+-- ops:
+-- - get all of length n
+-- - get all with left slice l
+-- - get all with right slice r
+
 type TCell e a v = M.Map (Transition e a, Maybe Int, Maybe Int) (S.Score v Int)
 
-tcInsert
-  :: (R.Semiring v, Ord a, Ord e) => TCell e a v -> TItem e a v -> TCell e a v
-tcInsert cell (trans := score) = M.insertWith insSafe key score cell
- where
-  key = (trans, S.leftSide score, S.rightSide score)
-  insSafe new old = fromMaybe old (S.plus new old)
+data TChart e a v = TChart
+  { tcByLength :: IM.IntMap (TCell e a v)
+  , tcByLeft   :: M.Map (Slice a) (TCell e a v)
+  , tcByRight  :: M.Map (Slice a) (TCell e a v)
+  }
 
-tcNew :: TItem e a v -> TCell e a v
-tcNew (trans := score) = M.singleton key score
-  where key = (trans, S.leftSide score, S.rightSide score)
-
--- | A transition chart.
--- Stores transitions by tuple indices @(at,lenl,skip,lenr)@.
--- As transitions depend on the slices they connect,
--- @at@ is the offset index of the left slice,
--- @lenl@ is the length of the left slice,
--- @skip@ is the number of indices skipped by the transition,
--- and @lenr@ is the length of the right slice.
--- Each tuple index usually points to several items, but items with the same content
--- are grouped and their values are added in the respective semiring.
-newtype TChart e a v = TChart (HM.HashMap (Int,Int,Int,Int) (TCell e a v))
-
--- | The empty transition chart.
 tcEmpty :: TChart e a v
-tcEmpty = TChart HM.empty
+tcEmpty = TChart IM.empty M.empty M.empty
 
--- | Creates a transition chart from a collection of items.
-tcFromFoldable
-  :: (R.Semiring v, Ord e, Ord a, Foldable t) => t (TItem e a v) -> TChart e a v
-tcFromFoldable = tcMerge tcEmpty
+-- TODO: there might be room for improvement here
+tcInsert
+  :: (Ord a, R.Semiring v, Ord e) => TChart e a v -> TItem e a v -> TChart e a v
+tcInsert (TChart len left right) item@(t := v) =
+  let new    = M.singleton (t, S.leftSide v, S.rightSide v) v
+      len'   = IM.insertWith insert (transLen t) new len
+      left'  = M.insertWith insert (tLeftSlice t) new left
+      right' = M.insertWith insert (tRightSlice t) new right
+  in  TChart len' left' right'
+  where insert = M.unionWith (\s1 s2 -> fromMaybe s2 (S.plus s1 s2))
 
--- | Merges a collection of transition items into a transition chart,
--- adding the values of duplicate items.
 tcMerge
-  :: (R.Semiring v, Foldable t, Ord e, Ord a)
+  :: (R.Semiring v, Foldable t, Ord a, Ord e)
   => TChart e a v
   -> t (TItem e a v)
   -> TChart e a v
-tcMerge (TChart tc) ts = TChart $ foldl' merge tc ts
- where
-  -- insertWith inserts items into the outer chart at a certain position
-  -- unionWith adds the values of identical transitions at that position
-  merge chart item@((Transition from _ to) := v) = HM.alter
-    insert
-    (at, lenl, skip, lenr)
-    chart
-   where
-    insert Nothing     = Just $ tcNew item
-    insert (Just cell) = Just $ tcInsert cell item
-    at   = sFirst from
-    skip = sFirst to - sLast from - 1
-    lenl = sliceLen from
-    lenr = sliceLen to
+tcMerge = foldl' tcInsert
 
--- | Returns the list of transition items starting at @at@,
--- with skip @k@, left slice length @l@, and right slice length @m@.
-tcGet :: TChart e a v -> Int -> Int -> Int -> Int -> [TItem e a v]
-tcGet (TChart chart) at lenl skip lenr =
-  fmap mkItem $ M.toList $ HM.lookupDefault M.empty (at, lenl, skip, lenr) chart
-  where mkItem ((a, _, _), v) = a := v
+tcGetAny
+  :: (TChart e a v -> m)
+  -> (TCell e a v -> k -> m -> TCell e a v)
+  -> TChart e a v
+  -> k
+  -> [TItem e a v]
+tcGetAny field getter chart key =
+  fmap mkItem $ M.toList $ getter M.empty key $ field chart
+  where mkItem ((t, _, _), v) = t := v
 
--- | Returns the list of goal transitions,
--- i.e. all transitions between ⋊ and ⋉,
--- skipping the whole input of length @len@.
-tcGoals :: TChart e a v -> Int -> [TItem e a v]
-tcGoals chart len = tcGet chart 0 1 (len - 2) 1
+tcGetByLength :: TChart e a v -> Int -> [TItem e a v]
+tcGetByLength = tcGetAny tcByLength IM.findWithDefault
 
--- | Counts the number of items in layer @n@
--- (i.e. where @skip==n@ or @lenl==n@ or @lenr==n@).
-tcItemsInLayer :: TChart e a v -> Int -> Int
-tcItemsInLayer (TChart chart) n =
-  sum $ length <$> HM.filterWithKey inLayer chart
-  where inLayer (_, lenl, skip, lenr) v = lenl == n || skip == n || lenr == n
+tcGetByLeft :: Ord a => TChart e a v -> Slice a -> [TItem e a v]
+tcGetByLeft = tcGetAny tcByLeft M.findWithDefault
+
+tcGetByRight :: Ord a => TChart e a v -> Slice a -> [TItem e a v]
+tcGetByRight = tcGetAny tcByRight M.findWithDefault
 
 -- parsing machinery
 -- =================
 
 -- evaluators
 -------------
--- TODO: factor out some of the StartStop stuff when Inner should be guaranteed
 
 -- | An evaluator for verticalizations.
 -- Returns the verticalization of a (middle) transition, if possible.
-type VertMiddle e a v = (StartStop a, e, StartStop a) -> Maybe (a, v)
+type VertMiddle e a v = (a, e, a) -> Maybe (a, v)
 
 -- | An evaluator returning the possible left parent edges of a verticalization.
-type VertLeft e a v = (e, StartStop a) -> StartStop a -> [e]
+type VertLeft e a v = (e, a) -> a -> [e]
 
 -- | An evaluator returning the possible right parent edges of a verticalization.
-type VertRight e a v = (StartStop a, e) -> StartStop a -> [e]
+type VertRight e a v = (a, e) -> a -> [e]
 
 -- | An evaluator for merges.
 -- Returns possible merges of a given pair of transitions.
-type Merge e a v = e -> StartStop a -> e -> [(e, v)]
+type Merge e a v = e -> a -> e -> [(e, v)]
 
 -- | A combined evaluator for verticalizations, merges, and thaws.
 -- Additionally, contains a function for mapping terminal slices to semiring values.
@@ -335,14 +282,18 @@ data Eval e e' a v = Eval
 
 -- applying evaluators
 ----------------------
+-- TODO: add checks that adjacent transitions and slices match?
 
 -- | Verticalizes the two slices of a (middle) transition, if possible.
 vertMiddle
-  :: VertMiddle e a v          -- ^ the VertMiddle evaluator
-  -> TItem e a v               -- ^ the middle transition
-  -> Maybe (a, v, TItem e a v) -- ^ the top slice, vert operation, and middle transition
-vertMiddle vertm im@((Transition l m r) := vm) = do
-  (top, op) <- vertm (sContent l, m, sContent r)
+  :: VertMiddle e a v                    -- ^ the VertMiddle evaluator
+  -> TItem e a v                         -- ^ the middle transition
+  -> Maybe (a, v, TItem e a v) -- ^ the top slice, vert operation,
+                                         -- and middle transition
+vertMiddle vertm im@((Transition l m r _) := vm) = do
+  il        <- getInner $ sContent l
+  ir        <- getInner $ sContent r
+  (top, op) <- vertm (il, m, ir)
   pure (top, op, im)
 
 -- | Infers the possible left parent transitions of a verticalization.
@@ -351,11 +302,14 @@ vertLeft
   -> TItem e a v    -- ^ the left child transition
   -> (Slice a, Int) -- ^ the Vert's top slice and ID
   -> [TItem e a v]  -- ^ all possible left parent transitions
-vertLeft vertl ((Transition ll lt lr) := vleft) (top, newId) =
-  case S.vertScoresLeft newId vleft of
-    Just v' -> mkParent v' <$> vertl (lt, sContent lr) (sContent top)
-    Nothing -> []
-  where mkParent v t = Transition ll t top := v
+vertLeft vertl ((Transition ll lt lr is2nd) := vleft) (top, newId)
+  | is2nd = []
+  | otherwise = fromMaybe [] $ do
+    v'   <- S.vertScoresLeft newId vleft
+    ir   <- getInner $ sContent lr
+    itop <- getInner $ sContent top
+    pure $ mkParent v' <$> vertl (lt, ir) itop
+  where mkParent v t = Transition ll t top False := v
 
 -- | Infers the possible right parent transitions of a verticalization.
 vertRight
@@ -364,11 +318,13 @@ vertRight
   -> Vert e a v      -- ^ the center 'Vert'
   -> TItem e a v     -- ^ the right child transition
   -> [TItem e a v]   -- ^ all possible right parent transitions
-vertRight vertr (Vert id top op (tm := vm)) ((Transition rl rt rr) := vr) =
-  case S.vertScoresRight id op vm vr of
-    Just v' -> mkParent v' <$> vertr (sContent rl, rt) (sContent top)
-    Nothing -> []
-  where mkParent v t = Transition top t rr := v
+vertRight vertr (Vert id top op (tm := vm)) ((Transition rl rt rr _) := vr) =
+  fromMaybe [] $ do
+    v'   <- S.vertScoresRight id op vm vr
+    ir   <- getInner $ sContent rl
+    itop <- getInner $ sContent top
+    pure $ mkParent v' <$> vertr (ir, rt) ir
+  where mkParent v t = Transition top t rr True := v
 
 -- | Infers the possible parent transitions of a split.
 merge
@@ -377,33 +333,98 @@ merge
   -> TItem e a v   -- ^ the left child transition
   -> TItem e a v   -- ^ the right child transition
   -> [TItem e a v] -- ^ all possible parent transitions
-merge mg ((Transition ll lt lr) := vl) ((Transition rl rt rr) := vr) =
-  catMaybes $ mkItem <$> mg lt (sContent lr) rt
-  where mkItem (top, op) = (Transition ll top rr :=) <$> S.mergeScores op vl vr
+merge mg ((Transition ll lt lr l2nd) := vl) ((Transition rl rt rr _) := vr) =
+  case getInner $ sContent lr of
+    Just m  -> catMaybes $ mkItem <$> mg lt m rt
+    Nothing -> []
+ where
+  mkItem (top, op) = (Transition ll top rr l2nd :=) <$> S.mergeScores op vl vr
 
 -- the parsing main loop
 ------------------------
 
-type ParseOp e a v = State (TChart e a v, VChart e a v) ()
+type ParseState e a v = (TChart e a v, VChart e a v)
+type ParseOp m e a v = Int -> ParseState e a v -> m (ParseState e a v)
 
-vertAllMiddles :: Int -> ParseOp e a v
-vertAllMiddles n = undefined
+parseStep :: (R.Semiring v, Ord a, Ord e) => Eval e e' a v -> ParseOp IO e a v
+parseStep (Eval eMid eLeft eRight eMerge _) n charts = do
+  putStrLn $ "parsing level " <> show n
+  vertAllMiddles eMid n charts
+    >>= vertAllLefts eLeft n
+    >>= vertAllRights eRight n
+    >>= mergeAll eMerge n
 
-vertAllLefts :: Int -> ParseOp e a v
-vertAllLefts n = undefined
+-- | Verticalizes all edges of length @n@.
+vertAllMiddles
+  :: (R.Semiring v, Ord a, Monad m) => VertMiddle e a v -> ParseOp m e a v
+vertAllMiddles evalMid n (tchart, vchart) = do
+  let ts       = tcGetByLength tchart n
+      newVerts = catMaybes $ vertMiddle evalMid <$> ts
+      vchart'  = vcMerge vchart newVerts
+  return (tchart, vchart')
 
-vertAllRights :: Int -> ParseOp e a v
-vertAllRights n = undefined
+-- | Perform all left verts where either @l@ or @m@ have length @n@
+vertAllLefts
+  :: (R.Semiring v, Ord a, Ord e, Monad m) => VertLeft e a v -> ParseOp m e a v
+vertAllLefts evalLeft n (tchart, vchart) = do
+  let -- left = n (and middle <= n)
+      leftn = do -- in list monad
+        left            <- tcGetByLength tchart n
+        Vert id top _ _ <- vcGetByLeftChild vchart (tRightSlice $ iItem left)
+        vertLeft evalLeft left (top, id)
 
-mergeAll :: Int -> ParseOp e a v
-mergeAll n = undefined
+      -- middle = n (and left < n)
+      vertn = do -- in list monad
+        (Vert id top _ mid) <- vcGetByLength vchart n
+        left                <- filter (\i -> transLen (iItem i) < n)
+          $ tcGetByRight tchart (tLeftSlice $ iItem mid)
+        vertLeft evalLeft left (top, id)
 
-parseStep :: Eval e e' a v -> Int -> ParseOp e a v
-parseStep eval n = do
-  vertAllMiddles n
-  vertAllLefts n
-  vertAllRights n
-  mergeAll n
+      -- insert new transitions into chart
+      tchart' = tcMerge (tcMerge tchart leftn) vertn
+  return (tchart', vchart)
+
+-- | Perform all right verts where either @r@ or @m@ have length @n@
+vertAllRights
+  :: (R.Semiring v, Ord a, Ord e, Monad m) => VertRight e a v -> ParseOp m e a v
+vertAllRights evalRight n (tchart, vchart) = do
+  let -- right = n (and middle <= n)
+      rightn = do -- in list monad
+        right <- tcGetByLength tchart n
+        vert  <- vcGetByRightChild vchart (tLeftSlice $ iItem right)
+        vertRight evalRight vert right
+
+      -- middle = n (and left < n)
+      vertn = do -- in list monad
+        vert  <- vcGetByLength vchart n
+        right <- filter (\i -> transLen (iItem i) < n)
+          $ tcGetByLeft tchart (tRightSlice $ iItem $ vMiddle vert)
+        vertRight evalRight vert right
+
+      -- insert new transitions into chart
+      tchart' = tcMerge (tcMerge tchart rightn) vertn
+  return (tchart', vchart)
+
+-- | perform all merges where either @l@ or @r@ have length @n@
+mergeAll
+  :: (R.Semiring v, Ord a, Ord e, Monad m) => Merge e a v -> ParseOp m e a v
+mergeAll mrg n (tchart, vchart) = do
+  let -- left = n (and right <= n)
+      leftn = do
+        left  <- tcGetByLength tchart n
+        right <- tcGetByLeft tchart (tRightSlice $ iItem left)
+        merge mrg left right
+
+      -- right = n (and left <= n)
+      rightn = do
+        right <- tcGetByLength tchart n
+        left  <- filter (\l -> transLen (iItem l) < n)
+          $ tcGetByRight tchart (tLeftSlice $ iItem right)
+        merge mrg left right
+
+      -- insert new transitions into chart
+      tchart' = tcMerge (tcMerge tchart leftn) rightn
+  return (tchart', vchart)
 
 -- parsing entry point
 ----------------------
@@ -428,16 +449,23 @@ mapEdges :: (a -> e -> a -> b) -> Path e a -> [b]
 mapEdges f (Path l m tail) = f l m (pathHead tail) : mapEdges f tail
 mapEdges f (PathEnd _    ) = []
 
+-- | The main entrypoint to the parser.
+-- Expects an evaluator for the specific grammar
+-- and an input path.
+-- Returns the combined semiring value of all full derivations.
 parse
-  :: (R.Semiring v, Ord e, Ord a) => Eval e e' a v -> Path e' (StartStop a) -> v
-parse eval path = R.sum $ catMaybes $ S.score . iValue <$> goals
+  :: (R.Semiring v, Ord e, Ord a)
+  => Eval e e' a v
+  -> Path e' (StartStop a)
+  -> IO v
+parse eval path = do
+  (tfinal, _) <- foldM (flip $ parseStep eval) (tinit, vcEmpty) [2 .. len - 1]
+  let goals = tcGetByLength tfinal len
+  return $ R.sum $ catMaybes $ S.score . iValue <$> goals
  where
   len       = pathLen path
   slicePath = mapNodesWithIndex 0 (\i n -> Slice i n i) path
   mkTrans l e r = mk <$> evalThaw eval (sContent l) e (sContent r)
-    where mk (e, v) = Transition l e r := S.SVal v
+    where mk (e, v) = Transition l e r False := S.SVal v
   trans0 = mapEdges mkTrans slicePath
-  tinit  = tcFromFoldable $ concat trans0
-  (_, (tfinal, _)) =
-    runState (mapM_ (parseStep eval) [2 .. len - 1]) (tinit, vcEmpty)
-  goals = tcGoals tfinal len
+  tinit  = tcMerge tcEmpty $ concat trans0
