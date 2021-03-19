@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 504950549fa86fadd199ccdcacb70d0e1ca8e31028b4d89a884f5eaa138d874f
+-- hash: 403178ffba434230fb2d08ad6bb41e041c6c52135848452512d6be520b4a015b
 
 name:           proto-voice-model
 version:        0.1.0.0
@@ -30,7 +30,7 @@ library
       Parser
       ParserOld
       ParserViz
-      PVGrammar
+      PVGrammarOld
       Scoring
   other-modules:
       Paths_proto_voice_model

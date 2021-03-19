@@ -5,9 +5,9 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE RankNTypes #-}
-module PVGrammar where
+module PVGrammarOld where
 
-import ParserOld
+import           ParserOld
 
 import           Musicology.Core               as MT
 
@@ -529,8 +529,8 @@ pvSliceToNodes (Slice f t (:⋊)) = [PVNode (:⋊) f t]
 pvSliceToNodes (Slice f t (:⋉)) = [PVNode (:⋉) f t]
 
 -- | Returns the proto-voice graph corresponding to a transition.
-pvTransToEdges (Transition (Slice f1 t1 _) (Slice f2 t2 _) (Edges t nt _))
-  = (mkEdge <$> S.toList t, mkNtEdge <$> S.toList nt)
+pvTransToEdges (Transition (Slice f1 t1 _) (Slice f2 t2 _) (Edges t nt _)) =
+  (mkEdge <$> S.toList t, mkNtEdge <$> S.toList nt)
  where
   mkEdge (n1, n2) = (PVNode n1 f1 t1, PVNode n2 f2 t2)
   mkNtEdge (n1, n2) = (PVNode (Inner n1) f1 t1, PVNode (Inner n2) f2 t2)
