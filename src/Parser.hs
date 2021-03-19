@@ -268,7 +268,7 @@ type VertRight e a v = (a, e) -> a -> [e]
 
 -- | An evaluator for merges.
 -- Returns possible merges of a given pair of transitions.
-type Merge e a v = e -> a -> e -> [(e, v)]
+type Merge e a v = e -> a -> e -> Bool -> [(e, v)]
 
 -- | A combined evaluator for verticalizations, merges, and thaws.
 -- Additionally, contains a function for mapping terminal slices to semiring values.
@@ -335,7 +335,7 @@ merge
   -> [TItem e a v] -- ^ all possible parent transitions
 merge mg ((Transition ll lt lr l2nd) := vl) ((Transition rl rt rr _) := vr) =
   case getInner $ sContent lr of
-    Just m  -> catMaybes $ mkItem <$> mg lt m rt
+    Just m  -> catMaybes $ mkItem <$> mg lt m rt l2nd
     Nothing -> []
  where
   mkItem (top, op) = (Transition ll top rr l2nd :=) <$> S.mergeScores op vl vr
