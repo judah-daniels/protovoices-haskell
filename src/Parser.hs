@@ -124,23 +124,6 @@ data Vert e a v = Vert
 -- slice and transition charts
 -- ===========================
 
--- ID-generating monad
-
-type WithID a = State Int a
-
-makeId :: WithID Int
-makeId = do
-  i <- get
-  put (i + 1)
-  return i
-
-lookupId :: Ord k => k -> M.Map k Int -> WithID (Int, M.Map k Int)
-lookupId key idMap = case M.lookup key idMap of
-  Just id -> pure (id, idMap)
-  Nothing -> do
-    id' <- makeId
-    pure (id', M.insert key id' idMap)
-
 -- vert chart
 -------------
 
