@@ -244,7 +244,8 @@ merge
   -> [TItem e a v] -- ^ all possible parent transitions
 merge mg ((Transition ll lt lr l2nd) := vl) ((Transition rl rt rr _) := vr) =
   case getInner $ sContent lr of
-    Just m  -> catMaybes $ mkItem <$> mg lt m rt l2nd
+    Just m ->
+      catMaybes $ mkItem <$> mg (sContent ll) lt m rt (sContent rr) l2nd
     Nothing -> []
  where
   mkItem (top, op) = (Transition ll top rr l2nd :=) <$> S.mergeScores op vl vr
