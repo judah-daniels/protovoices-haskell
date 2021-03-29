@@ -339,23 +339,27 @@ mergeAll mrg n (tchart, vchart) = do
 -- parsing entry point
 ----------------------
 
-data Path e a = Path a e (Path e a)
+data Path a e = Path a e (Path a e)
               | PathEnd a
 
-pathLen :: Path e a -> Int
+instance (Show a, Show e) => Show (Path a e) where
+  show (Path a e rst) = show a <> "\n+-" <> show e <> "\n" <> show rst
+  show (PathEnd a   ) = show a
+
+pathLen :: Path a e -> Int
 pathLen (Path _ _ tail) = pathLen tail + 1
 pathLen (PathEnd _    ) = 1
 
-pathHead :: Path e a -> a
+pathHead :: Path a e -> a
 pathHead (Path l _ _) = l
 pathHead (PathEnd l ) = l
 
-mapNodesWithIndex :: Int -> (Int -> a -> b) -> Path e a -> Path e b
+mapNodesWithIndex :: Int -> (Int -> a -> b) -> Path a e -> Path b e
 mapNodesWithIndex i f (Path l m tail) =
   Path (f i l) m (mapNodesWithIndex (i + 1) f tail)
 mapNodesWithIndex i f (PathEnd n) = PathEnd (f i n)
 
-mapEdges :: (a -> e -> a -> b) -> Path e a -> [b]
+mapEdges :: (a -> e -> a -> b) -> Path a e -> [b]
 mapEdges f (Path l m tail) = f l m (pathHead tail) : mapEdges f tail
 mapEdges f (PathEnd _    ) = []
 
@@ -366,7 +370,7 @@ mapEdges f (PathEnd _    ) = []
 parse
   :: (R.Semiring v, Ord e, Ord a)
   => Eval e e' a v
-  -> Path e' (StartStop a)
+  -> Path (StartStop a) e'
   -> IO v
 parse eval path = do
   (tfinal, _) <- foldM (flip $ parseStep eval) (tinit, vcEmpty) [2 .. len - 1]

@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE StandaloneDeriving #-}
 module PVGrammar where
 
 import           Common
@@ -104,6 +105,7 @@ data Ornament = FullNeighbor
               | RightRepeatOfLeft
               | Passing
               | RootNote
+  deriving (Eq, Ord, Show)
 
 -- | Encodes the decisions made in a split operation.
 -- Contains a list of elaborations for every parent edge.
@@ -113,12 +115,16 @@ data Split i = SplitOp
   { splitTs :: M.Map (Edge i) [(Pitch i, Ornament, Bool, Bool)]
   , splitNTs :: M.Map (InnerEdge i) [(Pitch i, Bool, Bool)]
   }
+  deriving (Eq, Ord)
+
+deriving instance (Show (Pitch i)) => Show (Split i)
 
 -- | Represents a freeze operation.
 -- Since this just ties all remaining edges
 -- (which must all be repetitions)
 -- no decisions have to be encoded.
 data Freeze = FreezeOp
+  deriving (Eq, Ord, Show)
 
 -- | Encodes the distribution of a pitch in a horizontalization.
 -- 
@@ -130,11 +136,15 @@ data Freeze = FreezeOp
 data HoriDirection = ToLeft Int  -- ^ all to the left, n fewer to the right
                    | ToRight Int -- ^ all to the right, n fewer to the left
                    | ToBoth      -- ^ all to both
+  deriving (Eq, Ord, Show)
 
 -- | Represents a horzontalization operation.
 -- Records for every pitch how it is distributed (see 'HoriDirection').
 -- The resulting edges (repetitions and passing edges) are represented in a child transition.
 data Hori i = HoriOp (M.Map (Pitch i) HoriDirection) (Edges i)
+  deriving (Eq, Ord)
+
+deriving instance (Notation (Pitch i), Show (Pitch i)) => Show (Hori i)
 
 -- | 'Leftmost' specialized to the split, freeze, and horizontalize operations of the grammar.
 type PVLeftMost i = Leftmost (Split i) Freeze (Hori i)
@@ -357,3 +367,11 @@ pvThaw
   -> StartStop (Notes i)
   -> [(Edges i, PVLeftMost i)]
 pvThaw l e r = [(Edges (MS.fromList $ toList e) MS.empty, LMFreeze FreezeOp)]
+
+-- evaluators in specific semirings
+-- ================================
+
+pvDeriv
+  :: (Foldable t, Ord i, Diatonic i)
+  => Eval (Edges i) (t (Edge i)) (Notes i) (Derivation (PVLeftMost i))
+pvDeriv = mapEvalScore Do protoVoiceEvaluator

@@ -6,6 +6,7 @@ module Common where
 
 import           GHC.Generics                   ( Generic )
 import           Control.DeepSeq                ( NFData )
+import qualified Data.Semiring                 as R
 
 -- | A container type that augements the type @a@
 -- with symbols for beginning (@:⋊@) and end (@:⋉@).
@@ -52,7 +53,6 @@ isStart _    = False
 isStop (:⋉) = True
 isStop _    = False
 
-
 -- evaluator interface
 -- ===================
 
@@ -96,3 +96,25 @@ data Leftmost s f h = LMSplitLeft s
                     | LMSplitRight s
                     | LMHorizontalize h
   deriving (Eq, Ord, Show)
+
+-- useful semirings
+-- ================
+
+data Derivation a = Do a
+                  | Or (Derivation a) (Derivation a)
+                  | Then (Derivation a) (Derivation a)
+                  | NoOp
+                  | Cannot
+  deriving (Eq, Ord, Show)
+
+instance R.Semiring (Derivation a) where
+  zero = Cannot
+  one  = NoOp
+  plus Cannot a      = a
+  plus a      Cannot = a
+  plus a      b      = Or a b
+  times Cannot _      = Cannot
+  times _      Cannot = Cannot
+  times NoOp   a      = a
+  times a      NoOp   = NoOp
+  times a      b      = Then a b

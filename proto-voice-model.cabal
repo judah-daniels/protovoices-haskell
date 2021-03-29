@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: c539e4b654d44d2a50e0f375256fdfb15e0db2212637ede3b2c0080ecf0e1cb1
+-- hash: df5616133ea77cb2e77a534c52a50fcb93d519ef881971907b4637c2bf7e9bdd
 
 name:           proto-voice-model
 version:        0.1.0.0
@@ -48,6 +48,7 @@ library
     , diagrams-lib
     , diagrams-svg
     , hashable
+    , microlens
     , mtl
     , multiset
     , musicology-core
@@ -73,6 +74,7 @@ executable parse
     , diagrams-lib
     , diagrams-svg
     , hashable
+    , microlens
     , mtl
     , multiset
     , musicology-core
@@ -102,6 +104,7 @@ test-suite proto-voice-model-test
     , diagrams-lib
     , diagrams-svg
     , hashable
+    , microlens
     , mtl
     , multiset
     , musicology-core
