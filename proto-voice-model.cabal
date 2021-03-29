@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 403178ffba434230fb2d08ad6bb41e041c6c52135848452512d6be520b4a015b
+-- hash: c539e4b654d44d2a50e0f375256fdfb15e0db2212637ede3b2c0080ecf0e1cb1
 
 name:           proto-voice-model
 version:        0.1.0.0
@@ -27,9 +27,11 @@ source-repository head
 
 library
   exposed-modules:
+      Common
       Parser
       ParserOld
       ParserViz
+      PVGrammar
       PVGrammarOld
       Scoring
   other-modules:
@@ -47,6 +49,7 @@ library
     , diagrams-svg
     , hashable
     , mtl
+    , multiset
     , musicology-core
     , musicology-musicxml
     , parallel
@@ -71,6 +74,7 @@ executable parse
     , diagrams-svg
     , hashable
     , mtl
+    , multiset
     , musicology-core
     , musicology-musicxml
     , parallel
@@ -99,6 +103,7 @@ test-suite proto-voice-model-test
     , diagrams-svg
     , hashable
     , mtl
+    , multiset
     , musicology-core
     , musicology-musicxml
     , parallel

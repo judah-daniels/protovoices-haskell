@@ -3,6 +3,7 @@
 {-# LANGUAGE TupleSections #-}
 module Parser where
 
+import           Common
 import qualified Scoring                       as S
 
 import qualified Data.Map.Strict               as M
@@ -24,54 +25,6 @@ import           Control.Monad.Reader
 
 -- Basic Types
 -- ===========
-
--- StartStop
-------------
-
--- | A container type that augements the type @a@
--- with symbols for beginning (@:⋊@) and end (@:⋉@).
--- Every other value is wrapped in an @Inner@ constructor.
-data StartStop a = (:⋊)
-                  | Inner a
-                  | (:⋉)
-  deriving (Ord, Eq, Generic)
-
--- some instances for StartStop
-
-instance (NFData a) => NFData (StartStop a)
-
-instance Show a => Show (StartStop a) where
-  show (:⋊)      = "⋊"
-  show (:⋉)      = "⋉"
-  show (Inner a) = show a
-
-instance Functor StartStop where
-  fmap f (:⋊)      = (:⋊)
-  fmap f (:⋉)      = (:⋉)
-  fmap f (Inner a) = Inner $ f a
-
--- some helper functions for StartStop
-
--- | From a list of @StartStop@s returns only the elements that are not @:⋊@ or @:⋉@,
--- unwrapped to their original type.
-onlyInner :: [StartStop a] -> [a]
-onlyInner []              = []
-onlyInner (Inner a : rst) = a : onlyInner rst
-onlyInner (_       : rst) = onlyInner rst
-
--- | Returns the content of an 'Inner', or 'Nothing'.
-getInner :: StartStop a -> Maybe a
-getInner (Inner a) = Just a
-getInner _         = Nothing
-
-isInner (Inner a) = True
-isInner _         = False
-
-isStart (:⋊) = True
-isStart _    = False
-
-isStop (:⋉) = True
-isStop _    = False
 
 -- Slices
 ---------
@@ -235,33 +188,6 @@ tcGetByRight = tcGetAny tcByRight M.findWithDefault
 
 -- parsing machinery
 -- =================
-
--- evaluators
--------------
-
--- | An evaluator for verticalizations.
--- Returns the verticalization of a (middle) transition, if possible.
-type VertMiddle e a v = (a, e, a) -> Maybe (a, v)
-
--- | An evaluator returning the possible left parent edges of a verticalization.
-type VertLeft e a v = (e, a) -> a -> [e]
-
--- | An evaluator returning the possible right parent edges of a verticalization.
-type VertRight e a v = (a, e) -> a -> [e]
-
--- | An evaluator for merges.
--- Returns possible merges of a given pair of transitions.
-type Merge e a v = e -> a -> e -> Bool -> [(e, v)]
-
--- | A combined evaluator for verticalizations, merges, and thaws.
--- Additionally, contains a function for mapping terminal slices to semiring values.
-data Eval e e' a v = Eval
-  { evalVertMiddle  :: VertMiddle e a v
-  , evalVertLeft :: VertLeft e a v
-  , evalVertRight :: VertRight e a v
-  , evalMerge :: Merge e a v
-  , evalThaw  :: StartStop a -> e' -> StartStop a -> [(e, v)]
-  }
 
 -- applying evaluators
 ----------------------
