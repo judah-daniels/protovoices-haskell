@@ -4,7 +4,7 @@ module Main where
 --import Musicology.Internal.Helpers
 import           Musicology.MusicXML
 import           ParserOld
-import           PVGrammar
+import           PVGrammarOld
 import           ParserViz
 import           Musicology.Core
 import           Musicology.Core.Slicing

@@ -8,6 +8,7 @@
 module PVGrammarOld where
 
 import           ParserOld
+import           Common                         ( StartStop(..) )
 
 import           Musicology.Core               as MT
 

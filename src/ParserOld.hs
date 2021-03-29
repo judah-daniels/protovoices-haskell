@@ -39,7 +39,7 @@ import           GHC.Generics                   ( Generic )
 
 import qualified Debug.Trace                   as DT
 
-import           Parser                         ( StartStop(..) )
+import           Common                         ( StartStop(..) )
 
 -- tracing
 -- =======
