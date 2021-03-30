@@ -2,6 +2,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeFamilies #-}
 module PVGrammar where
 
 import           Common
@@ -221,9 +222,17 @@ findPassing _ _ _ = Nothing
 -- These scores do not form a semiring,
 -- but can be embedded into different semirings using 'evalMapScores'.
 protoVoiceEvaluator
-  :: (Foldable t, Eq i, Ord i, Diatonic i)
-  => Eval (Edges i) (t (Edge i)) (Notes i) (PVLeftMost i)
-protoVoiceEvaluator = Eval pvVertMiddle pvVertLeft pvVertRight pvMerge pvThaw
+  :: ( Foldable t
+     , Eq i
+     , Ord i
+     , Diatonic i
+     , Foldable t2
+     , i ~ ICOf i'
+     , Interval i'
+     )
+  => Eval (Edges i) (t (Edge i)) (Notes i) (t2 (Pitch i')) (PVLeftMost i)
+protoVoiceEvaluator =
+  Eval pvVertMiddle pvVertLeft pvVertRight pvMerge pvThaw pvSlice
 
 -- | Computes the verticalization of a middle transition.
 -- If the verticalization is admitted, returns the corresponding operation.
@@ -374,15 +383,39 @@ pvThaw
   -> [(Edges i, PVLeftMost i)]
 pvThaw l e r = [(Edges (MS.fromList $ toList e) MS.empty, LMFreeze FreezeOp)]
 
+pvSlice
+  :: (Foldable t, Interval i, Ord (ICOf i)) => t (Pitch i) -> Notes (ICOf i)
+pvSlice = Notes . MS.fromList . fmap pc . toList
+
 -- evaluators in specific semirings
 -- ================================
 
 pvDeriv
-  :: (Foldable t, Ord i, Diatonic i)
-  => Eval (Edges i) (t (Edge i)) (Notes i) (Derivation (PVLeftMost i))
+  :: (Foldable t, Ord i, Diatonic i, i ~ ICOf i', Foldable t2, Interval i')
+  => Eval
+       (Edges i)
+       (t (Edge i))
+       (Notes i)
+       (t2 (Pitch i'))
+       (Derivation (PVLeftMost i))
 pvDeriv = mapEvalScore Do protoVoiceEvaluator
 
+pvCount'
+  :: (Foldable t, Foldable t2, Interval i, Ord (ICOf i), Diatonic (ICOf i))
+  => Eval
+       (Edges (ICOf i))
+       (t (Edge (ICOf i)))
+       (Notes (ICOf i))
+       (t2 (Pitch i))
+       Int
+pvCount' = mapEvalScore (const 1) protoVoiceEvaluator
+
 pvCount
-  :: (Foldable t, Ord i, Diatonic i)
-  => Eval (Edges i) (t (Edge i)) (Notes i) Int
-pvCount = mapEvalScore (const 1) protoVoiceEvaluator
+  :: (Foldable t, Foldable t2, Ord (ICOf i), Diatonic (ICOf i), Interval i)
+  => Eval
+       (RightBranchHori, Edges (ICOf i))
+       (t (Edge (ICOf i)))
+       ((), Notes (ICOf i))
+       (t2 (Pitch i))
+       Int
+pvCount = rightBranchHori pvCount'

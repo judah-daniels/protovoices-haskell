@@ -17,13 +17,14 @@ import           Lens.Micro                     ( over )
 import qualified Data.MultiSet                 as MS
 import           Data.Maybe                     ( catMaybes )
 
-main = print "Hi!"
-
 -- utilities
 ------------
 
 testfile =
   "/home/chfin/dateien/dev/haskell/work/haskell-musicology/musicology-musicxml/testdata/allemande.musicxml"
+
+bb =
+  "/home/chfin/dateien/dev/haskell/work/proto-voice-model/bluebossa.musicxml"
 
 getPitchGroups :: FilePath -> IO [[OnOff SPitch (Ratio Int)]]
 getPitchGroups file = do
@@ -34,12 +35,12 @@ getPitchGroups file = do
     $   asNote
     <$> xmlNotesHeard txt
 
-slicesFromFile' :: FilePath -> IO [[(SPitch, RightTied)]]
-slicesFromFile' file = do
+slicesFromFile :: FilePath -> IO [[(SPitch, RightTied)]]
+slicesFromFile file = do
   txt <- readFile file
   let notes  = asNote <$> xmlNotesHeard txt
       slices = slicePiece tiedSlicer notes
-  return $ mkSlice <$> slices
+  return $ mkSlice <$> filter (not . null) slices
  where
   mkSlice notes = mkNote <$> notes
   mkNote (note, tie) = (pitch note, rightTie tie)
@@ -47,10 +48,10 @@ slicesFromFile' file = do
 slicesToPath
   :: (Interval i, Ord (ICOf i))
   => [[(Pitch i, RightTied)]]
-  -> Path (StartStop (Notes (ICOf i))) [Edge (ICOf i)]
+  -> Path (StartStop [Pitch i]) [Edge (ICOf i)]
 slicesToPath slices = Path (:⋊) [] $ go slices
  where
-  mkSlice = Inner . Notes . MS.fromList . fmap (pc . fst)
+  mkSlice = Inner . fmap fst
   mkEdges notes = catMaybes $ mkEdge <$> notes
    where
     mkEdge (p, Ends ) = Nothing
@@ -59,5 +60,23 @@ slicesToPath slices = Path (:⋊) [] $ go slices
   go []             = PathEnd (:⋉)
 
 testslices from to =
-  slicesToPath . drop (from - 1) . take to <$> slicesFromFile' testfile
+  slicesToPath . drop (from - 1) . take to <$> slicesFromFile testfile
 
+-- mains
+--------
+
+mainTest = do
+  let from = 0
+      to   = 21
+  putStrLn $ "slices " <> show from <> " to " <> show to
+  input <- testslices from (to + 1)
+  print input
+  count <- parse pvCount input
+  putStrLn $ show count <> " derivations"
+
+mainBB = do
+  input <- slicesFromFile bb
+  count <- parse pvCount (slicesToPath input)
+  print count
+
+main = mainTest

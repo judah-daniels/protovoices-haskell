@@ -256,9 +256,11 @@ merge mg ((Transition ll lt lr l2nd) := vl) ((Transition rl rt rr _) := vr) =
 type ParseState e a v = (TChart e a v, VChart e a v)
 type ParseOp m e a v = Int -> ParseState e a v -> m (ParseState e a v)
 
-parseStep :: (R.Semiring v, Ord a, Ord e) => Eval e e' a v -> ParseOp IO e a v
-parseStep (Eval eMid eLeft eRight eMerge _) n charts = do
+parseStep
+  :: (R.Semiring v, Ord a, Ord e) => Eval e e' a a' v -> ParseOp IO e a v
+parseStep (Eval eMid eLeft eRight eMerge _ _) n charts = do
   putStrLn $ "parsing level " <> show n
+  putStrLn $ "transitions:" <> show (length $ tcGetByLength (fst charts) n)
   vertAllMiddles eMid n charts
     >>= vertAllLefts eLeft n
     >>= vertAllRights eRight n
@@ -369,16 +371,17 @@ mapEdges f (PathEnd _    ) = []
 -- Returns the combined semiring value of all full derivations.
 parse
   :: (R.Semiring v, Ord e, Ord a)
-  => Eval e e' a v
-  -> Path (StartStop a) e'
+  => Eval e e' a a' v
+  -> Path (StartStop a') e'
   -> IO v
 parse eval path = do
   (tfinal, _) <- foldM (flip $ parseStep eval) (tinit, vcEmpty) [2 .. len - 1]
   let goals = tcGetByLength tfinal len
   return $ R.sum $ catMaybes $ S.score . iValue <$> goals
  where
-  len       = pathLen path
-  slicePath = mapNodesWithIndex 0 (\i n -> Slice i n i) path
+  len = pathLen path
+  slicePath =
+    mapNodesWithIndex 0 (\i n -> Slice i (evalSlice eval <$> n) i) path
   mkTrans l e r = mk <$> evalThaw eval (sContent l) e (sContent r)
     where mk (e, v) = Transition l e r False := S.SVal v
   trans0 = mapEdges mkTrans slicePath

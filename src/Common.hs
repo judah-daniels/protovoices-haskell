@@ -53,6 +53,11 @@ isStart _    = False
 isStop (:⋉) = True
 isStop _    = False
 
+distStartStop :: StartStop (a, b) -> (StartStop a, StartStop b)
+distStartStop (:⋊)           = ((:⋊), (:⋊))
+distStartStop (:⋉)           = ((:⋉), (:⋉))
+distStartStop (Inner (a, b)) = (Inner a, Inner b)
+
 -- evaluator interface
 -- ===================
 
@@ -72,21 +77,81 @@ type Merge e a v = StartStop a -> e -> a -> e -> StartStop a -> Bool -> [(e, v)]
 
 -- | A combined evaluator for verticalizations, merges, and thaws.
 -- Additionally, contains a function for mapping terminal slices to semiring values.
-data Eval e e' a v = Eval
+data Eval e e' a a' v = Eval
   { evalVertMiddle  :: VertMiddle e a v
   , evalVertLeft :: VertLeft e a v
   , evalVertRight :: VertRight e a v
   , evalMerge :: Merge e a v
   , evalThaw  :: StartStop a -> e' -> StartStop a -> [(e, v)]
+  , evalSlice :: a' -> a
   }
 
 -- | Maps a function over all scores produced by the evaluator.
-mapEvalScore :: (v -> w) -> Eval e e' a v -> Eval e e' a w
-mapEvalScore f (Eval vm vl vr m t) = Eval vm' vl vr m' t'
+mapEvalScore :: (v -> w) -> Eval e e' a a' v -> Eval e e' a a' w
+mapEvalScore f (Eval vm vl vr m t s) = Eval vm' vl vr m' t' s
  where
   vm' = fmap (fmap f) . vm
   m' sl l sm r sr is2nd = fmap f <$> m sl l sm r sr is2nd
   t' l e r = fmap f <$> t l e r
+
+-- product evaluators
+-- ------------------
+
+productEval
+  :: Eval e1 e' a1 a' v1
+  -> Eval e2 e' a2 a' v2
+  -> Eval (e1, e2) e' (a1, a2) a' (v1, v2)
+productEval (Eval vertm1 vertl1 vertr1 merge1 thaw1 slice1) (Eval vertm2 vertl2 vertr2 merge2 thaw2 slice2)
+  = Eval vertm vertl vertr merge thaw slice
+ where
+  vertm ((l1, l2), (m1, m2), (r1, r2)) = do
+    (a, va) <- vertm1 (l1, m1, r1)
+    (b, vb) <- vertm2 (l2, m2, r2)
+    pure ((a, b), (va, vb))
+  vertl ((l1, l2), (c1, c2)) (t1, t2) = do
+    a <- vertl1 (l1, c1) t1
+    b <- vertl2 (l2, c2) t2
+    pure (a, b)
+  vertr ((c1, c2), (r1, r2)) (t1, t2) = do
+    a <- vertr1 (c1, r1) t1
+    b <- vertr2 (c2, r2) t2
+    pure (a, b)
+  merge sl (tl1, tl2) (sm1, sm2) (tr1, tr2) sr is2nd = do
+    (a, va) <- merge1 sl1 tl1 sm1 tr1 sr1 is2nd
+    (b, vb) <- merge2 sl2 tl2 sm2 tr2 sr2 is2nd
+    pure ((a, b), (va, vb))
+   where
+    (sl1, sl2) = distStartStop sl
+    (sr1, sr2) = distStartStop sr
+  thaw l e r = do
+    (a, va) <- thaw1 l1 e r1
+    (b, vb) <- thaw2 l2 e r2
+    pure ((a, b), (va, vb))
+   where
+    (l1, l2) = distStartStop l
+    (r1, r2) = distStartStop r
+  slice s = (slice1 s, slice2 s)
+
+-- restricting branching
+-- ---------------------
+
+newtype RightBranchHori = RB Bool
+  deriving (Eq, Ord, Show)
+
+evalRightBranchHori :: Eval RightBranchHori e' () a' ()
+evalRightBranchHori = Eval vertm vertl vertr merge thaw slice
+ where
+  vertm (_, RB False, _) = Nothing
+  vertm (_, RB True , _) = Just ((), ())
+  vertl _ _ = [RB True]
+  vertr _ _ = [RB False]
+  merge _ _ _ _ _ _ = [(RB True, ())]
+  thaw _ _ _ = [(RB True, ())]
+  slice _ = ()
+
+rightBranchHori
+  :: Eval e2 e' a2 a' w -> Eval (RightBranchHori, e2) e' ((), a2) a' w
+rightBranchHori = mapEvalScore snd . productEval evalRightBranchHori
 
 -- left-most derivation outer operations
 -- =====================================
