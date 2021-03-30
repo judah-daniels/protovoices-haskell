@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE TupleSections #-}
 module Common where
 
 -- StartStop
@@ -6,7 +7,12 @@ module Common where
 
 import           GHC.Generics                   ( Generic )
 import           Control.DeepSeq                ( NFData )
+
 import qualified Data.Semiring                 as R
+import qualified Data.Set                      as S
+import           Data.Foldable                  ( foldl'
+                                                , foldlM
+                                                )
 
 -- | A container type that augements the type @a@
 -- with symbols for beginning (@:⋊@) and end (@:⋉@).
@@ -186,14 +192,14 @@ data Leftmost s f h = LMSplitLeft s
 -- useful semirings
 -- ================
 
-data Derivation a = Do a
-                  | Or (Derivation a) (Derivation a)
-                  | Then (Derivation a) (Derivation a)
-                  | NoOp
-                  | Cannot
+data Derivations a = Do a
+                   | Or (Derivations a) (Derivations a)
+                   | Then (Derivations a) (Derivations a)
+                   | NoOp
+                   | Cannot
   deriving (Eq, Ord, Show)
 
-instance R.Semiring (Derivation a) where
+instance R.Semiring (Derivations a) where
   zero = Cannot
   one  = NoOp
   plus Cannot a      = a
@@ -204,3 +210,13 @@ instance R.Semiring (Derivation a) where
   times NoOp   a      = a
   times a      NoOp   = NoOp
   times a      b      = Then a b
+
+mapDerivations :: (R.Semiring r) => (a -> r) -> Derivations a -> r
+mapDerivations f (Do a)     = f a
+mapDerivations f NoOp       = R.one
+mapDerivations f Cannot     = R.zero
+mapDerivations f (Or   a b) = mapDerivations f a R.+ mapDerivations f b
+mapDerivations f (Then a b) = mapDerivations f a R.* mapDerivations f b
+
+flattenDerivations :: Ord a => Derivations a -> S.Set [a]
+flattenDerivations = mapDerivations (\a -> S.singleton [a])

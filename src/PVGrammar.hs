@@ -397,7 +397,7 @@ pvDeriv
        (t (Edge i))
        (Notes i)
        (t2 (Pitch i'))
-       (Derivation (PVLeftMost i))
+       (Derivations (PVLeftMost i))
 pvDeriv = mapEvalScore Do protoVoiceEvaluator
 
 pvCount''

@@ -27,6 +27,7 @@ dependencies:
 - containers
 - unordered-containers
 - multiset
+- transformers
 - mtl
 - microlens
 - hashable

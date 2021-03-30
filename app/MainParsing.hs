@@ -3,7 +3,8 @@ module Main where
 
 import           Parser
 import           PVGrammar
-import           Common                         ( StartStop(..) )
+import           Common
+import           Display
 
 --import Musicology.Internal.Helpers
 import           Musicology.MusicXML
@@ -11,11 +12,12 @@ import           Musicology.Core
 import           Musicology.Core.Slicing
 
 import           Data.Ratio                     ( Ratio(..) )
-import qualified Data.List.NonEmpty            as NL
-import           Data.List.NonEmpty             ( NonEmpty(..) )
 import           Lens.Micro                     ( over )
-import qualified Data.MultiSet                 as MS
 import           Data.Maybe                     ( catMaybes )
+
+import qualified Data.MultiSet                 as MS
+import qualified Data.Set                      as S
+import qualified Data.Semiring                 as R
 
 -- utilities
 ------------
@@ -66,7 +68,7 @@ testslices from to =
 --------
 
 mainTest = do
-  let from = 0
+  let from = 9
       to   = 21
   putStrLn $ "slices " <> show from <> " to " <> show to
   input <- testslices from (to + 1)
@@ -75,8 +77,16 @@ mainTest = do
   putStrLn $ show count <> " derivations"
 
 mainBB = do
-  input <- slicesFromFile bb
-  count <- parse pvCount (slicesToPath input)
+  input <- slicesToPath <$> slicesFromFile bb
+  print input
+  count <- parse pvCount input
   print count
 
-main = mainBB
+mainGraph = do
+  derivs <- testslices 0 4 >>= parse pvDeriv
+  let d        = S.findMin $ flattenDerivations derivs
+      (Just g) = replayDerivation d derivationPlayerUnit
+  putStrLn ""
+  putStrLn $ tikzDerivationGraph (const "s") (const "e") g
+
+main = mainTest
