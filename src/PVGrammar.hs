@@ -202,18 +202,24 @@ findOrnament _    _         _    = Nothing
 -- while the non-terminal side is a @Pitch i@ within an 'NT'.
 -- Exactly one side must be a 'T' and the other an 'NT', otherwise the reduction fails.
 findPassing
-  :: EdgeEither (StartStop (Pitch i)) (Pitch i)
+  :: (Diatonic i, Eq i)
+  => EdgeEither (StartStop (Pitch i)) (Pitch i)
   -> Pitch i
   -> EdgeEither (StartStop (Pitch i)) (Pitch i)
   -> Maybe (InnerEdge i)
-findPassing (T  (Inner l)) m (NT r        ) = undefined
-findPassing (NT l        ) m (T  (Inner r)) = undefined
-findPassing _              _ _              = Nothing
+findPassing (T (Inner l)) m (NT r) | isStep (l `pto` m) && between l m r =
+  Just (l, r)
+findPassing (NT l) m (T (Inner r)) | isStep (m `pto` r) && between l m r =
+  Just (l, r)
+findPassing _ _ _ = Nothing
 
 -- evaluator interface
 -- ===================
 
 -- | The evaluator that represents the proto-voice grammar.
+-- As scores it returns a representation of each operation.
+-- These scores do not form a semiring,
+-- but can be embedded into different semirings using 'evalMapScores'.
 protoVoiceEvaluator
   :: (Foldable t, Eq i, Ord i, Diatonic i)
   => Eval (Edges i) (t (Edge i)) (Notes i) (PVLeftMost i)
@@ -375,3 +381,8 @@ pvDeriv
   :: (Foldable t, Ord i, Diatonic i)
   => Eval (Edges i) (t (Edge i)) (Notes i) (Derivation (PVLeftMost i))
 pvDeriv = mapEvalScore Do protoVoiceEvaluator
+
+pvCount
+  :: (Foldable t, Ord i, Diatonic i)
+  => Eval (Edges i) (t (Edge i)) (Notes i) Int
+pvCount = mapEvalScore (const 1) protoVoiceEvaluator

@@ -44,10 +44,6 @@ slicesFromFile' file = do
   mkSlice notes = mkNote <$> notes
   mkNote (note, tie) = (pitch note, rightTie tie)
 
--- mkSlice :: (Ord i, Interval i) => [(Pitch i, t)] -> StartStop (Notes (ICOf i))
-
--- mkEdges :: [(Pitch i, RightTied)] -> [Edge (ICOf i)]
-
 slicesToPath
   :: (Interval i, Ord (ICOf i))
   => [[(Pitch i, RightTied)]]
