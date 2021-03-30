@@ -153,6 +153,27 @@ rightBranchHori
   :: Eval e2 e' a2 a' w -> Eval (RightBranchHori, e2) e' ((), a2) a' w
 rightBranchHori = mapEvalScore snd . productEval evalRightBranchHori
 
+-- restricting derivation order
+-- ----------------------------
+
+newtype Merged = Merged Bool
+  deriving (Eq, Ord, Show)
+
+evalSplitBeforeHori :: (Eval Merged e' () a' ())
+evalSplitBeforeHori = Eval vertm vertl vertr merge thaw slice
+ where
+  vertm _ = Just ((), ())
+  vertl (Merged True , _) _ = []
+  vertl (Merged False, _) _ = [Merged False]
+  vertr (_, Merged True ) _ = []
+  vertr (_, Merged False) _ = [Merged False]
+  merge _ _ _ _ _ _ = [(Merged True, ())]
+  thaw _ _ _ = [(Merged False, ())]
+  slice _ = ()
+
+splitFirst :: Eval e2 e' a2 a' w -> Eval (Merged, e2) e' ((), a2) a' w
+splitFirst = mapEvalScore snd . productEval evalSplitBeforeHori
+
 -- left-most derivation outer operations
 -- =====================================
 

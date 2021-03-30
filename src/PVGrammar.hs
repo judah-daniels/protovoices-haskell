@@ -400,7 +400,7 @@ pvDeriv
        (Derivation (PVLeftMost i))
 pvDeriv = mapEvalScore Do protoVoiceEvaluator
 
-pvCount'
+pvCount''
   :: (Foldable t, Foldable t2, Interval i, Ord (ICOf i), Diatonic (ICOf i))
   => Eval
        (Edges (ICOf i))
@@ -408,9 +408,9 @@ pvCount'
        (Notes (ICOf i))
        (t2 (Pitch i))
        Int
-pvCount' = mapEvalScore (const 1) protoVoiceEvaluator
+pvCount'' = mapEvalScore (const 1) protoVoiceEvaluator
 
-pvCount
+pvCount'
   :: (Foldable t, Foldable t2, Ord (ICOf i), Diatonic (ICOf i), Interval i)
   => Eval
        (RightBranchHori, Edges (ICOf i))
@@ -418,4 +418,14 @@ pvCount
        ((), Notes (ICOf i))
        (t2 (Pitch i))
        Int
-pvCount = rightBranchHori pvCount'
+pvCount' = rightBranchHori pvCount''
+
+pvCount
+  :: (Foldable t, Foldable t2, Ord (ICOf i), Diatonic (ICOf i), Interval i)
+  => Eval
+       (Merged, (RightBranchHori, Edges (ICOf i)))
+       (t (Edge (ICOf i)))
+       ((), ((), Notes (ICOf i)))
+       (t2 (Pitch i))
+       Int
+pvCount = splitFirst pvCount'
