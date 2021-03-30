@@ -79,4 +79,4 @@ mainBB = do
   count <- parse pvCount (slicesToPath input)
   print count
 
-main = mainTest
+main = mainBB
