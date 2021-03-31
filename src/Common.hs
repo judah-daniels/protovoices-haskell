@@ -50,6 +50,11 @@ getInner :: StartStop a -> Maybe a
 getInner (Inner a) = Just a
 getInner _         = Nothing
 
+getInnerE :: StartStop a -> Either String a
+getInnerE (Inner a) = Right a
+getInnerE (:⋊)      = Left "expected inner but found ⋊"
+getInnerE (:⋉)      = Left "expected inner but found ⋉"
+
 isInner (Inner a) = True
 isInner _         = False
 

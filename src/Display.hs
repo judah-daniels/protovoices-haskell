@@ -1,7 +1,6 @@
 module Display where
 
 import           Common
-import           PVGrammar
 
 import           Diagrams.Prelude        hiding ( (^-^)
                                                 , (^+^)
@@ -40,7 +39,7 @@ data DerivationGraph a e = DGraph
   }
   deriving (Eq, Ord, Show)
 
-type DerivationOp a e = ST.StateT (DerivationGraph a e) Maybe
+type DerivationOp a e = ST.StateT (DerivationGraph a e) (Either String)
 
 popSurface :: DerivationOp a e (DerivTrans a e)
 popSurface = do
@@ -82,16 +81,16 @@ addHoriEdge edge = do
 
 data DerivationPlayer s f h a e = DerivationPlayer
   { dpRoot :: e
-  , dpSplit :: s -> e -> Maybe (e, a, e)
-  , dpFreeze :: f -> e -> Maybe e
-  , dpHorizontalize :: h -> e -> a -> e -> Maybe (e, a, e, a, e)
+  , dpSplit :: s -> e -> Either String (e, a, e)
+  , dpFreeze :: f -> e -> Either String e
+  , dpHorizontalize :: h -> e -> a -> e -> Either String (e, a, e, a, e)
   }
 
 replayDerivation
   :: (Ord a, Ord e)
   => [Common.Leftmost s f h]
   -> DerivationPlayer s f h a e
-  -> Maybe (DerivationGraph a e)
+  -> Either String (DerivationGraph a e)
 replayDerivation deriv player = ST.execStateT (mapM_ applyRule deriv) init
  where
   start = (0, 0, (:⋊))
@@ -125,7 +124,7 @@ replayDerivation deriv player = ST.execStateT (mapM_ applyRule deriv) init
         (depthm, _, pmLabel) = pm
         (depthr, _, _      ) = rpr
         depth'               = max depthl (max depthm depthr) + 1
-    pmInner           <- lift $ getInner pmLabel
+    pmInner           <- lift $ getInnerE pmLabel
     (l, lc, m, rc, r) <- lift $ dpHorizontalize player h lpt pmInner rpt
     ls                <- addSlice lc depth'
     rs                <- addSlice rc depth'
@@ -137,9 +136,9 @@ derivationPlayerUnit :: DerivationPlayer s f h () ()
 derivationPlayerUnit = DerivationPlayer root split freeze hori
  where
   root = ()
-  split _ _ = Just ((), (), ())
-  freeze _ _ = Just ()
-  hori _ _ _ _ = Just ((), (), (), (), ())
+  split _ _ = Right ((), (), ())
+  freeze _ _ = Right ()
+  hori _ _ _ _ = Right ((), (), (), (), ())
 
 -- plotting derivation graphs
 -- ==========================
@@ -206,3 +205,11 @@ tikzDerivationGraph showS showT (DGraph _ slices trans horis _ foot root) =
         in  M.insert id x locs
   tikzNodes = mkNode <$> S.toList slices
     where mkNode (depth, id, content) = (xloc M.! id, depth, id, content)
+
+showTex x = concatMap escapeTex $ show x
+ where
+  escapeTex '♭' = "$\\flat$"
+  escapeTex '♯' = "$\\sharp$"
+  escapeTex '{' = "\\{"
+  escapeTex '}' = "\\}"
+  escapeTex c   = [c]

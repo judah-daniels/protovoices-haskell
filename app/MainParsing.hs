@@ -18,6 +18,7 @@ import           Data.Maybe                     ( catMaybes )
 import qualified Data.MultiSet                 as MS
 import qualified Data.Set                      as S
 import qualified Data.Semiring                 as R
+import qualified Data.List                     as L
 
 -- utilities
 ------------
@@ -48,11 +49,18 @@ slicesFromFile file = do
   mkNote (note, tie) = (pitch note, rightTie tie)
 
 slicesToPath
-  :: (Interval i, Ord (ICOf i))
+  :: (Interval i, Ord (ICOf i), Eq i)
   => [[(Pitch i, RightTied)]]
   -> Path (StartStop [Pitch i]) [Edge (ICOf i)]
-slicesToPath slices = Path (:⋊) [] $ go slices
+slicesToPath slices = Path (:⋊) [] $ go $ normalizeTies slices
  where
+  normalizeTies (s : next : rest) = (fixTie <$> s)
+    : normalizeTies (next : rest)
+   where
+    nextNotes = fst <$> next
+    fixTie (p, t) = if p `L.elem` nextNotes then (p, t) else (p, Ends)
+  normalizeTies [s] = [map (fmap $ const Ends) s]
+  normalizeTies []  = []
   mkSlice = Inner . fmap fst
   mkEdges notes = catMaybes $ mkEdge <$> notes
    where
@@ -83,10 +91,15 @@ mainBB = do
   print count
 
 mainGraph = do
-  derivs <- testslices 0 4 >>= parse pvDeriv
-  let d        = S.findMin $ flattenDerivations derivs
-      (Just g) = replayDerivation d derivationPlayerUnit
-  putStrLn ""
-  putStrLn $ tikzDerivationGraph (const "s") (const "e") g
+  input <- testslices 0 5
+  print input
+  derivs <- parse pvDeriv input
+  let d = S.findMin $ flattenDerivations derivs
+  mapM_ print d
+  case replayDerivation d derivationPlayerPV of
+    Left error -> do
+      putStrLn error
+      -- print derivs
+    Right g -> putStrLn $ "\n" <> tikzDerivationGraph showTex showTex g
 
 main = mainTest

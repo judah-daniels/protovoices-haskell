@@ -1,3 +1,5 @@
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE TupleSections #-}
@@ -6,6 +8,7 @@
 module PVGrammar where
 
 import           Common
+import           Display
 
 import           Musicology.Core               as MT
 
@@ -37,7 +40,10 @@ newtype Notes i = Notes (MS.MultiSet (Pitch i))
 
 instance (Notation (Pitch i)) => Show (Notes i) where
   show (Notes ns) =
-    "(" <> L.intercalate "," (showNotation <$> MS.toList ns) <> ")"
+    "{" <> L.intercalate "," (showNote <$> MS.toOccurList ns) <> "}"
+   where
+    showNote (p, n) = showNotation p <> mult
+      where mult = if n /= 1 then "×" <> show n else ""
 
 -- | Return the notes or start/stop symbols inside a slice.
 -- This is useful to get all objects that an 'Edge' can connect to. 
@@ -68,11 +74,13 @@ data Edges i = Edges
   deriving (Eq, Ord)
 
 instance (Notation (Pitch i)) => Show (Edges i) where
-  show (Edges ts nts) =
-    L.intercalate "," $ (showT <$> MS.toList ts) <> (showNT <$> MS.toList nts)
+  show (Edges ts nts) = "{" <> L.intercalate "," (tts <> tnts) <> "}"
    where
-    showT (n1, n2) = showNode n1 <> "-" <> showNode n2
-    showNT (n1, n2) = showNotation n1 <> ">" <> showNotation n2
+    tts  = showT <$> MS.toOccurList ts
+    tnts = showNT <$> MS.toOccurList nts
+    showT ((p1, p2), n) = showNode p1 <> "-" <> showNode p2 <> "×" <> show n
+    showNT ((p1, p2), n) =
+      showNotation p1 <> ">" <> showNotation p2 <> "×" <> show n
     showNode (:⋊)      = "⋊"
     showNode (:⋉)      = "⋉"
     showNode (Inner p) = showNotation p
@@ -118,14 +126,33 @@ data Split i = SplitOp
   }
   deriving (Eq, Ord)
 
-deriving instance (Show (Pitch i)) => Show (Split i)
+instance (Notation (Pitch i)) => Show (Split i) where
+  show (SplitOp ts nts) = "ts:{" <> opTs <> "}, nts:{" <> opNTs <> "}"
+   where
+    opTs  = L.intercalate "," (showT <$> M.toList ts)
+    opNTs = L.intercalate "," (showNT <$> M.toList nts)
+    showTEdge (n1, n2) = showNode n1 <> "-" <> showNode n2
+    showTChild (p, o, l, r) = showNotation p <> ":" <> show (o, l, r)
+    showT (e, cs) =
+      showTEdge e <> "=>[" <> L.intercalate "," (showTChild <$> cs) <> "]"
+    showNTEdge (n1, n2) = showNotation n1 <> ">" <> showNotation n2
+    showNTChild (p, l, r) = showNotation p <> ":" <> show (Passing, l, r)
+    showNT (e, cs) =
+      showNTEdge e <> "=>[" <> L.intercalate "," (showNTChild <$> cs) <> "]"
+    showNode (:⋊)      = "⋊"
+    showNode (:⋉)      = "⋉"
+    showNode (Inner p) = showNotation p
+
 
 -- | Represents a freeze operation.
 -- Since this just ties all remaining edges
 -- (which must all be repetitions)
 -- no decisions have to be encoded.
 data Freeze = FreezeOp
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord)
+
+instance Show Freeze where
+  show _ = "()"
 
 -- | Encodes the distribution of a pitch in a horizontalization.
 -- 
@@ -145,10 +172,122 @@ data HoriDirection = ToLeft Int  -- ^ all to the left, n fewer to the right
 data Hori i = HoriOp (M.Map (Pitch i) HoriDirection) (Edges i)
   deriving (Eq, Ord)
 
-deriving instance (Notation (Pitch i), Show (Pitch i)) => Show (Hori i)
+instance (Notation (Pitch i), Show (Pitch i)) => Show (Hori i) where
+  show (HoriOp dist m) = "{" <> L.intercalate "," dists <> "} => " <> show m
+   where
+    dists = showDist <$> M.toList dist
+    showDist (p, to) = showNotation p <> "=>" <> show to
 
 -- | 'Leftmost' specialized to the split, freeze, and horizontalize operations of the grammar.
 type PVLeftMost i = Leftmost (Split i) Freeze (Hori i)
+
+-- applying operations
+-- ===================
+
+applySplit
+  :: forall i
+   . (Ord i, Notation (Pitch i))
+  => Split i
+  -> Edges i
+  -> Either String (Edges i, Notes i, Edges i)
+applySplit inSplit@(SplitOp splitTs splitNTs) inTop@(Edges topTs topNTs) = do
+  (topNTs', leftNTs, rightNTs, notesNT) <- applyOps applyNT
+                                                    topNTs
+                                                    (allSplits splitNTs)
+  (topTs', leftTs, rightTs, notesT) <- applyOps
+    applyT
+    topTs
+    (downcast <$> allSplits splitTs)
+  let notes = MS.union notesT notesNT
+  pure (Edges leftTs leftNTs, Notes notes, Edges rightTs rightNTs)
+ where
+
+  applyOps f top ops = do
+    (top', left, right, notes) <- foldM f
+                                        (top, MS.empty, MS.empty, MS.empty)
+                                        ops
+    if MS.null top'
+      then Right (top', left, right, notes)
+      else Left "did not use all edges"
+
+  applyNT (top, left, right, notes) (parent@(pl, pr), (note, usedLeft, usedRight))
+    | parent `MS.member` top
+    = Right (top', left', right', notes')
+    | otherwise
+    = Left
+      $  "used non-existing edge\n  top="
+      <> show inTop
+      <> "\n  split="
+      <> show inSplit
+   where
+    top'   = MS.delete parent top
+    notes' = MS.insert note notes
+    left'  = if usedLeft then MS.insert (pl, note) left else left
+    right' = if usedRight then MS.insert (note, pr) right else right
+
+  applyT (top, left, right, notes) (parent@(pl, pr), (note, usedLeft, usedRight))
+    = Right (top', left', right', notes')
+   where
+    top'   = MS.delete parent top
+    notes' = MS.insert note notes
+    left'  = if usedLeft then MS.insert (pl, Inner note) left else left
+    right' = if usedRight then MS.insert (Inner note, pr) right else right
+
+  allSplits splits = do
+    (e, cs) <- M.toList splits
+    c       <- cs
+    pure (e, c)
+  downcast (p, (n, _, l, r)) = (p, (n, l, r))
+
+applyFreeze :: Eq i => Freeze -> Edges i -> Either String (Edges i)
+applyFreeze FreezeOp e@(Edges ts nts)
+  | not $ MS.null nts  = Left "cannot freeze non-terminal edges"
+  | not $ all isRep ts = Left "cannot freeze non-tie edges"
+  | otherwise          = Right e
+  where isRep (a, b) = a == b
+
+applyHori
+  :: forall i
+   . (Ord i, Notation (Pitch i))
+  => Hori i
+  -> Edges i
+  -> Notes i
+  -> Edges i
+  -> Either String (Edges i, Notes i, Edges i, Notes i, Edges i)
+applyHori (HoriOp dist childm) pl (Notes notesm) pr = do
+  (notesl, notesr) <- foldM applyDist (MS.empty, MS.empty)
+    $ MS.toOccurList notesm
+  childl <- fixEdges snd pl notesl
+  childr <- fixEdges fst pr notesr
+  pure (childl, Notes notesl, childm, Notes notesr, childr)
+ where
+  applyDist (notesl, notesr) (note, n) = do
+    d <-
+      maybe (Left $ showNotation note <> " is not distributed") Right
+        $ M.lookup note dist
+    case d of
+      ToBoth -> pure (MS.insertMany note n notesl, MS.insertMany note n notesr)
+      ToLeft i -> if i > n || i <= 0
+        then Left "moving more notes than allowed to the right"
+        else pure
+          (MS.insertMany note n notesl, MS.insertMany note (n - i) notesr)
+      ToRight i -> if i > n || i <= 0
+        then Left "moving more notes than allowed to the left"
+        else pure
+          (MS.insertMany note (n - i) notesl, MS.insertMany note n notesr)
+  fixEdges
+    :: (forall a . (a, a) -> a)
+    -> Edges i
+    -> MS.MultiSet (Pitch i)
+    -> Either String (Edges i)
+  fixEdges accessor (Edges ts nts) notesms
+    | not $ all ((`S.member` notes) . accessor) nts = Left
+      "dropping non-terminal edge in hori"
+    | otherwise = pure $ Edges ts' nts
+   where
+    notes  = MS.toSet notesms
+    notesi = S.map Inner notes
+    ts'    = MS.filter ((`S.member` notesi) . accessor) ts
 
 -- parsing Ornamentations
 -- ======================
@@ -229,6 +368,7 @@ protoVoiceEvaluator
      , Foldable t2
      , i ~ ICOf i'
      , Interval i'
+     , Notation (Pitch i)
      )
   => Eval (Edges i) (t (Edge i)) (Notes i) (t2 (Pitch i')) (PVLeftMost i)
 protoVoiceEvaluator =
@@ -269,7 +409,9 @@ pvVertRight (sr, er) top = [er]
 -- Since transitions here only represent the certain edges,
 -- 'pvMerge' must also take into account unelaborated edges,
 -- which are not present in the child transitions.
-pvMerge :: (Ord i, Diatonic i) => Merge (Edges i) (Notes i) (PVLeftMost i)
+pvMerge
+  :: (Ord i, Diatonic i, Notation (Pitch i))
+  => Merge (Edges i) (Notes i) (PVLeftMost i)
 pvMerge notesl (Edges leftTs leftNTs) (Notes notesm) (Edges rightTs rightNTs) notesr is2nd
   = map mkTop combinations
  where
@@ -365,13 +507,29 @@ pvMerge notesl (Edges leftTs leftNTs) (Notes notesm) (Edges rightTs rightNTs) no
   -- pick the left-most derivation operation (depending on the left child edge)
   op = if is2nd then LMSplitRight else LMSplitLeft
   -- turn the accumulated information into the format expected from the evaluator
-  mkTop (ts, nts) =
-    ( Edges (MS.fromList (fst <$> ts)) (MS.fromList (fst <$> nts))
-    , op $ SplitOp tmap ntmap
-    )
+  mkTop (ts, nts) = if validate
+    then (top, op $ SplitOp tmap ntmap)
+    else
+      error
+      $  "invalid merge:\n  notesl="
+      <> show notesl
+      <> "\n  notesr="
+      <> show notesr
+      <> "\n  notesm="
+      <> show (Notes notesm)
+      <> "\n  left="
+      <> show (Edges leftTs leftNTs)
+      <> "\n  right="
+      <> show (Edges rightTs rightNTs)
+      <> "\n  top="
+      <> show top
    where
+    validate =
+      all ((`L.elem` innerNotes notesl) . fst . fst) ts
+        && all ((`L.elem` innerNotes notesr) . snd . fst) ts
     tmap  = M.fromListWith (<>) $ fmap (: []) <$> ts
     ntmap = M.fromListWith (<>) $ fmap (: []) <$> nts
+    top   = Edges (MS.fromList (fst <$> ts)) (MS.fromList (fst <$> nts))
 
 -- | Computes all potential ways a surface transition could have been frozen.
 -- In this grammar, this operation is unique and just turns ties into edges.
@@ -391,7 +549,14 @@ pvSlice = Notes . MS.fromList . fmap pc . toList
 -- ================================
 
 pvDeriv
-  :: (Foldable t, Ord i, Diatonic i, i ~ ICOf i', Foldable t2, Interval i')
+  :: ( Foldable t
+     , Ord i
+     , Diatonic i
+     , i ~ ICOf i'
+     , Foldable t2
+     , Interval i'
+     , Notation (Pitch i)
+     )
   => Eval
        (Edges i)
        (t (Edge i))
@@ -401,7 +566,13 @@ pvDeriv
 pvDeriv = mapEvalScore Do protoVoiceEvaluator
 
 pvCount''
-  :: (Foldable t, Foldable t2, Interval i, Ord (ICOf i), Diatonic (ICOf i))
+  :: ( Foldable t
+     , Foldable t2
+     , Interval i
+     , Ord (ICOf i)
+     , Diatonic (ICOf i)
+     , Notation (Pitch (ICOf i))
+     )
   => Eval
        (Edges (ICOf i))
        (t (Edge (ICOf i)))
@@ -411,7 +582,13 @@ pvCount''
 pvCount'' = mapEvalScore (const 1) protoVoiceEvaluator
 
 pvCount'
-  :: (Foldable t, Foldable t2, Ord (ICOf i), Diatonic (ICOf i), Interval i)
+  :: ( Foldable t
+     , Foldable t2
+     , Ord (ICOf i)
+     , Diatonic (ICOf i)
+     , Interval i
+     , Notation (Pitch (ICOf i))
+     )
   => Eval
        (RightBranchHori, Edges (ICOf i))
        (t (Edge (ICOf i)))
@@ -421,7 +598,13 @@ pvCount'
 pvCount' = rightBranchHori pvCount''
 
 pvCount
-  :: (Foldable t, Foldable t2, Ord (ICOf i), Diatonic (ICOf i), Interval i)
+  :: ( Foldable t
+     , Foldable t2
+     , Ord (ICOf i)
+     , Diatonic (ICOf i)
+     , Interval i
+     , Notation (Pitch (ICOf i))
+     )
   => Eval
        (Merged, (RightBranchHori, Edges (ICOf i)))
        (t (Edge (ICOf i)))
@@ -429,3 +612,16 @@ pvCount
        (t2 (Pitch i))
        Int
 pvCount = splitFirst pvCount'
+
+-- derivation player
+-- =================
+
+derivationPlayerPV
+  :: (Eq i, Ord i, Notation (Pitch i))
+  => DerivationPlayer (Split i) Freeze (Hori i) (Notes i) (Edges i)
+derivationPlayerPV = DerivationPlayer root applySplit applyFreeze applyHori
+  where root = Edges (MS.singleton ((:⋊), (:⋉))) MS.empty
+
+-- display
+-- =======
+
