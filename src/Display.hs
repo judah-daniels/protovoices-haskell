@@ -200,7 +200,7 @@ tikzDerivationGraph showS showT (DGraph _ slices trans horis _ foot root) =
       Just x -> locs
       Nothing ->
         let children = nodeChildren M.! id
-            childxs  = (locs M.!) <$> children
+            childxs  = (\c -> findX locs c M.! c) <$> children
             x        = mean childxs
         in  M.insert id x locs
   tikzNodes = mkNode <$> S.toList slices
@@ -213,3 +213,4 @@ showTex x = concatMap escapeTex $ show x
   escapeTex '{' = "\\{"
   escapeTex '}' = "\\}"
   escapeTex c   = [c]
+

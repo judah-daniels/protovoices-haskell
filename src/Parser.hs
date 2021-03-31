@@ -36,6 +36,9 @@ data Slice a = Slice
   }
   deriving (Eq, Ord, Generic)
 
+instance Show a => Show (Slice a) where
+  show (Slice f c l) = show f <> "-[" <> show c <> "]-" <> show l
+
 -- | Return the length of a slice.
 sliceLen :: Slice a -> Int
 sliceLen (Slice f _ l) = l - f + 1
@@ -51,6 +54,12 @@ data Transition e a = Transition
   }
   deriving (Eq, Ord, Generic)
 
+instance (Show a, Show e) => Show (Transition e a) where
+  show (Transition l c r s) =
+    "<" <> show l <> "," <> show c <> "," <> show r <> ">" <> if s
+      then "2"
+      else ""
+
 transLen :: Transition e a -> Int
 transLen (Transition l _ r _) = sLast r - sFirst l + 1
 
@@ -61,6 +70,9 @@ data Item i v = (:=)
   { iItem :: i
   , iValue :: S.Score v Int
   }
+
+instance (Show i, Show v) => Show (Item i v) where
+  show (i := v) = show i <> " := " <> show v
 
 -- | A transition item.
 type TItem e a v = Item (Transition e a) v
@@ -73,6 +85,7 @@ data Vert e a v = Vert
   , vOp :: v
   , vMiddle :: TItem e a v
   }
+  deriving (Show)
 
 -- slice and transition charts
 -- ===========================
@@ -93,6 +106,13 @@ data VChart e a v = VChart
   , vcByLeftChild :: M.Map (Slice a) [Vert e a v]
   , vcByRightChild :: M.Map (Slice a) [Vert e a v]
   }
+
+instance (Show e, Show a, Show v) => Show (VChart e a v) where
+  show (VChart n _ is _ _) = "VChart (next id: " <> show n <> ")" <> levels
+   where
+    levels = concatMap showLevel $ IM.toAscList is
+    showLevel (l, items) = "\nlevel " <> show l <> ":" <> sitems
+      where sitems = concatMap (("\n  " <>) . show) items
 
 vcEmpty :: VChart e a v
 vcEmpty = VChart 0 M.empty IM.empty M.empty M.empty
@@ -145,6 +165,7 @@ data TChart e a v = TChart
   , tcByLeft   :: M.Map (Slice a) (TCell e a v)
   , tcByRight  :: M.Map (Slice a) (TCell e a v)
   }
+  deriving (Show)
 
 tcEmpty :: TChart e a v
 tcEmpty = TChart IM.empty M.empty M.empty
@@ -257,10 +278,12 @@ type ParseState e a v = (TChart e a v, VChart e a v)
 type ParseOp m e a v = Int -> ParseState e a v -> m (ParseState e a v)
 
 parseStep
-  :: (R.Semiring v, Ord a, Ord e) => Eval e e' a a' v -> ParseOp IO e a v
-parseStep (Eval eMid eLeft eRight eMerge _ _) n charts = do
-  putStrLn $ "parsing level " <> show n
-  putStrLn $ "transitions:" <> show (length $ tcGetByLength (fst charts) n)
+  :: (R.Semiring v, Ord a, Ord e)
+  => (TChart e a v -> VChart e a v -> Int -> IO ())
+  -> Eval e e' a a' v
+  -> ParseOp IO e a v
+parseStep log (Eval eMid eLeft eRight eMerge _ _) n charts = do
+  uncurry log charts n
   vertAllMiddles eMid n charts
     >>= vertAllLefts eLeft n
     >>= vertAllRights eRight n
@@ -371,11 +394,14 @@ mapEdges f (PathEnd _    ) = []
 -- Returns the combined semiring value of all full derivations.
 parse
   :: (R.Semiring v, Ord e, Ord a)
-  => Eval e e' a a' v
+  => (TChart e a v -> VChart e a v -> Int -> IO ())
+  -> Eval e e' a a' v
   -> Path (StartStop a') e'
   -> IO v
-parse eval path = do
-  (tfinal, _) <- foldM (flip $ parseStep eval) (tinit, vcEmpty) [2 .. len - 1]
+parse log eval path = do
+  (tfinal, _) <- foldM (flip $ parseStep log eval)
+                       (tinit, vcEmpty)
+                       [2 .. len - 1]
   let goals = tcGetByLength tfinal len
   return $ R.sum $ catMaybes $ S.score . iValue <$> goals
  where
@@ -386,3 +412,15 @@ parse eval path = do
     where mk (e, v) = Transition l e r False := S.SVal v
   trans0 = mapEdges mkTrans slicePath
   tinit  = tcMerge tcEmpty $ concat trans0
+
+logSize tc vc n = do
+  putStrLn $ "parsing level " <> show n
+  putStrLn $ "transitions: " <> show (length $ tcGetByLength tc n)
+  putStrLn $ "verts: " <> show (length $ vcGetByLength vc (n - 1))
+
+parse'
+  :: (R.Semiring v, Ord e, Ord a)
+  => Eval e e' a a' v
+  -> Path (StartStop a') e'
+  -> IO v
+parse' = parse logSize

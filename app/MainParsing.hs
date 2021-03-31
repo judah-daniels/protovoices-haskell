@@ -75,25 +75,23 @@ testslices from to =
 -- mains
 --------
 
-mainTest = do
-  let from = 9
-      to   = 21
+mainTest from to = do
   putStrLn $ "slices " <> show from <> " to " <> show to
   input <- testslices from (to + 1)
   print input
-  count <- parse pvCount input
+  count <- parse' pvCount input
   putStrLn $ show count <> " derivations"
 
 mainBB = do
   input <- slicesToPath <$> slicesFromFile bb
   print input
-  count <- parse pvCount input
+  count <- parse' pvCount input
   print count
 
 mainGraph = do
-  input <- testslices 0 5
+  input <- testslices 0 10
   print input
-  derivs <- parse pvDeriv input
+  derivs <- parse' pvDeriv input
   let d = S.findMin $ flattenDerivations derivs
   mapM_ print d
   case replayDerivation d derivationPlayerPV of
@@ -102,4 +100,17 @@ mainGraph = do
       -- print derivs
     Right g -> putStrLn $ "\n" <> tikzDerivationGraph showTex showTex g
 
-main = mainTest
+logFull tc vc n = do
+  putStrLn "\n===========\n"
+  putStrLn $ "level " <> show n
+  putStrLn "\ntransitions:"
+  mapM_ print $ tcGetByLength tc n
+  putStrLn "\nslices:"
+  mapM_ print $ vcGetByLength vc (n - 1)
+
+mainResult evaluator from to = do
+  putStrLn $ "slices " <> show from <> " to " <> show to
+  input <- testslices from (to + 1)
+  parse' evaluator input
+
+main = mainGraph

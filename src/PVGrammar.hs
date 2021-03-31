@@ -116,6 +116,15 @@ data Ornament = FullNeighbor
               | RootNote
   deriving (Eq, Ord, Show)
 
+isLeftRepetition FullRepeat        = True
+isLeftRepetition RightRepeatOfLeft = True
+isLeftRepetition _                 = False
+
+isRightRepetition FullRepeat        = True
+isRightRepetition LeftRepeatOfRight = True
+isRightRepetition _                 = False
+
+
 -- | Encodes the decisions made in a split operation.
 -- Contains a list of elaborations for every parent edge.
 -- Each elaboration contains the child pitch,
@@ -362,15 +371,19 @@ findPassing _ _ _ = Nothing
 -- but can be embedded into different semirings using 'evalMapScores'.
 protoVoiceEvaluator
   :: ( Foldable t
-     , Eq i
-     , Ord i
-     , Diatonic i
+     , Eq (ICOf i)
+     , Ord (ICOf i)
+     , Diatonic (ICOf i)
      , Foldable t2
-     , i ~ ICOf i'
-     , Interval i'
-     , Notation (Pitch i)
+     , Interval i
+     , Notation (Pitch (ICOf i))
      )
-  => Eval (Edges i) (t (Edge i)) (Notes i) (t2 (Pitch i')) (PVLeftMost i)
+  => Eval
+       (Edges (ICOf i))
+       (t (Edge (ICOf i)))
+       (Notes (ICOf i))
+       (t2 (Pitch i))
+       (PVLeftMost (ICOf i))
 protoVoiceEvaluator =
   Eval pvVertMiddle pvVertLeft pvVertRight pvMerge pvThaw pvSlice
 
@@ -548,22 +561,51 @@ pvSlice = Notes . MS.fromList . fmap pc . toList
 -- evaluators in specific semirings
 -- ================================
 
-pvDeriv
+protoVoiceEvaluator'
   :: ( Foldable t
-     , Ord i
-     , Diatonic i
-     , i ~ ICOf i'
+     , Eq (ICOf i)
+     , Ord (ICOf i)
+     , Diatonic (ICOf i)
      , Foldable t2
-     , Interval i'
-     , Notation (Pitch i)
+     , Interval i
+     , Notation (Pitch (ICOf i))
      )
   => Eval
-       (Edges i)
-       (t (Edge i))
-       (Notes i)
-       (t2 (Pitch i'))
-       (Derivations (PVLeftMost i))
-pvDeriv = mapEvalScore Do protoVoiceEvaluator
+       (Edges (ICOf i))
+       (t (Edge (ICOf i)))
+       (Notes (ICOf i))
+       (t2 (Pitch i))
+       (PVLeftMost (ICOf i))
+protoVoiceEvaluator' = Eval vm vl vr filterSplit t s
+ where
+  (Eval vm vl vr mg t s) = protoVoiceEvaluator
+  filterSplit l lt mid rt r s = filter ok $ mg l lt mid rt r s
+  ok (_, LMSplitLeft (SplitOp ts nts)) = isOk ts nts
+  ok (_, LMSplitRight (SplitOp ts nts)) = isOk ts nts
+  ok _ = False
+  isOk ts nts =
+    not
+      $  M.null nts
+      && (  all (check isLeftRepetition)  (M.toList ts)
+         || all (check isRightRepetition) (M.toList ts)
+         )
+  check pred (_, os) = all (pred . (\(_, o, _, _) -> o)) os
+
+pvDeriv
+  :: ( Foldable t
+     , Foldable t2
+     , Ord (ICOf i)
+     , Diatonic (ICOf i)
+     , Interval i
+     , Notation (Pitch (ICOf i))
+     )
+  => Eval
+       (Merged, (RightBranchHori, Edges (ICOf i)))
+       (t (Edge (ICOf i)))
+       ((), ((), Notes (ICOf i)))
+       (t2 (Pitch i))
+       (Derivations (PVLeftMost (ICOf i)))
+pvDeriv = splitFirst $ rightBranchHori $ mapEvalScore Do protoVoiceEvaluator'
 
 pvCount''
   :: ( Foldable t
@@ -579,7 +621,7 @@ pvCount''
        (Notes (ICOf i))
        (t2 (Pitch i))
        Int
-pvCount'' = mapEvalScore (const 1) protoVoiceEvaluator
+pvCount'' = mapEvalScore (const 1) protoVoiceEvaluator'
 
 pvCount'
   :: ( Foldable t
