@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE FlexibleContexts #-}
 module Common where
 
 -- StartStop
@@ -13,12 +14,15 @@ import qualified Data.Set                      as S
 import           Data.Foldable                  ( foldl'
                                                 , foldlM
                                                 )
+import qualified Control.Monad.Writer.Strict   as MW
+import           Debug.Trace                    ( trace )
+import           Data.Semigroup                 ( stimesMonoid )
 
 -- | A container type that augements the type @a@
 -- with symbols for beginning (@:⋊@) and end (@:⋉@).
 -- Every other value is wrapped in an @Inner@ constructor.
 data StartStop a = (:⋊)
-                  | Inner a
+                  | Inner !a
                   | (:⋉)
   deriving (Ord, Eq, Generic)
 
@@ -55,7 +59,7 @@ getInnerE (Inner a) = Right a
 getInnerE (:⋊)      = Left "expected inner but found ⋊"
 getInnerE (:⋉)      = Left "expected inner but found ⋉"
 
-isInner (Inner a) = True
+isInner (Inner _) = True
 isInner _         = False
 
 isStart (:⋊) = True
@@ -89,12 +93,12 @@ type Merge e a v = StartStop a -> e -> a -> e -> StartStop a -> Bool -> [(e, v)]
 -- | A combined evaluator for verticalizations, merges, and thaws.
 -- Additionally, contains a function for mapping terminal slices to semiring values.
 data Eval e e' a a' v = Eval
-  { evalVertMiddle  :: VertMiddle e a v
-  , evalVertLeft :: VertLeft e a v
-  , evalVertRight :: VertRight e a v
-  , evalMerge :: Merge e a v
-  , evalThaw  :: StartStop a -> e' -> StartStop a -> [(e, v)]
-  , evalSlice :: a' -> a
+  { evalVertMiddle  :: !(VertMiddle e a v)
+  , evalVertLeft :: !(VertLeft e a v)
+  , evalVertRight :: !(VertRight e a v)
+  , evalMerge :: !(Merge e a v)
+  , evalThaw  :: !(StartStop a -> e' -> StartStop a -> [(e, v)])
+  , evalSlice :: !(a' -> a)
   }
 
 -- | Maps a function over all scores produced by the evaluator.
@@ -146,18 +150,19 @@ productEval (Eval vertm1 vertl1 vertr1 merge1 thaw1 slice1) (Eval vertm2 vertl2 
 -- restricting branching
 -- ---------------------
 
-newtype RightBranchHori = RB Bool
+data RightBranchHori = RBBranches
+                        | RBClear
   deriving (Eq, Ord, Show)
 
 evalRightBranchHori :: Eval RightBranchHori e' () a' ()
 evalRightBranchHori = Eval vertm vertl vertr merge thaw slice
  where
-  vertm (_, RB False, _) = Nothing
-  vertm (_, RB True , _) = Just ((), ())
-  vertl _ _ = [RB True]
-  vertr _ _ = [RB False]
-  merge _ _ _ _ _ _ = [(RB True, ())]
-  thaw _ _ _ = [(RB True, ())]
+  vertm (_, RBBranches, _) = Nothing
+  vertm (_, RBClear   , _) = Just ((), ())
+  vertl _ _ = [RBClear]
+  vertr _ _ = [RBBranches]
+  merge _ _ _ _ _ _ = [(RBClear, ())]
+  thaw _ _ _ = [(RBClear, ())]
   slice _ = ()
 
 rightBranchHori
@@ -167,19 +172,20 @@ rightBranchHori = mapEvalScore snd . productEval evalRightBranchHori
 -- restricting derivation order
 -- ----------------------------
 
-newtype Merged = Merged Bool
+data Merged = Merged
+               | NotMerged
   deriving (Eq, Ord, Show)
 
 evalSplitBeforeHori :: (Eval Merged e' () a' ())
 evalSplitBeforeHori = Eval vertm vertl vertr merge thaw slice
  where
   vertm _ = Just ((), ())
-  vertl (Merged True , _) _ = []
-  vertl (Merged False, _) _ = [Merged False]
-  vertr (_, Merged True ) _ = []
-  vertr (_, Merged False) _ = [Merged False]
-  merge _ _ _ _ _ _ = [(Merged True, ())]
-  thaw _ _ _ = [(Merged False, ())]
+  vertl (Merged   , _) _ = []
+  vertl (NotMerged, _) _ = [NotMerged]
+  vertr (_, Merged   ) _ = []
+  vertr (_, NotMerged) _ = [NotMerged]
+  merge _ _ _ _ _ _ = [(Merged, ())]
+  thaw _ _ _ = [(NotMerged, ())]
   slice _ = ()
 
 splitFirst :: Eval e2 e' a2 a' w -> Eval (Merged, e2) e' ((), a2) a' w
@@ -188,21 +194,56 @@ splitFirst = mapEvalScore snd . productEval evalSplitBeforeHori
 -- left-most derivation outer operations
 -- =====================================
 
-data Leftmost s f h = LMSplitLeft s
-                    | LMFreeze f
-                    | LMSplitRight s
-                    | LMHorizontalize h
+data Leftmost s f h = LMSplitLeft !s
+                    | LMFreeze !f
+                    | LMSplitRight !s
+                    | LMHorizontalize !h
   deriving (Eq, Ord, Show)
+
+buildDerivation = MW.execWriter
+
+splitLeft :: (MW.MonadWriter [Leftmost s f h] m) => s -> m ()
+splitLeft = MW.tell . (: []) . LMSplitLeft
+
+splitRight :: (MW.MonadWriter [Leftmost s f h] m) => s -> m ()
+splitRight = MW.tell . (: []) . LMSplitRight
+
+freeze :: (MW.MonadWriter [Leftmost s f h] m) => f -> m ()
+freeze = MW.tell . (: []) . LMFreeze
+
+hori :: (MW.MonadWriter [Leftmost s f h] m) => h -> m ()
+hori = MW.tell . (: []) . LMHorizontalize
+
 
 -- useful semirings
 -- ================
 
-data Derivations a = Do a
+data Derivations a = Do !a
                    | Or (Derivations a) (Derivations a)
-                   | Then (Derivations a) (Derivations a)
+                   | Then !(Derivations a) !(Derivations a)
                    | NoOp
                    | Cannot
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord)
+
+data DerivOp = OpNone
+             | OpOr
+             | OpThen
+  deriving Eq
+
+instance Show a => Show (Derivations a) where
+  show = go 0 OpNone
+   where
+    indent n = stimesMonoid n "  "
+    go n _    (Do a)   = indent n <> show a
+    go n _    NoOp     = indent n <> "NoOp"
+    go n _    Cannot   = indent n <> "Cannot"
+    go n OpOr (Or a b) = go n OpOr a <> "\n" <> go n OpOr b
+    go n _ (Or a b) =
+      indent n <> "Or\n" <> go (n + 1) OpOr a <> "\n" <> go (n + 1) OpOr b
+    go n OpThen (Then a b) = go n OpThen a <> "\n" <> go n OpThen b
+    go n _ (Then a b) =
+      indent n <> "Then\n" <> go (n + 1) OpThen a <> "\n" <> go (n + 1) OpThen b
+
 
 instance R.Semiring (Derivations a) where
   zero = Cannot
@@ -213,7 +254,7 @@ instance R.Semiring (Derivations a) where
   times Cannot _      = Cannot
   times _      Cannot = Cannot
   times NoOp   a      = a
-  times a      NoOp   = NoOp
+  times a      NoOp   = a
   times a      b      = Then a b
 
 mapDerivations :: (R.Semiring r) => (a -> r) -> Derivations a -> r
@@ -225,3 +266,24 @@ mapDerivations f (Then a b) = mapDerivations f a R.* mapDerivations f b
 
 flattenDerivations :: Ord a => Derivations a -> S.Set [a]
 flattenDerivations = mapDerivations (\a -> S.singleton [a])
+
+flattenDerivationsRed :: Ord a => Derivations a -> [[a]]
+flattenDerivationsRed (Do a) = pure [a]
+flattenDerivationsRed NoOp   = pure []
+flattenDerivationsRed Cannot = []
+flattenDerivationsRed (Or a b) =
+  flattenDerivationsRed a <> flattenDerivationsRed b
+flattenDerivationsRed (Then a b) = do
+  a <- flattenDerivationsRed a
+  b <- flattenDerivationsRed b
+  pure (a <> b)
+
+-- utilities
+-- =========
+
+traceLevel :: Int
+traceLevel = 0
+
+traceIf :: Int -> [Char] -> Bool -> Bool
+traceIf l msg value =
+  if traceLevel >= l && value then trace msg value else value

@@ -21,6 +21,7 @@ description:         Please see the README on GitHub at <https://github.com/chfi
 
 dependencies:
 - base >= 4.7 && < 5
+- musicology-pitch
 - musicology-core
 - musicology-musicxml
 - text
@@ -39,6 +40,7 @@ dependencies:
 - diagrams-lib
 - diagrams-svg
 - colour
+- process
 
 library:
   source-dirs: src

@@ -5,10 +5,13 @@
 module Scoring
   ( -- * The Score Type
     Score(..)
+  , LeftId(..)
+  , RightId(..)
   , leftSide
   , rightSide
   , sides
   , score
+  , showScore
   , -- * Semiring operations
     --
     -- Semiring operations can be lifted to partial scores,
@@ -29,10 +32,28 @@ module Scoring
 where
 
 import qualified Data.Semiring                 as R
+import           Common                         ( traceLevel )
+import           Debug.Trace                    ( trace
+                                                , traceStack
+                                                )
 
 ----------------
 -- Score type --
 ----------------
+
+newtype LeftId i = LeftId i
+  deriving (Eq, Ord)
+
+instance Show i => Show (LeftId i) where
+  show (LeftId i) = show i
+
+newtype RightId i = RightId i
+  deriving (Eq, Ord)
+
+instance Show i => Show (RightId i) where
+  show (RightId i) = show i
+
+match (RightId ir) (LeftId il) = il == ir
 
 -- | A partially applied score of type @s@.
 -- Comes in four variants,
@@ -49,15 +70,15 @@ import qualified Data.Semiring                 as R
 data Score s i
   = SVal !s
   -- ^ Carries a fully applied value
-  | SRight !i !(s -> s)
+  | SRight !(LeftId i) !(s -> s)
   -- ^ The right part of a combination, expects an argument to its left.
   -- Implemented as a function @fr :: s -> s@ that takes the value from the left.
-  | SLeft !((s -> s) -> s) !i
+  | SLeft !((s -> s) -> s) !(RightId i)
   -- ^ The left part of a combination, expects an argument to its right.
   -- Implemented as a higher-order function @fl :: (s -> s) -> s@
   -- that takes the @fr@ function from its right and applies it to an internal value.
   -- In addition, @fl@ may modify the result of @fr@ by combining it with other @s@ values.
-  | SBoth !i !((s -> s) -> s -> s) !i
+  | SBoth !(LeftId i) !((s -> s) -> s -> s) !(RightId i)
   -- ^ A combination of 'SLeft' and 'SRight' that expects arguments on both sides.
   -- Implemented as a function @fb :: (s -> s) -> s -> s@.
   deriving ()
@@ -66,7 +87,7 @@ data Score s i
 -- or 'Nothing' for 'SVal' and 'SLeft'.
 -- 
 -- > a-b -> a
-leftSide :: Score s i -> Maybe i
+leftSide :: Score s i -> Maybe (LeftId i)
 leftSide (SVal _     ) = Nothing
 leftSide (SLeft  _ _ ) = Nothing
 leftSide (SRight i _ ) = Just i
@@ -76,7 +97,7 @@ leftSide (SBoth i _ _) = Just i
 -- or 'Nothing' for 'SVal' and 'SRight'.
 --
 -- > a-b -> b
-rightSide :: Score s i -> Maybe i
+rightSide :: Score s i -> Maybe (RightId i)
 rightSide (SVal _     ) = Nothing
 rightSide (SLeft  _ i ) = Just i
 rightSide (SRight _ _ ) = Nothing
@@ -86,7 +107,7 @@ rightSide (SBoth _ _ i) = Just i
 -- i.e. its IDs (or 'Nothing') on both sides.
 --
 -- > a-b -> (a,b)
-sides :: Score s i -> (Maybe i, Maybe i)
+sides :: Score s i -> (Maybe (LeftId i), Maybe (RightId i))
 sides (SVal _       ) = (Nothing, Nothing)
 sides (SLeft  _ i   ) = (Nothing, Just i)
 sides (SRight i _   ) = (Just i, Nothing)
@@ -99,9 +120,15 @@ score _        = Nothing
 
 instance (Show i) => Show (Score s i) where
   show (SVal _       ) = "()-()"
-  show (SLeft  _ i   ) = "()-" <> show i
-  show (SRight i _   ) = show i <> "-()"
+  show (SLeft  _  ir ) = "()-" <> show ir
+  show (SRight il _  ) = show il <> "-()"
   show (SBoth il _ ir) = show il <> "-" <> show ir
+
+showScore :: (Show s, Show i) => Score s i -> String
+showScore (SVal v       ) = show v
+showScore (SLeft  _  ir ) = "()-" <> show ir
+showScore (SRight il _  ) = show il <> "-()"
+showScore (SBoth il _ ir) = show il <> "-" <> show ir
 
 -------------------------
 -- semiring operations --
@@ -115,19 +142,29 @@ instance (Show i) => Show (Score s i) where
 times :: (R.Semiring s, Eq i) => Score s i -> Score s i -> Maybe (Score s i)
 -- creates value
 times (SVal s1) (SVal s2) = Just $ SVal $ s1 R.* s2
-times (SLeft fl il) (SRight ir fr) | il == ir = Just $ SVal (fl fr)
+times (SLeft fl il) (SRight ir fr) | il `match` ir = Just $ SVal (fl fr)
 -- creates right
 times (SRight i fr) (SVal s) = Just $ SRight i (\l -> fr l R.* s)
-times (SBoth il fb ir) (SRight i fr) | ir == i = Just $ SRight i (fb fr)
+times (SBoth il fb ir) (SRight i fr) | ir `match` i = Just $ SRight il (fb fr)
 -- creates left
 times (SVal s) (SLeft fl i) = Just $ SLeft (\r -> s R.* fl r) i
-times (SLeft fl i) (SBoth il fb ir) | i == il = Just $ SLeft (fl . fb) ir
+times (SLeft fl i) (SBoth il fb ir) | i `match` il = Just $ SLeft (fl . fb) ir
 -- creates both
 times (SRight il fr) (SLeft fl ir) = Just $ SBoth il (\r l -> fr l R.* fl r) ir
-times (SBoth il fa ia) (SBoth ib fb ir) | ia == ib =
+times (SBoth il fa ia) (SBoth ib fb ir) | ia `match` ib =
   Just $ SBoth il (fa . fb) ir
 -- otherwise
 times _ _ = Nothing
+
+breakMe x = x
+
+-- tracePlus a b = if traceLevel >= 1 && a == b
+--   then
+--     breakMe
+--     $   traceStack ("trying to add same value twice: " <> show a)
+--     $   a
+--     R.+ b
+--   else a R.+ b
 
 -- | Adds two partially applied 'Score's
 -- by adding their underlying (or resulting) semiring values.
@@ -136,7 +173,11 @@ times _ _ = Nothing
   -- Otherwise, 'Nothing' is returned.
 --
 -- > a-b + a-b -> a-b
-plus :: (R.Semiring s, Eq i) => Score s i -> Score s i -> Maybe (Score s i)
+plus
+  :: (R.Semiring s, Eq i, Eq s, Show s)
+  => Score s i
+  -> Score s i
+  -> Maybe (Score s i)
 plus (SVal s1) (SVal s2) = Just $ SVal $ s1 R.+ s2
 plus (SRight i fr1) (SRight i' fr2) | i == i' =
   Just $ SRight i $ \l -> fr1 l R.+ fr2 l
@@ -150,7 +191,10 @@ plus _ _ = Nothing
 --
 -- > (a-b, c-d) -> b = c
 compatible :: (Eq i) => Score s i -> Score s i -> Bool
-compatible l r = rightSide l == leftSide r
+compatible l r = case (rightSide l, leftSide r) of
+  (Nothing, Nothing) -> True
+  (Just il, Just ir) -> il `match` ir
+  _                  -> False
 
 -- | Checks if two 'Score's can be combined with 'plus'.
 --
@@ -186,8 +230,8 @@ vertScoresLeft
 vertScoresLeft newid = wrap
  where
   -- wrap the left input score into a new layer with a new ID
-  wrap (SVal val  ) = Just $ SLeft (\fr -> fr val) newid
-  wrap (SLeft fl _) = Just $ SLeft fl newid
+  wrap (SVal val  ) = Just $ SLeft (\fr -> fr val) (RightId newid)
+  wrap (SLeft fl _) = Just $ SLeft fl (RightId newid)
   wrap _            = Nothing
 
 -- | Creates the 'Score' of a right parent edge
@@ -208,8 +252,9 @@ vertScoresRight newid op m r = do
   -- generate a value on the right
   -- that consumes the left parent edge's value when supplied
   -- and combines with m on the right
-  unwrap op Nothing  = SRight newid (\l -> op R.* l)
-  unwrap op (Just i) = SBoth newid (\r l -> op R.* r l) i
+  unwrap op Nothing = SRight (LeftId newid) (\l -> op R.* l)
+  unwrap op (Just (LeftId i)) =
+    SBoth (LeftId newid) (\r l -> op R.* r l) (RightId i)
 
 
 

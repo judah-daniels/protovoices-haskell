@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TupleSections #-}
 module Display where
 
 import           Common
@@ -19,6 +21,9 @@ import qualified Data.List                     as L
 import qualified Data.Map                      as M
 import           Data.List                      ( sortOn )
 import           Data.Foldable                  ( foldl' )
+import qualified Data.Text                     as T
+import qualified Data.Text.IO                  as T
+import           System.Process                 ( callCommand )
 
 type PVDiagram b = QDiagram b V2 Double Any
 
@@ -132,6 +137,12 @@ replayDerivation deriv player = ST.execStateT (mapM_ applyRule deriv) init
     addHoriEdge (pm, rs)
     pushOpen [(lpl, l, ls), (ls, m, rs), (rs, r, rpr)]
 
+replayDerivationFull deriv player = do
+  graph <- replayDerivation deriv player
+  if L.null $ dgSurface graph
+    then Right graph
+    else Left "Not all surface transitions have been frozen!"
+
 derivationPlayerUnit :: DerivationPlayer s f h () ()
 derivationPlayerUnit = DerivationPlayer root split freeze hori
  where
@@ -144,40 +155,48 @@ derivationPlayerUnit = DerivationPlayer root split freeze hori
 -- ==========================
 
 tikzDerivationGraph
-  :: (a -> String) -> (b -> String) -> DerivationGraph a b -> String
-tikzDerivationGraph showS showT (DGraph _ slices trans horis _ foot root) =
-  L.intercalate
+  :: (Eq a, Eq b)
+  => (a -> T.Text)
+  -> (b -> T.Text)
+  -> DerivationGraph a b
+  -> T.Text
+tikzDerivationGraph showS showT (DGraph _ slices trans horis openTrans foot root)
+  = T.intercalate
     "\n"
     (  (showNode <$> tikzNodes)
-    <> (showTrans <$> S.toList trans)
+    <> (showTrans <$> trans')
     <> (showHori <$> S.toList horis)
     )
  where
+  showT :: (Show a) => a -> T.Text
+  showT = T.pack . show
   -- printing nodes and edges
   showSlice (:⋊)      = "$\\rtimes$"
   showSlice (:⋉)      = "$\\ltimes$"
   showSlice (Inner s) = showS s
   showNode (x, y, id, c) =
     "\\node[slice] (slice"
-      <> show id
+      <> showT id
       <> ") at ("
-      <> show x
+      <> showT x
       <> ","
-      <> show (-y)
+      <> showT (-y)
       <> ") {"
       <> showSlice c
       <> "};"
-  showTrans (nl, c, nr) =
-    "\\draw[transition] (slice"
-      <> show (getID nl)
+  showTrans ((nl, c, nr), frozen) =
+    "\\draw[transition,"
+      <> (if frozen then "terminal" else "non-terminal")
+      <> "] (slice"
+      <> showT (getID nl)
       <> ") -- (slice"
-      <> show (getID nr)
+      <> showT (getID nr)
       <> ");"
   showHori (p, c) =
     "\\draw[hori] (slice"
-      <> show (getID p)
+      <> showT (getID p)
       <> ") -- (slice"
-      <> show (getID c)
+      <> showT (getID c)
       <> ");"
   -- helpers
   getID (_, i, _) = i
@@ -187,8 +206,9 @@ tikzDerivationGraph showS showT (DGraph _ slices trans horis _ foot root) =
   -- computing node locations
   nodeChildren =
     M.fromListWith (++) $ bimap getID ((: []) . getID) <$> S.toList horis
-  foot'        = reverse foot
-  surfaceNodes = fmap getID $ leftNode (head foot') : fmap rightNode foot'
+  surface      = reverse foot <> openTrans
+  trans'       = (\t -> (t, t `L.elem` foot)) <$> S.toList trans
+  surfaceNodes = fmap getID $ leftNode (head surface) : fmap rightNode surface
   allNodes     = getID <$> sortOn getDepth (S.toList slices)
   -- compute x locations
   xloc         = foldl' findX xlocInit allNodes
@@ -206,7 +226,7 @@ tikzDerivationGraph showS showT (DGraph _ slices trans horis _ foot root) =
   tikzNodes = mkNode <$> S.toList slices
     where mkNode (depth, id, content) = (xloc M.! id, depth, id, content)
 
-showTex x = concatMap escapeTex $ show x
+showTex x = T.pack $ concatMap escapeTex $ show x
  where
   escapeTex '♭' = "$\\flat$"
   escapeTex '♯' = "$\\sharp$"
@@ -214,3 +234,33 @@ showTex x = concatMap escapeTex $ show x
   escapeTex '}' = "\\}"
   escapeTex c   = [c]
 
+mkTikzPic content =
+  "\\begin{tikzpicture}\n" <> content <> "\n\\end{tikzpicture}"
+
+tikzStandalone content =
+  "\\documentclass[varwidth]{standalone}\n\
+\\\usepackage{tikz}\n\
+\\\usepackage{amssymb}\n\
+\\\begin{document}\n\
+\\\tikzstyle{slice} = []\n\
+\\\tikzstyle{transition} = []\n\
+\\\tikzstyle{non-terminal} = []\n\
+\\\tikzstyle{terminal} = [double]\n\
+\\\tikzstyle{hori} = [gray,dashed]\n\n"
+    <> content
+    <> "\n\\end{document}"
+
+viewGraph fn g = do
+  T.writeFile fn $ tikzStandalone $ mkTikzPic $ tikzDerivationGraph showTex
+                                                                    showTex
+                                                                    g
+  callCommand $ "pdflatex " <> fn
+
+viewGraphs fn gs = do
+  T.writeFile fn
+    $   tikzStandalone
+    $   T.intercalate "\n\n"
+    $   mkTikzPic
+    .   tikzDerivationGraph showTex showTex
+    <$> gs
+  callCommand $ "pdflatex " <> fn

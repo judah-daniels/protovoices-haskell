@@ -1,3 +1,5 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TupleSections #-}
@@ -20,8 +22,11 @@ import           Data.Foldable                  ( foldlM
                                                 )
 import           Data.Maybe                     ( fromMaybe
                                                 , catMaybes
+                                                , isJust
                                                 )
 import           Control.Monad.Reader
+import           Debug.Trace                    ( trace )
+import qualified Data.Set                      as Set
 
 -- Basic Types
 -- ===========
@@ -29,15 +34,16 @@ import           Control.Monad.Reader
 -- Slices
 ---------
 
+
 data Slice a = Slice
-  { sFirst   :: Int
-  , sContent :: StartStop a
-  , sLast    :: Int
+  { sFirst   :: !Int
+  , sContent :: !(StartStop a)
+  , sLast    :: !Int
   }
   deriving (Eq, Ord, Generic)
 
 instance Show a => Show (Slice a) where
-  show (Slice f c l) = show f <> "-[" <> show c <> "]-" <> show l
+  show (Slice f c l) = show f <> "-" <> show c <> "-" <> show l
 
 -- | Return the length of a slice.
 sliceLen :: Slice a -> Int
@@ -47,10 +53,10 @@ sliceLen (Slice f _ l) = l - f + 1
 --------------
 
 data Transition e a = Transition
-  { tLeftSlice  :: Slice a
-  , tContent    :: e
-  , tRightSlice :: Slice a
-  , t2nd        :: Bool
+  { tLeftSlice  :: !(Slice a)
+  , tContent    :: !e
+  , tRightSlice :: !(Slice a)
+  , t2nd        :: !Bool
   }
   deriving (Eq, Ord, Generic)
 
@@ -67,8 +73,8 @@ transLen (Transition l _ r _) = sLast r - sFirst l + 1
 --------
 
 data Item i v = (:=)
-  { iItem :: i
-  , iValue :: S.Score v Int
+  { iItem :: !i
+  , iValue :: !(S.Score v Int)
   }
 
 instance (Show i, Show v) => Show (Item i v) where
@@ -80,12 +86,22 @@ type TItem e a v = Item (Transition e a) v
 -- Vert Items
 
 data Vert e a v = Vert
-  { vId :: Int
-  , vTop :: Slice a
-  , vOp :: v
-  , vMiddle :: TItem e a v
+  { vId :: !Int
+  , vTop :: !(Slice a)
+  , vOp :: !v
+  , vMiddle :: !(TItem e a v)
   }
-  deriving (Show)
+
+instance (Show e, Show a, Show v) => Show (Vert e a v) where
+  show (Vert id top op m) =
+    "Vert "
+      <> show id
+      <> "\n top: "
+      <> show top
+      <> "\n op:  "
+      <> show op
+      <> "\n m:   "
+      <> show m
 
 -- slice and transition charts
 -- ===========================
@@ -100,25 +116,26 @@ data Vert e a v = Vert
 -- - check ID for (top,left,leftid)
 
 data VChart e a v = VChart
-  { vcNextId :: Int
-  , vcIDs :: M.Map (Slice a, Slice a, Maybe Int) Int
-  , vcByLength :: IM.IntMap [Vert e a v]
-  , vcByLeftChild :: M.Map (Slice a) [Vert e a v]
-  , vcByRightChild :: M.Map (Slice a) [Vert e a v]
+  { vcNextId :: !Int
+  , vcIDs :: !(M.Map (Slice a, Slice a, Maybe (S.LeftId Int)) Int)
+  , vcByLength :: !(IM.IntMap [Vert e a v])
+  , vcByLengthLeft :: !(IM.IntMap (Set.Set (Int, Slice a, Slice a)))
+  , vcByLeftChild :: !(M.Map (Slice a, Int) (Set.Set (Int, Slice a)))
+  , vcByRightChild :: !(M.Map (Slice a) [Vert e a v])
   }
 
 instance (Show e, Show a, Show v) => Show (VChart e a v) where
-  show (VChart n _ is _ _) = "VChart (next id: " <> show n <> ")" <> levels
+  show (VChart n _ is _ _ _) = "VChart (next id: " <> show n <> ")" <> levels
    where
     levels = concatMap showLevel $ IM.toAscList is
     showLevel (l, items) = "\nlevel " <> show l <> ":" <> sitems
       where sitems = concatMap (("\n  " <>) . show) items
 
 vcEmpty :: VChart e a v
-vcEmpty = VChart 0 M.empty IM.empty M.empty M.empty
+vcEmpty = VChart 0 M.empty IM.empty IM.empty M.empty M.empty
 
 vcInsert :: Ord a => VChart e a v -> (a, v, TItem e a v) -> VChart e a v
-vcInsert (VChart nextid ids bylen byleft byright) (topContent, op, mid@(tmid := vmid))
+vcInsert (VChart nextid ids bylen bylenleft byleft byright) (topContent, op, mid@(tmid := vmid))
   = let left                = tLeftSlice tmid
         right               = tRightSlice tmid
         top = Slice (sFirst left) (Inner topContent) (sLast right)
@@ -126,11 +143,14 @@ vcInsert (VChart nextid ids bylen byleft byright) (topContent, op, mid@(tmid := 
         (nextid', ids', id) = case M.lookup idKey ids of
           Just id -> (nextid, ids, id)
           Nothing -> (nextid + 1, M.insert idKey nextid ids, nextid)
-        vert     = [Vert id top op mid]
-        bylen'   = IM.insertWith (<>) (transLen tmid) vert bylen
-        byleft'  = M.insertWith (<>) left vert byleft
-        byright' = M.insertWith (<>) right vert byright
-    in  VChart nextid' ids' bylen' byleft' byright'
+        vert       = [Vert id top op mid]
+        vert'      = Set.singleton (id, top, tLeftSlice tmid)
+        vertLeft   = Set.singleton (id, top)
+        bylen'     = IM.insertWith (<>) (transLen tmid) vert bylen
+        bylenleft' = IM.insertWith (<>) (transLen tmid) vert' bylenleft
+        byleft'    = M.insertWith (<>) (left, transLen tmid) vertLeft byleft
+        byright'   = M.insertWith (<>) right vert byright
+    in  VChart nextid' ids' bylen' bylenleft' byleft' byright'
 
 vcMerge
   :: (Foldable t, Ord a)
@@ -139,16 +159,24 @@ vcMerge
   -> VChart e a v
 vcMerge = foldl' vcInsert
 
-vcGetByLength :: (VChart e a v -> Int -> [Vert e a v])
+vcGetByLength :: VChart e a v -> Int -> [Vert e a v]
 vcGetByLength chart len = fromMaybe [] $ IM.lookup len $ vcByLength chart
 
-vcGetByLeftChild :: (Ord a0 => VChart e a0 v -> Slice a0 -> [Vert e a0 v])
-vcGetByLeftChild chart left =
-  fromMaybe [] $ M.lookup left $ vcByLeftChild chart
+vcGetByLengthLeft :: VChart e a v -> Int -> [(Int, Slice a, Slice a)]
+vcGetByLengthLeft chart len =
+  maybe [] Set.toList $ IM.lookup len (vcByLengthLeft chart)
 
-vcGetByRightChild :: (Ord a0 => VChart e a0 v -> Slice a0 -> [Vert e a0 v])
-vcGetByRightChild chart right =
-  fromMaybe [] $ M.lookup right $ vcByRightChild chart
+vcGetByLeftChild :: Ord a => Int -> VChart e a v -> Slice a -> [(Int, Slice a)]
+vcGetByLeftChild n chart left =
+  Set.toList $ Set.unions $ catMaybes $ getN <$> [2 .. n]
+ where
+  lefts = vcByLeftChild chart
+  getN n = M.lookup (left, n) lefts
+
+vcGetByRightChild :: Ord a => Int -> VChart e a v -> Slice a -> [Vert e a v]
+vcGetByRightChild n chart right =
+  filter notTooLong $ fromMaybe [] $ M.lookup right $ vcByRightChild chart
+  where notTooLong (Vert _ _ _ m) = transLen (iItem m) <= n
 
 -- transition chart
 -------------------
@@ -158,31 +186,65 @@ vcGetByRightChild chart right =
 -- - get all with left slice l
 -- - get all with right slice r
 
-type TCell e a v = M.Map (Transition e a, Maybe Int, Maybe Int) (S.Score v Int)
+type TCell e a v
+  = M.Map
+      (Transition e a, Maybe (S.LeftId Int), Maybe (S.RightId Int))
+      (S.Score v Int)
 
 data TChart e a v = TChart
-  { tcByLength :: IM.IntMap (TCell e a v)
-  , tcByLeft   :: M.Map (Slice a) (TCell e a v)
-  , tcByRight  :: M.Map (Slice a) (TCell e a v)
+  { tcByLength :: !(IM.IntMap (TCell e a v))
+  , tcByLeft   :: !(M.Map (Slice a) (TCell e a v))
+  , tcByRight  :: !(M.Map (Slice a) (TCell e a v))
   }
   deriving (Show)
 
 tcEmpty :: TChart e a v
 tcEmpty = TChart IM.empty M.empty M.empty
 
+tracePlus k t s1 s2
+  | traceLevel >= 1 && (S.score s1 == S.score s2) && isJust (S.score s1) = trace
+    (  "adding two "
+    <> show (S.score s1)
+    <> " for transition "
+    <> show t
+    <> " while inserting at "
+    <> show k
+    )
+    res
+  | otherwise = res
+  where res = S.plus s1 s2
+
 -- TODO: there might be room for improvement here
 tcInsert
-  :: (Ord a, R.Semiring v, Ord e) => TChart e a v -> TItem e a v -> TChart e a v
+  :: (Ord a, R.Semiring v, Ord e, Show a, Show e, Show v, Eq v)
+  => TChart e a v
+  -> TItem e a v
+  -> TChart e a v
 tcInsert (TChart len left right) item@(t := v) =
   let new    = M.singleton (t, S.leftSide v, S.rightSide v) v
       len'   = IM.insertWith insert (transLen t) new len
       left'  = M.insertWith insert (tLeftSlice t) new left
       right' = M.insertWith insert (tRightSlice t) new right
-  in  TChart len' left' right'
-  where insert = M.unionWith (\s1 s2 -> fromMaybe s2 (S.plus s1 s2))
+      result = TChart len' left' right'
+  in  if traceLevel >= 4
+        then trace ("inserting at " <> show t <> ": " <> S.showScore v) result
+        else result
+ where
+  insert = M.unionWithKey
+    (\k s1 s2 -> fromMaybe
+      (  error
+      $  "Panic! Incompatible score types at "
+      <> show t
+      <> ": "
+      <> show s1
+      <> " and "
+      <> show s2
+      )
+      (tracePlus k t s1 s2)
+    )
 
 tcMerge
-  :: (R.Semiring v, Foldable t, Ord a, Ord e)
+  :: (R.Semiring v, Foldable t, Ord a, Ord e, Show a, Show e, Show v, Eq v)
   => TChart e a v
   -> t (TItem e a v)
   -> TChart e a v
@@ -278,7 +340,7 @@ type ParseState e a v = (TChart e a v, VChart e a v)
 type ParseOp m e a v = Int -> ParseState e a v -> m (ParseState e a v)
 
 parseStep
-  :: (R.Semiring v, Ord a, Ord e)
+  :: (R.Semiring v, Ord a, Ord e, Show a, Show e, Show v, Eq v)
   => (TChart e a v -> VChart e a v -> Int -> IO ())
   -> Eval e e' a a' v
   -> ParseOp IO e a v
@@ -289,83 +351,183 @@ parseStep log (Eval eMid eLeft eRight eMerge _ _) n charts = do
     >>= vertAllRights eRight n
     >>= mergeAll eMerge n
 
+traceVert vert m = if traceLevel >= 1
+  then trace ("verting " <> showTrans m <> ": " <> show (isJust res)) res
+  else res
+ where
+  res = vert m
+  showSlice (Slice a _ b) = "(" <> show a <> "," <> show b <> ")"
+  showTrans ((Transition l _ r _) := v) = showSlice l <> "-" <> showSlice r
+
 -- | Verticalizes all edges of length @n@.
 vertAllMiddles
-  :: (R.Semiring v, Ord a, Monad m) => VertMiddle e a v -> ParseOp m e a v
+  :: (R.Semiring v, Ord a, Monad m, Show a, Show e, Show v)
+  => VertMiddle e a v
+  -> ParseOp m e a v
 vertAllMiddles evalMid n (tchart, vchart) = do
-  let ts       = tcGetByLength tchart n
-      newVerts = catMaybes $ vertMiddle evalMid <$> ts
-      vchart'  = vcMerge vchart newVerts
+  let ts        = tcGetByLength tchart n
+      !newVerts = catMaybes $ traceVert (vertMiddle evalMid) <$> ts
+      vchart'   = vcMerge vchart newVerts
   return (tchart, vchart')
+
+traceVertLeft i l res = if traceLevel >= 1
+  then trace
+    (  "verting left "
+    <> showTrans l
+    <> " with at "
+    <> show i
+    <> " to "
+    <> concatMap showTrans res
+    )
+    res
+  else res
+ where
+  showSlice (Slice a _ b) = "(" <> show a <> "," <> show b <> ")"
+  showTrans ((Transition l _ r _) := v) = showSlice l <> "-" <> showSlice r
 
 -- | Perform all left verts where either @l@ or @m@ have length @n@
 vertAllLefts
-  :: (R.Semiring v, Ord a, Ord e, Monad m) => VertLeft e a v -> ParseOp m e a v
+  :: (R.Semiring v, Ord a, Ord e, Monad m, Show a, Show e, Show v, Eq v)
+  => VertLeft e a v
+  -> ParseOp m e a v
 vertAllLefts evalLeft n (tchart, vchart) = do
   let -- left = n (and middle <= n)
       leftn = do -- in list monad
-        left            <- tcGetByLength tchart n
-        Vert id top _ _ <- vcGetByLeftChild vchart (tRightSlice $ iItem left)
-        vertLeft evalLeft left (top, id)
+        left      <- tcGetByLength tchart n
+        (id, top) <- vcGetByLeftChild n vchart (tRightSlice $ iItem left)
+        traceVertLeft id left $ vertLeft evalLeft left (top, id)
 
       -- middle = n (and left < n)
       vertn = do -- in list monad
-        (Vert id top _ mid) <- vcGetByLength vchart n
-        left                <- filter (\i -> transLen (iItem i) < n)
-          $ tcGetByRight tchart (tLeftSlice $ iItem mid)
-        vertLeft evalLeft left (top, id)
+        (id, top, lslice) <- vcGetByLengthLeft vchart n
+        left              <- filter (\i -> transLen (iItem i) < n)
+          $ tcGetByRight tchart lslice
+        traceVertLeft id left $ vertLeft evalLeft left (top, id)
 
       -- insert new transitions into chart
       tchart' = tcMerge (tcMerge tchart leftn) vertn
   return (tchart', vchart)
 
+traceVertRight v r res = if traceLevel >= 1
+  then trace
+    (  "verting right "
+    <> showTrans r
+    <> " with middle "
+    <> showTrans (vMiddle v)
+    <> show (vId v)
+    <> " to "
+    <> concatMap showTrans res
+    )
+    res
+  else res
+ where
+  showSlice (Slice a _ b) = "(" <> show a <> "," <> show b <> ")"
+  showTrans ((Transition l _ r _) := v) = showSlice l <> "-" <> showSlice r
+
 -- | Perform all right verts where either @r@ or @m@ have length @n@
 vertAllRights
-  :: (R.Semiring v, Ord a, Ord e, Monad m) => VertRight e a v -> ParseOp m e a v
+  :: (R.Semiring v, Ord a, Ord e, Monad m, Show a, Show e, Show v, Eq v)
+  => VertRight e a v
+  -> ParseOp m e a v
 vertAllRights evalRight n (tchart, vchart) = do
   let -- right = n (and middle <= n)
       rightn = do -- in list monad
         right <- tcGetByLength tchart n
-        vert  <- vcGetByRightChild vchart (tLeftSlice $ iItem right)
-        vertRight evalRight vert right
+        vert  <- vcGetByRightChild n vchart (tLeftSlice $ iItem right)
+        traceVertRight vert right $ vertRight evalRight vert right
 
       -- middle = n (and left < n)
       vertn = do -- in list monad
         vert  <- vcGetByLength vchart n
         right <- filter (\i -> transLen (iItem i) < n)
           $ tcGetByLeft tchart (tRightSlice $ iItem $ vMiddle vert)
-        vertRight evalRight vert right
+        traceVertRight vert right $ vertRight evalRight vert right
 
       -- insert new transitions into chart
       tchart' = tcMerge (tcMerge tchart rightn) vertn
   return (tchart', vchart)
 
+traceMerge'
+  :: (Show a, Show e, Show v)
+  => TItem e a v
+  -> TItem e a v
+  -> [TItem e a v]
+  -> [TItem e a v]
+traceMerge' l r res = if traceLevel >= 3 && not (null res)
+  then trace
+    (  "merging "
+    <> show l
+    <> "\n and    "
+    <> show r
+    <> "\n => "
+    <> concatMap showRes res
+    )
+    res
+  else res
+  where
+  -- showRes (t := (S.SVal v)) = "\n  " <> show t <> ":=" <> show v
+        showRes x = "\n  " <> show x
+
+traceMerge
+  :: (Show a, Show e, Show v)
+  => String
+  -> TItem e a v
+  -> TItem e a v
+  -> [TItem e a v]
+  -> [TItem e a v]
+traceMerge dir l r res = if traceLevel >= 1
+  then trace
+    (  "merging ("
+    <> dir
+    <> ") "
+    <> showTrans l
+    <> " and "
+    <> showTrans r
+    <> " to"
+    <> concatMap showResult res
+    -- <> "\n  left:  "
+    -- <> show l
+    -- <> "\n  right: "
+    -- <> show r
+    )
+    res
+  else res
+ where
+  showResult r = "\n  " <> showTrans r <> ": " <> show (iValue r)
+  showSlice (Slice a _ b) = "(" <> show a <> "," <> show b <> ")"
+  showTrans ((Transition l _ r _) := v) = showSlice l <> "-" <> showSlice r
+
 -- | perform all merges where either @l@ or @r@ have length @n@
 mergeAll
-  :: (R.Semiring v, Ord a, Ord e, Monad m) => Merge e a v -> ParseOp m e a v
+  :: forall e a v m
+   . (R.Semiring v, Ord a, Ord e, Monad m, Show a, Show e, Show v, Eq v)
+  => Merge e a v
+  -> ParseOp m e a v
 mergeAll mrg n (tchart, vchart) = do
   let -- left = n (and right <= n)
-      leftn = do
+      !leftn = do
         left  <- tcGetByLength tchart n
-        right <- tcGetByLeft tchart (tRightSlice $ iItem left)
-        merge mrg left right
+        right <- filter (\r -> transLen (iItem r) <= n)
+          $ tcGetByLeft tchart (tRightSlice $ iItem left)
+        let res = merge mrg left right
+        traceMerge ("left = " <> show n) left right res
 
-      -- right = n (and left <= n)
-      rightn = do
+      -- right = n (and left < n)
+      !rightn = do
         right <- tcGetByLength tchart n
         left  <- filter (\l -> transLen (iItem l) < n)
           $ tcGetByRight tchart (tLeftSlice $ iItem right)
-        merge mrg left right
+        traceMerge ("right = " <> show n) left right $ merge mrg left right
 
       -- insert new transitions into chart
-      tchart' = tcMerge (tcMerge tchart leftn) rightn
+      !tchart' = tcMerge (tcMerge tchart leftn) rightn
   return (tchart', vchart)
 
 -- parsing entry point
 ----------------------
 
-data Path a e = Path a e (Path a e)
-              | PathEnd a
+data Path a e = Path !a !e !(Path a e)
+              | PathEnd !a
 
 instance (Show a, Show e) => Show (Path a e) where
   show (Path a e rst) = show a <> "\n+-" <> show e <> "\n" <> show rst
@@ -393,7 +555,7 @@ mapEdges f (PathEnd _    ) = []
 -- and an input path.
 -- Returns the combined semiring value of all full derivations.
 parse
-  :: (R.Semiring v, Ord e, Ord a)
+  :: (R.Semiring v, Ord e, Ord a, Show a, Show e, Show v, Eq v)
   => (TChart e a v -> VChart e a v -> Int -> IO ())
   -> Eval e e' a a' v
   -> Path (StartStop a') e'
@@ -418,9 +580,18 @@ logSize tc vc n = do
   putStrLn $ "transitions: " <> show (length $ tcGetByLength tc n)
   putStrLn $ "verts: " <> show (length $ vcGetByLength vc (n - 1))
 
-parse'
-  :: (R.Semiring v, Ord e, Ord a)
+parseSize
+  :: (R.Semiring v, Ord e, Ord a, Show a, Show e, Show v, Eq v)
   => Eval e e' a a' v
   -> Path (StartStop a') e'
   -> IO v
-parse' = parse logSize
+parseSize = parse logSize
+
+logNone tc vc n = pure ()
+
+parseSilent
+  :: (R.Semiring v, Ord e, Ord a, Show a, Show e, Show v, Eq v)
+  => Eval e e' a a' v
+  -> Path (StartStop a') e'
+  -> IO v
+parseSilent = parse logNone
