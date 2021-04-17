@@ -68,23 +68,24 @@ slicesFromFile file = do
 slicesToPath
   :: (Interval i, Ord (ICOf i), Eq i)
   => [[(Pitch i, RightTied)]]
-  -> Path (StartStop [Pitch i]) [Edge (ICOf i)]
-slicesToPath slices = Path (:⋊) [] $ go $ normalizeTies slices
+  -> Path [Pitch i] [Edge (ICOf i)]
+slicesToPath = go
  where
-  normalizeTies (s : next : rest) = (fixTie <$> s)
-    : normalizeTies (next : rest)
-   where
-    nextNotes = fst <$> next
-    fixTie (p, t) = if p `L.elem` nextNotes then (p, t) else (p, Ends)
-  normalizeTies [s] = [map (fmap $ const Ends) s]
-  normalizeTies []  = []
-  mkSlice = Inner . fmap fst
+  -- normalizeTies (s : next : rest) = (fixTie <$> s)
+  --   : normalizeTies (next : rest)
+  --  where
+  --   nextNotes = fst <$> next
+  --   fixTie (p, t) = if p `L.elem` nextNotes then (p, t) else (p, Ends)
+  -- normalizeTies [s] = [map (fmap $ const Ends) s]
+  -- normalizeTies []  = []
+  mkSlice = fmap fst
   mkEdges notes = catMaybes $ mkEdge <$> notes
    where
     mkEdge (p, Ends ) = Nothing
     mkEdge (p, Holds) = let p' = pc p in Just (Inner p', Inner p')
+  go []             = error "cannot construct path from empty list"
+  go [notes       ] = PathEnd (mkSlice notes)
   go (notes : rest) = Path (mkSlice notes) (mkEdges notes) $ go rest
-  go []             = PathEnd (:⋉)
 
 testslices from to =
   slicesToPath . drop (from - 1) . take to <$> slicesFromFile testfile
@@ -92,17 +93,13 @@ testslices from to =
 -- manual inputs
 -- -------------
 
-monopath :: [a] -> Path (StartStop [a]) [b]
-monopath xs = Path (:⋊) [] $ go xs
- where
-  go []            = PathEnd (:⋉)
-  go (note : rest) = Path (Inner [note]) [] $ go rest
+monopath :: [a] -> Path [a] [b]
+monopath = path . fmap (: [])
 
-path :: [[a]] -> Path (StartStop [a]) [b]
-path xs = Path (:⋊) [] $ go xs
- where
-  go []             = PathEnd (:⋉)
-  go (notes : rest) = Path (Inner notes) [] $ go rest
+path :: [a] -> Path a [b]
+path []       = error "cannot construct empty path"
+path [a     ] = PathEnd a
+path (a : as) = Path a [] $ path as
 
 -- actions
 -- -------
@@ -138,39 +135,61 @@ plotSteps fn deriv = do
 -- ===================
 
 derivBrahms :: [PVLeftMost MT.SIC]
-derivBrahms = buildDerivation $ do
-  splitLeft $ mkSplit $ do
-    splitT (:⋊) (:⋉) (c' shp) RootNote False False
-    splitT (:⋊) (:⋉) (a' nat) RootNote False False
-  hori $ mkHori $ do
-    horiNote (a' nat) ToBoth     1
-    horiNote (c' shp) (ToLeft 1) 0
-    addPassing (c' shp) (a' nat)
-  splitRight $ mkSplit $ do
-    splitNT (c' shp) (a' nat) (b' nat) False False
-    splitT (Inner $ a' nat) (Inner $ a' nat) (g' shp) FullNeighbor False False
-  hori $ mkHori $ do
-    horiNote (a' nat) (ToRight 1) 0
-    horiNote (c' shp) (ToLeft 1)  0
-    addPassing (c' shp) (a' nat)
-  freeze FreezeOp
-  splitLeft $ mkSplit $ do
-    splitNT (c' shp) (a' nat) (b' nat) False False
-  freeze FreezeOp
-  freeze FreezeOp
-  hori $ mkHori $ do
-    horiNote (b' nat) (ToRight 1) 0
-    horiNote (g' shp) (ToLeft 1)  0
-  splitLeft $ mkSplit $ do
-    addToRight (g' shp) (a' nat) SingleLeftNeighbor False
-  freeze FreezeOp
-  freeze FreezeOp
-  splitLeft $ mkSplit $ do
-    addToRight (b' nat) (c' shp) SingleLeftNeighbor False
-  freeze FreezeOp
-  freeze FreezeOp
-  freeze FreezeOp
-  freeze FreezeOp
+derivBrahms =
+  buildDerivation
+    $  splitLeftOnly
+    $$ mkSplit
+    $$ do
+         splitT (:⋊) (:⋉) (c' shp) RootNote False False
+         splitT (:⋊) (:⋉) (a' nat) RootNote False False
+    .> hori
+    $$ mkHori
+    $$ do
+         horiNote (a' nat) ToBoth     1
+         horiNote (c' shp) (ToLeft 1) 0
+         addPassing (c' shp) (a' nat)
+    .> splitRight
+    $$ mkSplit
+    $$ do
+         splitNT (c' shp) (a' nat) (b' nat) False False
+         splitT (Inner $ a' nat)
+                (Inner $ a' nat)
+                (g' shp)
+                FullNeighbor
+                False
+                False
+    .> hori
+    $$ mkHori
+    $$ do
+         horiNote (a' nat) (ToRight 1) 0
+         horiNote (c' shp) (ToLeft 1)  0
+         addPassing (c' shp) (a' nat)
+    .> freeze FreezeOp
+    .> splitLeft
+    $$ mkSplit
+    $$ do
+         splitNT (c' shp) (a' nat) (b' nat) False False
+    .> freeze FreezeOp
+    .> freeze FreezeOp
+    .> hori
+    $$ mkHori
+    $$ do
+         horiNote (b' nat) (ToRight 1) 0
+         horiNote (g' shp) (ToLeft 1)  0
+    .> splitLeft
+    $$ mkSplit
+    $$ do
+         addToRight (g' shp) (a' nat) SingleLeftNeighbor False
+    .> freeze FreezeOp
+    .> freeze FreezeOp
+    .> splitLeft
+    $$ mkSplit
+    $$ do
+         addToRight (b' nat) (c' shp) SingleLeftNeighbor False
+    .> freeze FreezeOp
+    .> freeze FreezeOp
+    .> freeze FreezeOp
+    .> freezeOnly FreezeOp
 
 -- mains
 -- =====

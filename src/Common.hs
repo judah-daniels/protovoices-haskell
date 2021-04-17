@@ -1,6 +1,11 @@
+{-# LANGUAGE ExplicitNamespaces #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE TypeFamilies #-}
 module Common where
 
 -- StartStop
@@ -17,6 +22,15 @@ import           Data.Foldable                  ( foldl'
 import qualified Control.Monad.Writer.Strict   as MW
 import           Debug.Trace                    ( trace )
 import           Data.Semigroup                 ( stimesMonoid )
+import qualified Control.Monad.Trans.State.Strict
+                                               as ST
+import           GHC.TypeNats                   ( Nat
+                                                , type (<=)
+                                                , type (+)
+                                                , type (-)
+                                                )
+import           Control.Monad.Identity         ( runIdentity )
+import           Data.Bifunctor                 ( second )
 
 -- | A container type that augements the type @a@
 -- with symbols for beginning (@:⋊@) and end (@:⋉@).
@@ -76,28 +90,35 @@ distStartStop (Inner (a, b)) = (Inner a, Inner b)
 -- evaluator interface
 -- ===================
 
+type IsLast = Bool
+
+data SplitType = LeftOfTwo
+               | LeftOnly
+               | RightOfTwo
+
 -- | An evaluator for verticalizations.
 -- Returns the verticalization of a (middle) transition, if possible.
 type VertMiddle e a v = (a, e, a) -> Maybe (a, v)
 
 -- | An evaluator returning the possible left parent edges of a verticalization.
-type VertLeft e a v = (e, a) -> a -> [e]
+type VertLeft e a = (e, a) -> a -> [e]
 
 -- | An evaluator returning the possible right parent edges of a verticalization.
-type VertRight e a v = (a, e) -> a -> [e]
+type VertRight e a = (a, e) -> a -> [e]
 
 -- | An evaluator for merges.
 -- Returns possible merges of a given pair of transitions.
-type Merge e a v = StartStop a -> e -> a -> e -> StartStop a -> Bool -> [(e, v)]
+type Merge e a v
+  = StartStop a -> e -> a -> e -> StartStop a -> SplitType -> [(e, v)]
 
 -- | A combined evaluator for verticalizations, merges, and thaws.
 -- Additionally, contains a function for mapping terminal slices to semiring values.
 data Eval e e' a a' v = Eval
   { evalVertMiddle  :: !(VertMiddle e a v)
-  , evalVertLeft :: !(VertLeft e a v)
-  , evalVertRight :: !(VertRight e a v)
+  , evalVertLeft :: !(VertLeft e a)
+  , evalVertRight :: !(VertRight e a)
   , evalMerge :: !(Merge e a v)
-  , evalThaw  :: !(StartStop a -> e' -> StartStop a -> [(e, v)])
+  , evalThaw  :: !(StartStop a -> Maybe e' -> StartStop a -> IsLast -> [(e, v)])
   , evalSlice :: !(a' -> a)
   }
 
@@ -106,8 +127,8 @@ mapEvalScore :: (v -> w) -> Eval e e' a a' v -> Eval e e' a a' w
 mapEvalScore f (Eval vm vl vr m t s) = Eval vm' vl vr m' t' s
  where
   vm' = fmap (fmap f) . vm
-  m' sl l sm r sr is2nd = fmap f <$> m sl l sm r sr is2nd
-  t' l e r = fmap f <$> t l e r
+  m' sl l sm r sr typ = fmap f <$> m sl l sm r sr typ
+  t' l e r isLast = fmap f <$> t l e r isLast
 
 -- product evaluators
 -- ------------------
@@ -131,16 +152,16 @@ productEval (Eval vertm1 vertl1 vertr1 merge1 thaw1 slice1) (Eval vertm2 vertl2 
     a <- vertr1 (c1, r1) t1
     b <- vertr2 (c2, r2) t2
     pure (a, b)
-  merge sl (tl1, tl2) (sm1, sm2) (tr1, tr2) sr is2nd = do
-    (a, va) <- merge1 sl1 tl1 sm1 tr1 sr1 is2nd
-    (b, vb) <- merge2 sl2 tl2 sm2 tr2 sr2 is2nd
+  merge sl (tl1, tl2) (sm1, sm2) (tr1, tr2) sr typ = do
+    (a, va) <- merge1 sl1 tl1 sm1 tr1 sr1 typ
+    (b, vb) <- merge2 sl2 tl2 sm2 tr2 sr2 typ
     pure ((a, b), (va, vb))
    where
     (sl1, sl2) = distStartStop sl
     (sr1, sr2) = distStartStop sr
-  thaw l e r = do
-    (a, va) <- thaw1 l1 e r1
-    (b, vb) <- thaw2 l2 e r2
+  thaw l e r isLast = do
+    (a, va) <- thaw1 l1 e r1 isLast
+    (b, vb) <- thaw2 l2 e r2 isLast
     pure ((a, b), (va, vb))
    where
     (l1, l2) = distStartStop l
@@ -162,7 +183,7 @@ evalRightBranchHori = Eval vertm vertl vertr merge thaw slice
   vertl _ _ = [RBClear]
   vertr _ _ = [RBBranches]
   merge _ _ _ _ _ _ = [(RBClear, ())]
-  thaw _ _ _ = [(RBClear, ())]
+  thaw _ _ _ _ = [(RBClear, ())]
   slice _ = ()
 
 rightBranchHori
@@ -185,7 +206,7 @@ evalSplitBeforeHori = Eval vertm vertl vertr merge thaw slice
   vertr (_, Merged   ) _ = []
   vertr (_, NotMerged) _ = [NotMerged]
   merge _ _ _ _ _ _ = [(Merged, ())]
-  thaw _ _ _ = [(NotMerged, ())]
+  thaw _ _ _ _ = [(NotMerged, ())]
   slice _ = ()
 
 splitFirst :: Eval e2 e' a2 a' w -> Eval (Merged, e2) e' ((), a2) a' w
@@ -198,22 +219,74 @@ data Leftmost s f h = LMSplitLeft !s
                     | LMFreeze !f
                     | LMSplitRight !s
                     | LMHorizontalize !h
+                    | LMSplitLeftOnly !s
+                    | LMFreezeOnly !f
   deriving (Eq, Ord, Show)
 
-buildDerivation = MW.execWriter
+mkLeftmostEval
+  :: VertMiddle e a h
+  -> VertLeft e a
+  -> VertRight e a
+  -> (StartStop a -> e -> a -> e -> StartStop a -> [(e, s)])
+  -> (StartStop a -> Maybe e' -> StartStop a -> [(e, f)])
+  -> (a' -> a)
+  -> Eval e e' a a' (Leftmost s f h)
+mkLeftmostEval vm vl vr m t = Eval vm' vl vr m' t'
+ where
+  smap f = fmap (second f)
+  -- vm' :: VertMiddle e a (Leftmost s f h)
+  vm' vert = smap LMHorizontalize $ vm vert
+  m' sl tl sm tr sr typ = smap split res
+   where
+    res   = m sl tl sm tr sr
+    split = case typ of
+      LeftOfTwo  -> LMSplitLeft
+      LeftOnly   -> LMSplitLeftOnly
+      RightOfTwo -> LMSplitRight
+  t' sl e sr isLast | isLast    = smap LMFreezeOnly res
+                    | otherwise = smap LMFreeze res
+    where res = t sl e sr
 
-splitLeft :: (MW.MonadWriter [Leftmost s f h] m) => s -> m ()
-splitLeft = MW.tell . (: []) . LMSplitLeft
+newtype PartialDeriv s f h (n :: Nat) (snd :: Bool) = PD { runPD :: [Leftmost s f h]}
 
-splitRight :: (MW.MonadWriter [Leftmost s f h] m) => s -> m ()
-splitRight = MW.tell . (: []) . LMSplitRight
+buildDerivation
+  :: (PartialDeriv s f h 1 False -> PartialDeriv s f h n snd)
+  -> [Leftmost s f h]
+buildDerivation build = reverse $ runPD $ build (PD [])
 
-freeze :: (MW.MonadWriter [Leftmost s f h] m) => f -> m ()
-freeze = MW.tell . (: []) . LMFreeze
+infixl 1 .>
+f .> g = g . f
 
-hori :: (MW.MonadWriter [Leftmost s f h] m) => h -> m ()
-hori = MW.tell . (: []) . LMHorizontalize
+infixr 2 $$
+f $$ a = f a
 
+splitLeftOnly :: s -> PartialDeriv s f h 1 False -> PartialDeriv s f h 2 False
+splitLeftOnly s (PD d) = PD $ LMSplitLeftOnly s : d
+
+freezeOnly :: f -> PartialDeriv s f h 1 False -> PartialDeriv s f h 0 False
+freezeOnly f (PD d) = PD $ LMFreezeOnly f : d
+
+splitLeft
+  :: (2 <= n)
+  => s
+  -> PartialDeriv s f h n False
+  -> PartialDeriv s f h (n+1) False
+splitLeft s (PD d) = PD $ LMSplitLeft s : d
+
+freeze
+  :: (2 <= n)
+  => f
+  -> PartialDeriv s f h n False
+  -> PartialDeriv s f h (n-1) False
+freeze f (PD d) = PD $ LMFreeze f : d
+
+splitRight
+  :: (2 <= n) => s -> PartialDeriv s f h n snd -> PartialDeriv s f h (n+1) True
+splitRight s (PD d) = PD $ LMSplitRight s : d
+
+hori
+  :: (2 <= n) => h -> PartialDeriv s f h n snd -> PartialDeriv s f h (n+1) False
+hori h (PD d) = PD $ LMHorizontalize h : d
 
 -- useful semirings
 -- ================

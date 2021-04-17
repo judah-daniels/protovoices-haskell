@@ -290,7 +290,7 @@ vertMiddle vertm im@((Transition l m r _) := vm) = do
 
 -- | Infers the possible left parent transitions of a verticalization.
 vertLeft
-  :: VertLeft e a v -- ^ the VertLeft evaluator
+  :: VertLeft e a   -- ^ the VertLeft evaluator
   -> TItem e a v    -- ^ the left child transition
   -> (Slice a, Int) -- ^ the Vert's top slice and ID
   -> [TItem e a v]  -- ^ all possible left parent transitions
@@ -306,7 +306,7 @@ vertLeft vertl ((Transition ll lt lr is2nd) := vleft) (top, newId)
 -- | Infers the possible right parent transitions of a verticalization.
 vertRight
   :: R.Semiring v
-  => VertRight e a v -- ^ the VertRight evaluator
+  => VertRight e a   -- ^ the VertRight evaluator
   -> Vert e a v      -- ^ the center 'Vert'
   -> TItem e a v     -- ^ the right child transition
   -> [TItem e a v]   -- ^ all possible right parent transitions
@@ -328,9 +328,12 @@ merge
 merge mg ((Transition ll lt lr l2nd) := vl) ((Transition rl rt rr _) := vr) =
   case getInner $ sContent lr of
     Just m ->
-      catMaybes $ mkItem <$> mg (sContent ll) lt m rt (sContent rr) l2nd
+      catMaybes $ mkItem <$> mg (sContent ll) lt m rt (sContent rr) splitType
     Nothing -> []
  where
+  splitType | l2nd                 = RightOfTwo
+            | isStop (sContent rr) = LeftOnly
+            | otherwise            = LeftOfTwo
   mkItem (top, op) = (Transition ll top rr l2nd :=) <$> S.mergeScores op vl vr
 
 -- the parsing main loop
@@ -388,7 +391,7 @@ traceVertLeft i l res = if traceLevel >= 1
 -- | Perform all left verts where either @l@ or @m@ have length @n@
 vertAllLefts
   :: (R.Semiring v, Ord a, Ord e, Monad m, Show a, Show e, Show v, Eq v)
-  => VertLeft e a v
+  => VertLeft e a
   -> ParseOp m e a v
 vertAllLefts evalLeft n (tchart, vchart) = do
   let -- left = n (and middle <= n)
@@ -427,7 +430,7 @@ traceVertRight v r res = if traceLevel >= 1
 -- | Perform all right verts where either @r@ or @m@ have length @n@
 vertAllRights
   :: (R.Semiring v, Ord a, Ord e, Monad m, Show a, Show e, Show v, Eq v)
-  => VertRight e a v
+  => VertRight e a
   -> ParseOp m e a v
 vertAllRights evalRight n (tchart, vchart) = do
   let -- right = n (and middle <= n)
@@ -547,7 +550,7 @@ mapNodesWithIndex i f (Path l m tail) =
 mapNodesWithIndex i f (PathEnd n) = PathEnd (f i n)
 
 mapEdges :: (a -> e -> a -> b) -> Path a e -> [b]
-mapEdges f (Path l m tail) = f l m (pathHead tail) : mapEdges f tail
+mapEdges f (Path l m tail) = f l m r : mapEdges f tail where r = pathHead tail
 mapEdges f (PathEnd _    ) = []
 
 -- | The main entrypoint to the parser.
@@ -558,7 +561,7 @@ parse
   :: (R.Semiring v, Ord e, Ord a, Show a, Show e, Show v, Eq v)
   => (TChart e a v -> VChart e a v -> Int -> IO ())
   -> Eval e e' a a' v
-  -> Path (StartStop a') e'
+  -> Path a' e'
   -> IO v
 parse log eval path = do
   (tfinal, _) <- foldM (flip $ parseStep log eval)
@@ -567,10 +570,14 @@ parse log eval path = do
   let goals = tcGetByLength tfinal len
   return $ R.sum $ catMaybes $ S.score . iValue <$> goals
  where
-  len = pathLen path
+  wrapPath (Path a e rst) = Path (Inner a) (Just e) $ wrapPath rst
+  wrapPath (PathEnd a   ) = Path (Inner a) Nothing $ PathEnd (:⋉)
+  path' = Path (:⋊) Nothing $ wrapPath path
+  len   = pathLen path'
   slicePath =
-    mapNodesWithIndex 0 (\i n -> Slice i (evalSlice eval <$> n) i) path
-  mkTrans l e r = mk <$> evalThaw eval (sContent l) e (sContent r)
+    mapNodesWithIndex 0 (\i n -> Slice i (evalSlice eval <$> n) i) path'
+  mkTrans l e r = mk
+    <$> evalThaw eval (sContent l) e (sContent r) (isStop $ sContent r)
     where mk (e, v) = Transition l e r False := S.SVal v
   trans0 = mapEdges mkTrans slicePath
   tinit  = tcMerge tcEmpty $ concat trans0
@@ -583,7 +590,7 @@ logSize tc vc n = do
 parseSize
   :: (R.Semiring v, Ord e, Ord a, Show a, Show e, Show v, Eq v)
   => Eval e e' a a' v
-  -> Path (StartStop a') e'
+  -> Path a' e'
   -> IO v
 parseSize = parse logSize
 
@@ -592,6 +599,6 @@ logNone tc vc n = pure ()
 parseSilent
   :: (R.Semiring v, Ord e, Ord a, Show a, Show e, Show v, Eq v)
   => Eval e e' a a' v
-  -> Path (StartStop a') e'
+  -> Path a' e'
   -> IO v
 parseSilent = parse logNone

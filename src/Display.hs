@@ -107,7 +107,8 @@ replayDerivationStep player = applyRule
         (depthr, _, _) = pr
     sm <- addSlice cm $ max depthl depthr + 1
     pushOpen [(pl, cl, sm), (sm, cr, pr)]
-  applyRule (LMSplitRight s) = do
+  applyRule (LMSplitLeftOnly s) = applyRule $ LMSplitLeft s
+  applyRule (LMSplitRight    s) = do
     l            <- popSurface
     (pl, pt, pr) <- popSurface
     (cl, cm, cr) <- lift $ dpSplit player s pt
@@ -119,6 +120,7 @@ replayDerivationStep player = applyRule
     (pl, pt, pr) <- popSurface
     t            <- lift $ dpFreeze player f pt
     pushClosed (pl, t, pr)
+  applyRule (LMFreezeOnly    f) = applyRule $ LMFreeze f
   applyRule (LMHorizontalize h) = do
     (lpl, lpt, pm ) <- popSurface
     (_  , rpt, rpr) <- popSurface

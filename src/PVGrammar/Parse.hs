@@ -169,11 +169,11 @@ protoVoiceEvaluator
        (t2 (Pitch i))
        (PVLeftMost (ICOf i))
 protoVoiceEvaluator =
-  Eval pvVertMiddle pvVertLeft pvVertRight pvMerge pvThaw pvSlice
+  mkLeftmostEval pvVertMiddle pvVertLeft pvVertRight pvMerge pvThaw pvSlice
 
 -- | Computes the verticalization of a middle transition.
 -- If the verticalization is admitted, returns the corresponding operation.
-pvVertMiddle :: (Eq i, Ord i) => VertMiddle (Edges i) (Notes i) (PVLeftMost i)
+pvVertMiddle :: (Eq i, Ord i) => VertMiddle (Edges i) (Notes i) (Hori i)
 pvVertMiddle (Notes nl, edges, Notes nr)
   | any notARepetition (edgesT edges) = Nothing
   | otherwise                         = Just (Notes top, op)
@@ -188,18 +188,18 @@ pvVertMiddle (Notes nl, edges, Notes nr)
     S.intersection (MS.toSet nl) (MS.toSet nr)
       S.\\ (MS.toSet leftMS `S.union` MS.toSet rightMS)
   both = M.fromSet (const ToBoth) bothSet
-  op   = LMHorizontalize $ HoriOp (left <> right <> both) edges
+  op   = HoriOp (left <> right <> both) edges
 
 -- | Computes all left parent transitions for a verticalization and a left child transition.
 -- Here, this operation is always admitted and unique,
 -- so the edges from the child transition are just passed through.
-pvVertLeft :: VertLeft (Edges i) (Notes i) (PVLeftMost i)
+pvVertLeft :: VertLeft (Edges i) (Notes i)
 pvVertLeft (el, sl) top = [el]
 
 -- | Computes all right parent transition for a verticalization and a right child transition.
 -- Here, this operation is always admitted and unique,
 -- so the edges from the child transition are just passed through.
-pvVertRight :: VertRight (Edges i) (Notes i) (PVLeftMost i)
+pvVertRight :: VertRight (Edges i) (Notes i)
 pvVertRight (sr, er) top = [er]
 
 -- | Computes all possible merges of two child transitions.
@@ -208,8 +208,13 @@ pvVertRight (sr, er) top = [er]
 -- which are not present in the child transitions.
 pvMerge
   :: (Ord i, Diatonic i, Notation (Pitch i), Show (Pitch i))
-  => Merge (Edges i) (Notes i) (PVLeftMost i)
-pvMerge notesl (Edges leftTs leftNTs) (Notes notesm) (Edges rightTs rightNTs) notesr is2nd
+  => StartStop (Notes i)
+  -> Edges i
+  -> Notes i
+  -> Edges i
+  -> StartStop (Notes i)
+  -> [(Edges i, Split i)]
+pvMerge notesl (Edges leftTs leftNTs) (Notes notesm) (Edges rightTs rightNTs) notesr
   = map mkTop combinations
  where
   -- preprocessing of the notes left and right of the merge
@@ -327,11 +332,9 @@ pvMerge notesl (Edges leftTs leftNTs) (Notes notesm) (Edges rightTs rightNTs) no
     pure (ts <> accT, nts <> accNT, ls <> accL, rs <> accR)
 
   -- convert a combination into a derivation operation:
-  -- pick the left-most derivation operation (depending on the left child edge)
-  op = if is2nd then LMSplitRight else LMSplitLeft
   -- turn the accumulated information into the format expected from the evaluator
   mkTop (ts, nts, rs, ls) = if True -- validate
-    then (top, op $ SplitOp tmap ntmap rmap lmap)
+    then (top, SplitOp tmap ntmap rmap lmap)
     else
       error
       $  "invalid merge:\n  notesl="
@@ -364,10 +367,10 @@ pvMerge notesl (Edges leftTs leftNTs) (Notes notesm) (Edges rightTs rightNTs) no
 pvThaw
   :: (Foldable t, Ord i)
   => StartStop (Notes i)
-  -> t (Edge i)
+  -> Maybe (t (Edge i))
   -> StartStop (Notes i)
-  -> [(Edges i, PVLeftMost i)]
-pvThaw l e r = [(Edges (MS.fromList $ toList e) MS.empty, LMFreeze FreezeOp)]
+  -> [(Edges i, Freeze)]
+pvThaw l e r = [(Edges (MS.fromList $ maybe [] toList e) MS.empty, FreezeOp)]
 
 pvSlice
   :: (Foldable t, Interval i, Ord (ICOf i)) => t (Pitch i) -> Notes (ICOf i)
@@ -395,10 +398,11 @@ protoVoiceEvaluator'
 protoVoiceEvaluator' = Eval vm vl vr filterSplit t s
  where
   (Eval vm vl vr mg t s) = protoVoiceEvaluator
-  filterSplit l lt mid rt r s = filter ok $ mg l lt mid rt r s
-  ok (_, LMSplitLeft op ) = not $ onlyRepeats op
-  ok (_, LMSplitRight op) = not $ onlyRepeats op
-  ok _                    = False
+  filterSplit l lt mid rt r typ = filter ok $ mg l lt mid rt r typ
+  ok (_, LMSplitLeft op    ) = not $ onlyRepeats op
+  ok (_, LMSplitLeftOnly op) = not $ onlyRepeats op
+  ok (_, LMSplitRight op   ) = not $ onlyRepeats op
+  ok _                       = False
   onlyRepeats op@(SplitOp ts nts rs ls) =
     M.null nts && (allRepetitionsLeft || allRepetitionsRight)
    where
