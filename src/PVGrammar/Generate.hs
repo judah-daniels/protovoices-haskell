@@ -45,6 +45,27 @@ splitNT
 splitNT l r c kl kr =
   MW.tell $ SplitOp M.empty (M.singleton (l, r) [(c, kl, kr)]) M.empty M.empty
 
+addToLeft
+  :: Ord i
+  => Pitch i
+  -> Pitch i
+  -> RightOrnament
+  -> Bool
+  -> MW.Writer (Split i) ()
+addToLeft parent child op keep = MW.tell
+  $ SplitOp M.empty M.empty (M.singleton parent [(child, op, keep)]) M.empty
+
+addToRight
+  :: Ord i
+  => Pitch i
+  -> Pitch i
+  -> LeftOrnament
+  -> Bool
+  -> MW.Writer (Split i) ()
+addToRight parent child op keep = MW.tell
+  $ SplitOp M.empty M.empty M.empty (M.singleton parent [(child, op, keep)])
+
+
 mkHori :: MW.Writer (Endo (Hori i)) () -> Hori i
 mkHori actions = appEndo (MW.execWriter actions) emptyHori
   where emptyHori = HoriOp M.empty $ Edges MS.empty MS.empty

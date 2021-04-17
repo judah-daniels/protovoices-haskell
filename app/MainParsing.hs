@@ -19,6 +19,7 @@ import           Musicology.Pitch.Spelled      as MT
 import           Data.Ratio                     ( Ratio(..) )
 import           Lens.Micro                     ( over )
 import           Data.Maybe                     ( catMaybes )
+import           Data.Either                    ( partitionEithers )
 
 import qualified Data.MultiSet                 as MS
 import qualified Data.Set                      as S
@@ -31,7 +32,10 @@ import           Control.Monad                  ( forM
                                                 )
 
 -- utilities
-------------
+-- =========
+
+-- reading files
+-- -------------
 
 testfile =
   "/home/chfin/dateien/dev/haskell/work/haskell-musicology/musicology-musicxml/testdata/allemande.musicxml"
@@ -85,6 +89,9 @@ slicesToPath slices = Path (:⋊) [] $ go $ normalizeTies slices
 testslices from to =
   slicesToPath . drop (from - 1) . take to <$> slicesFromFile testfile
 
+-- manual inputs
+-- -------------
+
 monopath :: [a] -> Path (StartStop [a]) [b]
 monopath xs = Path (:⋊) [] $ go xs
  where
@@ -96,6 +103,9 @@ path xs = Path (:⋊) [] $ go xs
  where
   go []             = PathEnd (:⋉)
   go (notes : rest) = Path (Inner notes) [] $ go rest
+
+-- actions
+-- -------
 
 printDerivs path = do
   ds <- parseSilent pvDeriv path
@@ -118,8 +128,52 @@ plotDerivs fn input = do
     Right g -> return $ Just g
   viewGraphs fn $ catMaybes pics
 
+plotSteps fn deriv = do
+  let graphs          = unfoldDerivation derivationPlayerPV deriv
+      (errors, steps) = partitionEithers graphs
+  mapM_ putStrLn errors
+  viewGraphs fn $ reverse steps
+
+-- example derivations
+-- ===================
+
+derivBrahms :: [PVLeftMost MT.SIC]
+derivBrahms = buildDerivation $ do
+  splitLeft $ mkSplit $ do
+    splitT (:⋊) (:⋉) (c' shp) RootNote False False
+    splitT (:⋊) (:⋉) (a' nat) RootNote False False
+  hori $ mkHori $ do
+    horiNote (a' nat) ToBoth     1
+    horiNote (c' shp) (ToLeft 1) 0
+    addPassing (c' shp) (a' nat)
+  splitRight $ mkSplit $ do
+    splitNT (c' shp) (a' nat) (b' nat) False False
+    splitT (Inner $ a' nat) (Inner $ a' nat) (g' shp) FullNeighbor False False
+  hori $ mkHori $ do
+    horiNote (a' nat) (ToRight 1) 0
+    horiNote (c' shp) (ToLeft 1)  0
+    addPassing (c' shp) (a' nat)
+  freeze FreezeOp
+  splitLeft $ mkSplit $ do
+    splitNT (c' shp) (a' nat) (b' nat) False False
+  freeze FreezeOp
+  freeze FreezeOp
+  hori $ mkHori $ do
+    horiNote (b' nat) (ToRight 1) 0
+    horiNote (g' shp) (ToLeft 1)  0
+  splitLeft $ mkSplit $ do
+    addToRight (g' shp) (a' nat) SingleLeftNeighbor False
+  freeze FreezeOp
+  freeze FreezeOp
+  splitLeft $ mkSplit $ do
+    addToRight (b' nat) (c' shp) SingleLeftNeighbor False
+  freeze FreezeOp
+  freeze FreezeOp
+  freeze FreezeOp
+  freeze FreezeOp
+
 -- mains
---------
+-- =====
 
 mainTest from to = do
   putStrLn $ "slices " <> show from <> " to " <> show to
@@ -152,33 +206,6 @@ mainGraph = do
     Right g -> return $ Just g
   print pics
   viewGraphs "brahms.tex" $ catMaybes pics
-
-mainMyDeriv = do
-  let deriv :: [PVLeftMost MT.SIC]
-      deriv = buildDerivation $ do
-        splitLeft $ mkSplit $ do
-          splitT (:⋊) (:⋉) (c' shp) RootNote False False
-          splitT (:⋊) (:⋉) (a' nat) RootNote False False
-        hori $ mkHori $ do
-          horiNote (a' nat) ToBoth     0
-          horiNote (c' shp) (ToLeft 1) 0
-          addPassing (c' shp) (a' nat)
-        -- splitRight $ mkSplit $ do
-        --   splitNT (c' shp) (a' nat) False False
-        hori $ mkHori $ do
-          horiNote (a' nat) (ToRight 1) 0
-          horiNote (c' shp) (ToLeft 1)  0
-          addPassing (c' shp) (a' nat)
-        -- freeze FreezeOp
-        -- splitLeft $ mkSplit $ do
-        --   splitNT (c' shp) (a' nat) (b' nat) False False
-        -- freeze FreezeOp
-  print deriv
-  case replayDerivation deriv derivationPlayerPV of
-    Left  error -> putStrLn error
-    Right g     -> do
-      print g
-      viewGraph "brams_self.tex" g
 
 logFull tc vc n = do
   putStrLn "\n===========\n"

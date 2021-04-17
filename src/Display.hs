@@ -19,7 +19,9 @@ import           Control.Monad.Trans            ( lift )
 import qualified Control.Monad.State           as ST
 import qualified Data.List                     as L
 import qualified Data.Map                      as M
-import           Data.List                      ( sortOn )
+import           Data.List                      ( sortOn
+                                                , scanl'
+                                                )
 import           Data.Foldable                  ( foldl' )
 import qualified Data.Text                     as T
 import qualified Data.Text.IO                  as T
@@ -91,18 +93,13 @@ data DerivationPlayer s f h a e = DerivationPlayer
   , dpHorizontalize :: h -> e -> a -> e -> Either String (e, a, e, a, e)
   }
 
-replayDerivation
+replayDerivationStep
   :: (Ord a, Ord e)
-  => [Common.Leftmost s f h]
-  -> DerivationPlayer s f h a e
-  -> Either String (DerivationGraph a e)
-replayDerivation deriv player = ST.execStateT (mapM_ applyRule deriv) init
+  => DerivationPlayer s f h a e
+  -> Common.Leftmost s f h
+  -> DerivationOp a e ()
+replayDerivationStep player = applyRule
  where
-  start = (0, 0, (:⋊))
-  end   = (0, 1, (:⋉))
-  top   = (start, dpRoot player, end)
-  init =
-    DGraph 2 (S.fromList [start, end]) (S.singleton top) S.empty [top] [] top
   applyRule (LMSplitLeft s) = do
     (pl, pt, pr) <- popSurface
     (cl, cm, cr) <- lift $ dpSplit player s pt
@@ -136,6 +133,35 @@ replayDerivation deriv player = ST.execStateT (mapM_ applyRule deriv) init
     addHoriEdge (pm, ls)
     addHoriEdge (pm, rs)
     pushOpen [(lpl, l, ls), (ls, m, rs), (rs, r, rpr)]
+
+initialGraph player = DGraph 2
+                             (S.fromList [start, end])
+                             (S.singleton top)
+                             S.empty
+                             [top]
+                             []
+                             top
+ where
+  start = (0, 0, (:⋊))
+  end   = (0, 1, (:⋉))
+  top   = (start, dpRoot player, end)
+
+replayDerivation deriv player = ST.execStateT
+  (mapM_ (replayDerivationStep player) deriv)
+  (initialGraph player)
+
+unfoldDerivation
+  :: (Ord a, Ord e)
+  => DerivationPlayer s f h a e
+  -> [Common.Leftmost s f h]
+  -> [Either String (DerivationGraph a e)]
+unfoldDerivation player = go (initialGraph player) []
+ where
+  go g acc [] = Right g : acc
+  go g acc (step : rest) =
+    case ST.execStateT (replayDerivationStep player step) g of
+      Left  error -> Left error : acc
+      Right g'    -> go g' (Right g : acc) rest
 
 replayDerivationFull deriv player = do
   graph <- replayDerivation deriv player
