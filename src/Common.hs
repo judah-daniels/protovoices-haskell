@@ -6,6 +6,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Common where
 
 -- StartStop
@@ -25,12 +26,15 @@ import           Data.Semigroup                 ( stimesMonoid )
 import qualified Control.Monad.Trans.State.Strict
                                                as ST
 import           GHC.TypeNats                   ( Nat
+                                                , KnownNat(..)
                                                 , type (<=)
                                                 , type (+)
                                                 , type (-)
+                                                , natVal
                                                 )
 import           Control.Monad.Identity         ( runIdentity )
 import           Data.Bifunctor                 ( second )
+import           Data.Typeable                  ( Proxy(Proxy) )
 
 -- | A container type that augements the type @a@
 -- with symbols for beginning (@:⋊@) and end (@:⋉@).
@@ -260,25 +264,29 @@ f .> g = g . f
 infixr 2 $$
 f $$ a = f a
 
-splitLeftOnly :: s -> PartialDeriv s f h 1 False -> PartialDeriv s f h 2 False
-splitLeftOnly s (PD d) = PD $ LMSplitLeftOnly s : d
-
-freezeOnly :: f -> PartialDeriv s f h 1 False -> PartialDeriv s f h 0 False
-freezeOnly f (PD d) = PD $ LMFreezeOnly f : d
+-- splitLeftOnly :: s -> PartialDeriv s f h 1 False -> PartialDeriv s f h 2 False
+-- splitLeftOnly s (PD d) = 
 
 splitLeft
-  :: (2 <= n)
+  :: forall n s f h
+   . (KnownNat n, 1 <= n)
   => s
   -> PartialDeriv s f h n False
   -> PartialDeriv s f h (n+1) False
-splitLeft s (PD d) = PD $ LMSplitLeft s : d
+splitLeft s (PD d) | natVal (Proxy :: Proxy n) == 1 = PD $ LMSplitLeftOnly s : d
+                   | otherwise                      = PD $ LMSplitLeft s : d
 
 freeze
-  :: (2 <= n)
+  :: forall n s h f
+   . (KnownNat n, 1 <= n)
   => f
   -> PartialDeriv s f h n False
   -> PartialDeriv s f h (n-1) False
-freeze f (PD d) = PD $ LMFreeze f : d
+freeze f (PD d) | natVal (Proxy :: Proxy n) == 1 = PD $ LMFreezeOnly f : d
+                | otherwise                      = PD $ LMFreeze f : d
+
+-- freezeOnly :: f -> PartialDeriv s f h 1 False -> PartialDeriv s f h 0 False
+-- freezeOnly f (PD d) = PD $ LMFreezeOnly f : d
 
 splitRight
   :: (2 <= n) => s -> PartialDeriv s f h n snd -> PartialDeriv s f h (n+1) True

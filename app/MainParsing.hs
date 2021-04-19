@@ -137,7 +137,7 @@ plotSteps fn deriv = do
 derivBrahms :: [PVLeftMost MT.SIC]
 derivBrahms =
   buildDerivation
-    $  splitLeftOnly
+    $  splitLeft
     $$ mkSplit
     $$ do
          splitT (:⋊) (:⋉) (c' shp) RootNote False False
@@ -189,7 +189,7 @@ derivBrahms =
     .> freeze FreezeOp
     .> freeze FreezeOp
     .> freeze FreezeOp
-    .> freezeOnly FreezeOp
+    .> freeze FreezeOp
 
 -- mains
 -- =====
