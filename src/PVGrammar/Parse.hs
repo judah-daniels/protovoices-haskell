@@ -87,20 +87,21 @@ findOrnament
   -> StartStop (Pitch i)
   -> Bool
   -> Bool
-  -> Maybe (Ornament, EdgeEither (Edge i) (InnerEdge i))
+  -> Maybe
+       (EdgeEither (Ornament, Edge i) (Passing, InnerEdge i))
 findOrnament (Inner l) (Inner m) (Inner r) True True
-  | l == m && m == r = Just (FullRepeat, T (Inner l, Inner r))
-  | l == m && so     = Just (RightRepeatOfLeft, T (Inner l, Inner r))
-  | m == r && so     = Just (LeftRepeatOfRight, T (Inner l, Inner r))
-  | s1 && so         = Just (RightNeighborOfLeft, T (Inner l, Inner r))
-  | s2 && so         = Just (LeftNeighborOfRight, T (Inner l, Inner r))
+  | l == m && m == r = Just $ T (FullRepeat, (Inner l, Inner r))
+  | l == m && so     = Just $ T (RightRepeatOfLeft, (Inner l, Inner r))
+  | m == r && so     = Just $ T (LeftRepeatOfRight, (Inner l, Inner r))
+  | s1 && so         = Just $ T (RightNeighborOfLeft, (Inner l, Inner r))
+  | s2 && so         = Just $ T (LeftNeighborOfRight, (Inner l, Inner r))
  where
   s1 = isStep $ l `pto` m
   s2 = isStep $ m `pto` r
   so = isStep $ l `pto` r
 findOrnament (Inner l) (Inner m) (Inner r) _ _
-  | l == r && s1              = Just (FullNeighbor, T (Inner l, Inner r))
-  | s1 && s2 && between l m r = Just (Passing, NT (l, r))
+  | l == r && s1              = Just $ T (FullNeighbor, (Inner l, Inner r))
+  | s1 && s2 && between l m r = Just $ NT (PassingMid, (l, r))
  where
   s1 = isStep $ l `pto` m
   s2 = isStep $ m `pto` r
@@ -110,7 +111,7 @@ findOrnament (Inner l) (Inner m) (Inner r) _ _
 -- findOrnament (Inner l) (Inner m) (:⋉)
 --   | l == m             = Just (RightRepeatOfLeft, T (Inner l, (:⋉)))
 --   | isStep $ l `pto` m = Just (RightNeighborOfLeft, T (Inner l, (:⋉)))
-findOrnament (:⋊) (Inner _) (:⋉) _ _ = Just (RootNote, T ((:⋊), (:⋉)))
+findOrnament (:⋊) (Inner _) (:⋉) _ _ = Just $ T (RootNote, ((:⋊), (:⋉)))
 findOrnament _    _         _    _ _ = Nothing
 
 -- | Attempts to reduce three notes as a passing motion
@@ -126,11 +127,11 @@ findPassing
   => EdgeEither (StartStop (Pitch i)) (Pitch i)
   -> Pitch i
   -> EdgeEither (StartStop (Pitch i)) (Pitch i)
-  -> Maybe (InnerEdge i)
+  -> Maybe (InnerEdge i, Passing)
 findPassing (T (Inner l)) m (NT r) | isStep (l `pto` m) && between l m r =
-  Just (l, r)
+  Just ((l, r), PassingLeft)
 findPassing (NT l) m (T (Inner r)) | isStep (m `pto` r) && between l m r =
-  Just (l, r)
+  Just ((l, r), PassingRight)
 findPassing _ _ _ = Nothing
 
 findRightOrnament
@@ -229,12 +230,12 @@ pvMerge notesl (Edges leftTs leftNTs) (Notes notesm) (Edges rightTs rightNTs) no
       <$> goL mandatoryLeft mandatoryRight n []
    where
     -- compute the mandatory edges for the current pitch:
-    mleftTs        = MS.map (T . fst) $ MS.filter ((== Inner note) . snd) leftTs
+    mleftTs        = S.map (T . fst) $ S.filter ((== Inner note) . snd) leftTs
     mleftNTs       = MS.map (NT . fst) $ MS.filter ((== note) . snd) leftNTs
-    mrightTs = MS.map (T . snd) $ MS.filter ((== Inner note) . fst) rightTs
+    mrightTs       = S.map (T . snd) $ S.filter ((== Inner note) . fst) rightTs
     mrightNTs      = MS.map (NT . snd) $ MS.filter ((== note) . fst) rightNTs
-    mandatoryLeft  = mleftTs <> mleftNTs
-    mandatoryRight = mrightTs <> mrightNTs
+    mandatoryLeft  = MS.fromSet mleftTs <> mleftNTs
+    mandatoryRight = MS.fromSet mrightTs <> mrightNTs
 
     -- the possible reductions of a (multiple) pitch are enumerated in three stages:
 
@@ -255,8 +256,9 @@ pvMerge notesl (Edges leftTs leftNTs) (Notes notesm) (Edges rightTs rightNTs) no
         red <- maybeToList $ tryReduction True True l note r
         pure (red, MS.delete r mr)
       -- TODO: remove mr options here?
-      opt = fmap (, mr) $ catMaybes $ tryReduction True False l note <$> innerR
-      single = fmap (, mr) $ maybeToList $ tryLeftReduction True note l
+      tryOpt r = tryReduction True (r `S.member` mrightTs) l note r
+      opt    = fmap (, mr) $ catMaybes $ tryOpt <$> innerR
+      single = fmap (, mr) $ maybeToList $ tryLeftReduction note l
 
     -- stage 2: consume all remaining mandatory edges on the right
     goR mr 0 acc | MS.null mr = pure acc
@@ -269,8 +271,9 @@ pvMerge notesl (Edges leftTs leftNTs) (Notes notesm) (Edges rightTs rightNTs) no
     -- combine mandatory right with free left edge
     pickRight r = opt <> single
      where
-      opt    = catMaybes $ (\l -> tryReduction False True l note r) <$> innerL
-      single = maybeToList $ tryRightReduction True note r
+      tryOpt l = tryReduction (l `S.member` mleftTs) True l note r
+      opt    = catMaybes $ tryOpt <$> innerL
+      single = maybeToList $ tryRightReduction note r
 
     -- stage 3: explain all remaining notes through a combination of unknown edges
     goFree _            0 acc = pure acc
@@ -285,42 +288,43 @@ pvMerge notesl (Edges leftTs leftNTs) (Notes notesm) (Edges rightTs rightNTs) no
     pickFreeBoth = do
       l <- innerL
       r <- innerR
-      maybeToList $ tryReduction False False l note r
+      maybeToList
+        $ tryReduction (l `S.member` mleftTs) (r `S.member` mrightTs) l note r
     -- reduce to left using free edge
-    pickFreeLeft  = catMaybes $ tryLeftReduction False note <$> innerL
+    pickFreeLeft  = catMaybes $ tryLeftReduction note <$> innerL
     -- reduce to right using free edge
-    pickFreeRight = catMaybes $ tryRightReduction False note <$> innerR
+    pickFreeRight = catMaybes $ tryRightReduction note <$> innerR
 
   -- at all stages: try out potential reductions:
 
   -- two terminal edges: any ornament
   tryReduction lIsUsed rIsUsed (T notel) notem (T noter) = do
-    (orn, parent) <- findOrnament notel (Inner notem) noter lIsUsed rIsUsed
-    pure $ case parent of
-      (T  parent) -> ET (parent, (notem, orn, lIsUsed, rIsUsed))
-      (NT parent) -> EN (parent, (notem, lIsUsed, rIsUsed))
+    reduction <- findOrnament notel (Inner notem) noter lIsUsed rIsUsed
+    pure $ case reduction of
+      (T  (orn , parent)) -> ET (parent, (notem, orn))
+      (NT (pass, parent)) -> EN (parent, (notem, pass))
   -- a non-terminal edge left and a terminal edge right: passing note
   tryReduction lIsUsed rIsUsed notel@(NT _) notem noter@(T _) = do
-    parent <- findPassing notel notem noter
-    pure $ EN (parent, (notem, lIsUsed, rIsUsed))
+    (parent, pass) <- findPassing notel notem noter
+    pure $ EN (parent, (notem, pass))
   -- a terminal edge left and a non-terminal edge right: passing note
   tryReduction lIsUsed rIsUsed notel@(T _) notem noter@(NT _) = do
-    parent <- findPassing notel notem noter
-    pure $ EN (parent, (notem, lIsUsed, rIsUsed))
+    (parent, pass) <- findPassing notel notem noter
+    pure $ EN (parent, (notem, pass))
   -- all other combinations are forbidden
   tryReduction _ _ _ _ _ = Nothing
 
   -- single reduction to a left parent
-  tryLeftReduction isUsed notem (T (Inner notel)) = do
+  tryLeftReduction notem (T (Inner notel)) = do
     orn <- findRightOrnament notel notem
-    pure $ ER (notel, (notem, orn, isUsed))
-  tryLeftReduction _ _ _ = Nothing
+    pure $ ER (notel, (notem, orn))
+  tryLeftReduction _ _ = Nothing
 
   -- single reduction to a right parent
-  tryRightReduction isUsed notem (T (Inner noter)) = do
+  tryRightReduction notem (T (Inner noter)) = do
     orn <- findLeftOrnament notem noter
-    pure $ EL (noter, (notem, orn, isUsed))
-  tryRightReduction _ _ _ = Nothing
+    pure $ EL (noter, (notem, orn))
+  tryRightReduction _ _ = Nothing
 
   -- compute all possible combinations of reduction options
   !combinations = if any L.null options     -- check if any note has no options
@@ -334,7 +338,7 @@ pvMerge notesl (Edges leftTs leftNTs) (Notes notesm) (Edges rightTs rightNTs) no
   -- convert a combination into a derivation operation:
   -- turn the accumulated information into the format expected from the evaluator
   mkTop (ts, nts, rs, ls) = if True -- validate
-    then (top, SplitOp tmap ntmap rmap lmap)
+    then (top, SplitOp tmap ntmap rmap lmap leftTs rightTs)
     else
       error
       $  "invalid merge:\n  notesl="
@@ -355,12 +359,14 @@ pvMerge notesl (Edges leftTs leftNTs) (Notes notesm) (Edges rightTs rightNTs) no
         && all ((`L.elem` innerNotes notesr) . snd . fst)   ts
         && all ((`L.elem` innerNotes notesl) . Inner . fst) rs
         && all ((`L.elem` innerNotes notesr) . Inner . fst) ls
+
+    -- collect all operations
     mapify xs = M.fromListWith (<>) $ fmap (: []) <$> xs
     tmap  = mapify ts
     ntmap = mapify nts
     lmap  = mapify ls
     rmap  = mapify rs
-    top   = Edges (MS.fromList (fst <$> ts)) (MS.fromList (fst <$> nts))
+    top   = Edges (S.fromList (fst <$> ts)) (MS.fromList (fst <$> nts))
 
 -- | Computes all potential ways a surface transition could have been frozen.
 -- In this grammar, this operation is unique and just turns ties into edges.
@@ -370,7 +376,7 @@ pvThaw
   -> Maybe (t (Edge i))
   -> StartStop (Notes i)
   -> [(Edges i, Freeze)]
-pvThaw l e r = [(Edges (MS.fromList $ maybe [] toList e) MS.empty, FreezeOp)]
+pvThaw l e r = [(Edges (S.fromList $ maybe [] toList e) MS.empty, FreezeOp)]
 
 pvSlice
   :: (Foldable t, Interval i, Ord (ICOf i)) => t (Pitch i) -> Notes (ICOf i)
@@ -403,17 +409,16 @@ protoVoiceEvaluator' = Eval vm vl vr filterSplit t s
   ok (_, LMSplitLeftOnly op) = not $ onlyRepeats op
   ok (_, LMSplitRight op   ) = not $ onlyRepeats op
   ok _                       = False
-  onlyRepeats op@(SplitOp ts nts rs ls) =
+  onlyRepeats op@(SplitOp ts nts rs ls _ _) =
     M.null nts && (allRepetitionsLeft || allRepetitionsRight)
    where
-    allSinglesRepeat = all (checkS (== SingleRightRepeat)) (M.toList rs)
-      && all (checkS (== SingleLeftRepeat)) (M.toList ls)
+    allSinglesRepeat = all (check (== SingleRightRepeat)) (M.toList rs)
+      && all (check (== SingleLeftRepeat)) (M.toList ls)
     allRepetitionsLeft =
-      all (checkD isRepetitionOnLeft) (M.toList ts) && allSinglesRepeat
+      all (check isRepetitionOnLeft) (M.toList ts) && allSinglesRepeat
     allRepetitionsRight =
-      all (checkD isRepetitionOnRight) (M.toList ts) && allSinglesRepeat
-  checkD pred (_, os) = all (pred . (\(_, o, _, _) -> o)) os
-  checkS pred (_, os) = all (pred . (\(_, o, _) -> o)) os
+      all (check isRepetitionOnRight) (M.toList ts) && allSinglesRepeat
+  check pred (_, os) = all (pred . snd) os
 
 pvDerivUnrestricted
   :: ( Foldable t

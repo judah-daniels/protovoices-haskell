@@ -150,13 +150,13 @@ derivBrahms =
     .> hori
     $$ mkHori
     $$ do
-         horiNote (a' nat) ToBoth     1
-         horiNote (c' shp) (ToLeft 1) 0
+         horiNote (a' nat) ToBoth     True
+         horiNote (c' shp) (ToLeft 1) False
          addPassing (c' shp) (a' nat)
     .> splitRight
     $$ mkSplit
     $$ do
-         splitNT (c' shp) (a' nat) (b' nat) False False
+         splitNT (c' shp) (a' nat) (b' nat) PassingMid False False
          splitT (Inner $ a' nat)
                 (Inner $ a' nat)
                 (g' shp)
@@ -166,22 +166,22 @@ derivBrahms =
     .> hori
     $$ mkHori
     $$ do
-         horiNote (a' nat) (ToRight 1) 0
-         horiNote (c' shp) (ToLeft 1)  0
+         horiNote (a' nat) (ToRight 1) False
+         horiNote (c' shp) (ToLeft 1)  False
          addPassing (c' shp) (a' nat)
     .> freeze FreezeOp
     .> split
     $$ mkSplit
     $$ do
-         splitNT (c' shp) (a' nat) (b' nat) False False
+         splitNT (c' shp) (a' nat) (b' nat) PassingMid False False
     .> freeze FreezeOp
     .> freeze FreezeOp
     .> hori
     $$ mkHori
     $$ do
-         horiNote (b' nat) (ToRight 1) 0
-         horiNote (g' shp) (ToLeft 1)  0
-    .> splitLeft
+         horiNote (b' nat) (ToRight 1) False
+         horiNote (g' shp) (ToLeft 1)  False
+    .> split
     $$ mkSplit
     $$ do
          addToRight (g' shp) (a' nat) SingleLeftNeighbor False
@@ -192,6 +192,109 @@ derivBrahms =
     $$ do
          addToRight (b' nat) (c' shp) SingleLeftNeighbor False
     .> freeze FreezeOp
+    .> freeze FreezeOp
+    .> freeze FreezeOp
+    .> freeze FreezeOp
+
+derivBach :: [PVLeftMost MT.SIC]
+derivBach =
+  buildDerivation
+    $  split
+    $$ mkSplit
+    $$ do
+         splitT (:⋊) (:⋉) (d' nat) RootNote False False
+         splitT (:⋊) (:⋉) (d' nat) RootNote False False
+         splitT (:⋊) (:⋉) (f' nat) RootNote False False
+         splitT (:⋊) (:⋉) (a' nat) RootNote False False
+    .> hori
+    $$ mkHori
+    $$ do
+         horiNote (d' nat) ToBoth True
+         horiNote (f' nat) ToBoth True
+         horiNote (a' nat) ToBoth True
+         addPassing (d' nat) (f' nat)
+    .> split
+    $$ mkSplit
+    $$ addToRight (d' nat) (d' nat) SingleLeftRepeat False
+    .> freeze FreezeOp
+    .> splitRight
+    $$ mkSplit
+    $$ do
+         splitNT (d' nat) (f' nat) (e' nat) PassingMid False False
+         splitT (Inner $ d' nat)
+                (Inner $ d' nat)
+                (c' shp)
+                FullNeighbor
+                False
+                False
+         splitT (Inner $ d' nat)
+                (Inner $ d' nat)
+                (d' nat)
+                FullRepeat
+                False
+                False
+         splitT (Inner $ a' nat)
+                (Inner $ a' nat)
+                (a' nat)
+                FullRepeat
+                False
+                False
+         splitT (Inner $ f' nat)
+                (Inner $ f' nat)
+                (g' nat)
+                FullNeighbor
+                False
+                False
+    .> hori
+    $$ mkHori
+    $$ do
+         horiNote (d' nat) ToBoth      True
+         horiNote (f' nat) (ToRight 1) False
+         horiNote (a' nat) (ToRight 1) False
+    .> freeze FreezeOp
+    .> hori
+    $$ mkHori
+    $$ do
+         horiNote (d' nat) (ToRight 1) True
+         horiNote (f' nat) (ToRight 1) False
+         horiNote (a' nat) ToBoth      True
+    .> freeze FreezeOp
+    .> split
+    $$ mkSplit
+    $$ do
+         splitT (Inner $ a' nat)
+                (Inner $ a' nat)
+                (b' flt)
+                FullNeighbor
+                False
+                False
+         splitT (Inner $ a' nat)
+                (Inner $ a' nat)
+                (g' nat)
+                FullNeighbor
+                False
+                False
+         splitT (Inner $ d' nat) (Inner $ d' nat) (d' nat) FullRepeat True True
+    .> freeze FreezeOp
+    .> hori
+    $$ mkHori
+    $$ do
+         horiNote (d' nat) (ToRight 1) True
+         horiNote (f' nat) (ToRight 1) False
+         horiNote (a' nat) (ToLeft 1)  False
+    .> freeze FreezeOp
+    .> hori
+    $$ mkHori
+    $$ do
+         horiNote (d' nat) (ToRight 1) True
+         horiNote (f' nat) (ToLeft 1)  False
+         addPassing (f' nat) (d' nat)
+    .> freeze FreezeOp
+    .> split
+    $$ mkSplit
+    $$ do
+         splitNT (f' nat) (d' nat) (e' nat) PassingMid False False
+         splitT (Inner $ d' nat) (Inner $ d' nat) (d' nat) FullRepeat True True
     .> freeze FreezeOp
     .> freeze FreezeOp
     .> freeze FreezeOp

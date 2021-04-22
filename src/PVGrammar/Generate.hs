@@ -15,6 +15,8 @@ import qualified Data.Map.Strict               as M
 import qualified Data.MultiSet                 as MS
 import qualified Data.Set                      as S
 import           Control.Monad                  ( foldM )
+import qualified Data.List                     as L
+import           Data.Foldable                  ( toList )
 
 -- building operations
 -- ===================
@@ -32,18 +34,27 @@ splitT
   -> Bool
   -> MW.Writer (Split i) ()
 splitT l r c o kl kr = MW.tell
-  $ SplitOp (M.singleton (l, r) [(c, o, kl, kr)]) M.empty M.empty M.empty
+  $ SplitOp (M.singleton (l, r) [(c, o)]) M.empty M.empty M.empty kls krs
+ where
+  kls = if kl then S.singleton (l, Inner c) else S.empty
+  krs = if kr then S.singleton (Inner c, r) else S.empty
 
 splitNT
   :: Ord i
   => Pitch i
   -> Pitch i
   -> Pitch i
+  -> Passing
   -> Bool
   -> Bool
   -> MW.Writer (Split i) ()
-splitNT l r c kl kr =
-  MW.tell $ SplitOp M.empty (M.singleton (l, r) [(c, kl, kr)]) M.empty M.empty
+splitNT l r c o kl kr = MW.tell
+  $ SplitOp M.empty (M.singleton (l, r) [(c, o)]) M.empty M.empty kls krs
+ where
+  kls =
+    if o /= PassingRight && kl then S.singleton (Inner l, Inner c) else S.empty
+  krs =
+    if o /= PassingLeft && kr then S.singleton (Inner c, Inner r) else S.empty
 
 addToLeft
   :: Ord i
@@ -52,8 +63,13 @@ addToLeft
   -> RightOrnament
   -> Bool
   -> MW.Writer (Split i) ()
-addToLeft parent child op keep = MW.tell
-  $ SplitOp M.empty M.empty (M.singleton parent [(child, op, keep)]) M.empty
+addToLeft parent child op keep = MW.tell $ SplitOp
+  M.empty
+  M.empty
+  (M.singleton parent [(child, op)])
+  M.empty
+  (if keep then S.singleton (Inner parent, Inner child) else S.empty)
+  S.empty
 
 addToRight
   :: Ord i
@@ -62,22 +78,28 @@ addToRight
   -> LeftOrnament
   -> Bool
   -> MW.Writer (Split i) ()
-addToRight parent child op keep = MW.tell
-  $ SplitOp M.empty M.empty M.empty (M.singleton parent [(child, op, keep)])
+addToRight parent child op keep = MW.tell $ SplitOp
+  M.empty
+  M.empty
+  M.empty
+  (M.singleton parent [(child, op)])
+  S.empty
+  (if keep then S.singleton (Inner child, Inner parent) else S.empty)
 
 
 mkHori :: MW.Writer (Endo (Hori i)) () -> Hori i
 mkHori actions = appEndo (MW.execWriter actions) emptyHori
-  where emptyHori = HoriOp M.empty $ Edges MS.empty MS.empty
+  where emptyHori = HoriOp M.empty $ Edges S.empty MS.empty
 
 horiNote
-  :: Ord i => Pitch i -> HoriDirection -> Int -> MW.Writer (Endo (Hori i)) ()
-horiNote pitch dir edges = MW.tell $ Endo h
+  :: Ord i => Pitch i -> HoriDirection -> Bool -> MW.Writer (Endo (Hori i)) ()
+horiNote pitch dir edge = MW.tell $ Endo h
  where
   h (HoriOp dist (Edges mTs mNTs)) = HoriOp dist' (Edges mTs' mNTs)
    where
     dist' = M.insert pitch dir dist
-    mTs'  = MS.insertMany (Inner pitch, Inner pitch) edges mTs
+    mTs'  = S.union mTs
+      $ if edge then S.singleton (Inner pitch, Inner pitch) else S.empty
 
 addPassing :: Ord i => Pitch i -> Pitch i -> MW.Writer (Endo (Hori i)) ()
 addPassing l r = MW.tell $ Endo h
@@ -94,20 +116,14 @@ applySplit
   => Split i
   -> Edges i
   -> Either String (Edges i, Notes i, Edges i)
-applySplit inSplit@(SplitOp splitTs splitNTs ls rs) inTop@(Edges topTs topNTs)
+applySplit inSplit@(SplitOp splitTs splitNTs ls rs kl kr) inTop@(Edges topTs topNTs)
   = do
-    (leftNTs, rightNTs, notesNT) <- applySplits applyNT topNTs (allOps splitNTs)
-    (leftTsSplit, rightTsSplit, notesT) <- applySplits
-      applyT
-      topTs
-      (downcast <$> allOps splitTs)
-
-    let (leftTsSingle , notesL) = applyFromLefts $ allOps ls
-        (rightTsSingle, notesR) = applyFromRights $ allOps rs
-        notes                   = MS.unions [notesT, notesNT, notesL, notesR]
-        leftTs                  = MS.union leftTsSplit leftTsSingle
-        rightTs                 = MS.union rightTsSplit rightTsSingle
-    pure (Edges leftTs leftNTs, Notes notes, Edges rightTs rightNTs)
+    notesT                       <- applyTs topTs splitTs
+    (notesNT, leftNTs, rightNTs) <- applyNTs topNTs splitNTs
+    let notesL = collectNotes ls
+        notesR = collectNotes rs
+        notes  = MS.unions [notesT, notesNT, notesL, notesR]
+    pure (Edges kl leftNTs, Notes notes, Edges kr rightNTs)
  where
 
   allOps opset = do
@@ -115,46 +131,60 @@ applySplit inSplit@(SplitOp splitTs splitNTs ls rs) inTop@(Edges topTs topNTs)
     child              <- children
     pure (parent, child)
 
-  downcast (p, (n, _, l, r)) = (p, (n, l, r))
+  showEdge (p1, p2) = showNotation p1 <> "-" <> showNotation p2
+  showEdges ts = "{" <> L.intercalate "," (showEdge <$> toList ts) <> "}"
 
-  applyNT = applySplit id
-  applyT  = applySplit Inner
-  applySplits f top ops = do
-    (top', left, right, notes) <- foldM (f top)
-                                        (top, MS.empty, MS.empty, MS.empty)
-                                        ops
-    if MS.null top'
-      then Right (left, right, notes)
-      else Left "did not use all edges"
+  applyTs top ops = do
+    (top', notes) <- foldM (applyT top) (top, MS.empty) $ allOps ops
+    if S.null top'
+      then Right notes
+      else
+        Left $ "did not use all terminal edges, remaining: " <> showEdges top'
 
-  applySplit f topAll (top, left, right, notes) (parent@(pl, pr), (note, usedLeft, usedRight))
-    | parent `MS.member` topAll
-    = Right (top', left', right', notes')
+  applyT topAll (top, notes) (parent@(pl, pr), (note, _))
+    | parent `S.member` topAll
+    = Right (top', notes')
     | otherwise
     = Left
-      $  "used non-existing edge\n  top="
+      $  "used non-existing terminal edge\n  top="
       <> show inTop
       <> "\n  split="
       <> show inSplit
    where
-    top'   = MS.delete parent top
+    top'   = S.delete parent top
     notes' = MS.insert note notes
-    left'  = if usedLeft then MS.insert (pl, f note) left else left
-    right' = if usedRight then MS.insert (f note, pr) right else right
 
-  singleChild (_, (note, _, _)) = note
-  singleEdge mk (parent, (child, _, _)) = mk (Inner parent) (Inner child)
-  singleKeep (_, (_, _, keep)) = keep
+  applyNTs top ops = do
+    (top', notes, lNTs, rNTs) <-
+      foldM applyNT (top, MS.empty, MS.empty, MS.empty) $ allOps ops
+    if MS.null top'
+      then Right (notes, lNTs, rNTs)
+      else
+        Left
+        $  "did not use all non-terminal edges, remaining: "
+        <> showEdges top'
 
-  applyFromLefts ls = (edges, notes)
+  applyNT (top, notes, lNTs, rNTs) (parent@(pl, pr), (note, pass))
+    | parent `MS.member` top
+    = Right (top', notes', lNTs', rNTs')
+    | otherwise
+    = Left
+      $  "used non-existing non-terminal edge\n  top="
+      <> show inTop
+      <> "\n  split="
+      <> show inSplit
    where
-    edges = MS.fromList $ singleEdge (,) <$> filter singleKeep ls
-    notes = MS.fromList $ singleChild <$> ls
+    top'         = MS.delete parent top
+    notes'       = MS.insert note notes
+    (newl, newr) = case pass of
+      PassingMid   -> (MS.empty, MS.empty)
+      PassingLeft  -> (MS.empty, MS.singleton (note, pr))
+      PassingRight -> (MS.singleton (pl, note), MS.empty)
+    lNTs' = MS.union newl lNTs
+    rNTs' = MS.union newr rNTs
 
-  applyFromRights ls = (edges, notes)
-   where
-    edges = MS.fromList $ singleEdge (flip (,)) <$> filter singleKeep ls
-    notes = MS.fromList $ singleChild <$> ls
+  singleChild (_, (note, _)) = note
+  collectNotes ops = MS.fromList $ singleChild <$> allOps ops
 
 applyFreeze :: Eq i => Freeze -> Edges i -> Either String (Edges i)
 applyFreeze FreezeOp e@(Edges ts nts)
@@ -204,7 +234,7 @@ applyHori (HoriOp dist childm) pl (Notes notesm) pr = do
    where
     notes  = MS.toSet notesms
     notesi = S.map Inner notes
-    ts'    = MS.filter ((`S.member` notesi) . accessor) ts
+    ts'    = S.filter ((`S.member` notesi) . accessor) ts
 
 -- derivation player
 -- =================

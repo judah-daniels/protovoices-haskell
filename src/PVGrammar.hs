@@ -62,7 +62,7 @@ type InnerEdge i = (Pitch i, Pitch i)
 -- Edges that are not used are dropped before creating a child transition.
 -- A transition that contains passing edges cannot be frozen.
 data Edges i = Edges
-               { edgesT  :: !(MS.MultiSet (Edge i))      -- ^ the terminal edges
+               { edgesT  :: !(S.Set (Edge i))            -- ^ the terminal edges
                , edgesNT :: !(MS.MultiSet (InnerEdge i)) -- ^ the non-terminal edges
                }
   deriving (Eq, Ord)
@@ -70,14 +70,11 @@ data Edges i = Edges
 instance (Notation (Pitch i)) => Show (Edges i) where
   show (Edges ts nts) = "{" <> L.intercalate "," (tts <> tnts) <> "}"
    where
-    tts  = showT <$> MS.toOccurList ts
+    tts  = showT <$> S.toList ts
     tnts = showNT <$> MS.toOccurList nts
-    showT ((p1, p2), n) = showNode p1 <> "-" <> showNode p2 <> "×" <> show n
+    showT (p1, p2) = showNotation p1 <> "-" <> showNotation p2
     showNT ((p1, p2), n) =
       showNotation p1 <> ">" <> showNotation p2 <> "×" <> show n
-    showNode (:⋊)      = "⋊"
-    showNode (:⋉)      = "⋉"
-    showNode (Inner p) = showNotation p
 
 -- operations
 -- ==========
@@ -89,8 +86,12 @@ data Ornament = FullNeighbor
               | FullRepeat
               | LeftRepeatOfRight
               | RightRepeatOfLeft
-              | Passing
               | RootNote
+  deriving (Eq, Ord, Show)
+
+data Passing = PassingMid
+             | PassingLeft
+             | PassingRight
   deriving (Eq, Ord, Show)
 
 data LeftOrnament = SingleLeftNeighbor
@@ -110,67 +111,64 @@ isRepetitionOnRight LeftRepeatOfRight = True
 isRepetitionOnRight _                 = False
 
 -- | Encodes the decisions made in a split operation.
--- Contains a list of elaborations for every parent edge.
--- Each elaboration contains the child pitch,
--- the corresponding ornament, and flags for whether to keep either of the child edges.
+-- Contains a list of elaborations for every parent edge and note.
+-- Each elaboration contains the child pitch, and the corresponding ornament.
+-- For every produced edge, a decisions is made whether to keep it or not.
 data Split i = SplitOp
-  { splitTs :: !(M.Map (Edge i) [(Pitch i, Ornament, Bool, Bool)])
-  , splitNTs :: !(M.Map (InnerEdge i) [(Pitch i, Bool, Bool)])
-  , fromLeft :: !(M.Map (Pitch i) [(Pitch i, RightOrnament, Bool)])
-  , fromRight :: !(M.Map (Pitch i) [(Pitch i, LeftOrnament, Bool)])
+  { splitTs :: !(M.Map (Edge i) [(Pitch i, Ornament)])
+  , splitNTs :: !(M.Map (InnerEdge i) [(Pitch i, Passing)])
+  , fromLeft :: !(M.Map (Pitch i) [(Pitch i, RightOrnament)])
+  , fromRight :: !(M.Map (Pitch i) [(Pitch i, LeftOrnament)])
+  , keepLeft :: !(S.Set (Edge i))
+  , keepRight :: !(S.Set (Edge i))
   }
   deriving (Eq, Ord)
 
 instance (Notation (Pitch i)) => Show (Split i) where
-  show (SplitOp ts nts ls rs) =
-    "ts:{"
-      <> opTs
-      <> "}, nts:{"
-      <> opNTs
-      <> "}, ls:{"
-      <> opLs
-      <> "}, rs:{"
-      <> opRs
-      <> "}"
+  show (SplitOp ts nts ls rs kl kr) =
+    "ts:"
+      <> showOps opTs
+      <> ", nts:"
+      <> showOps opNTs
+      <> ", ls:"
+      <> showOps opLs
+      <> ", rs:"
+      <> showOps opRs
+      <> ", kl:"
+      <> showOps keepLs
+      <> ", kr:"
+      <> showOps keepRs
    where
-    opTs  = L.intercalate "," (showT <$> M.toList ts)
-    opNTs = L.intercalate "," (showNT <$> M.toList nts)
-    opLs  = L.intercalate "," (showL <$> M.toList ls)
-    opRs  = L.intercalate "," (showR <$> M.toList rs)
-    showTEdge (n1, n2) = showNode n1 <> "-" <> showNode n2
-    showTChild (p, o, l, r) = showNotation p <> ":" <> show (o, l, r)
-    showT (e, cs) =
-      showTEdge e <> "=>[" <> L.intercalate "," (showTChild <$> cs) <> "]"
-    showNTEdge (n1, n2) = showNotation n1 <> ">" <> showNotation n2
-    showNTChild (p, l, r) = showNotation p <> ":" <> show (Passing, l, r)
-    showNT (e, cs) =
-      showNTEdge e <> "=>[" <> L.intercalate "," (showNTChild <$> cs) <> "]"
-    showSingleChild (c, o, k) = showNotation c <> ":" <> show (o, k)
-    showL (p, ls) =
-      showNotation p
-        <> "=>["
-        <> L.intercalate "," (showSingleChild <$> ls)
-        <> "]"
-    showR (p, rs) =
-      "["
-        <> L.intercalate "," (showSingleChild <$> rs)
-        <> "]<="
-        <> showNotation p
-    showNode (:⋊)      = "⋊"
-    showNode (:⋉)      = "⋉"
-    showNode (Inner p) = showNotation p
+    showOps ops = "{" <> L.intercalate "," ops <> "}"
+    showEdge (n1, n2) = showNotation n1 <> "-" <> showNotation n2
+    showChild (p, o) = showNotation p <> ":" <> show o
+    showChildren cs = "[" <> L.intercalate "," (showChild <$> cs) <> "]"
+
+    showSplit (e, cs) = showEdge e <> "=>" <> showChildren cs
+    showL (p, ls) = showNotation p <> "=>" <> showChildren ls
+    showR (p, rs) = showChildren rs <> "<=" <> showNotation p
+
+    opTs   = showSplit <$> M.toList ts
+    opNTs  = showSplit <$> M.toList nts
+    opLs   = showL <$> M.toList ls
+    opRs   = showR <$> M.toList rs
+    keepLs = showEdge <$> S.toList kl
+    keepRs = showEdge <$> S.toList kr
 
 instance (Ord i) => Semigroup (Split i) where
-  (SplitOp ta nta la ra) <> (SplitOp tb ntb lb rb) = SplitOp (ta <+> tb)
-                                                             (nta <+> ntb)
-                                                             (la <+> lb)
-                                                             (ra <+> rb)
+  (SplitOp ta nta la ra kla kra) <> (SplitOp tb ntb lb rb klb krb) = SplitOp
+    (ta <+> tb)
+    (nta <+> ntb)
+    (la <+> lb)
+    (ra <+> rb)
+    (S.union kla klb)
+    (S.union kra krb)
    where
     (<+>) :: (Ord k, Semigroup a) => M.Map k a -> M.Map k a -> M.Map k a
     (<+>) = M.unionWith (<>)
 
 instance (Ord i) => Monoid (Split i) where
-  mempty = SplitOp M.empty M.empty M.empty M.empty
+  mempty = SplitOp M.empty M.empty M.empty M.empty S.empty S.empty
 
 -- | Represents a freeze operation.
 -- Since this just ties all remaining edges

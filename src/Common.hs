@@ -35,6 +35,8 @@ import           GHC.TypeNats                   ( Nat
 import           Control.Monad.Identity         ( runIdentity )
 import           Data.Bifunctor                 ( second )
 import           Data.Typeable                  ( Proxy(Proxy) )
+import           Musicology.Pitch               ( Notation(..) )
+import qualified Text.ParserCombinators.ReadP  as ReadP
 
 -- | A container type that augements the type @a@
 -- with symbols for beginning (@:⋊@) and end (@:⋉@).
@@ -52,6 +54,12 @@ instance Show a => Show (StartStop a) where
   show (:⋊)      = "⋊"
   show (:⋉)      = "⋉"
   show (Inner a) = show a
+
+instance (Notation a) => Notation (StartStop a) where
+  showNotation (:⋊)      = "⋊"
+  showNotation (:⋉)      = "⋉"
+  showNotation (Inner a) = showNotation a
+  parseNotation = ReadP.pfail
 
 instance Functor StartStop where
   fmap f (:⋊)      = (:⋊)
