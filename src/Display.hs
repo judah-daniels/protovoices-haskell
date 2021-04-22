@@ -4,7 +4,8 @@ module Display where
 
 import           Common
 
-import           Diagrams.Prelude        hiding ( (^-^)
+import           Diagrams.Prelude        hiding ( Leftmost
+                                                , (^-^)
                                                 , (^+^)
                                                 )
 import qualified Diagrams.TwoD.Text
@@ -42,7 +43,7 @@ data DerivationGraph a e = DGraph
   , dgHoriEdges :: S.Set (DerivSlice a, DerivSlice a)
   , dgSurface :: [DerivTrans a e]
   , dgFoot :: [DerivTrans a e]
-  , dgRoot :: DerivTrans a e
+  , dgRoot :: [DerivTrans a e]
   }
   deriving (Eq, Ord, Show)
 
@@ -87,7 +88,8 @@ addHoriEdge edge = do
   ST.put $ graph { dgHoriEdges = horis' }
 
 data DerivationPlayer s f h a e = DerivationPlayer
-  { dpRoot :: e
+  { dpTopTrans :: StartStop a -> StartStop a -> e
+  , dpTopSlice :: a
   , dpSplit :: s -> e -> Either String (e, a, e)
   , dpFreeze :: f -> e -> Either String e
   , dpHorizontalize :: h -> e -> a -> e -> Either String (e, a, e, a, e)
@@ -136,28 +138,45 @@ replayDerivationStep player = applyRule
     addHoriEdge (pm, rs)
     pushOpen [(lpl, l, ls), (ls, m, rs), (rs, r, rpr)]
 
-initialGraph player = DGraph 2
-                             (S.fromList [start, end])
-                             (S.singleton top)
-                             S.empty
-                             [top]
-                             []
-                             top
+initialGraph n player = DGraph (2 + n)
+                               (S.fromList topSlices)
+                               (S.fromList top)
+                               S.empty
+                               top
+                               []
+                               top
  where
-  start = (0, 0, (:⋊))
-  end   = (0, 1, (:⋉))
-  top   = (start, dpRoot player, end)
+  topContents = (:⋊) : replicate n (Inner $ dpTopSlice player) <> [(:⋉)]
+  topSlices   = zipWith (\i s -> (0, i, s)) [0 ..] topContents
+  gets (_, _, s) = s
+  top = zipWith (\l r -> (l, dpTopTrans player (gets l) (gets r), r))
+                topSlices
+                (tail topSlices)
 
-replayDerivation deriv player = ST.execStateT
+replayDerivation'
+  :: (Foldable t, Ord a, Ord e)
+  => Int
+  -> DerivationPlayer s f h a e
+  -> t (Leftmost s f h)
+  -> Either String (DerivationGraph a e)
+replayDerivation' n player deriv = ST.execStateT
   (mapM_ (replayDerivationStep player) deriv)
-  (initialGraph player)
+  (initialGraph n player)
 
-unfoldDerivation
-  :: (Ord a, Ord e)
+replayDerivation
+  :: (Foldable t, Ord a, Ord e)
   => DerivationPlayer s f h a e
+  -> t (Leftmost s f h)
+  -> Either String (DerivationGraph a e)
+replayDerivation = replayDerivation' 0
+
+unfoldDerivation'
+  :: (Ord a, Ord e)
+  => Int
+  -> DerivationPlayer s f h a e
   -> [Common.Leftmost s f h]
   -> [Either String (DerivationGraph a e)]
-unfoldDerivation player = go (initialGraph player) []
+unfoldDerivation' n player = go (initialGraph n player) []
  where
   go g acc [] = Right g : acc
   go g acc (step : rest) =
@@ -165,19 +184,38 @@ unfoldDerivation player = go (initialGraph player) []
       Left  error -> Left error : acc
       Right g'    -> go g' (Right g : acc) rest
 
-replayDerivationFull deriv player = do
-  graph <- replayDerivation deriv player
+unfoldDerivation
+  :: (Ord a, Ord e)
+  => DerivationPlayer s f h a e
+  -> [Common.Leftmost s f h]
+  -> [Either String (DerivationGraph a e)]
+unfoldDerivation = unfoldDerivation' 0
+
+replayDerivationFull player deriv = do
+  graph <- replayDerivation player deriv
   if L.null $ dgSurface graph
     then Right graph
     else Left "Not all surface transitions have been frozen!"
 
 derivationPlayerUnit :: DerivationPlayer s f h () ()
-derivationPlayerUnit = DerivationPlayer root split freeze hori
+derivationPlayerUnit = DerivationPlayer (\_ _ -> ()) () split freeze hori
  where
-  root = ()
   split _ _ = Right ((), (), ())
   freeze _ _ = Right ()
   hori _ _ _ _ = Right ((), (), (), (), ())
+
+data Null = Null
+  deriving (Eq, Ord)
+
+instance Show Null where
+  show Null = ""
+
+derivationPlayerNull :: DerivationPlayer s f h Null Null
+derivationPlayerNull = DerivationPlayer (\_ _ -> Null) Null split freeze hori
+ where
+  split _ _ = Right (Null, Null, Null)
+  freeze _ _ = Right Null
+  hori _ _ _ _ = Right (Null, Null, Null, Null, Null)
 
 -- plotting derivation graphs
 -- ==========================
@@ -278,17 +316,24 @@ tikzStandalone content =
     <> content
     <> "\n\\end{document}"
 
-viewGraph fn g = do
+writeGraph fn g =
   T.writeFile fn $ tikzStandalone $ mkTikzPic $ tikzDerivationGraph showTex
                                                                     showTex
                                                                     g
+
+viewGraph fn g = do
+  writeGraph fn g
   callCommand $ "pdflatex " <> fn
 
-viewGraphs fn gs = do
+writeGraphs fn gs =
   T.writeFile fn
     $   tikzStandalone
     $   T.intercalate "\n\n"
     $   mkTikzPic
     .   tikzDerivationGraph showTex showTex
     <$> gs
+
+
+viewGraphs fn gs = do
+  writeGraphs fn gs
   callCommand $ "pdflatex " <> fn

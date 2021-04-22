@@ -212,5 +212,12 @@ applyHori (HoriOp dist childm) pl (Notes notesm) pr = do
 derivationPlayerPV
   :: (Eq i, Ord i, Notation (Pitch i))
   => DerivationPlayer (Split i) Freeze (Hori i) (Notes i) (Edges i)
-derivationPlayerPV = DerivationPlayer root applySplit applyFreeze applyHori
-  where root = Edges (MS.singleton ((:⋊), (:⋉))) MS.empty
+derivationPlayerPV = DerivationPlayer topEdges
+                                      topNotes
+                                      applySplit
+                                      applyFreeze
+                                      applyHori
+ where
+  topEdges (:⋊) (:⋉) = Edges (S.singleton ((:⋊), (:⋉))) MS.empty
+  topEdges _    _    = Edges S.empty MS.empty
+  topNotes = Notes MS.empty

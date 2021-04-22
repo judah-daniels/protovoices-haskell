@@ -110,20 +110,25 @@ printDerivs path = do
     putStrLn "\nDerivation:"
     forM_ d $ \step -> do
       putStrLn $ "- " <> show step
-    case replayDerivation d derivationPlayerPV of
+    case replayDerivation derivationPlayerPV d of
       Left  error -> putStrLn $ "Error: " <> error
       Right _     -> putStrLn "Ok."
 
 plotDerivs fn input = do
   derivs <- parseSilent pvDeriv input
   let ds = S.toList $ flattenDerivations derivs
-  pics <- forM ds $ \d -> case replayDerivation d derivationPlayerPV of
+  pics <- forM ds $ \d -> case replayDerivation derivationPlayerPV d of
     Left error -> do
       putStrLn error
       print d
       return Nothing
     Right g -> return $ Just g
   viewGraphs fn $ catMaybes pics
+
+plotDeriv fn deriv = do
+  case replayDerivation derivationPlayerPV deriv of
+    (Left  err) -> putStrLn err
+    (Right g  ) -> viewGraph fn g
 
 plotSteps fn deriv = do
   let graphs          = unfoldDerivation derivationPlayerPV deriv
@@ -137,7 +142,7 @@ plotSteps fn deriv = do
 derivBrahms :: [PVLeftMost MT.SIC]
 derivBrahms =
   buildDerivation
-    $  splitLeft
+    $  split
     $$ mkSplit
     $$ do
          splitT (:⋊) (:⋉) (c' shp) RootNote False False
@@ -165,7 +170,7 @@ derivBrahms =
          horiNote (c' shp) (ToLeft 1)  0
          addPassing (c' shp) (a' nat)
     .> freeze FreezeOp
-    .> splitLeft
+    .> split
     $$ mkSplit
     $$ do
          splitNT (c' shp) (a' nat) (b' nat) False False
@@ -182,7 +187,7 @@ derivBrahms =
          addToRight (g' shp) (a' nat) SingleLeftNeighbor False
     .> freeze FreezeOp
     .> freeze FreezeOp
-    .> splitLeft
+    .> split
     $$ mkSplit
     $$ do
          addToRight (b' nat) (c' shp) SingleLeftNeighbor False
@@ -217,7 +222,7 @@ mainGraph = do
   input  <- slicesToPath <$> slicesFromFile brahms1
   derivs <- parseSize pvDeriv input
   let ds = S.toList $ flattenDerivations derivs
-  pics <- forM ds $ \d -> case replayDerivation d derivationPlayerPV of
+  pics <- forM ds $ \d -> case replayDerivation derivationPlayerPV d of
     Left error -> do
       putStrLn error
       print d

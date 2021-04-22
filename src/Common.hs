@@ -258,23 +258,26 @@ buildDerivation
   -> [Leftmost s f h]
 buildDerivation build = reverse $ runPD $ build (PD [])
 
+buildPartialDerivation
+  :: Proxy (n :: Nat)
+  -> (PartialDeriv s f h n False -> PartialDeriv s f h n' snd)
+  -> [Leftmost s f h]
+buildPartialDerivation _ build = reverse $ runPD $ build (PD [])
+
 infixl 1 .>
 f .> g = g . f
 
 infixr 2 $$
 f $$ a = f a
 
--- splitLeftOnly :: s -> PartialDeriv s f h 1 False -> PartialDeriv s f h 2 False
--- splitLeftOnly s (PD d) = 
-
-splitLeft
+split
   :: forall n s f h
    . (KnownNat n, 1 <= n)
   => s
   -> PartialDeriv s f h n False
   -> PartialDeriv s f h (n+1) False
-splitLeft s (PD d) | natVal (Proxy :: Proxy n) == 1 = PD $ LMSplitLeftOnly s : d
-                   | otherwise                      = PD $ LMSplitLeft s : d
+split s (PD d) | natVal (Proxy :: Proxy n) == 1 = PD $ LMSplitLeftOnly s : d
+               | otherwise                      = PD $ LMSplitLeft s : d
 
 freeze
   :: forall n s h f
