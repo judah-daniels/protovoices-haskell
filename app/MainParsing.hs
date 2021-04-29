@@ -1,5 +1,8 @@
+{-# LANGUAGE MonoLocalBinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RebindableSyntax #-}
+{-# LANGUAGE PartialTypeSignatures #-}
 module Main where
 
 import           Parser
@@ -30,6 +33,15 @@ import qualified Data.Text.IO                  as T
 import           Control.Monad                  ( forM
                                                 , forM_
                                                 )
+
+
+-- better do syntax
+import qualified Language.Haskell.DoNotation   as Do
+-- import           Prelude                 hiding ( Monad(..)
+--                                                 , pure
+--                                                 )
+import           Prelude
+import           Data.String                    ( fromString )
 
 -- utilities
 -- =========
@@ -140,164 +152,42 @@ plotSteps fn deriv = do
 -- ===================
 
 derivBrahms :: [PVLeftMost MT.SIC]
-derivBrahms =
-  buildDerivation
-    $  split
-    $$ mkSplit
-    $$ do
-         splitT (:⋊) (:⋉) (c' shp) RootNote False False
-         splitT (:⋊) (:⋉) (a' nat) RootNote False False
-    .> hori
-    $$ mkHori
-    $$ do
-         horiNote (a' nat) ToBoth     True
-         horiNote (c' shp) (ToLeft 1) False
-         addPassing (c' shp) (a' nat)
-    .> splitRight
-    $$ mkSplit
-    $$ do
-         splitNT (c' shp) (a' nat) (b' nat) PassingMid False False
-         splitT (Inner $ a' nat)
-                (Inner $ a' nat)
-                (g' shp)
-                FullNeighbor
-                False
-                False
-    .> hori
-    $$ mkHori
-    $$ do
-         horiNote (a' nat) (ToRight 1) False
-         horiNote (c' shp) (ToLeft 1)  False
-         addPassing (c' shp) (a' nat)
-    .> freeze FreezeOp
-    .> split
-    $$ mkSplit
-    $$ do
-         splitNT (c' shp) (a' nat) (b' nat) PassingMid False False
-    .> freeze FreezeOp
-    .> freeze FreezeOp
-    .> hori
-    $$ mkHori
-    $$ do
-         horiNote (b' nat) (ToRight 1) False
-         horiNote (g' shp) (ToLeft 1)  False
-    .> split
-    $$ mkSplit
-    $$ do
-         addToRight (g' shp) (a' nat) SingleLeftNeighbor False
-    .> freeze FreezeOp
-    .> freeze FreezeOp
-    .> split
-    $$ mkSplit
-    $$ do
-         addToRight (b' nat) (c' shp) SingleLeftNeighbor False
-    .> freeze FreezeOp
-    .> freeze FreezeOp
-    .> freeze FreezeOp
-    .> freeze FreezeOp
-
-derivBach :: [PVLeftMost MT.SIC]
-derivBach =
-  buildDerivation
-    $  split
-    $$ mkSplit
-    $$ do
-         splitT (:⋊) (:⋉) (d' nat) RootNote False False
-         splitT (:⋊) (:⋉) (d' nat) RootNote False False
-         splitT (:⋊) (:⋉) (f' nat) RootNote False False
-         splitT (:⋊) (:⋉) (a' nat) RootNote False False
-    .> hori
-    $$ mkHori
-    $$ do
-         horiNote (d' nat) ToBoth True
-         horiNote (f' nat) ToBoth True
-         horiNote (a' nat) ToBoth True
-         addPassing (d' nat) (f' nat)
-    .> split
-    $$ mkSplit
-    $$ addToRight (d' nat) (d' nat) SingleLeftRepeat False
-    .> freeze FreezeOp
-    .> splitRight
-    $$ mkSplit
-    $$ do
-         splitNT (d' nat) (f' nat) (e' nat) PassingMid False False
-         splitT (Inner $ d' nat)
-                (Inner $ d' nat)
-                (c' shp)
-                FullNeighbor
-                False
-                False
-         splitT (Inner $ d' nat)
-                (Inner $ d' nat)
-                (d' nat)
-                FullRepeat
-                False
-                False
-         splitT (Inner $ a' nat)
-                (Inner $ a' nat)
-                (a' nat)
-                FullRepeat
-                False
-                False
-         splitT (Inner $ f' nat)
-                (Inner $ f' nat)
-                (g' nat)
-                FullNeighbor
-                False
-                False
-    .> hori
-    $$ mkHori
-    $$ do
-         horiNote (d' nat) ToBoth      True
-         horiNote (f' nat) (ToRight 1) False
-         horiNote (a' nat) (ToRight 1) False
-    .> freeze FreezeOp
-    .> hori
-    $$ mkHori
-    $$ do
-         horiNote (d' nat) (ToRight 1) True
-         horiNote (f' nat) (ToRight 1) False
-         horiNote (a' nat) ToBoth      True
-    .> freeze FreezeOp
-    .> split
-    $$ mkSplit
-    $$ do
-         splitT (Inner $ a' nat)
-                (Inner $ a' nat)
-                (b' flt)
-                FullNeighbor
-                False
-                False
-         splitT (Inner $ a' nat)
-                (Inner $ a' nat)
-                (g' nat)
-                FullNeighbor
-                False
-                False
-         splitT (Inner $ d' nat) (Inner $ d' nat) (d' nat) FullRepeat True True
-    .> freeze FreezeOp
-    .> hori
-    $$ mkHori
-    $$ do
-         horiNote (d' nat) (ToRight 1) True
-         horiNote (f' nat) (ToRight 1) False
-         horiNote (a' nat) (ToLeft 1)  False
-    .> freeze FreezeOp
-    .> hori
-    $$ mkHori
-    $$ do
-         horiNote (d' nat) (ToRight 1) True
-         horiNote (f' nat) (ToLeft 1)  False
-         addPassing (f' nat) (d' nat)
-    .> freeze FreezeOp
-    .> split
-    $$ mkSplit
-    $$ do
-         splitNT (f' nat) (d' nat) (e' nat) PassingMid False False
-         splitT (Inner $ d' nat) (Inner $ d' nat) (d' nat) FullRepeat True True
-    .> freeze FreezeOp
-    .> freeze FreezeOp
-    .> freeze FreezeOp
+derivBrahms = buildDerivation $ do
+  split $ mkSplit $ do
+    splitT (:⋊) (:⋉) (c' shp) RootNote False False
+    splitT (:⋊) (:⋉) (a' nat) RootNote False False
+  hori $ mkHori $ do
+    horiNote (a' nat) ToBoth     True
+    horiNote (c' shp) (ToLeft 1) False
+    addPassing (c' shp) (a' nat)
+  splitRight $ mkSplit $ do
+    splitNT (c' shp) (a' nat) (b' nat) PassingMid False False
+    splitT (Inner $ a' nat) (Inner $ a' nat) (g' shp) FullNeighbor False False
+  hori $ mkHori $ do
+    horiNote (a' nat) (ToRight 1) False
+    horiNote (c' shp) (ToLeft 1)  False
+    addPassing (c' shp) (a' nat)
+  freeze FreezeOp
+  split $ mkSplit $ do
+    splitNT (c' shp) (a' nat) (b' nat) PassingMid False False
+  freeze FreezeOp
+  freeze FreezeOp
+  hori $ mkHori $ do
+    horiNote (b' nat) (ToRight 1) False
+    horiNote (g' shp) (ToLeft 1)  False
+  split $ mkSplit $ do
+    addToRight (g' shp) (a' nat) SingleLeftNeighbor False
+  freeze FreezeOp
+  freeze FreezeOp
+  split $ mkSplit $ do
+    addToRight (b' nat) (c' shp) SingleLeftNeighbor False
+  freeze FreezeOp
+  freeze FreezeOp
+  freeze FreezeOp
+  freeze FreezeOp
+ where
+  (>>) :: Do.BindSyntax x y z => x a -> y b -> z b
+  (>>) = (Do.>>)
 
 -- mains
 -- =====
@@ -342,6 +232,12 @@ logFull tc vc n = do
   putStrLn "\nslices:"
   mapM_ print $ vcGetByLength vc (n - 1)
 
+mainResult
+  :: (R.Semiring b, Ord e, Ord a, Show a, Show e, Show b, Eq b)
+  => Eval e [Edge SIC] a [Pitch SInterval] b
+  -> Int
+  -> Int
+  -> IO b
 mainResult evaluator from to = do
   putStrLn $ "slices " <> show from <> " to " <> show to
   input <- testslices from (to + 1)

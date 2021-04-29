@@ -7,6 +7,8 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE EmptyDataDecls #-}
 module Common where
 
 -- StartStop
@@ -21,6 +23,7 @@ import           Data.Foldable                  ( foldl'
                                                 , foldlM
                                                 )
 import qualified Control.Monad.Writer.Strict   as MW
+import qualified Control.Monad.Indexed         as MI
 import           Debug.Trace                    ( trace )
 import           Data.Semigroup                 ( stimesMonoid )
 import qualified Control.Monad.Trans.State.Strict
@@ -261,16 +264,40 @@ mkLeftmostEval vm vl vr m t = Eval vm' vl vr m' t'
 
 newtype PartialDeriv s f h (n :: Nat) (snd :: Bool) = PD { runPD :: [Leftmost s f h]}
 
+newtype IndexedWriter w i j a = IW { runIW :: MW.Writer w a }
+
+instance MI.IxFunctor (IndexedWriter w) where
+  imap f (IW w) = IW $ f <$> w
+
+instance (Monoid w) => MI.IxPointed (IndexedWriter w) where
+  ireturn a = IW $ return a
+
+instance (Monoid w) => MI.IxApplicative (IndexedWriter w) where
+  iap (IW wf) (IW wa) = IW (wf <*> wa)
+
+instance (Monoid w) => MI.IxMonad (IndexedWriter w) where
+  ibind f (IW wa) = IW $ (runIW . f) =<< wa
+
+itell :: Monoid w => w -> IndexedWriter w i j ()
+itell = IW . MW.tell
+
+data Prod (a :: Nat) (b :: Bool)
+
+type DerivAction s f h n n' snd snd'
+  = IndexedWriter [Leftmost s f h] (Prod n snd) (Prod n' snd') ()
+
 buildDerivation
-  :: (PartialDeriv s f h 1 False -> PartialDeriv s f h n snd)
-  -> [Leftmost s f h]
-buildDerivation build = reverse $ runPD $ build (PD [])
+  -- :: (PartialDeriv s f h 1 False -> PartialDeriv s f h n snd)
+  :: DerivAction s f h 1 n False snd -> [Leftmost s f h]
+buildDerivation build = MW.execWriter $ runIW build
 
 buildPartialDerivation
   :: forall n n' snd s f h
-   . (PartialDeriv s f h n False -> PartialDeriv s f h n' snd)
+   . 
+  -- . (PartialDeriv s f h n False -> PartialDeriv s f h n' snd)
+     DerivAction s f h n n' False snd
   -> [Leftmost s f h]
-buildPartialDerivation build = reverse $ runPD $ build (PD [])
+buildPartialDerivation build = MW.execWriter $ runIW build
 
 infixl 1 .>
 f .> g = g . f
@@ -282,30 +309,23 @@ split
   :: forall n s f h
    . (KnownNat n, 1 <= n)
   => s
-  -> PartialDeriv s f h n False
-  -> PartialDeriv s f h (n+1) False
-split s (PD d) | natVal (Proxy :: Proxy n) == 1 = PD $ LMSplitOnly s : d
-               | otherwise                      = PD $ LMSplitLeft s : d
+  -> DerivAction s f h n (n+1) False False
+split s | natVal (Proxy :: Proxy n) == 1 = itell [LMSplitOnly s]
+        | otherwise                      = itell [LMSplitLeft s]
 
 freeze
   :: forall n s h f
    . (KnownNat n, 1 <= n)
   => f
-  -> PartialDeriv s f h n False
-  -> PartialDeriv s f h (n-1) False
-freeze f (PD d) | natVal (Proxy :: Proxy n) == 1 = PD $ LMFreezeOnly f : d
-                | otherwise                      = PD $ LMFreezeLeft f : d
+  -> DerivAction s f h n (n-1) False False
+freeze f | natVal (Proxy :: Proxy n) == 1 = itell [LMFreezeOnly f]
+         | otherwise                      = itell [LMFreezeLeft f]
 
--- freezeOnly :: f -> PartialDeriv s f h 1 False -> PartialDeriv s f h 0 False
--- freezeOnly f (PD d) = PD $ LMFreezeOnly f : d
+splitRight :: (2 <= n) => s -> DerivAction s f h n (n+1) snd True
+splitRight s = itell [LMSplitRight s]
 
-splitRight
-  :: (2 <= n) => s -> PartialDeriv s f h n snd -> PartialDeriv s f h (n+1) True
-splitRight s (PD d) = PD $ LMSplitRight s : d
-
-hori
-  :: (2 <= n) => h -> PartialDeriv s f h n snd -> PartialDeriv s f h (n+1) False
-hori h (PD d) = PD $ LMHorizontalize h : d
+hori :: (2 <= n) => h -> DerivAction s f h n (n+1) snd False
+hori h = itell [LMHorizontalize h]
 
 -- useful semirings
 -- ================
