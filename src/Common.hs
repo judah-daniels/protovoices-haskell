@@ -228,10 +228,10 @@ splitFirst = mapEvalScore snd . productEval evalSplitBeforeHori
 -- =====================================
 
 data Leftmost s f h = LMSplitLeft !s
-                    | LMFreeze !f
+                    | LMFreezeLeft !f
                     | LMSplitRight !s
                     | LMHorizontalize !h
-                    | LMSplitLeftOnly !s
+                    | LMSplitOnly !s
                     | LMFreezeOnly !f
   deriving (Eq, Ord, Show)
 
@@ -253,10 +253,10 @@ mkLeftmostEval vm vl vr m t = Eval vm' vl vr m' t'
     res   = m sl tl sm tr sr
     split = case typ of
       LeftOfTwo  -> LMSplitLeft
-      LeftOnly   -> LMSplitLeftOnly
+      LeftOnly   -> LMSplitOnly
       RightOfTwo -> LMSplitRight
   t' sl e sr isLast | isLast    = smap LMFreezeOnly res
-                    | otherwise = smap LMFreeze res
+                    | otherwise = smap LMFreezeLeft res
     where res = t sl e sr
 
 newtype PartialDeriv s f h (n :: Nat) (snd :: Bool) = PD { runPD :: [Leftmost s f h]}
@@ -267,10 +267,10 @@ buildDerivation
 buildDerivation build = reverse $ runPD $ build (PD [])
 
 buildPartialDerivation
-  :: Proxy (n :: Nat)
-  -> (PartialDeriv s f h n False -> PartialDeriv s f h n' snd)
+  :: forall n n' snd s f h
+   . (PartialDeriv s f h n False -> PartialDeriv s f h n' snd)
   -> [Leftmost s f h]
-buildPartialDerivation _ build = reverse $ runPD $ build (PD [])
+buildPartialDerivation build = reverse $ runPD $ build (PD [])
 
 infixl 1 .>
 f .> g = g . f
@@ -284,7 +284,7 @@ split
   => s
   -> PartialDeriv s f h n False
   -> PartialDeriv s f h (n+1) False
-split s (PD d) | natVal (Proxy :: Proxy n) == 1 = PD $ LMSplitLeftOnly s : d
+split s (PD d) | natVal (Proxy :: Proxy n) == 1 = PD $ LMSplitOnly s : d
                | otherwise                      = PD $ LMSplitLeft s : d
 
 freeze
@@ -294,7 +294,7 @@ freeze
   -> PartialDeriv s f h n False
   -> PartialDeriv s f h (n-1) False
 freeze f (PD d) | natVal (Proxy :: Proxy n) == 1 = PD $ LMFreezeOnly f : d
-                | otherwise                      = PD $ LMFreeze f : d
+                | otherwise                      = PD $ LMFreezeLeft f : d
 
 -- freezeOnly :: f -> PartialDeriv s f h 1 False -> PartialDeriv s f h 0 False
 -- freezeOnly f (PD d) = PD $ LMFreezeOnly f : d

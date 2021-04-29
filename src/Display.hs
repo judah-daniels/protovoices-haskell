@@ -109,8 +109,8 @@ replayDerivationStep player = applyRule
         (depthr, _, _) = pr
     sm <- addSlice cm $ max depthl depthr + 1
     pushOpen [(pl, cl, sm), (sm, cr, pr)]
-  applyRule (LMSplitLeftOnly s) = applyRule $ LMSplitLeft s
-  applyRule (LMSplitRight    s) = do
+  applyRule (LMSplitOnly  s) = applyRule $ LMSplitLeft s
+  applyRule (LMSplitRight s) = do
     l            <- popSurface
     (pl, pt, pr) <- popSurface
     (cl, cm, cr) <- lift $ dpSplit player s pt
@@ -118,11 +118,11 @@ replayDerivationStep player = applyRule
         (depthr, _, _) = pr
     sm <- addSlice cm $ max depthl depthr + 1
     pushOpen [l, (pl, cl, sm), (sm, cr, pr)]
-  applyRule (LMFreeze f) = do
+  applyRule (LMFreezeLeft f) = do
     (pl, pt, pr) <- popSurface
     t            <- lift $ dpFreeze player f pt
     pushClosed (pl, t, pr)
-  applyRule (LMFreezeOnly    f) = applyRule $ LMFreeze f
+  applyRule (LMFreezeOnly    f) = applyRule $ LMFreezeLeft f
   applyRule (LMHorizontalize h) = do
     (lpl, lpt, pm ) <- popSurface
     (_  , rpt, rpr) <- popSurface
@@ -138,7 +138,7 @@ replayDerivationStep player = applyRule
     addHoriEdge (pm, rs)
     pushOpen [(lpl, l, ls), (ls, m, rs), (rs, r, rpr)]
 
-initialGraph n player = DGraph (2 + n)
+initialGraph n player = DGraph (1 + n)
                                (S.fromList topSlices)
                                (S.fromList top)
                                S.empty
@@ -146,7 +146,7 @@ initialGraph n player = DGraph (2 + n)
                                []
                                top
  where
-  topContents = (:⋊) : replicate n (Inner $ dpTopSlice player) <> [(:⋉)]
+  topContents = (:⋊) : replicate (n - 1) (Inner $ dpTopSlice player) <> [(:⋉)]
   topSlices   = zipWith (\i s -> (0, i, s)) [0 ..] topContents
   gets (_, _, s) = s
   top = zipWith (\l r -> (l, dpTopTrans player (gets l) (gets r), r))
@@ -168,7 +168,7 @@ replayDerivation
   => DerivationPlayer s f h a e
   -> t (Leftmost s f h)
   -> Either String (DerivationGraph a e)
-replayDerivation = replayDerivation' 0
+replayDerivation = replayDerivation' 1
 
 unfoldDerivation'
   :: (Ord a, Ord e)
@@ -304,7 +304,7 @@ mkTikzPic content =
   "\\begin{tikzpicture}\n" <> content <> "\n\\end{tikzpicture}"
 
 tikzStandalone content =
-  "\\documentclass[varwidth]{standalone}\n\
+  "\\documentclass{standalone}\n\
 \\\usepackage{tikz}\n\
 \\\usepackage{amssymb}\n\
 \\\begin{document}\n\

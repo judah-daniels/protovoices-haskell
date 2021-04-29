@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 5f698593b5b166b29592295e6350a3fc2276293b5d946abe4a808aa4553c6342
+-- hash: 2371f224e6772b2ef9338b32519381b65759bdca9c03efff4fd32ede597a8ef0
 
 name:           proto-voice-model
 version:        0.1.0.0
@@ -56,6 +56,36 @@ library
     , musicology-pitch
     , parallel
     , process
+    , semirings
+    , text
+    , transformers
+    , unordered-containers
+  default-language: Haskell2010
+
+executable examples
+  main-is: app/MainExamples.hs
+  other-modules:
+      Paths_proto_voice_model
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      algebraic-graphs
+    , base >=4.7 && <5
+    , colour
+    , containers
+    , data-default
+    , deepseq
+    , diagrams-lib
+    , diagrams-svg
+    , hashable
+    , microlens
+    , mtl
+    , multiset
+    , musicology-core
+    , musicology-musicxml
+    , musicology-pitch
+    , parallel
+    , process
+    , proto-voice-model
     , semirings
     , text
     , transformers

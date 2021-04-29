@@ -405,10 +405,10 @@ protoVoiceEvaluator' = Eval vm vl vr filterSplit t s
  where
   (Eval vm vl vr mg t s) = protoVoiceEvaluator
   filterSplit l lt mid rt r typ = filter ok $ mg l lt mid rt r typ
-  ok (_, LMSplitLeft op    ) = not $ onlyRepeats op
-  ok (_, LMSplitLeftOnly op) = not $ onlyRepeats op
-  ok (_, LMSplitRight op   ) = not $ onlyRepeats op
-  ok _                       = False
+  ok (_, LMSplitLeft op ) = not $ onlyRepeats op
+  ok (_, LMSplitOnly op ) = not $ onlyRepeats op
+  ok (_, LMSplitRight op) = not $ onlyRepeats op
+  ok _                    = False
   onlyRepeats op@(SplitOp ts nts rs ls _ _) =
     M.null nts && (allRepetitionsLeft || allRepetitionsRight)
    where
