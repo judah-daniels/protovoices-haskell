@@ -12,13 +12,14 @@ import           Musicology.Pitch
 import qualified Control.Monad.Writer.Strict   as MW
 import           Data.Monoid                    ( Endo(..) )
 import qualified Data.Map.Strict               as M
-import qualified Data.MultiSet                 as MS
+import qualified Internal.MultiSet             as MS
 import qualified Data.HashSet                  as S
 import qualified Data.Set                      as OS
 import           Control.Monad                  ( foldM )
 import qualified Data.List                     as L
 import           Data.Foldable                  ( toList )
 import           Data.Hashable                  ( Hashable )
+import qualified Data.HashMap.Strict           as HM
 
 -- building operations
 -- ===================
@@ -91,7 +92,7 @@ addToRight parent child op keep = MW.tell $ SplitOp
 
 mkHori :: MW.Writer (Endo (Hori i)) () -> Hori i
 mkHori actions = appEndo (MW.execWriter actions) emptyHori
-  where emptyHori = HoriOp M.empty $ Edges S.empty MS.empty
+  where emptyHori = HoriOp HM.empty $ Edges S.empty MS.empty
 
 horiNote
   :: (Ord i, Hashable i)
@@ -103,11 +104,12 @@ horiNote pitch dir edge = MW.tell $ Endo h
  where
   h (HoriOp dist (Edges mTs mNTs)) = HoriOp dist' (Edges mTs' mNTs)
    where
-    dist' = M.insert pitch dir dist
+    dist' = HM.insert pitch dir dist
     mTs'  = S.union mTs
       $ if edge then S.singleton (Inner pitch, Inner pitch) else S.empty
 
-addPassing :: Ord i => Pitch i -> Pitch i -> MW.Writer (Endo (Hori i)) ()
+addPassing
+  :: (Ord i, Hashable i) => Pitch i -> Pitch i -> MW.Writer (Endo (Hori i)) ()
 addPassing l r = MW.tell $ Endo h
  where
   h (HoriOp dist (Edges mTs mNTs)) = HoriOp dist (Edges mTs mNTs')
@@ -201,7 +203,7 @@ applyFreeze FreezeOp e@(Edges ts nts)
 
 applyHori
   :: forall i
-   . (Ord i, Notation (Pitch i))
+   . (Ord i, Notation (Pitch i), Hashable i)
   => Hori i
   -> Edges i
   -> Notes i
@@ -217,7 +219,7 @@ applyHori (HoriOp dist childm) pl (Notes notesm) pr = do
   applyDist (notesl, notesr) (note, n) = do
     d <-
       maybe (Left $ showNotation note <> " is not distributed") Right
-        $ M.lookup note dist
+        $ HM.lookup note dist
     case d of
       ToBoth -> pure (MS.insertMany note n notesl, MS.insertMany note n notesr)
       ToLeft i -> if i > n || i <= 0
@@ -234,13 +236,13 @@ applyHori (HoriOp dist childm) pl (Notes notesm) pr = do
     -> MS.MultiSet (Pitch i)
     -> Either String (Edges i)
   fixEdges accessor (Edges ts nts) notesms
-    | not $ all ((`OS.member` notes) . accessor) nts = Left
+    | not $ all ((`S.member` notes) . accessor) nts = Left
       "dropping non-terminal edge in hori"
     | otherwise = pure $ Edges ts' nts
    where
     notes  = MS.toSet notesms
-    notesi = OS.map Inner notes
-    ts'    = S.filter ((`OS.member` notesi) . accessor) ts
+    notesi = S.map Inner notes
+    ts'    = S.filter ((`S.member` notesi) . accessor) ts
 
 -- derivation player
 -- =================

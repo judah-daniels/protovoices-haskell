@@ -11,7 +11,7 @@ import           Common
 import qualified Scoring                       as S
 
 import qualified Data.Map.Strict               as M
-import qualified Data.HashMap.Strict           as HM
+import qualified Data.HashMap.Lazy             as HM
 import qualified Data.IntMap.Strict            as IM
 import qualified Data.Semiring                 as R
 

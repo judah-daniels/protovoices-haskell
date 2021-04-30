@@ -16,7 +16,7 @@ import qualified Data.HashSet                  as S
 import qualified Data.List                     as L
 import qualified Data.Map.Strict               as M
 import qualified Data.Map.Strict.Internal      as M
-import qualified Data.MultiSet                 as MS
+import qualified Internal.MultiSet             as MS
 import           Data.Foldable                  ( toList
                                                 , foldl'
                                                 )
@@ -30,18 +30,19 @@ import           Data.Maybe                     ( catMaybes
 import           GHC.Generics                   ( Generic )
 import           Control.DeepSeq                ( NFData )
 import           Data.Hashable                  ( Hashable(hashWithSalt) )
+import qualified Data.HashMap.Strict           as HM
 -- element types
 -- =============
 
-deriving instance (Generic k, Generic v) => Generic (M.Map k v)
-instance (Hashable k, Hashable v, Generic k, Generic v) => Hashable (M.Map k v)
-deriving instance Generic Int
+-- deriving instance (Generic k, Generic v) => Generic (M.Map k v)
+-- instance (Hashable k, Hashable v, Generic k, Generic v) => Hashable (M.Map k v)
+-- deriving instance Generic Int
 
 -- deriving instance Generic (S.Set a)
 -- instance Hashable a => Hashable (S.Set a)
 
-instance (Generic a, Hashable a) => Hashable (MS.MultiSet a) where
-  hashWithSalt i m = hashWithSalt i (MS.toMap m)
+-- instance (Generic a, Hashable a) => Hashable (MS.MultiSet a) where
+--   hashWithSalt i m = hashWithSalt i (MS.toMap m)
 
 -- slice type: sets of notes
 ----------------------------
@@ -227,7 +228,7 @@ instance NFData HoriDirection
 -- | Represents a horzontalization operation.
 -- Records for every pitch how it is distributed (see 'HoriDirection').
 -- The resulting edges (repetitions and passing edges) are represented in a child transition.
-data Hori i = HoriOp !(M.Map (Pitch i) HoriDirection) !(Edges i)
+data Hori i = HoriOp !(HM.HashMap (Pitch i) HoriDirection) !(Edges i)
   deriving (Eq, Ord, Generic)
 
 instance NFData i => NFData (Hori i)
@@ -235,7 +236,7 @@ instance NFData i => NFData (Hori i)
 instance (Notation (Pitch i), Show (Pitch i)) => Show (Hori i) where
   show (HoriOp dist m) = "{" <> L.intercalate "," dists <> "} => " <> show m
    where
-    dists = showDist <$> M.toList dist
+    dists = showDist <$> HM.toList dist
     showDist (p, to) = showNotation p <> "=>" <> show to
 
 -- | 'Leftmost' specialized to the split, freeze, and horizontalize operations of the grammar.

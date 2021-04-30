@@ -15,7 +15,7 @@ import qualified Data.HashSet                  as S
 import qualified Data.Set                      as OS
 import qualified Data.List                     as L
 import qualified Data.Map.Strict               as M
-import qualified Data.MultiSet                 as MS
+import qualified Internal.MultiSet             as MS
 import           Data.Foldable                  ( toList
                                                 , foldl'
                                                 )
@@ -30,6 +30,7 @@ import           Debug.Trace                    ( traceId
                                                 )
 import           Data.Hashable                  ( Hashable )
 import           GHC.Generics                   ( Generic )
+import qualified Data.HashMap.Strict           as HM
 
 -- helper type: Either for terminal and non-terminal edges
 -- -------------------------------------------------------
@@ -167,7 +168,8 @@ protoVoiceEvaluator =
 
 -- | Computes the verticalization of a middle transition.
 -- If the verticalization is admitted, returns the corresponding operation.
-pvVertMiddle :: (Eq i, Ord i) => VertMiddle (Edges i) (Notes i) (Hori i)
+pvVertMiddle
+  :: (Eq i, Ord i, Hashable i) => VertMiddle (Edges i) (Notes i) (Hori i)
 pvVertMiddle (Notes nl, edges, Notes nr)
   | any notARepetition (edgesT edges) = Nothing
   | otherwise                         = Just (Notes top, op)
@@ -175,13 +177,13 @@ pvVertMiddle (Notes nl, edges, Notes nr)
   notARepetition (p1, p2) = p1 /= p2
   top     = MS.maxUnion nl nr
   leftMS  = nl MS.\\ nr
-  left    = M.fromList $ fmap ToLeft <$> MS.toOccurList leftMS
+  left    = HM.fromList $ fmap ToLeft <$> MS.toOccurList leftMS
   rightMS = nr MS.\\ nl
-  right   = M.fromList $ fmap ToRight <$> MS.toOccurList rightMS
+  right   = HM.fromList $ fmap ToRight <$> MS.toOccurList rightMS
   bothSet =
-    OS.intersection (MS.toSet nl) (MS.toSet nr)
-      OS.\\ (MS.toSet leftMS `OS.union` MS.toSet rightMS)
-  both = M.fromSet (const ToBoth) bothSet
+    S.intersection (MS.toSet nl) (MS.toSet nr)
+      `S.difference` (MS.toSet leftMS `S.union` MS.toSet rightMS)
+  both = S.foldl' (\m k -> HM.insert k ToBoth m) HM.empty bothSet
   op   = HoriOp (left <> right <> both) edges
 
 -- | Computes all left parent transitions for a verticalization and a left child transition.
@@ -218,28 +220,30 @@ pvMerge notesl (Edges leftTs leftNTs) (Notes notesm) (Edges rightTs rightNTs) no
   -- find all reduction options for every pitch
   !options = noteOptions <$> MS.toOccurList notesm
   noteOptions (note, n)
-    | n < MS.size mandatoryLeft || n < MS.size mandatoryRight = []
-    | otherwise = partitionElaborations
-      <$> goL mandatoryLeft mandatoryRight n []
+    | n < MS.size mandatoryLeft || n < MS.size mandatoryRight
+    = []
+    | otherwise
+    = partitionElaborations <$> enumerateOptions mandatoryLeft mandatoryRight n
    where
     -- compute the mandatory edges for the current pitch:
     mleftTs        = S.map (T . fst) $ S.filter ((== Inner note) . snd) leftTs
     mleftNTs       = MS.map (NT . fst) $ MS.filter ((== note) . snd) leftNTs
     mrightTs       = S.map (T . snd) $ S.filter ((== Inner note) . fst) rightTs
     mrightNTs      = MS.map (NT . snd) $ MS.filter ((== note) . fst) rightNTs
-    mandatoryLeft  = MS.fromList (S.toList mleftTs) <> mleftNTs
-    mandatoryRight = MS.fromList (S.toList mrightTs) <> mrightNTs
+    mandatoryLeft  = MS.fromSet mleftTs <> mleftNTs
+    mandatoryRight = MS.fromSet mrightTs <> mrightNTs
 
     -- the possible reductions of a (multiple) pitch are enumerated in three stages:
 
     -- stage 1: consume all mandatory edges on the left
-    goL ml mr 0 acc | MS.null ml && MS.null mr = pure acc
-                    | otherwise                = []
-    goL ml mr n acc = case MS.minView ml of
-      Just (l, ml') -> do
-        (new, mr') <- pickLeft n l mr
-        goL ml' mr' (n - 1) (new : acc)
-      Nothing -> goR mr n acc
+    enumerateOptions ml mr n = do
+      (mr', n', acc) <- MS.foldM goL (mr, n, []) ml
+      (n'', acc')    <- MS.foldM goR (n', acc) mr'
+      goFree freeOptions n'' acc'
+    goL (_ , 0, _  ) _ = []
+    goL (mr, n, acc) l = do
+      (new, mr') <- pickLeft n l mr
+      pure (mr', n - 1, new : acc)
     -- combine a mandatory left with a mandatory right or free right edge
     pickLeft n l mr | n > MS.size mr = mand <> opt <> single
                     | otherwise      = mand
@@ -254,13 +258,10 @@ pvMerge notesl (Edges leftTs leftNTs) (Notes notesm) (Edges rightTs rightNTs) no
       single = fmap (, mr) $ maybeToList $ tryLeftReduction note l
 
     -- stage 2: consume all remaining mandatory edges on the right
-    goR mr 0 acc | MS.null mr = pure acc
-                 | otherwise  = []
-    goR mr n acc = case MS.minView mr of
-      Just (r, mr') -> do
-        new <- pickRight r
-        goR mr' (n - 1) (new : acc)
-      Nothing -> goFree freeOptions n acc
+    goR (0, _  ) _ = []
+    goR (n, acc) r = do
+      new <- pickRight r
+      pure (n - 1, new : acc)
     -- combine mandatory right with free left edge
     pickRight r = opt <> single
      where
@@ -372,7 +373,9 @@ pvThaw
 pvThaw l e r = [(Edges (S.fromList $ maybe [] toList e) MS.empty, FreezeOp)]
 
 pvSlice
-  :: (Foldable t, Interval i, Ord (ICOf i)) => t (Pitch i) -> Notes (ICOf i)
+  :: (Foldable t, Interval i, Ord (ICOf i), Hashable (ICOf i))
+  => t (Pitch i)
+  -> Notes (ICOf i)
 pvSlice = Notes . MS.fromList . fmap pc . toList
 
 -- evaluators in specific semirings
