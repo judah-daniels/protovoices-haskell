@@ -42,6 +42,9 @@ import qualified Language.Haskell.DoNotation   as Do
 --                                                 )
 import           Prelude
 import           Data.String                    ( fromString )
+import           Control.DeepSeq                ( force
+                                                , deepseq
+                                                )
 
 -- utilities
 -- =========
@@ -57,6 +60,8 @@ bb =
 
 brahms1 =
   "/home/chfin/dateien/dev/haskell/work/proto-voice-model/brahms1.musicxml"
+
+haydn5 = "/home/chfin/Uni/phd/data/kirlin_schenker/haydn5.xml"
 
 getPitchGroups :: FilePath -> IO [[OnOff SPitch (Ratio Int)]]
 getPitchGroups file = do
@@ -126,10 +131,8 @@ printDerivs path = do
       Left  error -> putStrLn $ "Error: " <> error
       Right _     -> putStrLn "Ok."
 
-plotDerivs fn input = do
-  derivs <- parseSilent pvDeriv input
-  let ds = S.toList $ flattenDerivations derivs
-  pics <- forM ds $ \d -> case replayDerivation derivationPlayerPV d of
+plotDerivs fn derivs = do
+  pics <- forM derivs $ \d -> case replayDerivation derivationPlayerPV d of
     Left error -> do
       putStrLn error
       print d
@@ -243,4 +246,15 @@ mainResult evaluator from to = do
   input <- testslices from (to + 1)
   parseSize evaluator input
 
-main = mainBB
+parseHaydn :: _ => _ -> IO r
+parseHaydn eval = do
+  slices <- slicesFromFile haydn5
+  parseSize eval $ slicesToPath $ take 9 slices
+
+mainHaydn = do
+  slices <- slicesFromFile haydn5
+  derivs <- parseSize pvCount $ slicesToPath $ take 9 slices
+  print derivs
+  putStrLn "done."
+
+main = mainHaydn
