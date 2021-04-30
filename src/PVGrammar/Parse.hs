@@ -1,6 +1,8 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
 module PVGrammar.Parse where
 
 import           Common
@@ -9,7 +11,8 @@ import           PVGrammar
 
 import           Musicology.Pitch
 
-import qualified Data.Set                      as S
+import qualified Data.HashSet                  as S
+import qualified Data.Set                      as OS
 import qualified Data.List                     as L
 import qualified Data.Map.Strict               as M
 import qualified Data.MultiSet                 as MS
@@ -25,6 +28,8 @@ import           Debug.Trace                    ( traceId
                                                 , traceShowId
                                                 , trace
                                                 )
+import           Data.Hashable                  ( Hashable )
+import           GHC.Generics                   ( Generic )
 
 -- helper type: Either for terminal and non-terminal edges
 -- -------------------------------------------------------
@@ -33,7 +38,7 @@ import           Debug.Trace                    ( traceId
 -- Like 'Either', but with semantic constructor names to avoid confusion.
 data EdgeEither a b = T !a  -- ^ marks an terminal edge (or some related object)
                     | NT !b -- ^ marks a non-terminal edge (or some related object)
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Generic, Hashable)
 
 -- | Separates 'T's and 'NT's in a collection into a pair of lists for each type.
 -- Analogous to 'partitionEithers'.
@@ -74,8 +79,6 @@ between pl pm pr =
   dir1 = direction $ pl `pto` pm
   dir2 = direction $ pm `pto` pr
 
--- TODO: recursive one-sided neighbors are not covered at the moment
-
 -- | Attempts to reduce three nodes using an ornamentation operation.
 -- If succesfull, returns the ornament type and the parent edge,
 -- which is either a non-terminal edge for passing notes,
@@ -93,24 +96,13 @@ findOrnament (Inner l) (Inner m) (Inner r) True True
   | l == m && m == r = Just $ T (FullRepeat, (Inner l, Inner r))
   | l == m && so     = Just $ T (RightRepeatOfLeft, (Inner l, Inner r))
   | m == r && so     = Just $ T (LeftRepeatOfRight, (Inner l, Inner r))
-  | s1 && so         = Just $ T (RightNeighborOfLeft, (Inner l, Inner r))
-  | s2 && so         = Just $ T (LeftNeighborOfRight, (Inner l, Inner r))
- where
-  s1 = isStep $ l `pto` m
-  s2 = isStep $ m `pto` r
-  so = isStep $ l `pto` r
+  where so = isStep $ l `pto` r
 findOrnament (Inner l) (Inner m) (Inner r) _ _
   | l == r && s1              = Just $ T (FullNeighbor, (Inner l, Inner r))
   | s1 && s2 && between l m r = Just $ NT (PassingMid, (l, r))
  where
   s1 = isStep $ l `pto` m
   s2 = isStep $ m `pto` r
--- findOrnament (:⋊) (Inner m) (Inner r)
---   | m == r             = Just (LeftRepeatOfRight, T ((:⋊), Inner r))
---   | isStep $ m `pto` r = Just (LeftNeighborOfRight, T ((:⋊), Inner r))
--- findOrnament (Inner l) (Inner m) (:⋉)
---   | l == m             = Just (RightRepeatOfLeft, T (Inner l, (:⋉)))
---   | isStep $ l `pto` m = Just (RightNeighborOfLeft, T (Inner l, (:⋉)))
 findOrnament (:⋊) (Inner _) (:⋉) _ _ = Just $ T (RootNote, ((:⋊), (:⋉)))
 findOrnament _    _         _    _ _ = Nothing
 
@@ -162,6 +154,7 @@ protoVoiceEvaluator
      , Interval i
      , Notation (Pitch (ICOf i))
      , Show (Pitch (ICOf i))
+     , Hashable (ICOf i)
      )
   => Eval
        (Edges (ICOf i))
@@ -186,8 +179,8 @@ pvVertMiddle (Notes nl, edges, Notes nr)
   rightMS = nr MS.\\ nl
   right   = M.fromList $ fmap ToRight <$> MS.toOccurList rightMS
   bothSet =
-    S.intersection (MS.toSet nl) (MS.toSet nr)
-      S.\\ (MS.toSet leftMS `S.union` MS.toSet rightMS)
+    OS.intersection (MS.toSet nl) (MS.toSet nr)
+      OS.\\ (MS.toSet leftMS `OS.union` MS.toSet rightMS)
   both = M.fromSet (const ToBoth) bothSet
   op   = HoriOp (left <> right <> both) edges
 
@@ -208,7 +201,7 @@ pvVertRight (sr, er) top = [er]
 -- 'pvMerge' must also take into account unelaborated edges,
 -- which are not present in the child transitions.
 pvMerge
-  :: (Ord i, Diatonic i, Notation (Pitch i), Show (Pitch i))
+  :: (Ord i, Diatonic i, Notation (Pitch i), Show (Pitch i), Hashable i)
   => StartStop (Notes i)
   -> Edges i
   -> Notes i
@@ -234,8 +227,8 @@ pvMerge notesl (Edges leftTs leftNTs) (Notes notesm) (Edges rightTs rightNTs) no
     mleftNTs       = MS.map (NT . fst) $ MS.filter ((== note) . snd) leftNTs
     mrightTs       = S.map (T . snd) $ S.filter ((== Inner note) . fst) rightTs
     mrightNTs      = MS.map (NT . snd) $ MS.filter ((== note) . fst) rightNTs
-    mandatoryLeft  = MS.fromSet mleftTs <> mleftNTs
-    mandatoryRight = MS.fromSet mrightTs <> mrightNTs
+    mandatoryLeft  = MS.fromList (S.toList mleftTs) <> mleftNTs
+    mandatoryRight = MS.fromList (S.toList mrightTs) <> mrightNTs
 
     -- the possible reductions of a (multiple) pitch are enumerated in three stages:
 
@@ -371,7 +364,7 @@ pvMerge notesl (Edges leftTs leftNTs) (Notes notesm) (Edges rightTs rightNTs) no
 -- | Computes all potential ways a surface transition could have been frozen.
 -- In this grammar, this operation is unique and just turns ties into edges.
 pvThaw
-  :: (Foldable t, Ord i)
+  :: (Foldable t, Ord i, Hashable i)
   => StartStop (Notes i)
   -> Maybe (t (Edge i))
   -> StartStop (Notes i)
@@ -394,6 +387,7 @@ protoVoiceEvaluator'
      , Interval i
      , Notation (Pitch (ICOf i))
      , Show (Pitch (ICOf i))
+     , Hashable (ICOf i)
      )
   => Eval
        (Edges (ICOf i))
@@ -428,6 +422,7 @@ pvDerivUnrestricted
      , Interval i
      , Notation (Pitch (ICOf i))
      , Show (Pitch (ICOf i))
+     , Hashable (ICOf i)
      )
   => Eval
        (Edges (ICOf i))
@@ -446,6 +441,7 @@ pvDeriv
      , Interval i
      , Notation (Pitch (ICOf i))
      , Show (Pitch (ICOf i))
+     , Hashable (ICOf i)
      )
   => Eval
        (Merged, (RightBranchHori, Edges (ICOf i)))
@@ -463,6 +459,7 @@ pvCount''
      , Diatonic (ICOf i)
      , Notation (Pitch (ICOf i))
      , Show (Pitch (ICOf i))
+     , Hashable (ICOf i)
      )
   => Eval
        (Edges (ICOf i))
@@ -480,6 +477,7 @@ pvCount'
      , Interval i
      , Notation (Pitch (ICOf i))
      , Show (Pitch (ICOf i))
+     , Hashable (ICOf i)
      )
   => Eval
        (RightBranchHori, Edges (ICOf i))
@@ -497,6 +495,7 @@ pvCount
      , Interval i
      , Notation (Pitch (ICOf i))
      , Show (Pitch (ICOf i))
+     , Hashable (ICOf i)
      )
   => Eval
        (Merged, (RightBranchHori, Edges (ICOf i)))

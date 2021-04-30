@@ -9,6 +9,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE EmptyDataDecls #-}
+{-# LANGUAGE DeriveAnyClass #-}
 module Common where
 
 -- StartStop
@@ -40,6 +41,7 @@ import           Data.Bifunctor                 ( second )
 import           Data.Typeable                  ( Proxy(Proxy) )
 import           Musicology.Pitch               ( Notation(..) )
 import qualified Text.ParserCombinators.ReadP  as ReadP
+import           Data.Hashable                  ( Hashable )
 
 -- | A container type that augements the type @a@
 -- with symbols for beginning (@:⋊@) and end (@:⋉@).
@@ -47,11 +49,9 @@ import qualified Text.ParserCombinators.ReadP  as ReadP
 data StartStop a = (:⋊)
                   | Inner !a
                   | (:⋉)
-  deriving (Ord, Eq, Generic)
+  deriving (Ord, Eq, Generic, NFData, Hashable)
 
 -- some instances for StartStop
-
-instance (NFData a) => NFData (StartStop a)
 
 instance Show a => Show (StartStop a) where
   show (:⋊)      = "⋊"
@@ -188,7 +188,7 @@ productEval (Eval vertm1 vertl1 vertr1 merge1 thaw1 slice1) (Eval vertm2 vertl2 
 
 data RightBranchHori = RBBranches
                         | RBClear
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Generic, NFData, Hashable)
 
 evalRightBranchHori :: Eval RightBranchHori e' () a' ()
 evalRightBranchHori = Eval vertm vertl vertr merge thaw slice
@@ -210,7 +210,7 @@ rightBranchHori = mapEvalScore snd . productEval evalRightBranchHori
 
 data Merged = Merged
                | NotMerged
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Generic, NFData, Hashable)
 
 evalSplitBeforeHori :: (Eval Merged e' () a' ())
 evalSplitBeforeHori = Eval vertm vertl vertr merge thaw slice
@@ -236,7 +236,9 @@ data Leftmost s f h = LMSplitLeft !s
                     | LMHorizontalize !h
                     | LMSplitOnly !s
                     | LMFreezeOnly !f
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Generic)
+
+instance (NFData s, NFData f, NFData h) => NFData (Leftmost s f h)
 
 mkLeftmostEval
   :: VertMiddle e a h
@@ -331,11 +333,13 @@ hori h = itell [LMHorizontalize h]
 -- ================
 
 data Derivations a = Do !a
-                   | Or (Derivations a) (Derivations a)
+                   | Or !(Derivations a) !(Derivations a)
                    | Then !(Derivations a) !(Derivations a)
                    | NoOp
                    | Cannot
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Generic)
+
+instance NFData a => NFData (Derivations a)
 
 data DerivOp = OpNone
              | OpOr

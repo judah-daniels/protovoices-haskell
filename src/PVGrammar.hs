@@ -1,5 +1,9 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE StandaloneDeriving #-}
+--{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveAnyClass #-}
 module PVGrammar where
 
 import           Common
@@ -7,9 +11,11 @@ import           Display
 
 import           Musicology.Pitch
 
-import qualified Data.Set                      as S
+import qualified Data.HashSet                  as S
+-- import qualified Data.Set.Internal             as S
 import qualified Data.List                     as L
 import qualified Data.Map.Strict               as M
+import qualified Data.Map.Strict.Internal      as M
 import qualified Data.MultiSet                 as MS
 import           Data.Foldable                  ( toList
                                                 , foldl'
@@ -21,16 +27,30 @@ import           Data.Either                    ( partitionEithers )
 import           Data.Maybe                     ( catMaybes
                                                 , maybeToList
                                                 )
+import           GHC.Generics                   ( Generic )
+import           Control.DeepSeq                ( NFData )
+import           Data.Hashable                  ( Hashable(hashWithSalt) )
 -- element types
 -- =============
+
+deriving instance (Generic k, Generic v) => Generic (M.Map k v)
+instance (Hashable k, Hashable v, Generic k, Generic v) => Hashable (M.Map k v)
+deriving instance Generic Int
+
+-- deriving instance Generic (S.Set a)
+-- instance Hashable a => Hashable (S.Set a)
+
+instance (Generic a, Hashable a) => Hashable (MS.MultiSet a) where
+  hashWithSalt i m = hashWithSalt i (MS.toMap m)
 
 -- slice type: sets of notes
 ----------------------------
 
+
 -- | The content type of 'Slice's.
 -- Contains a multiset of pitches, representing the notes in a slice.
 newtype Notes i = Notes (MS.MultiSet (Pitch i))
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Generic, NFData, Hashable)
 
 instance (Notation (Pitch i)) => Show (Notes i) where
   show (Notes ns) =
@@ -62,10 +82,10 @@ type InnerEdge i = (Pitch i, Pitch i)
 -- Edges that are not used are dropped before creating a child transition.
 -- A transition that contains passing edges cannot be frozen.
 data Edges i = Edges
-               { edgesT  :: !(S.Set (Edge i))            -- ^ the terminal edges
+               { edgesT  :: !(S.HashSet (Edge i))            -- ^ the terminal edges
                , edgesNT :: !(MS.MultiSet (InnerEdge i)) -- ^ the non-terminal edges
                }
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Generic, NFData, Hashable)
 
 instance (Notation (Pitch i)) => Show (Edges i) where
   show (Edges ts nts) = "{" <> L.intercalate "," (tts <> tnts) <> "}"
@@ -81,26 +101,32 @@ instance (Notation (Pitch i)) => Show (Edges i) where
 
 -- | Marks different types of ornaments in the derivation.
 data Ornament = FullNeighbor
-              | LeftNeighborOfRight
-              | RightNeighborOfLeft
               | FullRepeat
               | LeftRepeatOfRight
               | RightRepeatOfLeft
               | RootNote
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Generic)
+
+instance NFData Ornament
 
 data Passing = PassingMid
              | PassingLeft
              | PassingRight
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Generic)
+
+instance NFData Passing
 
 data LeftOrnament = SingleLeftNeighbor
                   | SingleLeftRepeat
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Generic)
+
+instance NFData LeftOrnament
 
 data RightOrnament = SingleRightNeighbor
                    | SingleRightRepeat
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Generic)
+
+instance NFData RightOrnament
 
 isRepetitionOnLeft FullRepeat        = True
 isRepetitionOnLeft RightRepeatOfLeft = True
@@ -119,10 +145,12 @@ data Split i = SplitOp
   , splitNTs :: !(M.Map (InnerEdge i) [(Pitch i, Passing)])
   , fromLeft :: !(M.Map (Pitch i) [(Pitch i, RightOrnament)])
   , fromRight :: !(M.Map (Pitch i) [(Pitch i, LeftOrnament)])
-  , keepLeft :: !(S.Set (Edge i))
-  , keepRight :: !(S.Set (Edge i))
+  , keepLeft :: !(S.HashSet (Edge i))
+  , keepRight :: !(S.HashSet (Edge i))
   }
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Generic)
+
+instance (NFData i) => NFData (Split i)
 
 instance (Notation (Pitch i)) => Show (Split i) where
   show (SplitOp ts nts ls rs kl kr) =
@@ -155,7 +183,7 @@ instance (Notation (Pitch i)) => Show (Split i) where
     keepLs = showEdge <$> S.toList kl
     keepRs = showEdge <$> S.toList kr
 
-instance (Ord i) => Semigroup (Split i) where
+instance (Ord i, Hashable i) => Semigroup (Split i) where
   (SplitOp ta nta la ra kla kra) <> (SplitOp tb ntb lb rb klb krb) = SplitOp
     (ta <+> tb)
     (nta <+> ntb)
@@ -167,7 +195,7 @@ instance (Ord i) => Semigroup (Split i) where
     (<+>) :: (Ord k, Semigroup a) => M.Map k a -> M.Map k a -> M.Map k a
     (<+>) = M.unionWith (<>)
 
-instance (Ord i) => Monoid (Split i) where
+instance (Ord i, Hashable i) => Monoid (Split i) where
   mempty = SplitOp M.empty M.empty M.empty M.empty S.empty S.empty
 
 -- | Represents a freeze operation.
@@ -175,7 +203,9 @@ instance (Ord i) => Monoid (Split i) where
 -- (which must all be repetitions)
 -- no decisions have to be encoded.
 data Freeze = FreezeOp
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Generic)
+
+instance NFData Freeze
 
 instance Show Freeze where
   show _ = "()"
@@ -190,13 +220,17 @@ instance Show Freeze where
 data HoriDirection = ToLeft !Int  -- ^ all to the left, n fewer to the right
                    | ToRight !Int -- ^ all to the right, n fewer to the left
                    | ToBoth      -- ^ all to both
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Generic)
+
+instance NFData HoriDirection
 
 -- | Represents a horzontalization operation.
 -- Records for every pitch how it is distributed (see 'HoriDirection').
 -- The resulting edges (repetitions and passing edges) are represented in a child transition.
 data Hori i = HoriOp !(M.Map (Pitch i) HoriDirection) !(Edges i)
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Generic)
+
+instance NFData i => NFData (Hori i)
 
 instance (Notation (Pitch i), Show (Pitch i)) => Show (Hori i) where
   show (HoriOp dist m) = "{" <> L.intercalate "," dists <> "} => " <> show m
@@ -206,3 +240,4 @@ instance (Notation (Pitch i), Show (Pitch i)) => Show (Hori i) where
 
 -- | 'Leftmost' specialized to the split, freeze, and horizontalize operations of the grammar.
 type PVLeftMost i = Leftmost (Split i) Freeze (Hori i)
+

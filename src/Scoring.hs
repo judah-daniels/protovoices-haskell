@@ -2,6 +2,8 @@
 -- This is used to express "partially applied" scores that occur
 -- when the score of a verticalization is distributed to two parent edges.
 -- The full score of the operation is restored when the two parent edges are eventually combined again.
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass #-}
 module Scoring
   ( -- * The Score Type
     Score(..)
@@ -36,19 +38,22 @@ import           Common                         ( traceLevel )
 import           Debug.Trace                    ( trace
                                                 , traceStack
                                                 )
+import           GHC.Generics                   ( Generic )
+import           Control.DeepSeq                ( NFData )
+import           Data.Hashable                  ( Hashable )
 
 ----------------
 -- Score type --
 ----------------
 
 newtype LeftId i = LeftId i
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Generic, NFData, Hashable)
 
 instance Show i => Show (LeftId i) where
   show (LeftId i) = show i
 
 newtype RightId i = RightId i
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Generic, NFData, Hashable)
 
 instance Show i => Show (RightId i) where
   show (RightId i) = show i
@@ -81,7 +86,7 @@ data Score s i
   | SBoth !(LeftId i) !((s -> s) -> s -> s) !(RightId i)
   -- ^ A combination of 'SLeft' and 'SRight' that expects arguments on both sides.
   -- Implemented as a function @fb :: (s -> s) -> s -> s@.
-  deriving ()
+  deriving (Generic, NFData)
 
 -- | Returns the ID on the left side of an 'Score',
 -- or 'Nothing' for 'SVal' and 'SLeft'.

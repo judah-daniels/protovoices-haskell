@@ -189,7 +189,7 @@ unfoldDerivation
   => DerivationPlayer s f h a e
   -> [Common.Leftmost s f h]
   -> [Either String (DerivationGraph a e)]
-unfoldDerivation = unfoldDerivation' 0
+unfoldDerivation = unfoldDerivation' 1
 
 replayDerivationFull player deriv = do
   graph <- replayDerivation player deriv
@@ -304,7 +304,7 @@ mkTikzPic content =
   "\\begin{tikzpicture}\n" <> content <> "\n\\end{tikzpicture}"
 
 tikzStandalone content =
-  "\\documentclass{standalone}\n\
+  "\\documentclass[varwidth]{standalone}\n\
 \\\usepackage{tikz}\n\
 \\\usepackage{amssymb}\n\
 \\\begin{document}\n\

@@ -236,11 +236,11 @@ logFull tc vc n = do
   mapM_ print $ vcGetByLength vc (n - 1)
 
 mainResult
-  :: (R.Semiring b, Ord e, Ord a, Show a, Show e, Show b, Eq b)
-  => Eval e [Edge SIC] a [Pitch SInterval] b
+  :: Parsable e a v
+  => Eval e [Edge SIC] a [Pitch SInterval] v
   -> Int
   -> Int
-  -> IO b
+  -> IO v
 mainResult evaluator from to = do
   putStrLn $ "slices " <> show from <> " to " <> show to
   input <- testslices from (to + 1)
