@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 -- | Semiring scores lifted to functions that combine to the left and right.
 -- This is used to express "partially applied" scores that occur
 -- when the score of a verticalization is distributed to two parent edges.
@@ -146,18 +147,19 @@ showScore (SBoth il _ ir) = show il <> "-" <> show ir
 -- > a-b × b-c -> a-c
 times :: (R.Semiring s, Eq i) => Score s i -> Score s i -> Maybe (Score s i)
 -- creates value
-times (SVal s1) (SVal s2) = Just $ SVal $ s1 R.* s2
-times (SLeft fl il) (SRight ir fr) | il `match` ir = Just $ SVal (fl fr)
+times (SVal s1) (SVal s2) = Just $! SVal $ s1 R.* s2
+times (SLeft fl il) (SRight ir fr) | il `match` ir = Just $! SVal (fl fr)
 -- creates right
-times (SRight i fr) (SVal s) = Just $ SRight i (\l -> fr l R.* s)
-times (SBoth il fb ir) (SRight i fr) | ir `match` i = Just $ SRight il (fb fr)
+times (SRight i fr) (SVal s) = Just $! SRight i (\(!l) -> fr l R.* s)
+times (SBoth il fb ir) (SRight i fr) | ir `match` i = Just $! SRight il (fb fr)
 -- creates left
-times (SVal s) (SLeft fl i) = Just $ SLeft (\r -> s R.* fl r) i
-times (SLeft fl i) (SBoth il fb ir) | i `match` il = Just $ SLeft (fl . fb) ir
+times (SVal s) (SLeft fl i) = Just $! SLeft (\(!r) -> s R.* fl r) i
+times (SLeft fl i) (SBoth il fb ir) | i `match` il = Just $! SLeft (fl . fb) ir
 -- creates both
-times (SRight il fr) (SLeft fl ir) = Just $ SBoth il (\r l -> fr l R.* fl r) ir
+times (SRight il fr) (SLeft fl ir) =
+  Just $! SBoth il (\(!r) (!l) -> fr l R.* fl r) ir
 times (SBoth il fa ia) (SBoth ib fb ir) | ia `match` ib =
-  Just $ SBoth il (fa . fb) ir
+  Just $! SBoth il (fa . fb) ir
 -- otherwise
 times _ _ = Nothing
 
@@ -183,13 +185,13 @@ plus
   => Score s i
   -> Score s i
   -> Maybe (Score s i)
-plus (SVal s1) (SVal s2) = Just $ SVal $ s1 R.+ s2
+plus (SVal s1) (SVal s2) = Just $! SVal $ s1 R.+ s2
 plus (SRight i fr1) (SRight i' fr2) | i == i' =
-  Just $ SRight i $ \l -> fr1 l R.+ fr2 l
+  Just $! SRight i $ \(!l) -> fr1 l R.+ fr2 l
 plus (SLeft fl1 i) (SLeft fl2 i') | i == i' =
-  Just $ SLeft (\r -> fl1 r R.+ fl2 r) i
+  Just $! SLeft (\(!r) -> fl1 r R.+ fl2 r) i
 plus (SBoth il f1 ir) (SBoth il' f2 ir') | il == il' && ir == ir' =
-  Just $ SBoth il (\r l -> f1 r l R.+ f2 r l) ir
+  Just $! SBoth il (\(!r) (!l) -> f1 r l R.+ f2 r l) ir
 plus _ _ = Nothing
 
 -- | Checks if two 'Score's can be combined with 'times'.

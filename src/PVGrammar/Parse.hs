@@ -3,7 +3,14 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
-module PVGrammar.Parse where
+module PVGrammar.Parse
+  ( pvDerivUnrestricted
+  , pvDeriv
+  , pvCount''
+  , pvCount'
+  , pvCount
+  )
+where
 
 import           Common
 import           Display
