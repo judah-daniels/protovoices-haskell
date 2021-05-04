@@ -22,7 +22,7 @@ import           Common
 import qualified Scoring                       as S
 
 import qualified Data.Map.Strict               as M
-import qualified Data.HashMap.Lazy             as HM
+import qualified Data.HashMap.Strict           as HM
 import qualified Data.IntMap.Strict            as IM
 import qualified Data.Semiring                 as R
 
@@ -251,16 +251,17 @@ tcInsert (TChart len left right) item@(t := v) =
         else result
  where
   insert = HM.unionWithKey
-    (\k s1 s2 -> fromMaybe
-      (  error
-      $  "Panic! Incompatible score types at "
-      <> show t
-      <> ": "
-      <> show s1
-      <> " and "
-      <> show s2
-      )
-      (tracePlus k t s1 s2)
+    (\k s1 s2 ->
+      fromMaybe
+          (  error
+          $  "Panic! Incompatible score types at "
+          <> show t
+          <> ": "
+          <> show s1
+          <> " and "
+          <> show s2
+          )
+        $ S.plus s1 s2 -- (tracePlus k t s1 s2)
     )
 
 tcMerge
@@ -325,7 +326,7 @@ vertLeft vertl ((Transition ll lt lr is2nd) := vleft) (top, newId)
 
 -- | Infers the possible right parent transitions of a verticalization.
 vertRight
-  :: R.Semiring v
+  :: (R.Semiring v, NFData a, NFData e, NFData v)
   => VertRight e a   -- ^ the VertRight evaluator
   -> Vert e a v      -- ^ the center 'Vert'
   -> TItem e a v     -- ^ the right child transition
@@ -335,12 +336,12 @@ vertRight vertr (Vert id top op (tm := vm)) ((Transition rl rt rr _) := vr) =
     v'   <- S.vertScoresRight id op vm vr
     ir   <- getInner $ sContent rl
     itop <- getInner $ sContent top
-    pure $ mkParent v' <$> vertr (ir, rt) ir
+    pure $ force $ mkParent v' <$> vertr (ir, rt) ir
   where mkParent v t = Transition top t rr True := v
 
 -- | Infers the possible parent transitions of a split.
 merge
-  :: R.Semiring v
+  :: (R.Semiring v, NFData a, NFData e, NFData v)
   => Merge e a v   -- ^ the Merge evaluator
   -> TItem e a v   -- ^ the left child transition
   -> TItem e a v   -- ^ the right child transition
@@ -348,7 +349,10 @@ merge
 merge mg ((Transition ll lt lr l2nd) := vl) ((Transition !rl !rt !rr _) := vr)
   = case getInner $ sContent lr of
     Just m ->
-      catMaybes $ mkItem <$> mg (sContent ll) lt m rt (sContent rr) splitType
+      force
+        $   catMaybes
+        $   mkItem
+        <$> mg (sContent ll) lt m rt (sContent rr) splitType
     Nothing -> []
  where
   splitType | l2nd                 = RightOfTwo
