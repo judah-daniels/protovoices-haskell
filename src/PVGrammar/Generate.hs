@@ -35,18 +35,18 @@ import qualified Data.HashMap.Strict           as HM
 -- building operations
 -- ===================
 
-mkSplit :: MW.Writer (Split i) a -> Split i
+mkSplit :: MW.Writer (Split n) a -> Split n
 mkSplit = MW.execWriter
 
 splitT
-  :: (Ord i, Hashable i)
-  => StartStop (Pitch i)
-  -> StartStop (Pitch i)
-  -> Pitch i
+  :: (Ord n, Hashable n)
+  => StartStop n
+  -> StartStop n
+  -> n
   -> Ornament
   -> Bool
   -> Bool
-  -> MW.Writer (Split i) ()
+  -> MW.Writer (Split n) ()
 splitT l r c o kl kr = MW.tell
   $ SplitOp (M.singleton (l, r) [(c, o)]) M.empty M.empty M.empty kls krs
  where
@@ -54,14 +54,14 @@ splitT l r c o kl kr = MW.tell
   krs = if kr then S.singleton (Inner c, r) else S.empty
 
 splitNT
-  :: (Ord i, Hashable i)
-  => Pitch i
-  -> Pitch i
-  -> Pitch i
+  :: (Ord n, Hashable n)
+  => n
+  -> n
+  -> n
   -> Passing
   -> Bool
   -> Bool
-  -> MW.Writer (Split i) ()
+  -> MW.Writer (Split n) ()
 splitNT l r c o kl kr = MW.tell
   $ SplitOp M.empty (M.singleton (l, r) [(c, o)]) M.empty M.empty kls krs
  where
@@ -71,12 +71,12 @@ splitNT l r c o kl kr = MW.tell
     if o /= PassingLeft && kr then S.singleton (Inner c, Inner r) else S.empty
 
 addToLeft
-  :: (Ord i, Hashable i)
-  => Pitch i
-  -> Pitch i
+  :: (Ord n, Hashable n)
+  => n
+  -> n
   -> RightOrnament
   -> Bool
-  -> MW.Writer (Split i) ()
+  -> MW.Writer (Split n) ()
 addToLeft parent child op keep = MW.tell $ SplitOp
   M.empty
   M.empty
@@ -86,12 +86,12 @@ addToLeft parent child op keep = MW.tell $ SplitOp
   S.empty
 
 addToRight
-  :: (Ord i, Hashable i)
-  => Pitch i
-  -> Pitch i
+  :: (Ord n, Hashable n)
+  => n
+  -> n
   -> LeftOrnament
   -> Bool
-  -> MW.Writer (Split i) ()
+  -> MW.Writer (Split n) ()
 addToRight parent child op keep = MW.tell $ SplitOp
   M.empty
   M.empty
@@ -101,16 +101,16 @@ addToRight parent child op keep = MW.tell $ SplitOp
   (if keep then S.singleton (Inner child, Inner parent) else S.empty)
 
 
-mkHori :: MW.Writer (Endo (Hori i)) () -> Hori i
+mkHori :: MW.Writer (Endo (Hori n)) () -> Hori n
 mkHori actions = appEndo (MW.execWriter actions) emptyHori
   where emptyHori = HoriOp HM.empty $ Edges S.empty MS.empty
 
 horiNote
-  :: (Ord i, Hashable i)
-  => Pitch i
+  :: (Ord n, Hashable n)
+  => n
   -> HoriDirection
   -> Bool
-  -> MW.Writer (Endo (Hori i)) ()
+  -> MW.Writer (Endo (Hori n)) ()
 horiNote pitch dir edge = MW.tell $ Endo h
  where
   h (HoriOp dist (Edges mTs mNTs)) = HoriOp dist' (Edges mTs' mNTs)
@@ -119,8 +119,7 @@ horiNote pitch dir edge = MW.tell $ Endo h
     mTs'  = S.union mTs
       $ if edge then S.singleton (Inner pitch, Inner pitch) else S.empty
 
-addPassing
-  :: (Ord i, Hashable i) => Pitch i -> Pitch i -> MW.Writer (Endo (Hori i)) ()
+addPassing :: (Ord n, Hashable n) => n -> n -> MW.Writer (Endo (Hori n)) ()
 addPassing l r = MW.tell $ Endo h
  where
   h (HoriOp dist (Edges mTs mNTs)) = HoriOp dist (Edges mTs mNTs')
@@ -130,11 +129,11 @@ addPassing l r = MW.tell $ Endo h
 -- ===================
 
 applySplit
-  :: forall i
-   . (Ord i, Notation (Pitch i), Hashable i)
-  => Split i
-  -> Edges i
-  -> Either String (Edges i, Notes i, Edges i)
+  :: forall n
+   . (Ord n, Notation n, Hashable n)
+  => Split n
+  -> Edges n
+  -> Either String (Edges n, Notes n, Edges n)
 applySplit inSplit@(SplitOp splitTs splitNTs ls rs kl kr) inTop@(Edges topTs topNTs)
   = do
     notesT                       <- applyTs topTs splitTs
@@ -205,7 +204,7 @@ applySplit inSplit@(SplitOp splitTs splitNTs ls rs kl kr) inTop@(Edges topTs top
   singleChild (_, (note, _)) = note
   collectNotes ops = MS.fromList $ singleChild <$> allOps ops
 
-applyFreeze :: Eq i => Freeze -> Edges i -> Either String (Edges i)
+applyFreeze :: Eq n => Freeze -> Edges n -> Either String (Edges n)
 applyFreeze FreezeOp e@(Edges ts nts)
   | not $ MS.null nts  = Left "cannot freeze non-terminal edges"
   | not $ all isRep ts = Left "cannot freeze non-tie edges"
@@ -213,13 +212,13 @@ applyFreeze FreezeOp e@(Edges ts nts)
   where isRep (a, b) = a == b
 
 applyHori
-  :: forall i
-   . (Ord i, Notation (Pitch i), Hashable i)
-  => Hori i
-  -> Edges i
-  -> Notes i
-  -> Edges i
-  -> Either String (Edges i, Notes i, Edges i, Notes i, Edges i)
+  :: forall n
+   . (Ord n, Notation n, Hashable n)
+  => Hori n
+  -> Edges n
+  -> Notes n
+  -> Edges n
+  -> Either String (Edges n, Notes n, Edges n, Notes n, Edges n)
 applyHori (HoriOp dist childm) pl (Notes notesm) pr = do
   (notesl, notesr) <- foldM applyDist (MS.empty, MS.empty)
     $ MS.toOccurList notesm
@@ -243,9 +242,9 @@ applyHori (HoriOp dist childm) pl (Notes notesm) pr = do
           (MS.insertMany note (n - i) notesl, MS.insertMany note n notesr)
   fixEdges
     :: (forall a . (a, a) -> a)
-    -> Edges i
-    -> MS.MultiSet (Pitch i)
-    -> Either String (Edges i)
+    -> Edges n
+    -> MS.MultiSet n
+    -> Either String (Edges n)
   fixEdges accessor (Edges ts nts) notesms
     | not $ all ((`S.member` notes) . accessor) nts = Left
       "dropping non-terminal edge in hori"
@@ -259,8 +258,8 @@ applyHori (HoriOp dist childm) pl (Notes notesm) pr = do
 -- =================
 
 derivationPlayerPV
-  :: (Eq i, Ord i, Notation (Pitch i), Hashable i)
-  => DerivationPlayer (Split i) Freeze (Hori i) (Notes i) (Edges i)
+  :: (Eq n, Ord n, Notation n, Hashable n)
+  => DerivationPlayer (Split n) Freeze (Hori n) (Notes n) (Edges n)
 derivationPlayerPV = DerivationPlayer topEdges
                                       topNotes
                                       applySplit

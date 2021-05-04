@@ -31,18 +31,9 @@ import           GHC.Generics                   ( Generic )
 import           Control.DeepSeq                ( NFData )
 import           Data.Hashable                  ( Hashable(hashWithSalt) )
 import qualified Data.HashMap.Strict           as HM
+
 -- element types
 -- =============
-
--- deriving instance (Generic k, Generic v) => Generic (M.Map k v)
--- instance (Hashable k, Hashable v, Generic k, Generic v) => Hashable (M.Map k v)
--- deriving instance Generic Int
-
--- deriving instance Generic (S.Set a)
--- instance Hashable a => Hashable (S.Set a)
-
--- instance (Generic a, Hashable a) => Hashable (MS.MultiSet a) where
---   hashWithSalt i m = hashWithSalt i (MS.toMap m)
 
 -- slice type: sets of notes
 ----------------------------
@@ -50,10 +41,10 @@ import qualified Data.HashMap.Strict           as HM
 
 -- | The content type of 'Slice's.
 -- Contains a multiset of pitches, representing the notes in a slice.
-newtype Notes i = Notes (MS.MultiSet (Pitch i))
+newtype Notes n = Notes (MS.MultiSet n)
   deriving (Eq, Ord, Generic, NFData, Hashable)
 
-instance (Notation (Pitch i)) => Show (Notes i) where
+instance (Notation n) => Show (Notes n) where
   show (Notes ns) =
     "{" <> L.intercalate "," (showNote <$> MS.toOccurList ns) <> "}"
    where
@@ -62,7 +53,7 @@ instance (Notation (Pitch i)) => Show (Notes i) where
 
 -- | Return the notes or start/stop symbols inside a slice.
 -- This is useful to get all objects that an 'Edge' can connect to. 
-innerNotes :: StartStop (Notes i) -> [StartStop (Pitch i)]
+innerNotes :: StartStop (Notes n) -> [StartStop n]
 innerNotes (Inner (Notes n)) = Inner <$> MS.distinctElems n
 innerNotes (:⋊)              = [(:⋊)]
 innerNotes (:⋉)              = [(:⋉)]
@@ -72,23 +63,23 @@ innerNotes (:⋉)              = [(:⋉)]
 
 -- TODO: could this be improved to forbid start/stop symbols on the wrong side?
 -- | A proto-voice edge between two nodes (i.e. notes or start/stop symbols).
-type Edge i = (StartStop (Pitch i), StartStop (Pitch i))
+type Edge n = (StartStop n, StartStop n)
 
 -- | A proto-voice edge between two notes (excluding start/stop symbols).
-type InnerEdge i = (Pitch i, Pitch i)
+type InnerEdge n = (n, n)
 
 -- | The content type of 'Transition's.
 -- Contains a multiset of normal (terminal) edges and a multiset of (non-terminal) passing edges.
 -- The represented edges are those that are definitely used later on.
 -- Edges that are not used are dropped before creating a child transition.
 -- A transition that contains passing edges cannot be frozen.
-data Edges i = Edges
-               { edgesT  :: !(S.HashSet (Edge i))            -- ^ the terminal edges
-               , edgesNT :: !(MS.MultiSet (InnerEdge i)) -- ^ the non-terminal edges
+data Edges n = Edges
+               { edgesT  :: !(S.HashSet (Edge n))            -- ^ the terminal edges
+               , edgesNT :: !(MS.MultiSet (InnerEdge n)) -- ^ the non-terminal edges
                }
   deriving (Eq, Ord, Generic, NFData, Hashable)
 
-instance (Notation (Pitch i)) => Show (Edges i) where
+instance (Notation n) => Show (Edges n) where
   show (Edges ts nts) = "{" <> L.intercalate "," (tts <> tnts) <> "}"
    where
     tts  = showT <$> S.toList ts
@@ -141,19 +132,19 @@ isRepetitionOnRight _                 = False
 -- Contains a list of elaborations for every parent edge and note.
 -- Each elaboration contains the child pitch, and the corresponding ornament.
 -- For every produced edge, a decisions is made whether to keep it or not.
-data Split i = SplitOp
-  { splitTs :: !(M.Map (Edge i) [(Pitch i, Ornament)])
-  , splitNTs :: !(M.Map (InnerEdge i) [(Pitch i, Passing)])
-  , fromLeft :: !(M.Map (Pitch i) [(Pitch i, RightOrnament)])
-  , fromRight :: !(M.Map (Pitch i) [(Pitch i, LeftOrnament)])
-  , keepLeft :: !(S.HashSet (Edge i))
-  , keepRight :: !(S.HashSet (Edge i))
+data Split n = SplitOp
+  { splitTs :: !(M.Map (Edge n) [(n, Ornament)])
+  , splitNTs :: !(M.Map (InnerEdge n) [(n, Passing)])
+  , fromLeft :: !(M.Map n [(n, RightOrnament)])
+  , fromRight :: !(M.Map n [(n, LeftOrnament)])
+  , keepLeft :: !(S.HashSet (Edge n))
+  , keepRight :: !(S.HashSet (Edge n))
   }
   deriving (Eq, Ord, Generic)
 
-instance (NFData i) => NFData (Split i)
+instance (NFData n) => NFData (Split n)
 
-instance (Notation (Pitch i)) => Show (Split i) where
+instance (Notation n) => Show (Split n) where
   show (SplitOp ts nts ls rs kl kr) =
     "ts:"
       <> showOps opTs
@@ -184,7 +175,7 @@ instance (Notation (Pitch i)) => Show (Split i) where
     keepLs = showEdge <$> S.toList kl
     keepRs = showEdge <$> S.toList kr
 
-instance (Ord i, Hashable i) => Semigroup (Split i) where
+instance (Ord n, Hashable n) => Semigroup (Split n) where
   (SplitOp ta nta la ra kla kra) <> (SplitOp tb ntb lb rb klb krb) = SplitOp
     (ta <+> tb)
     (nta <+> ntb)
@@ -196,7 +187,7 @@ instance (Ord i, Hashable i) => Semigroup (Split i) where
     (<+>) :: (Ord k, Semigroup a) => M.Map k a -> M.Map k a -> M.Map k a
     (<+>) = M.unionWith (<>)
 
-instance (Ord i, Hashable i) => Monoid (Split i) where
+instance (Ord n, Hashable n) => Monoid (Split n) where
   mempty = SplitOp M.empty M.empty M.empty M.empty S.empty S.empty
 
 -- | Represents a freeze operation.
@@ -228,17 +219,17 @@ instance NFData HoriDirection
 -- | Represents a horzontalization operation.
 -- Records for every pitch how it is distributed (see 'HoriDirection').
 -- The resulting edges (repetitions and passing edges) are represented in a child transition.
-data Hori i = HoriOp !(HM.HashMap (Pitch i) HoriDirection) !(Edges i)
+data Hori n = HoriOp !(HM.HashMap n HoriDirection) !(Edges n)
   deriving (Eq, Ord, Generic)
 
-instance NFData i => NFData (Hori i)
+instance NFData n => NFData (Hori n)
 
-instance (Notation (Pitch i), Show (Pitch i)) => Show (Hori i) where
+instance (Notation n) => Show (Hori n) where
   show (HoriOp dist m) = "{" <> L.intercalate "," dists <> "} => " <> show m
    where
     dists = showDist <$> HM.toList dist
     showDist (p, to) = showNotation p <> "=>" <> show to
 
 -- | 'Leftmost' specialized to the split, freeze, and horizontalize operations of the grammar.
-type PVLeftMost i = Leftmost (Split i) Freeze (Hori i)
+type PVLeftMost n = Leftmost (Split n) Freeze (Hori n)
 

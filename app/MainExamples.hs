@@ -73,7 +73,7 @@ splitRightHori = buildPartialDerivation @2 $ do
   splitRight ()
   hori ()
 
-derivBach :: [PVLeftMost MT.SIC]
+derivBach :: [PVLeftMost (Pitch MT.SIC)]
 derivBach = buildDerivation $ do
   split $ mkSplit $ do
     splitT (:⋊) (:⋉) (d' nat) RootNote False False

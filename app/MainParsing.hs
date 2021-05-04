@@ -85,7 +85,7 @@ slicesFromFile file = do
 slicesToPath
   :: (Interval i, Ord (ICOf i), Eq i)
   => [[(Pitch i, RightTied)]]
-  -> Path [Pitch i] [Edge (ICOf i)]
+  -> Path [Pitch (ICOf i)] [Edge (Pitch (ICOf i))]
 slicesToPath = go
  where
   -- normalizeTies (s : next : rest) = (fixTie <$> s)
@@ -95,7 +95,7 @@ slicesToPath = go
   --   fixTie (p, t) = if p `L.elem` nextNotes then (p, t) else (p, Ends)
   -- normalizeTies [s] = [map (fmap $ const Ends) s]
   -- normalizeTies []  = []
-  mkSlice = fmap fst
+  mkSlice = fmap (pc . fst)
   mkEdges notes = catMaybes $ mkEdge <$> notes
    where
     mkEdge (p, Ends ) = Nothing
@@ -154,7 +154,7 @@ plotSteps fn deriv = do
 -- example derivations
 -- ===================
 
-derivBrahms :: [PVLeftMost MT.SIC]
+derivBrahms :: [PVLeftMost (Pitch MT.SIC)]
 derivBrahms = buildDerivation $ do
   split $ mkSplit $ do
     splitT (:⋊) (:⋉) (c' shp) RootNote False False
@@ -237,7 +237,7 @@ logFull tc vc n = do
 
 mainResult
   :: Parsable e a v
-  => Eval e [Edge SIC] a [Pitch SInterval] v
+  => Eval e [Edge (Pitch SIC)] a [Pitch SIC] v
   -> Int
   -> Int
   -> IO v

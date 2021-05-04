@@ -3,6 +3,8 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE ConstraintKinds #-}
 module PVGrammar.Parse
   ( pvDerivUnrestricted
   , pvDeriv
@@ -35,9 +37,13 @@ import           Debug.Trace                    ( traceId
                                                 , traceShowId
                                                 , trace
                                                 )
-import           Data.Hashable                  ( Hashable )
 import           GHC.Generics                   ( Generic )
+import           Data.Hashable                  ( Hashable )
+import           Control.DeepSeq                ( NFData )
 import qualified Data.HashMap.Strict           as HM
+import           Musicology.Core                ( HasPitch(..)
+                                                , Pitched(..)
+                                                )
 
 -- helper type: Either for terminal and non-terminal edges
 -- -------------------------------------------------------
@@ -46,7 +52,7 @@ import qualified Data.HashMap.Strict           as HM
 -- Like 'Either', but with semantic constructor names to avoid confusion.
 data EdgeEither a b = T !a  -- ^ marks an terminal edge (or some related object)
                     | NT !b -- ^ marks a non-terminal edge (or some related object)
-  deriving (Eq, Ord, Show, Generic, Hashable)
+  deriving (Eq, Ord, Show, Generic, Hashable, NFData)
 
 -- | Separates 'T's and 'NT's in a collection into a pair of lists for each type.
 -- Analogous to 'partitionEithers'.
@@ -65,7 +71,7 @@ data Elaboration a b c d = ET !a  -- ^ marks a terminal split
                            | EN !b -- ^ marks a non-terminal split
                            | ER !c  -- ^ marks a right ornament
                            | EL !d  -- ^ marks a left ornament
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Generic, Hashable, NFData)
 
 partitionElaborations
   :: Foldable t => t (Elaboration a b c d) -> ([a], [b], [c], [d])
@@ -78,6 +84,9 @@ partitionElaborations = foldl' select ([], [], [], [])
 
 -- parsing Ornamentations
 -- ======================
+
+type IsNote n
+  = (HasPitch n, Diatonic (ICOf (IntervalOf n)), Eq (ICOf (IntervalOf n)))
 
 -- | Checks if `pm` is between `pl` and `pr`.
 between pl pm pr =
@@ -92,25 +101,32 @@ between pl pm pr =
 -- which is either a non-terminal edge for passing notes,
 -- or a terminal edge for all other operations.
 findOrnament
-  :: (Eq i, Diatonic i)
-  => StartStop (Pitch i)
-  -> StartStop (Pitch i)
-  -> StartStop (Pitch i)
+  :: (IsNote n)
+  => StartStop n
+  -> StartStop n
+  -> StartStop n
   -> Bool
   -> Bool
   -> Maybe
-       (EdgeEither (Ornament, Edge i) (Passing, InnerEdge i))
+       (EdgeEither (Ornament, Edge n) (Passing, InnerEdge n))
 findOrnament (Inner l) (Inner m) (Inner r) True True
-  | l == m && m == r = Just $ T (FullRepeat, (Inner l, Inner r))
-  | l == m && so     = Just $ T (RightRepeatOfLeft, (Inner l, Inner r))
-  | m == r && so     = Just $ T (LeftRepeatOfRight, (Inner l, Inner r))
-  where so = isStep $ l `pto` r
-findOrnament (Inner l) (Inner m) (Inner r) _ _
-  | l == r && s1              = Just $ T (FullNeighbor, (Inner l, Inner r))
-  | s1 && s2 && between l m r = Just $ NT (PassingMid, (l, r))
+  | pl == pm && pm == pr = Just $ T (FullRepeat, (Inner l, Inner r))
+  | pl == pm && so       = Just $ T (RightRepeatOfLeft, (Inner l, Inner r))
+  | pm == pr && so       = Just $ T (LeftRepeatOfRight, (Inner l, Inner r))
  where
-  s1 = isStep $ l `pto` m
-  s2 = isStep $ m `pto` r
+  pl = pc $ pitch l
+  pm = pc $ pitch m
+  pr = pc $ pitch r
+  so = isStep $ pl `pto` pr
+findOrnament (Inner l) (Inner m) (Inner r) _ _
+  | pl == pr && s1               = Just $ T (FullNeighbor, (Inner l, Inner r))
+  | s1 && s2 && between pl pm pr = Just $ NT (PassingMid, (l, r))
+ where
+  pl = pc $ pitch l
+  pm = pc $ pitch m
+  pr = pc $ pitch r
+  s1 = isStep $ pl `pto` pm
+  s2 = isStep $ pm `pto` pr
 findOrnament (:⋊) (Inner _) (:⋉) _ _ = Just $ T (RootNote, ((:⋊), (:⋉)))
 findOrnament _    _         _    _ _ = Nothing
 
@@ -123,28 +139,40 @@ findOrnament _    _         _    _ _ = Nothing
 -- while the non-terminal side is a @Pitch i@ within an 'NT'.
 -- Exactly one side must be a 'T' and the other an 'NT', otherwise the reduction fails.
 findPassing
-  :: (Diatonic i, Eq i)
-  => EdgeEither (StartStop (Pitch i)) (Pitch i)
-  -> Pitch i
-  -> EdgeEither (StartStop (Pitch i)) (Pitch i)
-  -> Maybe (InnerEdge i, Passing)
-findPassing (T (Inner l)) m (NT r) | isStep (l `pto` m) && between l m r =
+  :: (IsNote n)
+  => EdgeEither (StartStop n) n
+  -> n
+  -> EdgeEither (StartStop n) n
+  -> Maybe (InnerEdge n, Passing)
+findPassing (T (Inner l)) m (NT r) | isStep (pl `pto` pm) && between pl pm pr =
   Just ((l, r), PassingLeft)
-findPassing (NT l) m (T (Inner r)) | isStep (m `pto` r) && between l m r =
+ where
+  pl = pc $ pitch l
+  pm = pc $ pitch m
+  pr = pc $ pitch r
+findPassing (NT l) m (T (Inner r)) | isStep (pm `pto` pr) && between pl pm pr =
   Just ((l, r), PassingRight)
+ where
+  pl = pc $ pitch l
+  pm = pc $ pitch m
+  pr = pc $ pitch r
 findPassing _ _ _ = Nothing
 
-findRightOrnament
-  :: (Eq i, Diatonic i) => Pitch i -> Pitch i -> Maybe RightOrnament
-findRightOrnament l m | l == m             = Just SingleRightRepeat
-                      | isStep (l `pto` m) = Just SingleRightNeighbor
-                      | otherwise          = Nothing
+findRightOrnament :: (IsNote n) => n -> n -> Maybe RightOrnament
+findRightOrnament l m | pl == pm             = Just SingleRightRepeat
+                      | isStep (pl `pto` pm) = Just SingleRightNeighbor
+                      | otherwise            = Nothing
+ where
+  pl = pc $ pitch l
+  pm = pc $ pitch m
 
-findLeftOrnament
-  :: (Eq i, Diatonic i) => Pitch i -> Pitch i -> Maybe LeftOrnament
-findLeftOrnament m r | m == r             = Just SingleLeftRepeat
-                     | isStep (m `pto` r) = Just SingleLeftNeighbor
-                     | otherwise          = Nothing
+findLeftOrnament :: (IsNote n) => n -> n -> Maybe LeftOrnament
+findLeftOrnament m r | pm == pr             = Just SingleLeftRepeat
+                     | isStep (pm `pto` pr) = Just SingleLeftNeighbor
+                     | otherwise            = Nothing
+ where
+  pm = pc $ pitch m
+  pr = pc $ pitch r
 
 -- evaluator interface
 -- ===================
@@ -154,29 +182,15 @@ findLeftOrnament m r | m == r             = Just SingleLeftRepeat
 -- These scores do not form a semiring,
 -- but can be embedded into different semirings using 'evalMapScores'.
 protoVoiceEvaluator
-  :: ( Foldable t
-     , Eq (ICOf i)
-     , Ord (ICOf i)
-     , Diatonic (ICOf i)
-     , Foldable t2
-     , Interval i
-     , Notation (Pitch (ICOf i))
-     , Show (Pitch (ICOf i))
-     , Hashable (ICOf i)
-     )
-  => Eval
-       (Edges (ICOf i))
-       (t (Edge (ICOf i)))
-       (Notes (ICOf i))
-       (t2 (Pitch i))
-       (PVLeftMost (ICOf i))
+  :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n)
+  => Eval (Edges n) (t (Edge n)) (Notes n) (t2 n) (PVLeftMost n)
 protoVoiceEvaluator =
   mkLeftmostEval pvVertMiddle pvVertLeft pvVertRight pvMerge pvThaw pvSlice
 
 -- | Computes the verticalization of a middle transition.
 -- If the verticalization is admitted, returns the corresponding operation.
 pvVertMiddle
-  :: (Eq i, Ord i, Hashable i) => VertMiddle (Edges i) (Notes i) (Hori i)
+  :: (Eq n, Ord n, Hashable n) => VertMiddle (Edges n) (Notes n) (Hori n)
 pvVertMiddle (Notes nl, edges, Notes nr)
   | any notARepetition (edgesT edges) = Nothing
   | otherwise                         = Just (Notes top, op)
@@ -196,13 +210,13 @@ pvVertMiddle (Notes nl, edges, Notes nr)
 -- | Computes all left parent transitions for a verticalization and a left child transition.
 -- Here, this operation is always admitted and unique,
 -- so the edges from the child transition are just passed through.
-pvVertLeft :: VertLeft (Edges i) (Notes i)
+pvVertLeft :: VertLeft (Edges n) (Notes n)
 pvVertLeft (el, sl) top = [el]
 
 -- | Computes all right parent transition for a verticalization and a right child transition.
 -- Here, this operation is always admitted and unique,
 -- so the edges from the child transition are just passed through.
-pvVertRight :: VertRight (Edges i) (Notes i)
+pvVertRight :: VertRight (Edges n) (Notes n)
 pvVertRight (sr, er) top = [er]
 
 -- | Computes all possible merges of two child transitions.
@@ -210,13 +224,13 @@ pvVertRight (sr, er) top = [er]
 -- 'pvMerge' must also take into account unelaborated edges,
 -- which are not present in the child transitions.
 pvMerge
-  :: (Ord i, Diatonic i, Notation (Pitch i), Show (Pitch i), Hashable i)
-  => StartStop (Notes i)
-  -> Edges i
-  -> Notes i
-  -> Edges i
-  -> StartStop (Notes i)
-  -> [(Edges i, Split i)]
+  :: (IsNote n, Notation n, Ord n, Hashable n)
+  => StartStop (Notes n)
+  -> Edges n
+  -> Notes n
+  -> Edges n
+  -> StartStop (Notes n)
+  -> [(Edges n, Split n)]
 pvMerge notesl (Edges leftTs leftNTs) (Notes notesm) (Edges rightTs rightNTs) notesr
   = map mkTop combinations
  where
@@ -372,39 +386,22 @@ pvMerge notesl (Edges leftTs leftNTs) (Notes notesm) (Edges rightTs rightNTs) no
 -- | Computes all potential ways a surface transition could have been frozen.
 -- In this grammar, this operation is unique and just turns ties into edges.
 pvThaw
-  :: (Foldable t, Ord i, Hashable i)
-  => StartStop (Notes i)
-  -> Maybe (t (Edge i))
-  -> StartStop (Notes i)
-  -> [(Edges i, Freeze)]
+  :: (Foldable t, Ord n, Hashable n)
+  => StartStop (Notes n)
+  -> Maybe (t (Edge n))
+  -> StartStop (Notes n)
+  -> [(Edges n, Freeze)]
 pvThaw l e r = [(Edges (S.fromList $ maybe [] toList e) MS.empty, FreezeOp)]
 
-pvSlice
-  :: (Foldable t, Interval i, Ord (ICOf i), Hashable (ICOf i))
-  => t (Pitch i)
-  -> Notes (ICOf i)
-pvSlice = Notes . MS.fromList . fmap pc . toList
+pvSlice :: (Foldable t, Eq n, Hashable n) => t n -> Notes n
+pvSlice = Notes . MS.fromList . toList
 
 -- evaluators in specific semirings
 -- ================================
 
 protoVoiceEvaluator'
-  :: ( Foldable t
-     , Eq (ICOf i)
-     , Ord (ICOf i)
-     , Diatonic (ICOf i)
-     , Foldable t2
-     , Interval i
-     , Notation (Pitch (ICOf i))
-     , Show (Pitch (ICOf i))
-     , Hashable (ICOf i)
-     )
-  => Eval
-       (Edges (ICOf i))
-       (t (Edge (ICOf i)))
-       (Notes (ICOf i))
-       (t2 (Pitch i))
-       (PVLeftMost (ICOf i))
+  :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n)
+  => Eval (Edges n) (t (Edge n)) (Notes n) (t2 n) (PVLeftMost n)
 protoVoiceEvaluator' = Eval vm vl vr filterSplit t s
  where
   (Eval vm vl vr mg t s) = protoVoiceEvaluator
@@ -425,92 +422,41 @@ protoVoiceEvaluator' = Eval vm vl vr filterSplit t s
   check pred (_, os) = all (pred . snd) os
 
 pvDerivUnrestricted
-  :: ( Foldable t
-     , Foldable t2
-     , Ord (ICOf i)
-     , Diatonic (ICOf i)
-     , Interval i
-     , Notation (Pitch (ICOf i))
-     , Show (Pitch (ICOf i))
-     , Hashable (ICOf i)
-     )
+  :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n)
   => Eval
-       (Edges (ICOf i))
-       (t (Edge (ICOf i)))
-       (Notes (ICOf i))
-       (t2 (Pitch i))
-       (Derivations (PVLeftMost (ICOf i)))
+       (Edges n)
+       (t (Edge n))
+       (Notes n)
+       (t2 n)
+       (Derivations (PVLeftMost n))
 pvDerivUnrestricted = mapEvalScore Do protoVoiceEvaluator'
 
-
 pvDeriv
-  :: ( Foldable t
-     , Foldable t2
-     , Ord (ICOf i)
-     , Diatonic (ICOf i)
-     , Interval i
-     , Notation (Pitch (ICOf i))
-     , Show (Pitch (ICOf i))
-     , Hashable (ICOf i)
-     )
+  :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n)
   => Eval
-       (Merged, (RightBranchHori, Edges (ICOf i)))
-       (t (Edge (ICOf i)))
-       ((), ((), Notes (ICOf i)))
-       (t2 (Pitch i))
-       (Derivations (PVLeftMost (ICOf i)))
+       (Merged, (RightBranchHori, Edges n))
+       (t (Edge n))
+       ((), ((), Notes n))
+       (t2 n)
+       (Derivations (PVLeftMost n))
 pvDeriv = splitFirst $ rightBranchHori $ mapEvalScore Do protoVoiceEvaluator'
 
 pvCount''
-  :: ( Foldable t
-     , Foldable t2
-     , Interval i
-     , Ord (ICOf i)
-     , Diatonic (ICOf i)
-     , Notation (Pitch (ICOf i))
-     , Show (Pitch (ICOf i))
-     , Hashable (ICOf i)
-     )
-  => Eval
-       (Edges (ICOf i))
-       (t (Edge (ICOf i)))
-       (Notes (ICOf i))
-       (t2 (Pitch i))
-       Int
+  :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n)
+  => Eval (Edges n) (t (Edge n)) (Notes n) (t2 n) Int
 pvCount'' = mapEvalScore (const 1) protoVoiceEvaluator'
 
 pvCount'
-  :: ( Foldable t
-     , Foldable t2
-     , Ord (ICOf i)
-     , Diatonic (ICOf i)
-     , Interval i
-     , Notation (Pitch (ICOf i))
-     , Show (Pitch (ICOf i))
-     , Hashable (ICOf i)
-     )
-  => Eval
-       (RightBranchHori, Edges (ICOf i))
-       (t (Edge (ICOf i)))
-       ((), Notes (ICOf i))
-       (t2 (Pitch i))
-       Int
+  :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n)
+  => Eval (RightBranchHori, Edges n) (t (Edge n)) ((), Notes n) (t2 n) Int
 pvCount' = rightBranchHori pvCount''
 
 pvCount
-  :: ( Foldable t
-     , Foldable t2
-     , Ord (ICOf i)
-     , Diatonic (ICOf i)
-     , Interval i
-     , Notation (Pitch (ICOf i))
-     , Show (Pitch (ICOf i))
-     , Hashable (ICOf i)
-     )
+  :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n)
   => Eval
-       (Merged, (RightBranchHori, Edges (ICOf i)))
-       (t (Edge (ICOf i)))
-       ((), ((), Notes (ICOf i)))
-       (t2 (Pitch i))
+       (Merged, (RightBranchHori, Edges n))
+       (t (Edge n))
+       ((), ((), Notes n))
+       (t2 n)
        Int
 pvCount = splitFirst pvCount'
