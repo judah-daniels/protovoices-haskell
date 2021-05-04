@@ -4,10 +4,10 @@ module Display where
 
 import           Common
 
-import           Diagrams.Prelude        hiding ( Leftmost
-                                                , (^-^)
-                                                , (^+^)
-                                                )
+-- import           Diagrams.Prelude        hiding ( Leftmost
+--                                                 , (^-^)
+--                                                 , (^+^)
+--                                                 )
 import qualified Diagrams.TwoD.Text
 import           Diagrams.Backend.SVG          as SVG
 import           Data.Typeable                  ( Typeable )
@@ -28,7 +28,10 @@ import qualified Data.Text                     as T
 import qualified Data.Text.IO                  as T
 import           System.Process                 ( callCommand )
 
-type PVDiagram b = QDiagram b V2 Double Any
+import           Debug.Trace                   as DT
+import           Data.Bifunctor                 ( bimap )
+
+-- type PVDiagram b = QDiagram b V2 Double Any
 
 -- derivation graphs
 -- =================

@@ -8,6 +8,7 @@ import           Data.Hashable                  ( Hashable )
 import           Control.DeepSeq                ( NFData )
 import           Data.Foldable                  ( foldl'
                                                 , Foldable(toList)
+                                                , all
                                                 )
 import           Control.Monad                 as M
 
@@ -17,8 +18,10 @@ newtype MultiSet a = MS { unMS :: HM.HashMap a Int }
 instance (Eq a, Hashable a) => Semigroup (MultiSet a) where
   (MS a) <> (MS b) = MS $ HM.unionWith (+) a b
 
-instance Foldable MultiSet where
-  toList (MS a) = concat $ HM.mapWithKey (flip replicate) a
+-- instance Foldable MultiSet where
+toList (MS a) = concat $ HM.mapWithKey (flip replicate) a
+
+all p (MS a) = Data.Foldable.all p $ HM.keysSet a
 
 toOccurList (MS m) = HM.toList m
 
@@ -63,7 +66,8 @@ foldM f b (MS as) = HM.foldlWithKey' doFold (pure b) as
     b <- mb
     M.foldM f b (replicate i a)
 
-insertMany a n (MS as) = MS $ HM.insertWith (+) a n as
+insertMany a n (MS as) | n <= 0    = MS as
+                       | otherwise = MS $ HM.insertWith (+) a n as
 
 insert a = insertMany a 1
 

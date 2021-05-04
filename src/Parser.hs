@@ -58,7 +58,7 @@ type Parsable e a v = (Normal e, Normal a, Normal' v)
 data Slice a = Slice
   { sFirst   :: !Int
   , sContent :: !(StartStop a)
-  , sID :: !Int
+  , sID      :: !Int
   , sLast    :: !Int
   }
   deriving (Eq, Ord, Generic, NFData)
@@ -141,12 +141,12 @@ instance (Show e, Show a, Show v) => Show (Vert e a v) where
 -- - check ID for (top,left,leftid)
 
 data VChart e a v = VChart
-  { vcNextId :: !Int
-  , vcIDs :: !(HM.HashMap (Int, Int) Int)
-  , vcByLength :: !(IM.IntMap [Vert e a v])
+  { vcNextId       :: !Int
+  , vcIDs          :: !(HM.HashMap (Int, Int) Int)
+  , vcByLength     :: !(IM.IntMap [Vert e a v])
   , vcByLengthLeft :: !(IM.IntMap (Set.Set (Int, Slice a, Slice a)))
-  , vcByLeftChild :: !(HM.HashMap (Slice a, Int) (Set.Set (Int, Slice a)))
-  , vcByRightChild :: !(HM.HashMap (Slice a) [Vert e a v])
+  , vcByLeftChild  :: !(HM.HashMap (Int, Int) (Set.Set (Int, Slice a)))
+  , vcByRightChild :: !(HM.HashMap Int [Vert e a v])
   }
   deriving (Generic, NFData)
 
@@ -175,8 +175,8 @@ vcInsert (VChart nextid ids bylen bylenleft byleft byright) (topContent, op, mid
         vertLeft   = Set.singleton (id, top)
         bylen'     = IM.insertWith (<>) (transLen tmid) vert bylen
         bylenleft' = IM.insertWith (<>) (transLen tmid) vert' bylenleft
-        byleft'    = HM.insertWith (<>) (left, transLen tmid) vertLeft byleft
-        byright'   = HM.insertWith (<>) right vert byright
+        byleft' = HM.insertWith (<>) (sID left, transLen tmid) vertLeft byleft
+        byright'   = HM.insertWith (<>) (sID right) vert byright
     in  VChart nextid' ids' bylen' bylenleft' byleft' byright'
 
 vcMerge
@@ -199,12 +199,13 @@ vcGetByLeftChild n chart left =
   Set.toList $ Set.unions $ catMaybes $ getN <$> [2 .. n]
  where
   lefts = vcByLeftChild chart
-  getN n = HM.lookup (left, n) lefts
+  getN n = HM.lookup (sID left, n) lefts
 
 vcGetByRightChild
   :: (Ord a, Hashable a) => Int -> VChart e a v -> Slice a -> [Vert e a v]
 vcGetByRightChild n chart right =
-  filter notTooLong $ fromMaybe [] $ HM.lookup right $ vcByRightChild chart
+  filter notTooLong $ fromMaybe [] $ HM.lookup (sID right) $ vcByRightChild
+    chart
   where notTooLong (Vert _ _ m) = transLen (iItem m) <= n
 
 -- transition chart

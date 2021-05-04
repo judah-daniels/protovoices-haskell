@@ -11,6 +11,7 @@ module PVGrammar.Generate
   , horiNote
   , addPassing
   , derivationPlayerPV
+  , applyHori
   )
 where
 
@@ -31,6 +32,7 @@ import qualified Data.List                     as L
 import           Data.Foldable                  ( toList )
 import           Data.Hashable                  ( Hashable )
 import qualified Data.HashMap.Strict           as HM
+import           Debug.Trace                    ( trace )
 
 -- building operations
 -- ===================
@@ -177,10 +179,8 @@ applySplit inSplit@(SplitOp splitTs splitNTs ls rs kl kr) inTop@(Edges topTs top
       foldM applyNT (top, MS.empty, MS.empty, MS.empty) $ allOps ops
     if MS.null top'
       then Right (notes, lNTs, rNTs)
-      else
-        Left
-        $  "did not use all non-terminal edges, remaining: "
-        <> showEdges top'
+      else Left $ "did not use all non-terminal edges, remaining: " <> showEdges
+        (MS.toList top')
 
   applyNT (top, notes, lNTs, rNTs) (parent@(pl, pr), (note, pass))
     | parent `MS.member` top
@@ -246,7 +246,7 @@ applyHori (HoriOp dist childm) pl (Notes notesm) pr = do
     -> MS.MultiSet n
     -> Either String (Edges n)
   fixEdges accessor (Edges ts nts) notesms
-    | not $ all ((`S.member` notes) . accessor) nts = Left
+    | not $ MS.all ((`S.member` notes) . accessor) nts = Left
       "dropping non-terminal edge in hori"
     | otherwise = pure $ Edges ts' nts
    where

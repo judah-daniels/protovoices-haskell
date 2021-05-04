@@ -145,10 +145,11 @@ showScore (SBoth il _ ir) = show il <> "-" <> show ir
 -- Shapes and IDs at the adjacent sides must match, otherwise 'Nothing' is returned.
 --
 -- > a-b × b-c -> a-c
-times :: (R.Semiring s, Eq i) => Score s i -> Score s i -> Maybe (Score s i)
+times
+  :: (R.Semiring s, Eq i, Show i) => Score s i -> Score s i -> Maybe (Score s i)
 -- creates value
-times (SVal s1) (SVal s2) = Just $! SVal $ s1 R.* s2
-times (SLeft fl il) (SRight ir fr) | il `match` ir = Just $! SVal (fl fr)
+times (SVal !s1) (SVal !s2) = Just $! SVal $! s1 R.* s2
+times (SLeft !fl !il) (SRight !ir !fr) | il `match` ir = Just $! SVal $! fl fr
 -- creates right
 times (SRight i fr) (SVal s) = Just $! SRight i (\(!l) -> fr l R.* s)
 times (SBoth il fb ir) (SRight i fr) | ir `match` i = Just $! SRight il (fb fr)
@@ -161,7 +162,9 @@ times (SRight il fr) (SLeft fl ir) =
 times (SBoth il fa ia) (SBoth ib fb ir) | ia `match` ib =
   Just $! SBoth il (fa . fb) ir
 -- otherwise
-times _ _ = Nothing
+times a b =
+  error ("multiplying incompatible scores " <> show a <> " and " <> show b)
+  -- Nothing
 
 breakMe x = x
 
@@ -192,7 +195,7 @@ plus (SLeft fl1 i) (SLeft fl2 i') | i == i' =
   Just $! SLeft (\(!r) -> fl1 r R.+ fl2 r) i
 plus (SBoth il f1 ir) (SBoth il' f2 ir') | il == il' && ir == ir' =
   Just $! SBoth il (\(!r) (!l) -> f1 r l R.+ f2 r l) ir
-plus _ _ = Nothing
+plus _ _ = trace "adding incompatible scores" Nothing
 
 -- | Checks if two 'Score's can be combined with 'times'.
 --
@@ -219,14 +222,18 @@ similar s1 s2 = sides s1 == sides s2
 -- > --------- merge
 -- >    a-c
 mergeScores
-  :: (R.Semiring s, Eq i)
+  :: (R.Semiring s, Eq i, Show i)
   => s                 -- ^ The score of the split operation.
   -> Score s i         -- ^ The 'Score' of the left child edge.
   -> Score s i         -- ^ The 'Score' of the right child edge.
   -> Maybe (Score s i) -- ^ The 'Score' of the parent edge, if it exists.
 mergeScores op left right = do
   children <- times left right
-  times (SVal op) children
+  times (adapt (leftSide left) op) children
+ where
+  adapt Nothing op = SVal op
+  adapt (Just (LeftId i)) op =
+    SBoth (LeftId i) (\(!r) (!l) -> op R.* r l) (RightId i)
 
 -- | Creates the 'Score' of a left parent edge from a left child edge of a @vert@.
 vertScoresLeft
@@ -245,7 +252,7 @@ vertScoresLeft newid = wrap
 -- from the middle and right child edges of a @vert@
 -- and a @horizontalize@ operation.
 vertScoresRight
-  :: (Eq i, R.Semiring s)
+  :: (Eq i, R.Semiring s, Show i)
   => i                 -- ^ The new ID that marks both parent edges.
   -> s                 -- ^ The score of the @horizontalize@ operation.
   -> Score s i         -- ^ The 'Score' of the middle child edge.
@@ -262,39 +269,3 @@ vertScoresRight newid op m r = do
   unwrap op Nothing = SRight (LeftId newid) (\l -> op R.* l)
   unwrap op (Just (LeftId i)) =
     SBoth (LeftId newid) (\r l -> op R.* r l) (RightId i)
-
-
-
-
--- -- TODO: generalize to l::a-b?
--- -- | Combines the 'Score's of three child edges with a @horizontalize@ operation
--- -- into the scores of the two parent edges, using a new ID to mark their scores as co-dependent.
--- -- The left child edge must be a 'SVal' or 'SLeft' in a left-most derivation.
--- --
--- -- > ()-b   b-c   c-d
--- -- > --------------------------------- vert
--- -- > left: ()-I
--- -- > right: I-b × b-c × c-d = I-d
--- vertScores
---   :: (R.Semiring s, Eq i)
---   => i         -- ^ The new ID that marks the resulting parent edges.
---   -> s         -- ^ The score of the @horizontalize@ operation.
---   -> Score s i -- ^ The 'Score' of the left child edge. Must be 'SVal' or 'SLeft'.
---   -> Score s i -- ^ The 'Score' of the middle child edge.
---   -> Score s i -- ^ The 'Score' of the right child edge.
---   -> Maybe (Score s i, Score s i) -- ^ The 'Score's of the parent edges, if they exist.
--- vertScores newid op l m r = do
---   left  <- wrap l
---   opl   <- unwrap op l
---   mr    <- times m r
---   right <- times opl mr
---   pure (left, right)
---  where
---   -- wrap the left input into a new layer with a new id
---   wrap (SVal val  ) = Just $ SLeft (\fr -> fr val) newid
---   wrap (SLeft fl _) = Just $ SLeft fl newid
---   wrap _            = Nothing
---   -- generate a value on the right that consumes the new left value when supplied
---   unwrap op (SVal _   ) = Just $ SRight newid (\l -> op R.* l)
---   unwrap op (SLeft _ i) = Just $ SBoth newid (\r l -> op R.* r l) i
---   unwrap _  _           = Nothing
