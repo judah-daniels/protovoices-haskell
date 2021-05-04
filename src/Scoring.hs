@@ -184,7 +184,7 @@ breakMe x = x
 --
 -- > a-b + a-b -> a-b
 plus
-  :: (R.Semiring s, Eq i, Eq s, Show s)
+  :: (R.Semiring s, Eq i, Eq s, Show s, Show i)
   => Score s i
   -> Score s i
   -> Maybe (Score s i)
@@ -195,7 +195,7 @@ plus (SLeft fl1 i) (SLeft fl2 i') | i == i' =
   Just $! SLeft (\(!r) -> fl1 r R.+ fl2 r) i
 plus (SBoth il f1 ir) (SBoth il' f2 ir') | il == il' && ir == ir' =
   Just $! SBoth il (\(!r) (!l) -> f1 r l R.+ f2 r l) ir
-plus _ _ = trace "adding incompatible scores" Nothing
+plus a b = error ("adding incompatible scores " <> show a <> " and " <> show b) -- Nothing
 
 -- | Checks if two 'Score's can be combined with 'times'.
 --
