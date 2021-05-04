@@ -41,7 +41,9 @@ import           Control.Monad.Reader
 import           Debug.Trace                    ( trace )
 import qualified Data.Set                      as Set
 import qualified Control.Parallel.Strategies   as P
-import           Data.Hashable                  ( Hashable )
+import           Data.Hashable                  ( Hashable
+                                                , hashWithSalt
+                                                )
 
 -- Basic Types
 -- ===========
@@ -56,16 +58,21 @@ type Parsable e a v = (Normal e, Normal a, Normal' v)
 data Slice a = Slice
   { sFirst   :: !Int
   , sContent :: !(StartStop a)
+  , sID :: !Int
   , sLast    :: !Int
   }
-  deriving (Eq, Ord, Generic, NFData, Hashable)
+  deriving (Eq, Ord, Generic, NFData)
+
+instance Hashable (Slice a) where
+  hashWithSalt s (Slice _ _ i _) = hashWithSalt s i
 
 instance Show a => Show (Slice a) where
-  show (Slice f c l) = show f <> "-" <> show c <> "-" <> show l
+  show (Slice f c i l) =
+    show f <> "-" <> show c <> "@" <> show i <> "-" <> show l
 
 -- | Return the length of a slice.
 sliceLen :: Slice a -> Int
-sliceLen (Slice f _ l) = l - f + 1
+sliceLen (Slice f _ _ l) = l - f + 1
 
 -- Transitions
 --------------
@@ -105,17 +112,15 @@ type TItem e a v = Item (Transition e a) v
 -- Vert Items
 
 data Vert e a v = Vert
-  { vId :: !Int
-  , vTop :: !(Slice a)
+  { vTop :: !(Slice a)
   , vOp :: !v
   , vMiddle :: !(TItem e a v)
   }
   deriving (Generic, NFData)
 
 instance (Show e, Show a, Show v) => Show (Vert e a v) where
-  show (Vert id top op m) =
-    "Vert "
-      <> show id
+  show (Vert top op m) =
+    "Vert"
       <> "\n top: "
       <> show top
       <> "\n op:  "
@@ -137,7 +142,7 @@ instance (Show e, Show a, Show v) => Show (Vert e a v) where
 
 data VChart e a v = VChart
   { vcNextId :: !Int
-  , vcIDs :: !(HM.HashMap (Slice a, Slice a, Maybe (S.LeftId Int)) Int)
+  , vcIDs :: !(HM.HashMap (Int, Int) Int)
   , vcByLength :: !(IM.IntMap [Vert e a v])
   , vcByLengthLeft :: !(IM.IntMap (Set.Set (Int, Slice a, Slice a)))
   , vcByLeftChild :: !(HM.HashMap (Slice a, Int) (Set.Set (Int, Slice a)))
@@ -152,20 +157,20 @@ instance (Show e, Show a, Show v) => Show (VChart e a v) where
     showLevel (l, items) = "\nlevel " <> show l <> ":" <> sitems
       where sitems = concatMap (("\n  " <>) . show) items
 
-vcEmpty :: VChart e a v
-vcEmpty = VChart 0 HM.empty IM.empty IM.empty HM.empty HM.empty
+vcEmpty :: Int -> VChart e a v
+vcEmpty n = VChart (n + 1) HM.empty IM.empty IM.empty HM.empty HM.empty
 
 vcInsert
   :: (Hashable a, Ord a) => VChart e a v -> (a, v, TItem e a v) -> VChart e a v
 vcInsert (VChart nextid ids bylen bylenleft byleft byright) (topContent, op, mid@(tmid := vmid))
   = let left                = tLeftSlice tmid
         right               = tRightSlice tmid
-        top = Slice (sFirst left) (Inner topContent) (sLast right)
-        idKey               = (top, left, S.leftSide vmid)
+        idKey               = (sID left, sID right)
         (nextid', ids', id) = case HM.lookup idKey ids of
           Just id -> (nextid, ids, id)
           Nothing -> (nextid + 1, HM.insert idKey nextid ids, nextid)
-        vert       = [Vert id top op mid]
+        top        = Slice (sFirst left) (Inner topContent) id (sLast right)
+        vert       = [Vert top op mid]
         vert'      = Set.singleton (id, top, tLeftSlice tmid)
         vertLeft   = Set.singleton (id, top)
         bylen'     = IM.insertWith (<>) (transLen tmid) vert bylen
@@ -200,7 +205,7 @@ vcGetByRightChild
   :: (Ord a, Hashable a) => Int -> VChart e a v -> Slice a -> [Vert e a v]
 vcGetByRightChild n chart right =
   filter notTooLong $ fromMaybe [] $ HM.lookup right $ vcByRightChild chart
-  where notTooLong (Vert _ _ _ m) = transLen (iItem m) <= n
+  where notTooLong (Vert _ _ m) = transLen (iItem m) <= n
 
 -- transition chart
 -------------------
@@ -331,9 +336,9 @@ vertRight
   -> Vert e a v      -- ^ the center 'Vert'
   -> TItem e a v     -- ^ the right child transition
   -> [TItem e a v]   -- ^ all possible right parent transitions
-vertRight vertr (Vert id top op (tm := vm)) ((Transition rl rt rr _) := vr) =
+vertRight vertr (Vert top op (tm := vm)) ((Transition rl rt rr _) := vr) =
   fromMaybe [] $ do
-    v'   <- S.vertScoresRight id op vm vr
+    v'   <- S.vertScoresRight (sID top) op vm vr
     ir   <- getInner $ sContent rl
     itop <- getInner $ sContent top
     pure $ force $ mkParent v' <$> vertr (ir, rt) ir
@@ -393,7 +398,7 @@ traceVert vert m = if traceLevel >= 1
   else res
  where
   res = vert m
-  showSlice (Slice a _ b) = "(" <> show a <> "," <> show b <> ")"
+  showSlice (Slice a _ _ b) = "(" <> show a <> "," <> show b <> ")"
   showTrans ((Transition l _ r _) := v) = showSlice l <> "-" <> showSlice r
 
 -- | Verticalizes all edges of length @n@.
@@ -515,7 +520,7 @@ parse
   -> IO v
 parse log eval path = do
   (tfinal, _) <- foldM (flip $ parseStep log eval)
-                       (tinit, vcEmpty)
+                       (tinit, vcEmpty len)
                        [2 .. len - 1]
   let goals = tcGetByLength tfinal len
   return $ R.sum $ catMaybes $ S.score . iValue <$> goals
@@ -525,7 +530,7 @@ parse log eval path = do
   path' = Path (:⋊) Nothing $ wrapPath path
   len   = pathLen path'
   slicePath =
-    mapNodesWithIndex 0 (\i n -> Slice i (evalSlice eval <$> n) i) path'
+    mapNodesWithIndex 0 (\i n -> Slice i (evalSlice eval <$> n) i i) path'
   mkTrans l e r = mk
     <$> evalThaw eval (sContent l) e (sContent r) (isStop $ sContent r)
     where mk (e, v) = Transition l e r False := S.SVal v
