@@ -19,7 +19,7 @@ module Parser
 where
 
 import           Common
-import qualified Scoring                       as S
+import qualified ScoringFlat                   as S
 
 import qualified Data.Map.Strict               as M
 import qualified Data.HashMap.Strict           as HM
@@ -231,19 +231,6 @@ data TChart e a v = TChart
 tcEmpty :: TChart e a v
 tcEmpty = TChart IM.empty HM.empty HM.empty
 
-tracePlus k t s1 s2
-  | traceLevel >= 1 && (S.score s1 == S.score s2) && isJust (S.score s1) = trace
-    (  "adding two "
-    <> show (S.score s1)
-    <> " for transition "
-    <> show t
-    <> " while inserting at "
-    <> show k
-    )
-    res
-  | otherwise = res
-  where res = S.plus s1 s2
-
 -- TODO: there might be room for improvement here
 tcInsert :: (Parsable e a v) => TChart e a v -> TItem e a v -> TChart e a v
 tcInsert (TChart len left right) item@(t := v) =
@@ -251,10 +238,7 @@ tcInsert (TChart len left right) item@(t := v) =
       len'   = IM.insertWith insert (transLen t) new len
       left'  = HM.insertWith insert (tLeftSlice t) new left
       right' = HM.insertWith insert (tRightSlice t) new right
-      result = TChart len' left' right'
-  in  if traceLevel >= 4
-        then trace ("inserting at " <> show t <> ": " <> S.showScore v) result
-        else result
+  in  TChart len' left' right'
  where
   insert = HM.unionWithKey
     (\k s1 s2 ->
@@ -267,7 +251,7 @@ tcInsert (TChart len left right) item@(t := v) =
           <> " and "
           <> show s2
           )
-        $ S.plus s1 s2 -- (tracePlus k t s1 s2)
+        $ S.plus s1 s2
     )
 
 tcMerge
@@ -317,37 +301,48 @@ vertMiddle vertm im@((Transition l m r _) := vm) = do
 
 -- | Infers the possible left parent transitions of a verticalization.
 vertLeft
-  :: VertLeft e a   -- ^ the VertLeft evaluator
+  :: (Show a, Show e, R.Semiring v, Show v)
+  => VertLeft e a   -- ^ the VertLeft evaluator
   -> TItem e a v    -- ^ the left child transition
   -> (Slice a, Int) -- ^ the Vert's top slice and ID
   -> [TItem e a v]  -- ^ all possible left parent transitions
-vertLeft vertl ((Transition ll lt lr is2nd) := vleft) (top, newId)
+vertLeft vertl (tleft@(Transition ll lt lr is2nd) := vleft) (top, newId)
   | is2nd = []
-  | otherwise = fromMaybe [] $ do
-    v'   <- S.vertScoresLeft newId vleft
+  | otherwise = fromMaybe err $ do
     ir   <- getInner $ sContent lr
     itop <- getInner $ sContent top
     pure $ mkParent v' <$> vertl (lt, ir) itop
-  where mkParent v t = Transition ll t top False := v
+ where
+  err = error $ "Illegal left-vert: left=" <> show tleft <> ", vert=" <> show
+    (top, newId)
+  v' = S.vertScoresLeft newId vleft
+  mkParent v t = Transition ll t top False := v
 
 -- | Infers the possible right parent transitions of a verticalization.
 vertRight
-  :: (R.Semiring v, NFData a, NFData e, NFData v)
+  :: (R.Semiring v, NFData a, NFData e, NFData v, Show e, Show a, Show v)
   => VertRight e a   -- ^ the VertRight evaluator
   -> Vert e a v      -- ^ the center 'Vert'
   -> TItem e a v     -- ^ the right child transition
   -> [TItem e a v]   -- ^ all possible right parent transitions
-vertRight vertr (Vert top op (tm := vm)) ((Transition rl rt rr _) := vr) =
-  fromMaybe [] $ do
-    v'   <- S.vertScoresRight (sID top) op vm vr
+vertRight vertr vert@(Vert top op (tm := vm)) tright@((Transition rl rt rr _) := vr)
+  = fromMaybe err $ do
     ir   <- getInner $ sContent rl
     itop <- getInner $ sContent top
     pure $ force $ mkParent v' <$> vertr (ir, rt) ir
-  where mkParent v t = Transition top t rr True := v
+ where
+  err =
+    error
+      $  "Illegal right-vert: vert="
+      <> show vert
+      <> ", right="
+      <> show tright
+  v' = S.vertScoresRight (sID top) op vm vr
+  mkParent v t = Transition top t rr True := v
 
 -- | Infers the possible parent transitions of a split.
 merge
-  :: (R.Semiring v, NFData a, NFData e, NFData v)
+  :: (R.Semiring v, NFData a, NFData e, NFData v, Show v)
   => Merge e a v   -- ^ the Merge evaluator
   -> TItem e a v   -- ^ the left child transition
   -> TItem e a v   -- ^ the right child transition
@@ -355,17 +350,13 @@ merge
 merge mg ((Transition ll lt lr l2nd) := vl) ((Transition !rl !rt !rr _) := vr)
   = case getInner $ sContent lr of
     Just m ->
-      force
-        $   catMaybes
-        $   mkItem
-        <$> mg (sContent ll) lt m rt (sContent rr) splitType
-    Nothing -> []
+      force $ mkItem <$> mg (sContent ll) lt m rt (sContent rr) splitType
+    Nothing -> error "trying to merge at a non-content slice"
  where
   splitType | l2nd                 = RightOfTwo
             | isStop (sContent rr) = LeftOnly
             | otherwise            = LeftOfTwo
-  mkItem (!top, !op) =
-    (Transition ll top rr l2nd :=) <$> S.mergeScores op vl vr
+  mkItem (!top, !op) = Transition ll top rr l2nd := S.mergeScores op vl vr
 
 -- the parsing main loop
 ------------------------
@@ -393,14 +384,6 @@ parseStep log (Eval eMid eLeft eRight eMerge _ _) n charts = do
     >>= vertAllLefts eLeft n
     >>= vertAllRights eRight n
     >>= mergeAll eMerge n
-
-traceVert vert m = if traceLevel >= 1
-  then trace ("verting " <> showTrans m <> ": " <> show (isJust res)) res
-  else res
- where
-  res = vert m
-  showSlice (Slice a _ _ b) = "(" <> show a <> "," <> show b <> ")"
-  showTrans ((Transition l _ r _) := v) = showSlice l <> "-" <> showSlice r
 
 -- | Verticalizes all edges of length @n@.
 vertAllMiddles
@@ -439,7 +422,6 @@ vertAllRights evalRight n (!tchart, !vchart) = do
         right <- tcGetByLength tchart n
         vert  <- vcGetByRightChild n vchart (tLeftSlice $ iItem right)
         pure (vert, right)
-        --traceVertRight vert right $ vertRight evalRight vert right
 
       -- middle = n (and left < n)
       !vertn = force $ pmap (uncurry $ vertRight evalRight) $!! do -- in list monad
@@ -447,7 +429,6 @@ vertAllRights evalRight n (!tchart, !vchart) = do
         right <- filter (\i -> transLen (iItem i) < n)
           $ tcGetByLeft tchart (tRightSlice $ iItem $ vMiddle vert)
         pure (vert, right)
-        -- traceVertRight vert right $ vertRight evalRight vert right
 
       -- insert new transitions into chart
       !tchart' = foldl' tcMerge (foldl' tcMerge tchart rightn) vertn
@@ -468,7 +449,6 @@ mergeAll mrg n (!tchart, !vchart) = do
         right <- filter (\r -> transLen (iItem r) <= n)
           $ tcGetByLeft tchart (tRightSlice $ iItem left)
         pure (left, right)
-        -- traceMerge ("left = " <> show n) left right res
 
       -- right = n (and left < n)
       !rightn = pmap (uncurry (merge mrg)) $!! do
@@ -476,7 +456,6 @@ mergeAll mrg n (!tchart, !vchart) = do
         left  <- filter (\l -> transLen (iItem l) < n)
           $ tcGetByRight tchart (tLeftSlice $ iItem right)
         pure (left, right)
-        -- traceMerge ("right = " <> show n) left right (left, right)
 
       -- insert new transitions into chart
       !tchart' = foldl' tcMerge (foldl' tcMerge tchart leftn) rightn

@@ -3,6 +3,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RebindableSyntax #-}
 {-# LANGUAGE PartialTypeSignatures #-}
+{-# OPTIONS_GHC -Wno-partial-type-signatures #-}
 module Main where
 
 import           Parser
@@ -11,7 +12,7 @@ import           PVGrammar.Parse
 import           PVGrammar.Generate
 import           Common
 import           Display
-import           Scoring
+import           ScoresCommon
 
 --import Musicology.Internal.Helpers
 import           Musicology.MusicXML
@@ -193,6 +194,20 @@ derivBrahms = buildDerivation $ do
   (>>) :: Do.BindSyntax x y z => x a -> y b -> z b
   (>>) = (Do.>>)
 
+derivScore :: [LeftmostScore (Derivations String)]
+derivScore = buildDerivation $ do
+  split $ SplitScore $ Do "top"
+  hori $ HoriScore $ Do "h2"
+  split $ SplitScore $ Do "s"
+  freeze $ FreezeScore $ Do "L1"
+  hori $ HoriScore $ Do "h1"
+  freeze $ FreezeScore $ Do "L2"
+  freeze $ FreezeScore $ Do "M"
+  freeze $ FreezeScore $ Do "C"
+  freeze $ FreezeScore $ Do "R"
+  where (>>) = (Do.>>)
+
+
 -- mains
 -- =====
 
@@ -254,7 +269,7 @@ parseHaydn eval = do
 
 mainHaydn = do
   slices <- slicesFromFile haydn5
-  derivs <- parseSize pvCount $ slicesToPath $ take 9 slices
+  derivs <- parseSize pvCount $ slicesToPath $ take 8 slices
   print derivs
   putStrLn "done."
 

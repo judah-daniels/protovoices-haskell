@@ -35,13 +35,13 @@ module Scoring
 where
 
 import qualified Data.Semiring                 as R
-import           Common                         ( traceLevel )
 import           Debug.Trace                    ( trace
                                                 , traceStack
                                                 )
 import           GHC.Generics                   ( Generic )
 import           Control.DeepSeq                ( NFData )
 import           Data.Hashable                  ( Hashable )
+import           Data.Maybe                     ( fromMaybe )
 
 ----------------
 -- Score type --
@@ -162,19 +162,7 @@ times (SRight il fr) (SLeft fl ir) =
 times (SBoth il fa ia) (SBoth ib fb ir) | ia `match` ib =
   Just $! SBoth il (fa . fb) ir
 -- otherwise
-times a b =
-  error ("multiplying incompatible scores " <> show a <> " and " <> show b)
-  -- Nothing
-
-breakMe x = x
-
--- tracePlus a b = if traceLevel >= 1 && a == b
---   then
---     breakMe
---     $   traceStack ("trying to add same value twice: " <> show a)
---     $   a
---     R.+ b
---   else a R.+ b
+times a b = Nothing
 
 -- | Adds two partially applied 'Score's
 -- by adding their underlying (or resulting) semiring values.
@@ -195,7 +183,7 @@ plus (SLeft fl1 i) (SLeft fl2 i') | i == i' =
   Just $! SLeft (\(!r) -> fl1 r R.+ fl2 r) i
 plus (SBoth il f1 ir) (SBoth il' f2 ir') | il == il' && ir == ir' =
   Just $! SBoth il (\(!r) (!l) -> f1 r l R.+ f2 r l) ir
-plus a b = error ("adding incompatible scores " <> show a <> " and " <> show b) -- Nothing
+plus a b = Nothing
 
 -- | Checks if two 'Score's can be combined with 'times'.
 --
@@ -217,36 +205,45 @@ similar s1 s2 = sides s1 == sides s2
 -----------
 
 -- | Combines the 'Score's of two edges with a @split@ operation into the score of the parent edge.
+-- This is expected to be called on compatible scores
+-- and will throw an error otherwise to indicate parser bugs.
 --
 -- > a-b   b-c
 -- > --------- merge
 -- >    a-c
 mergeScores
   :: (R.Semiring s, Eq i, Show i)
-  => s                 -- ^ The score of the split operation.
-  -> Score s i         -- ^ The 'Score' of the left child edge.
-  -> Score s i         -- ^ The 'Score' of the right child edge.
-  -> Maybe (Score s i) -- ^ The 'Score' of the parent edge, if it exists.
-mergeScores op left right = do
+  => s         -- ^ The score of the split operation.
+  -> Score s i -- ^ The 'Score' of the left child edge.
+  -> Score s i -- ^ The 'Score' of the right child edge.
+  -> Score s i -- ^ The 'Score' of the parent edge, if it exists.
+mergeScores op left right = fromMaybe err $ do
   children <- times left right
   times (adapt (leftSide left) op) children
  where
+  err =
+    error
+      $  "Attempting illegal merge: left="
+      <> show left
+      <> ", right="
+      <> show right
   adapt Nothing op = SVal op
   adapt (Just (LeftId i)) op =
     SBoth (LeftId i) (\(!r) (!l) -> op R.* r l) (RightId i)
 
 -- | Creates the 'Score' of a left parent edge from a left child edge of a @vert@.
+-- Will throw an error if called on invalid input to indicate parser bugs.
 vertScoresLeft
-  :: (Eq i)
-  => i                 -- ^ The new ID that marks both parent edges
-  -> Score s i         -- ^ The 'Score' of the left child edge.
-  -> Maybe (Score s i) -- ^ The 'Score' of the left parent edge, if it exists.
+  :: (Eq i, Show i)
+  => i         -- ^ The new ID that marks both parent edges
+  -> Score s i -- ^ The 'Score' of the left child edge.
+  -> Score s i -- ^ The 'Score' of the left parent edge, if it exists.
 vertScoresLeft newid = wrap
  where
   -- wrap the left input score into a new layer with a new ID
-  wrap (SVal val  ) = Just $ SLeft (\fr -> fr val) (RightId newid)
-  wrap (SLeft fl _) = Just $ SLeft fl (RightId newid)
-  wrap _            = Nothing
+  wrap (SVal val  ) = SLeft (\fr -> fr val) (RightId newid)
+  wrap (SLeft fl _) = SLeft fl (RightId newid)
+  wrap other        = error $ "Attempting illegal left-vert on " <> show other
 
 -- | Creates the 'Score' of a right parent edge
 -- from the middle and right child edges of a @vert@
@@ -257,12 +254,14 @@ vertScoresRight
   -> s                 -- ^ The score of the @horizontalize@ operation.
   -> Score s i         -- ^ The 'Score' of the middle child edge.
   -> Score s i         -- ^ The 'Score' of the right child edge.
-  -> Maybe (Score s i) -- ^ The 'Score' of the right parent edge, if it exists.
-vertScoresRight newid op m r = do
+  -> Score s i -- ^ The 'Score' of the right parent edge, if it exists.
+vertScoresRight newid op m r = fromMaybe err $ do
   let op' = unwrap op $ leftSide m
   opm <- times op' m
   times opm r
  where
+  err =
+    error $ "Attempting illegal left-vert: m=" <> show m <> ", r=" <> show r
   -- generate a value on the right
   -- that consumes the left parent edge's value when supplied
   -- and combines with m on the right
