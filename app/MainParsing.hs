@@ -54,8 +54,7 @@ import           Control.DeepSeq                ( force
 -- reading files
 -- -------------
 
-testfile =
-  "/home/chfin/dateien/dev/haskell/work/haskell-musicology/musicology-musicxml/testdata/allemande.musicxml"
+testfile = "testdata/allemande.musicxml"
 
 bb =
   "/home/chfin/dateien/dev/haskell/work/proto-voice-model/bluebossa.musicxml"
