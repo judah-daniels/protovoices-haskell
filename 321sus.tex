@@ -1,0 +1,32 @@
+\documentclass[varwidth]{standalone}
+\usepackage{tikz}
+\usepackage{amssymb}
+\begin{document}
+\tikzstyle{slice} = []
+\tikzstyle{transition} = []
+\tikzstyle{non-terminal} = []
+\tikzstyle{terminal} = [double]
+\tikzstyle{hori} = [gray,dashed]
+
+\begin{tikzpicture}
+\node[slice] (slice0) at (0.0,0) {$\rtimes$};
+\node[slice] (slice1) at (5.0,0) {$\ltimes$};
+\node[slice] (slice2) at (2.5,-1) {\{E,C\}};
+\node[slice] (slice3) at (1.0,-2) {\{E,C\}};
+\node[slice] (slice4) at (4.0,-2) {\{C\}};
+\node[slice] (slice5) at (3.0,-3) {\{B,D\}};
+\node[slice] (slice6) at (2.0,-4) {\{C,D\}};
+\draw[transition,non-terminal] (slice0) -- (slice2);
+\draw[transition,terminal] (slice0) -- (slice3);
+\draw[transition,non-terminal] (slice0) -- (slice1);
+\draw[transition,non-terminal] (slice2) -- (slice1);
+\draw[transition,non-terminal] (slice3) -- (slice5);
+\draw[transition,terminal] (slice3) -- (slice6);
+\draw[transition,non-terminal] (slice3) -- (slice4);
+\draw[transition,terminal] (slice4) -- (slice1);
+\draw[transition,terminal] (slice5) -- (slice4);
+\draw[transition,terminal] (slice6) -- (slice5);
+\draw[hori] (slice2) -- (slice3);
+\draw[hori] (slice2) -- (slice4);
+\end{tikzpicture}
+\end{document}

@@ -5,7 +5,7 @@
 -- The full score of the operation is restored when the two parent edges are eventually combined again.
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveAnyClass #-}
-module Scoring
+module ScoringOld
   ( -- * The Score Type
     Score(..)
   , LeftId(..)

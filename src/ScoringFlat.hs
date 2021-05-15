@@ -1,11 +1,12 @@
 {-# LANGUAGE BangPatterns #-}
--- | Semiring scores lifted to functions that combine to the left and right.
--- This is used to express "partially applied" scores that occur
--- when the score of a verticalization is distributed to two parent edges.
--- The full score of the operation is restored when the two parent edges are eventually combined again.
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE TupleSections #-}
+
+-- | Semiring scores with "holes".
+-- Holes are used to express "partially applied" scores that occur
+-- when the score of a verticalization is distributed to two parent edges.
+-- The full score of the operation is restored when the two parent edges are eventually combined again.
 module ScoringFlat
   ( -- * The Score Type
     Score(..)
@@ -73,7 +74,7 @@ type Holes s = [s]
 -- Comes in four variants,
 -- depending on whether the score is fully applied
 -- or needs to be combined on either or both sides.
--- Values that need to be combined are represented as functions.
+-- Values that need to be combined are lists that represent scores with holes.
 -- Each variant carries IDs of type @i@ that determine which objects fit on either of its sides.
 -- Only score objects with matching IDs can be combined.
 -- 
@@ -159,10 +160,6 @@ zipHoles !ls !rs = go R.one ls rs
   go !acc (l : ls) (r : rs) = go (acc R.* (l R.* r)) ls rs
   go _    _        _        = Nothing
 
--- zipAlts :: R.Semiring s => (s -> s -> s) -> [[s]] -> [[s]] -> Maybe s
--- zipAlts plus !as !bs = foldl' plus' (Just R.zero) $ zipHoles <$> bs <*> bs
---   where plus' a b = plus <$> a <*> b
-
 combineAlts :: (a -> b -> Maybe c) -> [a] -> [b] -> Maybe [c]
 combineAlts f ls rs = sequence $ f <$> ls <*> rs
 
@@ -224,7 +221,7 @@ times a b = Nothing
 -- by adding their underlying (or resulting) semiring values.
 -- This operation is only admitted
 -- if the two scores are of the same shape and have matching IDs.
-  -- Otherwise, 'Nothing' is returned.
+-- Otherwise, 'Nothing' is returned.
 --
 -- > a-b + a-b -> a-b
 plus

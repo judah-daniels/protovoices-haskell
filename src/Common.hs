@@ -394,6 +394,16 @@ flattenDerivationsRed (Then a b) = do
   b <- flattenDerivationsRed b
   pure (a <> b)
 
+firstDerivation :: Ord a => Derivations a -> Maybe [a]
+firstDerivation Cannot     = Nothing
+firstDerivation NoOp       = Just []
+firstDerivation (Do a    ) = Just [a]
+firstDerivation (Or   a b) = firstDerivation a
+firstDerivation (Then a b) = do
+  da <- firstDerivation a
+  db <- firstDerivation b
+  pure $ da <> db
+
 -- utilities
 -- =========
 

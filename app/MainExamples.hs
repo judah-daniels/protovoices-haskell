@@ -11,7 +11,7 @@ import           PVGrammar.Parse
 import           PVGrammar.Generate
 import           Common
 import           Display
-import           Scoring
+import           ScoringFlat
 
 --import Musicology.Internal.Helpers
 import           Musicology.MusicXML
