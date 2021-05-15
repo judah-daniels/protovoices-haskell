@@ -1,2 +1,9 @@
 .stack-work/
 *~
+*.aux
+*.log
+*.prof
+*.hp
+*.prof.html
+*.ps
+*.eventlog
