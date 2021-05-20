@@ -1,7 +1,7 @@
 module ScoresCommon where
 
 import           Common
-import           ScoringFlat
+import           ScoringFun
 import qualified Data.Semiring                 as R
 import           Data.Maybe                     ( listToMaybe )
 

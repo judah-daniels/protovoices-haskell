@@ -12,9 +12,6 @@
 {-# LANGUAGE DeriveAnyClass #-}
 module Common where
 
--- StartStop
--- =========
-
 import           GHC.Generics                   ( Generic )
 import           Control.DeepSeq                ( NFData )
 
@@ -36,6 +33,9 @@ import           Data.Typeable                  ( Proxy(Proxy) )
 import           Musicology.Pitch               ( Notation(..) )
 import qualified Text.ParserCombinators.ReadP  as ReadP
 import           Data.Hashable                  ( Hashable )
+
+-- StartStop
+-- =========
 
 -- | A container type that augements the type @a@
 -- with symbols for beginning (@:⋊@) and end (@:⋉@).
