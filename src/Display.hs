@@ -8,10 +8,10 @@ import           Common
 --                                                 , (^-^)
 --                                                 , (^+^)
 --                                                 )
-import qualified Diagrams.TwoD.Text
-import           Diagrams.Backend.SVG          as SVG
-import           Data.Typeable                  ( Typeable )
-import           Data.Colour
+-- import qualified Diagrams.TwoD.Text
+-- import           Diagrams.Backend.SVG          as SVG
+-- import           Data.Typeable                  ( Typeable )
+-- import           Data.Colour
 
 import qualified Data.Set                      as S
 
@@ -20,16 +20,13 @@ import           Control.Monad.Trans            ( lift )
 import qualified Control.Monad.State           as ST
 import qualified Data.List                     as L
 import qualified Data.Map                      as M
-import           Data.List                      ( sortOn
-                                                , scanl'
-                                                )
 import           Data.Foldable                  ( foldl' )
 import qualified Data.Text                     as T
 import qualified Data.Text.IO                  as T
 import           System.Process                 ( callCommand )
 
-import           Debug.Trace                   as DT
 import           Data.Bifunctor                 ( bimap )
+import           Data.String                    ( IsString )
 
 -- type PVDiagram b = QDiagram b V2 Double Any
 
@@ -141,6 +138,8 @@ replayDerivationStep player = applyRule
     addHoriEdge (pm, rs)
     pushOpen [(lpl, l, ls), (ls, m, rs), (rs, r, rpr)]
 
+initialGraph
+  :: (Ord a, Ord e) => Int -> DerivationPlayer s f h a e -> DerivationGraph a e
 initialGraph n player = DGraph (1 + n)
                                (S.fromList topSlices)
                                (S.fromList top)
@@ -184,8 +183,8 @@ unfoldDerivation' n player = go (initialGraph n player) []
   go g acc [] = Right g : acc
   go g acc (step : rest) =
     case ST.execStateT (replayDerivationStep player step) g of
-      Left  error -> Left error : acc
-      Right g'    -> go g' (Right g : acc) rest
+      Left  err -> Left err : acc
+      Right g'  -> go g' (Right g : acc) rest
 
 unfoldDerivation
   :: (Ord a, Ord e)
@@ -194,6 +193,11 @@ unfoldDerivation
   -> [Either String (DerivationGraph a e)]
 unfoldDerivation = unfoldDerivation' 1
 
+replayDerivationFull
+  :: (Foldable t, Ord a, Ord e)
+  => DerivationPlayer s f h a e
+  -> t (Leftmost s f h)
+  -> Either String (DerivationGraph a e)
 replayDerivationFull player deriv = do
   graph <- replayDerivation player deriv
   if L.null $ dgSurface graph
@@ -201,11 +205,11 @@ replayDerivationFull player deriv = do
     else Left "Not all surface transitions have been frozen!"
 
 derivationPlayerUnit :: DerivationPlayer s f h () ()
-derivationPlayerUnit = DerivationPlayer (\_ _ -> ()) () split freeze hori
+derivationPlayerUnit = DerivationPlayer (\_ _ -> ()) () usplit ufreeze uhori
  where
-  split _ _ = Right ((), (), ())
-  freeze _ _ = Right ()
-  hori _ _ _ _ = Right ((), (), (), (), ())
+  usplit _ _ = Right ((), (), ())
+  ufreeze _ _ = Right ()
+  uhori _ _ _ _ = Right ((), (), (), (), ())
 
 data Null = Null
   deriving (Eq, Ord)
@@ -214,22 +218,26 @@ instance Show Null where
   show Null = ""
 
 derivationPlayerNull :: DerivationPlayer s f h Null Null
-derivationPlayerNull = DerivationPlayer (\_ _ -> Null) Null split freeze hori
+derivationPlayerNull = DerivationPlayer (\_ _ -> Null)
+                                        Null
+                                        nsplit
+                                        nfreeze
+                                        nhori
  where
-  split _ _ = Right (Null, Null, Null)
-  freeze _ _ = Right Null
-  hori _ _ _ _ = Right (Null, Null, Null, Null, Null)
+  nsplit _ _ = Right (Null, Null, Null)
+  nfreeze _ _ = Right Null
+  nhori _ _ _ _ = Right (Null, Null, Null, Null, Null)
 
 -- plotting derivation graphs
 -- ==========================
 
 tikzDerivationGraph
-  :: (Eq a, Eq b)
+  :: (Eq a, Eq e)
   => (a -> T.Text)
-  -> (b -> T.Text)
-  -> DerivationGraph a b
+  -> (e -> T.Text)
+  -> DerivationGraph a e
   -> T.Text
-tikzDerivationGraph showS showT (DGraph _ slices trans horis openTrans foot root)
+tikzDerivationGraph showS showT (DGraph _ slices trans horis openTrans foot _)
   = T.intercalate
     "\n"
     (  (showNode <$> tikzNodes)
@@ -237,35 +245,37 @@ tikzDerivationGraph showS showT (DGraph _ slices trans horis openTrans foot root
     <> (showHori <$> S.toList horis)
     )
  where
-  showT :: (Show a) => a -> T.Text
-  showT = T.pack . show
+  showText :: (Show a) => a -> T.Text
+  showText = T.pack . show
   -- printing nodes and edges
   showSlice (:⋊)      = "$\\rtimes$"
   showSlice (:⋉)      = "$\\ltimes$"
   showSlice (Inner s) = showS s
-  showNode (x, y, id, c) =
+  showNode (x, y, i, c) =
     "\\node[slice] (slice"
-      <> showT id
+      <> showText i
       <> ") at ("
-      <> showT x
+      <> showText x
       <> ","
-      <> showT (-y)
+      <> showText (-y)
       <> ") {"
       <> showSlice c
       <> "};"
-  showTrans ((nl, c, nr), frozen) =
+  showTrans ((nl, e, nr), frozen) =
     "\\draw[transition,"
       <> (if frozen then "terminal" else "non-terminal")
       <> "] (slice"
-      <> showT (getID nl)
+      <> showText (getID nl)
       <> ") -- (slice"
-      <> showT (getID nr)
-      <> ");"
+      <> showText (getID nr)
+      <> ") node[midway,below,sloped] {"
+      <> showT e
+      <> "};"
   showHori (p, c) =
     "\\draw[hori] (slice"
-      <> showT (getID p)
+      <> showText (getID p)
       <> ") -- (slice"
-      <> showT (getID c)
+      <> showText (getID c)
       <> ");"
   -- helpers
   getID (_, i, _) = i
@@ -278,23 +288,24 @@ tikzDerivationGraph showS showT (DGraph _ slices trans horis openTrans foot root
   surface      = reverse foot <> openTrans
   trans'       = (\t -> (t, t `L.elem` foot)) <$> S.toList trans
   surfaceNodes = fmap getID $ leftNode (head surface) : fmap rightNode surface
-  allNodes     = getID <$> sortOn getDepth (S.toList slices)
+  allNodes     = getID <$> L.sortOn getDepth (S.toList slices)
   -- compute x locations
   xloc         = foldl' findX xlocInit allNodes
    where
     xlocInit = M.fromList $ zip surfaceNodes [0.0 :: Double ..]
     mean xs = sum xs / fromIntegral (length xs)
     -- findX :: M.Map Int Double -> Int -> M.Map Int Double
-    findX locs id = case M.lookup id locs of
-      Just x -> locs
+    findX locs i = case M.lookup i locs of
+      Just _ -> locs
       Nothing ->
-        let children = nodeChildren M.! id
+        let children = nodeChildren M.! i
             childxs  = (\c -> findX locs c M.! c) <$> children
             x        = mean childxs
-        in  M.insert id x locs
+        in  M.insert i x locs
   tikzNodes = mkNode <$> S.toList slices
-    where mkNode (depth, id, content) = (xloc M.! id, depth, id, content)
+    where mkNode (depth, i, content) = (xloc M.! i, depth, i, content)
 
+showTex :: Show a => a -> T.Text
 showTex x = T.pack $ concatMap escapeTex $ show x
  where
   escapeTex '♭' = "$\\flat$"
@@ -303,9 +314,11 @@ showTex x = T.pack $ concatMap escapeTex $ show x
   escapeTex '}' = "\\}"
   escapeTex c   = [c]
 
+mkTikzPic :: (Semigroup a, IsString a) => a -> a
 mkTikzPic content =
   "\\begin{tikzpicture}\n" <> content <> "\n\\end{tikzpicture}"
 
+tikzStandalone :: (Semigroup a, IsString a) => a -> a
 tikzStandalone content =
   "\\documentclass[varwidth]{standalone}\n\
 \\\usepackage{tikz}\n\
@@ -319,15 +332,21 @@ tikzStandalone content =
     <> content
     <> "\n\\end{document}"
 
+writeGraph
+  :: (Show a, Eq a, Eq e, Show e) => FilePath -> DerivationGraph a e -> IO ()
 writeGraph fn g =
   T.writeFile fn $ tikzStandalone $ mkTikzPic $ tikzDerivationGraph showTex
                                                                     showTex
                                                                     g
 
+viewGraph
+  :: (Eq a, Eq e, Show a, Show e) => FilePath -> DerivationGraph a e -> IO ()
 viewGraph fn g = do
   writeGraph fn g
   callCommand $ "pdflatex " <> fn
 
+writeGraphs
+  :: (Show e, Show a, Eq a, Eq e) => FilePath -> [DerivationGraph a e] -> IO ()
 writeGraphs fn gs =
   T.writeFile fn
     $   tikzStandalone
@@ -336,7 +355,8 @@ writeGraphs fn gs =
     .   tikzDerivationGraph showTex showTex
     <$> gs
 
-
+viewGraphs
+  :: (Show e, Show a, Eq a, Eq e) => FilePath -> [DerivationGraph a e] -> IO ()
 viewGraphs fn gs = do
   writeGraphs fn gs
   callCommand $ "pdflatex " <> fn

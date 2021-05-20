@@ -20,23 +20,17 @@ import           Control.DeepSeq                ( NFData )
 
 import qualified Data.Semiring                 as R
 import qualified Data.Set                      as S
-import           Data.Foldable                  ( foldl'
-                                                , foldlM
-                                                )
 import qualified Control.Monad.Writer.Strict   as MW
 import qualified Control.Monad.Indexed         as MI
 import           Debug.Trace                    ( trace )
 import           Data.Semigroup                 ( stimesMonoid )
-import qualified Control.Monad.Trans.State.Strict
-                                               as ST
 import           GHC.TypeNats                   ( Nat
-                                                , KnownNat(..)
+                                                , KnownNat
                                                 , type (<=)
                                                 , type (+)
                                                 , type (-)
                                                 , natVal
                                                 )
-import           Control.Monad.Identity         ( runIdentity )
 import           Data.Bifunctor                 ( second )
 import           Data.Typeable                  ( Proxy(Proxy) )
 import           Musicology.Pitch               ( Notation(..) )
@@ -65,8 +59,8 @@ instance (Notation a) => Notation (StartStop a) where
   parseNotation = ReadP.pfail
 
 instance Functor StartStop where
-  fmap f (:⋊)      = (:⋊)
-  fmap f (:⋉)      = (:⋉)
+  fmap _ (:⋊)      = (:⋊)
+  fmap _ (:⋉)      = (:⋉)
   fmap f (Inner a) = Inner $ f a
 
 -- some helper functions for StartStop
@@ -88,12 +82,15 @@ getInnerE (Inner a) = Right a
 getInnerE (:⋊)      = Left "expected inner but found ⋊"
 getInnerE (:⋉)      = Left "expected inner but found ⋉"
 
+isInner :: StartStop a -> Bool
 isInner (Inner _) = True
 isInner _         = False
 
+isStart :: StartStop a -> Bool
 isStart (:⋊) = True
 isStart _    = False
 
+isStop :: StartStop a -> Bool
 isStop (:⋉) = True
 isStop _    = False
 
@@ -253,10 +250,10 @@ mkLeftmostEval vm vl vr m t = Eval vm' vl vr m' t'
   smap f = fmap (second f)
   -- vm' :: VertMiddle e a (Leftmost s f h)
   vm' vert = smap LMHorizontalize $ vm vert
-  m' sl tl sm tr sr typ = smap split res
+  m' sl tl sm tr sr typ = smap splitop res
    where
-    res   = m sl tl sm tr sr
-    split = case typ of
+    res     = m sl tl sm tr sr
+    splitop = case typ of
       LeftOfTwo  -> LMSplitLeft
       LeftOnly   -> LMSplitOnly
       RightOfTwo -> LMSplitRight
@@ -290,28 +287,20 @@ type DerivAction s f h n n' snd snd'
 
 buildDerivation
   -- :: (PartialDeriv s f h 1 False -> PartialDeriv s f h n snd)
-  :: DerivAction s f h 1 n False snd -> [Leftmost s f h]
+  :: DerivAction s f h 1 n 'False snd -> [Leftmost s f h]
 buildDerivation build = MW.execWriter $ runIW build
 
 buildPartialDerivation
   :: forall n n' snd s f h
-   . 
-  -- . (PartialDeriv s f h n False -> PartialDeriv s f h n' snd)
-     DerivAction s f h n n' False snd
+   . DerivAction s f h n n' 'False snd
   -> [Leftmost s f h]
 buildPartialDerivation build = MW.execWriter $ runIW build
-
-infixl 1 .>
-f .> g = g . f
-
-infixr 2 $$
-f $$ a = f a
 
 split
   :: forall n s f h
    . (KnownNat n, 1 <= n)
   => s
-  -> DerivAction s f h n (n+1) False False
+  -> DerivAction s f h n (n+1) 'False 'False
 split s | natVal (Proxy :: Proxy n) == 1 = itell [LMSplitOnly s]
         | otherwise                      = itell [LMSplitLeft s]
 
@@ -319,14 +308,14 @@ freeze
   :: forall n s h f
    . (KnownNat n, 1 <= n)
   => f
-  -> DerivAction s f h n (n-1) False False
+  -> DerivAction s f h n (n-1) 'False 'False
 freeze f | natVal (Proxy :: Proxy n) == 1 = itell [LMFreezeOnly f]
          | otherwise                      = itell [LMFreezeLeft f]
 
-splitRight :: (2 <= n) => s -> DerivAction s f h n (n+1) snd True
+splitRight :: (2 <= n) => s -> DerivAction s f h n (n+1) snd 'True
 splitRight s = itell [LMSplitRight s]
 
-hori :: (2 <= n) => h -> DerivAction s f h n (n+1) snd False
+hori :: (2 <= n) => h -> DerivAction s f h n (n+1) snd 'False
 hori h = itell [LMHorizontalize h]
 
 -- useful semirings
@@ -347,7 +336,7 @@ data DerivOp = OpNone
   deriving Eq
 
 instance Show a => Show (Derivations a) where
-  show = go 0 OpNone
+  show = go (0 :: Int) OpNone
    where
     indent n = stimesMonoid n "  "
     go n _    (Do a)   = indent n <> show a
@@ -375,8 +364,8 @@ instance R.Semiring (Derivations a) where
 
 mapDerivations :: (R.Semiring r) => (a -> r) -> Derivations a -> r
 mapDerivations f (Do a)     = f a
-mapDerivations f NoOp       = R.one
-mapDerivations f Cannot     = R.zero
+mapDerivations _ NoOp       = R.one
+mapDerivations _ Cannot     = R.zero
 mapDerivations f (Or   a b) = mapDerivations f a R.+ mapDerivations f b
 mapDerivations f (Then a b) = mapDerivations f a R.* mapDerivations f b
 
@@ -390,15 +379,15 @@ flattenDerivationsRed Cannot = []
 flattenDerivationsRed (Or a b) =
   flattenDerivationsRed a <> flattenDerivationsRed b
 flattenDerivationsRed (Then a b) = do
-  a <- flattenDerivationsRed a
-  b <- flattenDerivationsRed b
-  pure (a <> b)
+  as <- flattenDerivationsRed a
+  bs <- flattenDerivationsRed b
+  pure (as <> bs)
 
 firstDerivation :: Ord a => Derivations a -> Maybe [a]
 firstDerivation Cannot     = Nothing
 firstDerivation NoOp       = Just []
 firstDerivation (Do a    ) = Just [a]
-firstDerivation (Or   a b) = firstDerivation a
+firstDerivation (Or   a _) = firstDerivation a
 firstDerivation (Then a b) = do
   da <- firstDerivation a
   db <- firstDerivation b

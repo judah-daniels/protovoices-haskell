@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: ec3ec89b11690ee14db73e3ec149e280a56fc4b66fe412406c8780e00a27e3bf
+-- hash: 5faa487954b659eb0ce6f1dd86d1cc4a36bb9db1bffbceb54908eb75d7099f68
 
 name:           proto-voice-model
 version:        0.1.0.0
@@ -41,6 +41,7 @@ library
       Paths_proto_voice_model
   hs-source-dirs:
       src
+  ghc-options: -Wall
   build-depends:
       algebraic-graphs
     , base >=4.7 && <5

@@ -37,10 +37,6 @@ module ScoringFlat
 where
 
 import qualified Data.Semiring                 as R
-import           Common                         ( traceLevel )
-import           Debug.Trace                    ( trace
-                                                , traceStack
-                                                )
 import           GHC.Generics                   ( Generic )
 import           Control.DeepSeq                ( NFData )
 import           Data.Hashable                  ( Hashable )
@@ -48,7 +44,6 @@ import           Data.Maybe                     ( fromMaybe )
 import qualified Data.List                     as L
 import           Data.Foldable                  ( foldl' )
 import           Data.Bifunctor                 ( first )
-import qualified Data.Sequence                 as S
 
 ----------------
 -- Score type --
@@ -66,6 +61,7 @@ newtype RightId i = RightId i
 instance Show i => Show (RightId i) where
   show (RightId i) = show i
 
+match :: Eq a => RightId a -> LeftId a -> Bool
 match (RightId ir) (LeftId il) = il == ir
 
 type Holes s = [s]
@@ -132,9 +128,18 @@ score :: Score s i -> Maybe s
 score (SVal s) = Just s
 score _        = Nothing
 
+-- Show instance
+
+showLeftHoles :: Show a => [a] -> [Char]
 showLeftHoles ls = L.intercalate " _ " (show <$> ls) <> " _"
+
+showRightHoles :: Show a => [a] -> [Char]
 showRightHoles rs = "_ " <> L.intercalate " _ " (show <$> rs)
+
+showBothHoles :: (Show a1, Show a2) => ([a1], [a2]) -> [Char]
 showBothHoles (ls, rs) = showLeftHoles ls <> " | " <> showRightHoles rs
+
+showOpts :: (a -> [Char]) -> [a] -> [Char]
 showOpts shower opts = "-[" <> L.intercalate " / " (shower <$> opts) <> "]-"
 
 instance (Show i, Show s) => Show (Score s i) where
@@ -142,6 +147,8 @@ instance (Show i, Show s) => Show (Score s i) where
   show (SLeft  ls ir  ) = "()" <> showOpts showLeftHoles ls <> show ir
   show (SRight il rs  ) = show il <> showOpts showRightHoles rs <> "()"
   show (SBoth il bs ir) = show il <> showOpts showBothHoles bs <> show ir
+
+-- simplified showing (only "type")
 
 showScore :: (Show s, Show i) => Score s i -> String
 showScore (SVal v       ) = show v
@@ -154,7 +161,7 @@ showScore (SBoth il _ ir) = show il <> "-" <> show ir
 -------------------------
 
 zipHoles :: R.Semiring s => Holes s -> Holes s -> Maybe s
-zipHoles !ls !rs = go R.one ls rs
+zipHoles !lefts !rights = go R.one lefts rights
  where
   go !acc []       []       = Just $! acc
   go !acc (l : ls) (r : rs) = go (acc R.* (l R.* r)) ls rs
@@ -215,7 +222,7 @@ times (SBoth !il !as !ia) (SBoth !ib !bs !ir) | ia `match` ib = do -- Maybe
       pure (al, prependLeft vm br)
   pure $! SBoth il cs ir
 -- otherwise
-times a b = Nothing
+times _ _ = Nothing
 
 -- | Adds two partially applied 'Score's
 -- by adding their underlying (or resulting) semiring values.
@@ -310,7 +317,7 @@ vertScoresRight
   -> Score s i -- ^ The 'Score' of the right parent edge, if it exists.
 vertScoresRight newid op m r = fromMaybe err $ do
   mr <- times m r
-  pure $ unwrap op mr
+  pure $ unwrap mr
  where
   err =
     error $ "Attempting illegal right-vert: m=" <> show m <> ", r=" <> show r
@@ -318,7 +325,7 @@ vertScoresRight newid op m r = fromMaybe err $ do
   -- that consumes the left parent edge's value when supplied
   -- and combines with m on the right
   newil = LeftId newid
-  unwrap op (SVal s       ) = SRight newil [[op, s]]
-  unwrap op (SRight _  rs ) = SRight newil (addHoleLeft op <$> rs)
-  unwrap op (SLeft  ls ir ) = SBoth newil (([op, R.one], ) <$> ls) ir
-  unwrap op (SBoth _ bs ir) = SBoth newil (first (addHoleLeft op) <$> bs) ir
+  unwrap (SVal s       ) = SRight newil [[op, s]]
+  unwrap (SRight _  rs ) = SRight newil (addHoleLeft op <$> rs)
+  unwrap (SLeft  ls ir ) = SBoth newil (([op, R.one], ) <$> ls) ir
+  unwrap (SBoth _ bs ir) = SBoth newil (first (addHoleLeft op) <$> bs) ir

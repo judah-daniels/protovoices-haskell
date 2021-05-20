@@ -73,6 +73,21 @@ splitRightHori = buildPartialDerivation @2 $ do
   splitRight ()
   hori ()
 
+exampleBoth = buildPartialDerivation @3 $ do
+  splitRight ()
+  hori ()
+  freeze ()
+  freeze ()
+  freeze ()
+  hori ()
+
+examplePartials = buildDerivation $ do
+  split ()
+  hori ()
+  split ()
+  freeze ()
+  hori ()
+
 derivBach :: [PVLeftMost (Pitch MT.SIC)]
 derivBach = buildDerivation $ do
   split $ mkSplit $ do
