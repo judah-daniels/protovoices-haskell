@@ -7,7 +7,7 @@
 -- Holes are used to express "partially applied" scores that occur
 -- when the score of a verticalization is distributed to two parent edges.
 -- The full score of the operation is restored when the two parent edges are eventually combined again.
-module ScoringFun
+module ScoringFunsafe
   ( -- * The Score Type
     Score(..)
   , LeftId(..)
@@ -40,9 +40,6 @@ import           GHC.Generics                   ( Generic )
 import           Control.DeepSeq                ( NFData )
 import           Data.Hashable                  ( Hashable )
 import           Data.Maybe                     ( fromMaybe )
-import           Control.Monad                  ( (>=>)
-                                                , join
-                                                )
 
 ----------------
 -- Score type --
@@ -63,15 +60,15 @@ instance Show i => Show (RightId i) where
 match :: Eq a => RightId a -> LeftId a -> Bool
 match (RightId ir) (LeftId il) = il == ir
 
-data RightHole s = RightHole (RightHoles s)
-                 | RightEnd s
+data RightHole s = RightHole !(RightHoles s)
+                 | RightEnd !s
   deriving (Generic, NFData)
 
-type RightHoles s = s -> Maybe (RightHole s)
+type RightHoles s = s -> RightHole s
 
-type LeftHoles s = (RightHoles s -> Maybe s)
+type LeftHoles s = (RightHoles s -> s)
 
-type BothHoles s = (RightHoles s -> Maybe (RightHoles s))
+type BothHoles s = (RightHoles s -> RightHoles s)
 
 -- | A partially applied score of type @s@.
 -- Comes in four variants,
@@ -88,7 +85,7 @@ type BothHoles s = (RightHoles s -> Maybe (RightHoles s))
 data Score s i
   = SVal !s
   -- ^ Carries a fully applied value
-  | SRight !(LeftId i) (RightHoles s)
+  | SRight !(LeftId i) !(RightHoles s)
   -- ^ The right part of a combination, expects an argument to its left.
   -- Implemented as a list of right elements
   | SLeft !(LeftHoles s) !(RightId i)
@@ -152,38 +149,20 @@ showScore (SBoth il _ ir) = show il <> "-" <> show ir
 -------------------------
 
 appendRight :: R.Semiring s => s -> RightHoles s -> RightHoles s
-appendRight s' fr l = app <$> fr l
+appendRight !s' fr !l = app $ fr l
  where
   app (RightEnd  r  ) = RightEnd $ r R.* s'
   app (RightHole fr') = RightHole $ appendRight s' fr'
 
 prependLeft :: R.Semiring s => s -> LeftHoles s -> LeftHoles s
-prependLeft s fl = fmap (s R.*) . fl
+prependLeft !s fl = (s R.*) . fl
 
 prependRight :: R.Semiring s => s -> RightHoles s -> RightHoles s
-prependRight s fr l = prep <$> fr l
+prependRight !s fr !l = prep $ fr l
  where
   prep (RightEnd  r  ) = RightEnd $ s R.* r
   prep (RightHole fr') = RightHole $ prependRight s fr'
 -- prependRight s (RightHole fr) = RightHole $ fmap (prependRight s) . fr
-
-addHoleLeft :: s -> LeftHoles s -> LeftHoles s
-addHoleLeft s fl fr = fr s >>= ap
- where
-  ap (RightEnd  _  ) = Nothing
-  ap (RightHole fr') = fl fr'
-
-mkLeftHole :: s -> LeftHoles s
-mkLeftHole s fr = fr s >>= ap
- where
-  ap (RightEnd v) = Just v
-  ap _            = Nothing
-
-addHoleRight :: R.Semiring s => s -> RightHoles s -> RightHoles s
-addHoleRight r rh l = Just $ RightHole $ prependRight (l R.* r) rh
-
-mkRightHole :: R.Semiring s => s -> RightHoles s
-mkRightHole r l = Just $ RightEnd $ l R.* r
 
 -- mkRightHoles :: R.Semiring s => [s] -> RightHoles s
 -- mkRightHoles = foldr addHoleRight (RightEnd R.one)
@@ -196,27 +175,26 @@ mkRightHole r l = Just $ RightEnd $ l R.* r
 times
   :: (R.Semiring s, Eq i, Show i) => Score s i -> Score s i -> Maybe (Score s i)
 -- creates value
-times (SVal s1) (SVal s2) = Just $ SVal $ s1 R.* s2
-times (SLeft fl il) (SRight ir fr) | il `match` ir = SVal <$> fl fr
+times (SVal s1) (SVal s2) = Just $! SVal $ s1 R.* s2
+times (SLeft fl il) (SRight ir fr) | il `match` ir = Just $! SVal $ fl fr
 -- creates right
-times (SRight i r) (SVal s) = Just $ SRight i $ appendRight s r
-times (SBoth il fb ir) (SRight i fr) | ir `match` i = SRight il <$> fb fr
+times (SRight i r) (SVal s) = Just $! SRight i $ appendRight s r
+times (SBoth il fb ir) (SRight i fr) | ir `match` i = Just $ SRight il $ fb fr
 -- creates left
-times (SVal s) (SLeft fl i) = Just $ SLeft (prependLeft s fl) i
-times (SLeft fl i) (SBoth il fb ir) | i `match` il = Just $ SLeft (fb >=> fl) ir
+times (SVal s) (SLeft fl i) = Just $! SLeft (prependLeft s fl) i
+times (SLeft fl i) (SBoth il fb ir) | i `match` il = Just $! SLeft (fl . fb) ir
 -- creates both
 times (SRight il fr) (SLeft fl ir) =
-  Just $ SBoth il (fmap (`appendRight` fr) . fl) ir
+  Just $! SBoth il ((`appendRight` fr) . fl) ir
 times (SBoth il fa ia) (SBoth ib fb ir) | ia `match` ib =
-  Just $ SBoth il (fb >=> fa) ir
+  Just $! SBoth il (fa . fb) ir
 -- otherwise
 times _ _ = Nothing
 
 rhplus :: (R.Semiring s) => RightHoles s -> RightHoles s -> RightHoles s
-rhplus r1 r2 l = case (r1 l, r2 l) of
-  (Just (RightEnd e1), Just (RightEnd e2)) -> Just $ RightEnd $ e1 R.+ e2
-  (Just (RightHole f1), Just (RightHole f2)) -> Just $ RightHole $ rhplus f1 f2
-  _ -> Nothing
+rhplus r1 r2 !l = case (r1 l, r2 l) of
+  (RightEnd  e1, RightEnd e2 ) -> RightEnd $ e1 R.+ e2
+  (RightHole f1, RightHole f2) -> RightHole $ rhplus f1 f2
 
 -- | Adds two partially applied 'Score's
 -- by adding their underlying (or resulting) semiring values.
@@ -230,12 +208,13 @@ plus
   => Score s i
   -> Score s i
   -> Maybe (Score s i)
-plus (SVal s1) (SVal s2)                      = Just $ SVal $ s1 R.+ s2
-plus (SRight i fr1) (SRight i' fr2) | i == i' = Just $ SRight i $ rhplus fr1 fr2
+plus (SVal s1) (SVal s2) = Just $! SVal $ s1 R.+ s2
+plus (SRight i fr1) (SRight i' fr2) | i == i' =
+  Just $! SRight i $ rhplus fr1 fr2
 plus (SLeft fl1 i) (SLeft fl2 i') | i == i' =
-  Just $ SLeft (\r -> R.plus <$> fl1 r <*> fl2 r) i
+  Just $! SLeft (\r -> fl1 r R.+ fl2 r) i
 plus (SBoth il bs1 ir) (SBoth il' bs2 ir') | il == il' && ir == ir' =
-  Just $ SBoth il (\r -> rhplus <$> bs1 r <*> bs2 r) ir
+  Just $! SBoth il (\r -> rhplus (bs1 r) (bs2 r)) ir
 plus _ _ = Nothing
 
 -- | Checks if two 'Score's can be combined with 'times'.
@@ -252,6 +231,23 @@ compatible l r = case (rightSide l, leftSide r) of
 -- > (a-b, c-d) -> (a = c) ∧ (b = d)
 similar :: (Eq i) => Score s i -> Score s i -> Bool
 similar s1 s2 = sides s1 == sides s2
+
+-- helpers for constructing holes
+-- ------------------------------
+
+addHoleLeft :: s -> LeftHoles s -> LeftHoles s
+addHoleLeft !s fl fr = case fr s of
+  RightHole fr' -> fl fr'
+
+mkLeftHole :: s -> LeftHoles s
+mkLeftHole !s fr = case fr s of
+  RightEnd v -> v
+
+addHoleRight :: R.Semiring s => s -> RightHoles s -> RightHoles s
+addHoleRight !r !rh !l = RightHole $ prependRight (l R.* r) rh
+
+mkRightHole :: R.Semiring s => s -> RightHoles s
+mkRightHole !r !l = RightEnd $ l R.* r
 
 -----------
 -- rules --
@@ -282,7 +278,7 @@ mergeScores op left right = fromMaybe err $ times left' right
     SVal s         -> SVal (op R.* s)
     SLeft  fl i    -> SLeft (prependLeft op fl) i
     SRight i  rs   -> SRight i (prependRight op rs)
-    SBoth il bs ir -> SBoth il (fmap (prependRight op) . bs) ir
+    SBoth il bs ir -> SBoth il (prependRight op . bs) ir
 
 -- | Creates the 'Score' of a left parent edge from a left child edge of a @vert@.
 -- Will throw an error if called on invalid input to indicate parser bugs.
@@ -319,10 +315,8 @@ vertScoresRight newid op m r = fromMaybe err $ do
   -- that consumes the left parent edge's value when supplied
   -- and combines with m on the right
   newil = LeftId newid
-  unwrap (SVal s      ) = SRight newil $ addHoleRight op $ mkRightHole s -- [op, s]
-  unwrap (SRight _  rs) = SRight newil (addHoleRight op rs)
-  unwrap (SLeft  fl ir) = SBoth
-    newil
-    (fmap (`appendRight` addHoleRight op (mkRightHole R.one)) . fl)
-    ir
-  unwrap (SBoth _ fb ir) = SBoth newil (fmap (addHoleRight op) . fb) ir
+  unwrap (SVal s     ) = SRight newil $ addHoleRight op $ mkRightHole s -- [op, s]
+  unwrap (SRight _ rs) = SRight newil (addHoleRight op rs)
+  unwrap (SLeft fl ir) =
+    SBoth newil ((`appendRight` addHoleRight op (mkRightHole R.one)) . fl) ir
+  unwrap (SBoth _ fb ir) = SBoth newil (addHoleRight op . fb) ir

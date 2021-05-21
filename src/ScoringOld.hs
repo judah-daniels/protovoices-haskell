@@ -35,9 +35,6 @@ module ScoringOld
 where
 
 import qualified Data.Semiring                 as R
-import           Debug.Trace                    ( trace
-                                                , traceStack
-                                                )
 import           GHC.Generics                   ( Generic )
 import           Control.DeepSeq                ( NFData )
 import           Data.Hashable                  ( Hashable )
@@ -59,6 +56,7 @@ newtype RightId i = RightId i
 instance Show i => Show (RightId i) where
   show (RightId i) = show i
 
+match :: Eq a => RightId a -> LeftId a -> Bool
 match (RightId ir) (LeftId il) = il == ir
 
 -- | A partially applied score of type @s@.
@@ -204,6 +202,7 @@ similar s1 s2 = sides s1 == sides s2
 -- rules --
 -----------
 
+
 -- | Combines the 'Score's of two edges with a @split@ operation into the score of the parent edge.
 -- This is expected to be called on compatible scores
 -- and will throw an error otherwise to indicate parser bugs.
@@ -219,7 +218,7 @@ mergeScores
   -> Score s i -- ^ The 'Score' of the parent edge, if it exists.
 mergeScores op left right = fromMaybe err $ do
   children <- times left right
-  times (adapt (leftSide left) op) children
+  times (adapt $ leftSide left) children
  where
   err =
     error
@@ -227,8 +226,8 @@ mergeScores op left right = fromMaybe err $ do
       <> show left
       <> ", right="
       <> show right
-  adapt Nothing op = SVal op
-  adapt (Just (LeftId i)) op =
+  adapt Nothing = SVal op
+  adapt (Just (LeftId i)) =
     SBoth (LeftId i) (\(!r) (!l) -> op R.* r l) (RightId i)
 
 -- | Creates the 'Score' of a left parent edge from a left child edge of a @vert@.
@@ -256,7 +255,7 @@ vertScoresRight
   -> Score s i         -- ^ The 'Score' of the right child edge.
   -> Score s i -- ^ The 'Score' of the right parent edge, if it exists.
 vertScoresRight newid op m r = fromMaybe err $ do
-  let op' = unwrap op $ leftSide m
+  let op' = unwrap $ leftSide m
   opm <- times op' m
   times opm r
  where
@@ -265,6 +264,6 @@ vertScoresRight newid op m r = fromMaybe err $ do
   -- generate a value on the right
   -- that consumes the left parent edge's value when supplied
   -- and combines with m on the right
-  unwrap op Nothing = SRight (LeftId newid) (\l -> op R.* l)
-  unwrap op (Just (LeftId i)) =
-    SBoth (LeftId newid) (\r l -> op R.* r l) (RightId i)
+  unwrap Nothing = SRight (LeftId newid) (\l -> op R.* l)
+  unwrap (Just (LeftId i)) =
+    SBoth (LeftId newid) (\fr l -> op R.* fr l) (RightId i)
