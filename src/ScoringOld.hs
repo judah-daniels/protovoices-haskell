@@ -31,6 +31,7 @@ module ScoringOld
     mergeScores
   , vertScoresLeft
   , vertScoresRight
+  , unsafePlus
   )
 where
 
@@ -169,11 +170,7 @@ times _ _ = Nothing
   -- Otherwise, 'Nothing' is returned.
 --
 -- > a-b + a-b -> a-b
-plus
-  :: (R.Semiring s, Eq i, Eq s, Show s, Show i)
-  => Score s i
-  -> Score s i
-  -> Maybe (Score s i)
+plus :: (R.Semiring s, Eq i) => Score s i -> Score s i -> Maybe (Score s i)
 plus (SVal s1) (SVal s2) = Just $! SVal $ s1 R.+ s2
 plus (SRight i fr1) (SRight i' fr2) | i == i' =
   Just $! SRight i $ \(!l) -> fr1 l R.+ fr2 l
@@ -182,6 +179,9 @@ plus (SLeft fl1 i) (SLeft fl2 i') | i == i' =
 plus (SBoth il f1 ir) (SBoth il' f2 ir') | il == il' && ir == ir' =
   Just $! SBoth il (\(!r) (!l) -> f1 r l R.+ f2 r l) ir
 plus _ _ = Nothing
+
+unsafePlus :: (R.Semiring s, Eq i) => Score s i -> Score s i -> Score s i
+unsafePlus a b = fromMaybe (error "illegal times") $ plus a b
 
 -- | Checks if two 'Score's can be combined with 'times'.
 --

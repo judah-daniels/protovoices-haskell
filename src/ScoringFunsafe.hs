@@ -32,6 +32,7 @@ module ScoringFunsafe
   , mergeScores
   , vertScoresLeft
   , vertScoresRight
+  , unsafePlus
   )
 where
 
@@ -203,11 +204,7 @@ rhplus r1 r2 !l = case (r1 l, r2 l) of
 -- Otherwise, 'Nothing' is returned.
 --
 -- > a-b + a-b -> a-b
-plus
-  :: (R.Semiring s, Eq i, Eq s, Show s, Show i)
-  => Score s i
-  -> Score s i
-  -> Maybe (Score s i)
+plus :: (R.Semiring s, Eq i) => Score s i -> Score s i -> Maybe (Score s i)
 plus (SVal s1) (SVal s2) = Just $! SVal $ s1 R.+ s2
 plus (SRight i fr1) (SRight i' fr2) | i == i' =
   Just $! SRight i $ rhplus fr1 fr2
@@ -216,6 +213,9 @@ plus (SLeft fl1 i) (SLeft fl2 i') | i == i' =
 plus (SBoth il bs1 ir) (SBoth il' bs2 ir') | il == il' && ir == ir' =
   Just $! SBoth il (\r -> rhplus (bs1 r) (bs2 r)) ir
 plus _ _ = Nothing
+
+unsafePlus :: (R.Semiring s, Eq i) => Score s i -> Score s i -> Score s i
+unsafePlus a b = fromMaybe (error "illegal times") $ plus a b
 
 -- | Checks if two 'Score's can be combined with 'times'.
 --
