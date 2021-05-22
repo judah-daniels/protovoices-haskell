@@ -15,24 +15,24 @@ module PVGrammar.Generate
   )
 where
 
-import           PVGrammar
+import           PVGrammar               hiding ( splitTs
+                                                , splitNTs
+                                                )
 import           Common
 import           Display
 
-import           Musicology.Pitch
+import           Musicology.Pitch               ( Notation(..) )
 
 import qualified Control.Monad.Writer.Strict   as MW
 import           Data.Monoid                    ( Endo(..) )
 import qualified Data.Map.Strict               as M
 import qualified Internal.MultiSet             as MS
 import qualified Data.HashSet                  as S
-import qualified Data.Set                      as OS
 import           Control.Monad                  ( foldM )
 import qualified Data.List                     as L
 import           Data.Foldable                  ( toList )
 import           Data.Hashable                  ( Hashable )
 import qualified Data.HashMap.Strict           as HM
-import           Debug.Trace                    ( trace )
 
 -- building operations
 -- ===================
@@ -161,7 +161,7 @@ applySplit inSplit@(SplitOp splitTs splitNTs ls rs kl kr) inTop@(Edges topTs top
       else
         Left $ "did not use all terminal edges, remaining: " <> showEdges top'
 
-  applyT topAll (top, notes) (parent@(pl, pr), (note, _))
+  applyT topAll (top, notes) (parent, (note, _))
     | parent `S.member` topAll
     = Right (top', notes')
     | otherwise

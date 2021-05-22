@@ -15,13 +15,16 @@ module PVGrammar.Parse
 where
 
 import           Common
-import           Display
 import           PVGrammar
 
-import           Musicology.Pitch
+import           Musicology.Pitch               ( Notation
+                                                , Diatonic
+                                                , Interval(..)
+                                                , pto
+                                                , pc
+                                                )
 
 import qualified Data.HashSet                  as S
-import qualified Data.Set                      as OS
 import qualified Data.List                     as L
 import qualified Data.Map.Strict               as M
 import qualified Internal.MultiSet             as MS
@@ -32,17 +35,14 @@ import           Data.Maybe                     ( catMaybes
                                                 , maybeToList
                                                 )
 import           Control.Monad                  ( foldM )
-import           Debug.Trace                    ( traceId
-                                                , traceShow
-                                                , traceShowId
-                                                , trace
-                                                )
 import           GHC.Generics                   ( Generic )
 import           Data.Hashable                  ( Hashable )
 import           Control.DeepSeq                ( NFData )
 import qualified Data.HashMap.Strict           as HM
 import           Musicology.Core                ( HasPitch(..)
                                                 , Pitched(..)
+                                                , isStep
+                                                , Pitch
                                                 )
 
 -- helper type: Either for terminal and non-terminal edges
@@ -53,14 +53,6 @@ import           Musicology.Core                ( HasPitch(..)
 data EdgeEither a b = T !a  -- ^ marks an terminal edge (or some related object)
                     | NT !b -- ^ marks a non-terminal edge (or some related object)
   deriving (Eq, Ord, Show, Generic, Hashable, NFData)
-
--- | Separates 'T's and 'NT's in a collection into a pair of lists for each type.
--- Analogous to 'partitionEithers'.
-partitionEdgeEithers :: Foldable t => t (EdgeEither a b) -> ([a], [b])
-partitionEdgeEithers = foldl' select ([], [])
- where
-  select (ts, nts) (T  t ) = (t : ts, nts)
-  select (ts, nts) (NT nt) = (ts, nt : nts)
 
 -- helper type: enum for possible operations
 -- -----------------------------------------
@@ -89,6 +81,7 @@ type IsNote n
   = (HasPitch n, Diatonic (ICOf (IntervalOf n)), Eq (ICOf (IntervalOf n)))
 
 -- | Checks if `pm` is between `pl` and `pr`.
+between :: (Eq i, Interval i) => Pitch i -> Pitch i -> Pitch i -> Bool
 between pl pm pr =
   pl /= pm && pm /= pr && pl /= pr && dir1 == odir && dir2 == odir
  where
@@ -211,13 +204,13 @@ pvVertMiddle (Notes nl, edges, Notes nr)
 -- Here, this operation is always admitted and unique,
 -- so the edges from the child transition are just passed through.
 pvVertLeft :: VertLeft (Edges n) (Notes n)
-pvVertLeft (el, sl) top = [el]
+pvVertLeft (el, _) _ = [el]
 
 -- | Computes all right parent transition for a verticalization and a right child transition.
 -- Here, this operation is always admitted and unique,
 -- so the edges from the child transition are just passed through.
 pvVertRight :: VertRight (Edges n) (Notes n)
-pvVertRight (sr, er) top = [er]
+pvVertRight (_, er) _ = [er]
 
 -- | Computes all possible merges of two child transitions.
 -- Since transitions here only represent the certain edges,
@@ -240,11 +233,12 @@ pvMerge notesl (Edges leftTs leftNTs) (Notes notesm) (Edges rightTs rightNTs) no
 
   -- find all reduction options for every pitch
   !options = noteOptions <$> MS.toOccurList notesm
-  noteOptions (note, n)
-    | n < MS.size mandatoryLeft || n < MS.size mandatoryRight
+  noteOptions (note, nocc)
+    | nocc < MS.size mandatoryLeft || nocc < MS.size mandatoryRight
     = []
     | otherwise
-    = partitionElaborations <$> enumerateOptions mandatoryLeft mandatoryRight n
+    = partitionElaborations
+      <$> enumerateOptions mandatoryLeft mandatoryRight nocc
    where
     -- compute the mandatory edges for the current pitch:
     mleftTs        = S.map (T . fst) $ S.filter ((== Inner note) . snd) leftTs
@@ -319,11 +313,11 @@ pvMerge notesl (Edges leftTs leftNTs) (Notes notesm) (Edges rightTs rightNTs) no
       (T  (orn , parent)) -> ET (parent, (notem, orn))
       (NT (pass, parent)) -> EN (parent, (notem, pass))
   -- a non-terminal edge left and a terminal edge right: passing note
-  tryReduction lIsUsed rIsUsed notel@(NT _) notem noter@(T _) = do
+  tryReduction _ _ notel@(NT _) notem noter@(T _) = do
     (parent, pass) <- findPassing notel notem noter
     pure $ EN (parent, (notem, pass))
   -- a terminal edge left and a non-terminal edge right: passing note
-  tryReduction lIsUsed rIsUsed notel@(T _) notem noter@(NT _) = do
+  tryReduction _ _ notel@(T _) notem noter@(NT _) = do
     (parent, pass) <- findPassing notel notem noter
     pure $ EN (parent, (notem, pass))
   -- all other combinations are forbidden
@@ -369,11 +363,11 @@ pvMerge notesl (Edges leftTs leftNTs) (Notes notesm) (Edges rightTs rightNTs) no
       <> "\n  top="
       <> show top
    where
-    validate =
-      all ((`L.elem` innerNotes notesl) . fst . fst) ts
-        && all ((`L.elem` innerNotes notesr) . snd . fst)   ts
-        && all ((`L.elem` innerNotes notesl) . Inner . fst) rs
-        && all ((`L.elem` innerNotes notesr) . Inner . fst) ls
+    -- validate =
+    --   all ((`L.elem` innerNotes notesl) . fst . fst) ts
+    --     && all ((`L.elem` innerNotes notesr) . snd . fst)   ts
+    --     && all ((`L.elem` innerNotes notesl) . Inner . fst) rs
+    --     && all ((`L.elem` innerNotes notesr) . Inner . fst) ls
 
     -- collect all operations
     mapify xs = M.fromListWith (<>) $ fmap (: []) <$> xs
@@ -391,7 +385,7 @@ pvThaw
   -> Maybe (t (Edge n))
   -> StartStop (Notes n)
   -> [(Edges n, Freeze)]
-pvThaw l e r = [(Edges (S.fromList $ maybe [] toList e) MS.empty, FreezeOp)]
+pvThaw _ e _ = [(Edges (S.fromList $ maybe [] toList e) MS.empty, FreezeOp)]
 
 pvSlice :: (Foldable t, Eq n, Hashable n) => t n -> Notes n
 pvSlice = Notes . MS.fromList . toList
@@ -410,7 +404,7 @@ protoVoiceEvaluator' = Eval vm vl vr filterSplit t s
   ok (_, LMSplitOnly op ) = not $ onlyRepeats op
   ok (_, LMSplitRight op) = not $ onlyRepeats op
   ok _                    = False
-  onlyRepeats op@(SplitOp ts nts rs ls _ _) =
+  onlyRepeats (SplitOp ts nts rs ls _ _) =
     M.null nts && (allRepetitionsLeft || allRepetitionsRight)
    where
     allSinglesRepeat = all (check (== SingleRightRepeat)) (M.toList rs)
@@ -419,7 +413,7 @@ protoVoiceEvaluator' = Eval vm vl vr filterSplit t s
       all (check isRepetitionOnLeft) (M.toList ts) && allSinglesRepeat
     allRepetitionsRight =
       all (check isRepetitionOnRight) (M.toList ts) && allSinglesRepeat
-  check pred (_, os) = all (pred . snd) os
+  check fpred (_, os) = all (fpred . snd) os
 
 pvDerivUnrestricted
   :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n)

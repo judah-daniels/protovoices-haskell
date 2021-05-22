@@ -15,7 +15,7 @@ module ScoringOld
   , RightId(..)
   , leftSide
   , rightSide
-  , sides
+  , showScore
   , -- * Semiring operations
     --
     -- Semiring operations can be lifted to partial scores,
@@ -123,11 +123,6 @@ sides (SVal _       ) = (Nothing, Nothing)
 sides (SLeft  _ i   ) = (Nothing, Just i)
 sides (SRight i _   ) = (Just i, Nothing)
 sides (SBoth il _ ir) = (Just il, Just ir)
-
--- | Returns the value inside a score, if it is fully applied (i.e. 'SVal').
-score :: Score s i -> Maybe s
-score (SVal s) = Just s
-score _        = Nothing
 
 instance (Show i) => Show (Score s i) where
   show (SVal _       ) = "()-()"
@@ -260,7 +255,7 @@ vertScoresLeft
 vertScoresLeft newid = wrap
  where
   -- wrap the left input score into a new layer with a new ID
-  wrap (SVal val  ) = SLeft (\fr -> fr val) (RightId newid)
+  wrap (SVal v    ) = SLeft (\fr -> fr v) (RightId newid)
   wrap (SLeft fl _) = SLeft fl (RightId newid)
   wrap other        = error $ "Attempting illegal left-vert on " <> show other
 

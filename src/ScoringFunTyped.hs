@@ -259,6 +259,25 @@ addHoleRight !r !rh !l = RightHole $ prependRight (l R.* r) rh
 mkRightHole :: R.Semiring s => s -> RightHoles 'Z s
 mkRightHole !r !l = RightEnd $ l R.* r
 
+-- proof helpers
+
+type family CreateHole (n :: Nat) where
+  CreateHole 'Z = 'S ('S 'Z)
+  CreateHole ('S n) = 'S ('S n)
+
+class AddHole (n :: Nat) where
+  addHole :: SNat n -> SNat (CreateHole n)
+
+instance AddHole 'Z where
+  addHole SZ = SS
+
+instance AddHole ('S n) where
+  addHole SS = SS
+
+canAddHole :: SNat n -> (AddHole n => r) -> r
+canAddHole SZ r = r
+canAddHole SS r = r
+
 -----------
 -- rules --
 -----------
@@ -314,25 +333,6 @@ mergeScores op (MkScore nll nrl left) (MkScore nlr nrr right) = MkScore nll nrr 
     SLeft  fl i    -> SLeft (prependLeft op fl) i
     SRight i  rs   -> SRight i (prependRight op rs)
     SBoth il bs ir -> SBoth il (prependRight op . bs) ir
-
--- some helpers for adding holes:
-
-type family CreateHole (n :: Nat) where
-  CreateHole 'Z = 'S ('S 'Z)
-  CreateHole ('S n) = 'S ('S n)
-
-class AddHole (n :: Nat) where
-  addHole :: SNat n -> SNat (CreateHole n)
-
-instance AddHole 'Z where
-  addHole SZ = SS
-
-instance AddHole ('S n) where
-  addHole SS = SS
-
-canAddHole :: SNat n -> (AddHole n => r) -> r
-canAddHole SZ r = r
-canAddHole SS r = r
 
 -- | Creates the 'Score' of a left parent edge from a left child edge of a @vert@.
 -- Will throw an error if called on invalid input to indicate parser bugs.

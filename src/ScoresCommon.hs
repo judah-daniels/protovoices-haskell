@@ -23,7 +23,7 @@ leftmostScores
   :: (R.Semiring s, Show s) => [LeftmostScore s] -> Maybe [Score s ()]
 leftmostScores = foldr applyOp (Just [])
  where
-  applyOp (LMFreezeLeft (FreezeScore s)) (Just stack) = Just $ SVal s : stack
+  applyOp (LMFreezeLeft (FreezeScore s)) (Just stack) = Just $ val s : stack
   applyOp (LMFreezeOnly f) stack = applyOp (LMFreezeLeft f) stack
   applyOp (LMSplitLeft (SplitScore s)) (Just (l : r : stack)) =
     Just $ mergeScores s l r : stack

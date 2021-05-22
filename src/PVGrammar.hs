@@ -7,29 +7,17 @@
 module PVGrammar where
 
 import           Common
-import           Display
 
-import           Musicology.Pitch
+import           Musicology.Pitch               ( Notation(..) )
 
 import qualified Data.HashSet                  as S
 -- import qualified Data.Set.Internal             as S
 import qualified Data.List                     as L
 import qualified Data.Map.Strict               as M
-import qualified Data.Map.Strict.Internal      as M
 import qualified Internal.MultiSet             as MS
-import           Data.Foldable                  ( toList
-                                                , foldl'
-                                                )
-import           Control.Monad                  ( foldM
-                                                , mzero
-                                                )
-import           Data.Either                    ( partitionEithers )
-import           Data.Maybe                     ( catMaybes
-                                                , maybeToList
-                                                )
 import           GHC.Generics                   ( Generic )
 import           Control.DeepSeq                ( NFData )
-import           Data.Hashable                  ( Hashable(hashWithSalt) )
+import           Data.Hashable                  ( Hashable )
 import qualified Data.HashMap.Strict           as HM
 
 -- element types
@@ -120,10 +108,12 @@ data RightOrnament = SingleRightNeighbor
 
 instance NFData RightOrnament
 
+isRepetitionOnLeft :: Ornament -> Bool
 isRepetitionOnLeft FullRepeat        = True
 isRepetitionOnLeft RightRepeatOfLeft = True
 isRepetitionOnLeft _                 = False
 
+isRepetitionOnRight :: Ornament -> Bool
 isRepetitionOnRight FullRepeat        = True
 isRepetitionOnRight LeftRepeatOfRight = True
 isRepetitionOnRight _                 = False
@@ -165,8 +155,8 @@ instance (Notation n) => Show (Split n) where
     showChildren cs = "[" <> L.intercalate "," (showChild <$> cs) <> "]"
 
     showSplit (e, cs) = showEdge e <> "=>" <> showChildren cs
-    showL (p, ls) = showNotation p <> "=>" <> showChildren ls
-    showR (p, rs) = showChildren rs <> "<=" <> showNotation p
+    showL (p, lchilds) = showNotation p <> "=>" <> showChildren lchilds
+    showR (p, rchilds) = showChildren rchilds <> "<=" <> showNotation p
 
     opTs   = showSplit <$> M.toList ts
     opNTs  = showSplit <$> M.toList nts
