@@ -1,7 +1,7 @@
 module ScoresCommon where
 
 import           Common
-import           ScoringFun
+import           ScoringFunTyped
 import qualified Data.Semiring                 as R
 import           Data.Maybe                     ( listToMaybe )
 
@@ -37,4 +37,4 @@ leftmostScores = foldr applyOp (Just [])
 leftmostScore :: (R.Semiring s, Show s) => [LeftmostScore s] -> Maybe s
 leftmostScore ops = do
   top <- listToMaybe =<< leftmostScores ops
-  score top
+  pure $ getScoreVal top

@@ -19,7 +19,7 @@ module Parser
 where
 
 import           Common
-import qualified ScoringFunsafe                as S
+import qualified ScoringFunTyped               as S
 
 import qualified Data.HashMap.Strict           as HM
 import qualified Data.IntMap.Strict            as IM
@@ -162,10 +162,10 @@ vcInsert (VChart nextid ids bylen bylenleft byleft byright) (topContent, op, mid
         top        = Slice (sFirst left) (Inner topContent) i (sLast right)
         vert       = [Vert top op mid]
         vert'      = Set.singleton (i, top, tLeftSlice tmid)
-        vertLeft   = Set.singleton (i, top)
+        vertl      = Set.singleton (i, top)
         bylen'     = IM.insertWith (<>) (transLen tmid) vert bylen
         bylenleft' = IM.insertWith (<>) (transLen tmid) vert' bylenleft
-        byleft' = HM.insertWith (<>) (sID left, transLen tmid) vertLeft byleft
+        byleft'    = HM.insertWith (<>) (sID left, transLen tmid) vertl byleft
         byright'   = HM.insertWith (<>) (sID right) vert byright
     in  VChart nextid' ids' bylen' bylenleft' byleft' byright'
 
@@ -229,7 +229,7 @@ tcInsert (TChart len left right) (t := v) =
       left'  = HM.insertWith insert (tLeftSlice t) new left
       right' = HM.insertWith insert (tRightSlice t) new right
   in  TChart len' left' right'
-  where insert = HM.unionWithKey (\_ s1 s2 -> S.unsafePlus s1 s2)
+  where insert = HM.unionWithKey (\_ s1 s2 -> S.addScores s1 s2)
 
 tcMerge
   :: (Foldable t, Parsable e a v)
@@ -342,9 +342,9 @@ pmap f = P.withStrategy (P.parList P.rdeepseq) . map f
 --pmap = map
 
 
-pforceList :: NFData a => [a] -> [a]
-pforceList = P.withStrategy (P.parList P.rdeepseq)
---pforceList = id
+-- pforceList :: NFData a => [a] -> [a]
+-- pforceList = P.withStrategy (P.parList P.rdeepseq)
+-- --pforceList = id
 
 type ParseState e a v = (TChart e a v, VChart e a v)
 type ParseOp m e a v = Int -> ParseState e a v -> m (ParseState e a v)
@@ -479,7 +479,7 @@ parse logCharts eval path = do
                        (tinit, vcEmpty len)
                        [2 .. len - 1]
   let goals = tcGetByLength tfinal len
-  return $ R.sum $ catMaybes $ S.score . iValue <$> goals
+  return $ R.sum $ S.getScoreVal . iValue <$> goals
  where
   wrapPath (Path a e rst) = Path (Inner a) (Just e) $ wrapPath rst
   wrapPath (PathEnd a   ) = Path (Inner a) Nothing $ PathEnd (:⋉)
@@ -489,7 +489,7 @@ parse logCharts eval path = do
     mapNodesWithIndex 0 (\i n -> Slice i (evalSlice eval <$> n) i i) path'
   mkTrans l esurf r = mk
     <$> evalThaw eval (sContent l) esurf (sContent r) (isStop $ sContent r)
-    where mk (e, v) = Transition l e r False := S.SVal v
+    where mk (e, v) = Transition l e r False := S.val v
   trans0 = mapEdges mkTrans slicePath
   tinit  = tcMerge tcEmpty $ concat trans0
 

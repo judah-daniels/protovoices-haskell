@@ -3,19 +3,25 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE TupleSections #-}
 
--- | Semiring scores with "holes".
+-- | /This module is deprecated, use 'ScoringFunTyped' instead./
+--
+-- Semiring scores with "holes".
 -- Holes are used to express "partially applied" scores that occur
 -- when the score of a verticalization is distributed to two parent edges.
 -- The full score of the operation is restored when the two parent edges are eventually combined again.
+--
+-- This modules implements partial scores using safe functions.
+-- While the grammar combinators can will with meaningful errors if used incorrectly
+-- (indicating a bug in the parser),
+-- the primitive combinators are total using 'Maybe'.
 module ScoringFun
   ( -- * The Score Type
     Score(..)
+  , val
   , LeftId(..)
   , RightId(..)
   , leftSide
   , rightSide
-  , sides
-  , score
   , showScore
   , -- * Semiring operations
     --
@@ -24,14 +30,15 @@ module ScoringFun
     -- they are partial.
     times
   , plus
-  , compatible
-  , similar -- * grammatical combinators
+    -- * grammatical combinators
     --
     -- The following combinators correspond to the merge and vert operations
     -- of the path-graph grammar.
   , mergeScores
   , vertScoresLeft
   , vertScoresRight
+  , addScores
+  , getScoreVal
   )
 where
 
@@ -40,9 +47,7 @@ import           GHC.Generics                   ( Generic )
 import           Control.DeepSeq                ( NFData )
 import           Data.Hashable                  ( Hashable )
 import           Data.Maybe                     ( fromMaybe )
-import           Control.Monad                  ( (>=>)
-                                                , join
-                                                )
+import           Control.Monad                  ( (>=>) )
 
 ----------------
 -- Score type --
@@ -88,17 +93,21 @@ type BothHoles s = (RightHoles s -> Maybe (RightHoles s))
 data Score s i
   = SVal !s
   -- ^ Carries a fully applied value
-  | SRight !(LeftId i) (RightHoles s)
+  | SRight !(LeftId i) !(RightHoles s)
   -- ^ The right part of a combination, expects an argument to its left.
-  -- Implemented as a list of right elements
+  -- Implemented as a function that takes a left counterpart
+  -- and returns a score with fewer holes.
   | SLeft !(LeftHoles s) !(RightId i)
   -- ^ The left part of a combination, expects an argument to its right.
-  -- Implemented as a list of right elements
+  -- Implemented as a function that takes a right hole and applies it.
   | SBoth !(LeftId i) !(BothHoles s) !(RightId i)
   -- ^ A combination of 'SLeft' and 'SRight' that expects arguments on both sides.
-  -- Implemented as a list of right elements on the left
-  -- and a list of left elements to the right
+  -- Implemented as a function that expects both a right and a left hole to be complete.
   deriving (Generic, NFData)
+
+-- | Creates a simple value score of type ()-().
+val :: s -> Score s i
+val = SVal
 
 -- | Returns the ID on the left side of an 'Score',
 -- or 'Nothing' for 'SVal' and 'SLeft'.
@@ -119,21 +128,6 @@ rightSide (SVal _     ) = Nothing
 rightSide (SLeft  _ i ) = Just i
 rightSide (SRight _ _ ) = Nothing
 rightSide (SBoth _ _ i) = Just i
-
--- | Returns the signature of a 'Score',
--- i.e. its IDs (or 'Nothing') on both sides.
---
--- > a-b -> (a,b)
-sides :: Score s i -> (Maybe (LeftId i), Maybe (RightId i))
-sides (SVal _       ) = (Nothing, Nothing)
-sides (SLeft  _ i   ) = (Nothing, Just i)
-sides (SRight i _   ) = (Just i, Nothing)
-sides (SBoth il _ ir) = (Just il, Just ir)
-
--- | Returns the value inside a score, if it is fully applied (i.e. 'SVal').
-score :: Score s i -> Maybe s
-score (SVal s) = Just s
-score _        = Nothing
 
 instance (Show i) => Show (Score s i) where
   show (SVal _       ) = "()-()"
@@ -193,8 +187,7 @@ mkRightHole r l = Just $ RightEnd $ l R.* r
 -- Shapes and IDs at the adjacent sides must match, otherwise 'Nothing' is returned.
 --
 -- > a-b × b-c -> a-c
-times
-  :: (R.Semiring s, Eq i, Show i) => Score s i -> Score s i -> Maybe (Score s i)
+times :: (R.Semiring s, Eq i) => Score s i -> Score s i -> Maybe (Score s i)
 -- creates value
 times (SVal s1) (SVal s2) = Just $ SVal $ s1 R.* s2
 times (SLeft fl il) (SRight ir fr) | il `match` ir = SVal <$> fl fr
@@ -225,11 +218,7 @@ rhplus r1 r2 l = case (r1 l, r2 l) of
 -- Otherwise, 'Nothing' is returned.
 --
 -- > a-b + a-b -> a-b
-plus
-  :: (R.Semiring s, Eq i, Eq s, Show s, Show i)
-  => Score s i
-  -> Score s i
-  -> Maybe (Score s i)
+plus :: (R.Semiring s, Eq i) => Score s i -> Score s i -> Maybe (Score s i)
 plus (SVal s1) (SVal s2)                      = Just $ SVal $ s1 R.+ s2
 plus (SRight i fr1) (SRight i' fr2) | i == i' = Just $ SRight i $ rhplus fr1 fr2
 plus (SLeft fl1 i) (SLeft fl2 i') | i == i' =
@@ -238,24 +227,27 @@ plus (SBoth il bs1 ir) (SBoth il' bs2 ir') | il == il' && ir == ir' =
   Just $ SBoth il (\r -> rhplus <$> bs1 r <*> bs2 r) ir
 plus _ _ = Nothing
 
--- | Checks if two 'Score's can be combined with 'times'.
---
--- > (a-b, c-d) -> b = c
-compatible :: (Eq i) => Score s i -> Score s i -> Bool
-compatible l r = case (rightSide l, leftSide r) of
-  (Nothing, Nothing) -> True
-  (Just il, Just ir) -> il `match` ir
-  _                  -> False
-
--- | Checks if two 'Score's can be combined with 'plus'.
---
--- > (a-b, c-d) -> (a = c) ∧ (b = d)
-similar :: (Eq i) => Score s i -> Score s i -> Bool
-similar s1 s2 = sides s1 == sides s2
-
 -----------
 -- rules --
 -----------
+
+-- | Extracts the value from a fully applied 'Score'.
+-- This function is intended to be used to extract the final score of the parser.
+-- If the score is not fully applied,
+-- throws an exception to indicate parser bugs.
+getScoreVal :: Score s i -> s
+getScoreVal (SVal s) = s
+getScoreVal _        = error "cannot get value from partial score"
+
+-- | Adds two 'Score's that are alternative derivations of the same transition.
+-- This is expected to be called on compatible scores
+-- and will throw an error otherwise to indicate parser bugs.
+--
+-- > a-b   a-b
+-- > --------- add
+-- >    a-b
+addScores :: (R.Semiring s, Eq i) => Score s i -> Score s i -> Score s i
+addScores a b = fromMaybe (error "illegal times") $ plus a b
 
 -- | Combines the 'Score's of two edges with a @split@ operation into the score of the parent edge.
 -- This is expected to be called on compatible scores
@@ -265,7 +257,7 @@ similar s1 s2 = sides s1 == sides s2
 -- > --------- merge
 -- >    a-c
 mergeScores
-  :: (R.Semiring s, Eq i, Show i, Show s)
+  :: (R.Semiring s, Eq i, Show i)
   => s         -- ^ The score of the split operation.
   -> Score s i -- ^ The 'Score' of the left child edge.
   -> Score s i -- ^ The 'Score' of the right child edge.
@@ -287,7 +279,7 @@ mergeScores op left right = fromMaybe err $ times left' right
 -- | Creates the 'Score' of a left parent edge from a left child edge of a @vert@.
 -- Will throw an error if called on invalid input to indicate parser bugs.
 vertScoresLeft
-  :: (Eq i, Show i, R.Semiring s, Show s)
+  :: (Eq i, Show i, R.Semiring s)
   => i         -- ^ The new ID that marks both parent edges
   -> Score s i -- ^ The 'Score' of the left child edge.
   -> Score s i -- ^ The 'Score' of the left parent edge, if it exists.
@@ -295,7 +287,7 @@ vertScoresLeft newid = wrap
  where
   newir = RightId newid
   -- wrap the left input score into a new layer with a new ID
-  wrap (SVal val  ) = SLeft (addHoleLeft R.one $ mkLeftHole val) newir
+  wrap (SVal v    ) = SLeft (addHoleLeft R.one $ mkLeftHole v) newir
   wrap (SLeft fl _) = SLeft (addHoleLeft R.one fl) newir
   wrap other        = error $ "Attempting illegal left-vert on " <> show other
 
@@ -303,7 +295,7 @@ vertScoresLeft newid = wrap
 -- from the middle and right child edges of a @vert@
 -- and a @horizontalize@ operation.
 vertScoresRight
-  :: (Eq i, R.Semiring s, Show i, Show s)
+  :: (Eq i, R.Semiring s, Show i)
   => i                 -- ^ The new ID that marks both parent edges.
   -> s                 -- ^ The score of the @horizontalize@ operation.
   -> Score s i         -- ^ The 'Score' of the middle child edge.

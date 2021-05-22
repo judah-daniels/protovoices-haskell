@@ -1,20 +1,21 @@
 {-# LANGUAGE BangPatterns #-}
--- | Semiring scores lifted to functions that combine to the left and right.
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass #-}
+-- | __Warning: This module is broken, use 'ScoringFunTyped' instead!__
+--
+-- Semiring scores lifted to functions that combine to the left and right.
 -- This is used to express "partially applied" scores that occur
 -- when the score of a verticalization is distributed to two parent edges.
 -- The full score of the operation is restored when the two parent edges are eventually combined again.
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DeriveAnyClass #-}
 module ScoringOld
   ( -- * The Score Type
     Score(..)
+  , val
   , LeftId(..)
   , RightId(..)
   , leftSide
   , rightSide
   , sides
-  , score
-  , showScore
   , -- * Semiring operations
     --
     -- Semiring operations can be lifted to partial scores,
@@ -31,7 +32,8 @@ module ScoringOld
     mergeScores
   , vertScoresLeft
   , vertScoresRight
-  , unsafePlus
+  , addScores
+  , getScoreVal
   )
 where
 
@@ -87,6 +89,10 @@ data Score s i
   -- ^ A combination of 'SLeft' and 'SRight' that expects arguments on both sides.
   -- Implemented as a function @fb :: (s -> s) -> s -> s@.
   deriving (Generic, NFData)
+
+-- | Creates a simple value score of type ()-().
+val :: s -> Score s i
+val = SVal
 
 -- | Returns the ID on the left side of an 'Score',
 -- or 'Nothing' for 'SVal' and 'SLeft'.
@@ -180,9 +186,6 @@ plus (SBoth il f1 ir) (SBoth il' f2 ir') | il == il' && ir == ir' =
   Just $! SBoth il (\(!r) (!l) -> f1 r l R.+ f2 r l) ir
 plus _ _ = Nothing
 
-unsafePlus :: (R.Semiring s, Eq i) => Score s i -> Score s i -> Score s i
-unsafePlus a b = fromMaybe (error "illegal times") $ plus a b
-
 -- | Checks if two 'Score's can be combined with 'times'.
 --
 -- > (a-b, c-d) -> b = c
@@ -202,6 +205,23 @@ similar s1 s2 = sides s1 == sides s2
 -- rules --
 -----------
 
+-- | Extracts the value from a fully applied 'Score'.
+-- This function is intended to be used to extract the final score of the parser.
+-- If the score is not fully applied,
+-- throws an exception to indicate parser bugs.
+getScoreVal :: Score s i -> s
+getScoreVal (SVal s) = s
+getScoreVal _        = error "cannot get value from partial score"
+
+-- | Adds two 'Score's that are alternative derivations of the same transition.
+-- This is expected to be called on compatible scores
+-- and will throw an error otherwise to indicate parser bugs.
+--
+-- > a-b   a-b
+-- > --------- add
+-- >    a-b
+addScores :: (R.Semiring s, Eq i) => Score s i -> Score s i -> Score s i
+addScores a b = fromMaybe (error "illegal times") $ plus a b
 
 -- | Combines the 'Score's of two edges with a @split@ operation into the score of the parent edge.
 -- This is expected to be called on compatible scores

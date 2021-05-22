@@ -3,19 +3,25 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE TupleSections #-}
 
--- | Semiring scores with "holes".
+-- | /This module is deprecated, use 'ScoringFunTyped' instead./
+--
+-- Semiring scores with "holes".
 -- Holes are used to express "partially applied" scores that occur
 -- when the score of a verticalization is distributed to two parent edges.
 -- The full score of the operation is restored when the two parent edges are eventually combined again.
+--
+-- This module implements partial scores using lists,
+-- which is slow and not very elegant.
+-- The grammar combinators are partial and will fail if used incorrectly,
+-- indicating parser bugs.
 module ScoringFlat
   ( -- * The Score Type
     Score(..)
+  , val
   , LeftId(..)
   , RightId(..)
   , leftSide
   , rightSide
-  , sides
-  , score
   , showScore
   , -- * Semiring operations
     --
@@ -24,8 +30,6 @@ module ScoringFlat
     -- they are partial.
     times
   , plus
-  , compatible
-  , similar
   , -- * grammatical combinators
     --
     -- The following combinators correspond to the merge and vert operations
@@ -33,7 +37,8 @@ module ScoringFlat
     mergeScores
   , vertScoresLeft
   , vertScoresRight
-  , unsafePlus
+  , addScores
+  , getScoreVal
   )
 where
 
@@ -94,6 +99,10 @@ data Score s i
   -- and a list of left elements to the right
   deriving (Generic, NFData)
 
+-- | Creates a simple value score of type ()-().
+val :: s -> Score s i
+val = SVal
+
 -- | Returns the ID on the left side of an 'Score',
 -- or 'Nothing' for 'SVal' and 'SLeft'.
 -- 
@@ -113,21 +122,6 @@ rightSide (SVal _     ) = Nothing
 rightSide (SLeft  _ i ) = Just i
 rightSide (SRight _ _ ) = Nothing
 rightSide (SBoth _ _ i) = Just i
-
--- | Returns the signature of a 'Score',
--- i.e. its IDs (or 'Nothing') on both sides.
---
--- > a-b -> (a,b)
-sides :: Score s i -> (Maybe (LeftId i), Maybe (RightId i))
-sides (SVal _       ) = (Nothing, Nothing)
-sides (SLeft  _ i   ) = (Nothing, Just i)
-sides (SRight i _   ) = (Just i, Nothing)
-sides (SBoth il _ ir) = (Just il, Just ir)
-
--- | Returns the value inside a score, if it is fully applied (i.e. 'SVal').
-score :: Score s i -> Maybe s
-score (SVal s) = Just s
-score _        = Nothing
 
 -- Show instance
 
@@ -241,27 +235,27 @@ plus (SBoth !il !bs1 !ir) (SBoth !il' !bs2 !ir') | il == il' && ir == ir' =
   Just $! SBoth il (bs1 <> bs2) ir
 plus _ _ = Nothing
 
-unsafePlus :: (R.Semiring s, Eq i) => Score s i -> Score s i -> Score s i
-unsafePlus a b = fromMaybe (error "illegal times") $ plus a b
-
--- | Checks if two 'Score's can be combined with 'times'.
---
--- > (a-b, c-d) -> b = c
-compatible :: (Eq i) => Score s i -> Score s i -> Bool
-compatible l r = case (rightSide l, leftSide r) of
-  (Nothing, Nothing) -> True
-  (Just il, Just ir) -> il `match` ir
-  _                  -> False
-
--- | Checks if two 'Score's can be combined with 'plus'.
---
--- > (a-b, c-d) -> (a = c) ∧ (b = d)
-similar :: (Eq i) => Score s i -> Score s i -> Bool
-similar s1 s2 = sides s1 == sides s2
-
 -----------
 -- rules --
 -----------
+
+-- | Extracts the value from a fully applied 'Score'.
+-- This function is intended to be used to extract the final score of the parser.
+-- If the score is not fully applied,
+-- throws an exception to indicate parser bugs.
+getScoreVal :: Score s i -> s
+getScoreVal (SVal s) = s
+getScoreVal _        = error "cannot get value from partial score"
+
+-- | Adds two 'Score's that are alternative derivations of the same transition.
+-- This is expected to be called on compatible scores
+-- and will throw an error otherwise to indicate parser bugs.
+--
+-- > a-b   a-b
+-- > --------- add
+-- >    a-b
+addScores :: (R.Semiring s, Eq i) => Score s i -> Score s i -> Score s i
+addScores a b = fromMaybe (error "illegal times") $ plus a b
 
 -- | Combines the 'Score's of two edges with a @split@ operation into the score of the parent edge.
 -- This is expected to be called on compatible scores
@@ -301,7 +295,7 @@ vertScoresLeft newid = wrap
  where
   newir = RightId newid
   -- wrap the left input score into a new layer with a new ID
-  wrap (SVal val  ) = SLeft [[R.one, val]] newir
+  wrap (SVal v    ) = SLeft [[R.one, v]] newir
   wrap (SLeft ls _) = SLeft (addHoleLeft R.one <$> ls) newir
   wrap other        = error $ "Attempting illegal left-vert on " <> show other
 

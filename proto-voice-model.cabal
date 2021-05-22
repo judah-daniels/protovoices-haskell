@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 2a1c27b5d198ac964d735951a94b467f2f9fc59ce2b3139ba4790353a3087297
+-- hash: 8858282b7c752cf918f6a8dd128c0f84a0b64a061a6f4574b196823871027def
 
 name:           proto-voice-model
 version:        0.1.0.0
@@ -37,8 +37,8 @@ library
       ScoresCommon
       ScoringFlat
       ScoringFun
-      ScoringFunSafe
       ScoringFunsafe
+      ScoringFunTyped
       ScoringOld
   other-modules:
       Paths_proto_voice_model
@@ -55,6 +55,7 @@ library
     , diagrams-lib
     , diagrams-svg
     , do-notation
+    , fin
     , hashable
     , indexed
     , microlens
@@ -86,6 +87,7 @@ executable examples
     , diagrams-lib
     , diagrams-svg
     , do-notation
+    , fin
     , hashable
     , indexed
     , microlens
@@ -118,6 +120,7 @@ executable ismir2021
     , diagrams-lib
     , diagrams-svg
     , do-notation
+    , fin
     , hashable
     , indexed
     , microlens
@@ -150,6 +153,7 @@ executable parse
     , diagrams-lib
     , diagrams-svg
     , do-notation
+    , fin
     , hashable
     , indexed
     , microlens
@@ -185,6 +189,7 @@ test-suite proto-voice-model-test
     , diagrams-lib
     , diagrams-svg
     , do-notation
+    , fin
     , hashable
     , indexed
     , microlens

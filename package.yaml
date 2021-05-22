@@ -30,6 +30,7 @@ dependencies:
 - multiset
 - transformers
 - mtl
+- fin
 - indexed
 - do-notation
 - microlens
