@@ -299,7 +299,7 @@ getScoreVal _ = error "cannot get value from partial score"
 -- >    a-b
 addScores :: (R.Semiring s, Eq i) => Score s i -> Score s i -> Score s i
 addScores (MkScore nla nra a) (MkScore nlb nrb b) = MkScore nla nra res
-  where res = fromMaybe (error "illegal times") $ do
+  where res = fromMaybe (error "illegal plus") $ do
           Refl <- testEquality  nla nlb
           Refl <- testEquality nra nrb
           plus a b

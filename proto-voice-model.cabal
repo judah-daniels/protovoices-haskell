@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 589875814347d6518e69596eb2afd350670e3c8d2607c197ea9f41cdafdfd4ef
+-- hash: c04244bea92f941a8da43e7c4b7070acb3e4a3e256949a3c50d6e6461ebfb0dd
 
 name:           proto-voice-model
 version:        0.1.0.0
@@ -35,6 +35,7 @@ library
       PVGrammar.Generate
       PVGrammar.Parse
       ScoresCommon
+      Scoring.Commutative
       Scoring.Flat
       Scoring.Fun
       Scoring.Funsafe
