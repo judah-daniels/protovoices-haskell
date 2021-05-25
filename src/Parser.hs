@@ -19,7 +19,7 @@ module Parser
 where
 
 import           Common
-import qualified ScoringFunTyped               as S
+import qualified Scoring.FunTyped              as S
 
 import qualified Data.HashMap.Strict           as HM
 import qualified Data.IntMap.Strict            as IM

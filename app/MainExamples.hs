@@ -3,6 +3,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE RebindableSyntax #-}
+{-# OPTIONS_GHC -Wno-all #-}
 module Main where
 
 import           Parser
@@ -11,7 +12,6 @@ import           PVGrammar.Parse
 import           PVGrammar.Generate
 import           Common
 import           Display
-import           ScoringFlat
 
 --import Musicology.Internal.Helpers
 import           Musicology.MusicXML

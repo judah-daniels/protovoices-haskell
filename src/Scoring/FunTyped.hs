@@ -1,21 +1,35 @@
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE RankNTypes #-}
 
--- | /This module is deprecated, use 'ScoringFunTyped' instead./
---
--- Semiring scores with "holes".
+-- | Semiring scores with "holes".
 -- Holes are used to express "partially applied" scores that occur
 -- when the score of a verticalization is distributed to two parent edges.
 -- The full score of the operation is restored when the two parent edges are eventually combined again.
 --
--- This modules implements partial scores using /unsafe/ functions.
--- While the grammar combinators should fail with meaningful errors,
--- the primitive combinators can fail because of incomplete patterns.
-module ScoringFunsafe
+-- This module implements partial scores as typesafe functions with phantom types
+-- that indicate the number of holes on each side.
+-- The grammatical combinators use an existential type 'Score'
+-- that reifies the phantom types as singletons,
+-- which allows different scores to be easily stored together
+-- and is compatible with the 'Score' types from the other Scoring* modules.
+-- Thus, the grammatical combinators are partial
+-- and fail when used with incompatible scores, indicating a parser bug.
+module Scoring.FunTyped
   ( -- * The Score Type
-    Score(..)
+    Score
   , val
   , LeftId(..)
   , RightId(..)
@@ -29,7 +43,7 @@ module ScoringFunsafe
     -- they are partial.
     times
   , plus
-    -- * grammatical combinators
+  -- * grammatical combinators
     --
     -- The following combinators correspond to the merge and vert operations
     -- of the path-graph grammar.
@@ -37,15 +51,17 @@ module ScoringFunsafe
   , vertScoresLeft
   , vertScoresRight
   , addScores
-  , getScoreVal
-  )
+  , getScoreVal)
 where
 
 import qualified Data.Semiring                 as R
 import           GHC.Generics                   ( Generic )
-import           Control.DeepSeq                ( NFData )
+import           Control.DeepSeq                ( NFData (rnf), deepseq )
 import           Data.Hashable                  ( Hashable )
 import           Data.Maybe                     ( fromMaybe )
+import Data.Kind (Type)
+import Data.Type.Equality
+import Data.Type.Nat (Nat(..), SNat(..))
 
 ----------------
 -- Score type --
@@ -66,15 +82,19 @@ instance Show i => Show (RightId i) where
 match :: Eq a => RightId a -> LeftId a -> Bool
 match (RightId ir) (LeftId il) = il == ir
 
-data RightHole s = RightHole !(RightHoles s)
-                 | RightEnd !s
-  deriving (Generic, NFData)
+data RightHole (n :: Nat) s where
+  RightHole :: !(RightHoles n s) -> RightHole ('S n) s
+  RightEnd :: !s -> RightHole 'Z s
 
-type RightHoles s = s -> RightHole s
+instance (NFData s) => NFData (RightHole n s) where
+  rnf (RightHole f) = rnf f
+  rnf (RightEnd s) = rnf s
 
-type LeftHoles s = (RightHoles s -> s)
+type RightHoles (n :: Nat) s = s -> RightHole n s
 
-type BothHoles s = (RightHoles s -> RightHoles s)
+type LeftHoles (n :: Nat) s = (RightHoles n s -> s)
+
+type BothHoles (nl :: Nat) (nr :: Nat) s = (RightHoles nr s -> RightHoles nl s)
 
 -- | A partially applied score of type @s@.
 -- Comes in four variants,
@@ -88,79 +108,93 @@ type BothHoles s = (RightHoles s -> RightHoles s)
 -- that depends on @a@ on its left and on @b@ on its right.
 -- If the value does not depend on anything on either side, we use @()@,
 -- i.e. @()-a@ stands for @SLeft _ a@ and @()-()@ stands for @SVal _@.
-data Score s i
-  = SVal !s
-  -- ^ Carries a fully applied value
-  | SRight !(LeftId i) !(RightHoles s)
-  -- ^ The right part of a combination, expects an argument to its left.
+data TypedScore (nl :: Nat) (nr :: Nat) s i where
+  -- | Carries a fully applied value
+  SVal :: !s -> TypedScore 'Z 'Z s i
+  -- | The right part of a combination, expects an argument to its left.
   -- Implemented as a function that takes a left counterpart
   -- and returns a score with fewer holes.
-  | SLeft !(LeftHoles s) !(RightId i)
-  -- ^ The left part of a combination, expects an argument to its right.
+  SRight :: !(LeftId i) -> !(RightHoles nl s) -> TypedScore ('S nl) 'Z s i
+  -- | The left part of a combination, expects an argument to its right.
   -- Implemented as a function that takes a right hole and applies it.
-  | SBoth !(LeftId i) !(BothHoles s) !(RightId i)
-  -- ^ A combination of 'SLeft' and 'SRight' that expects arguments on both sides.
+  SLeft :: !(LeftHoles nr s) -> !(RightId i) -> TypedScore 'Z ('S nr) s i
+  -- | A combination of 'SLeft' and 'SRight' that expects arguments on both sides.
   -- Implemented as a function that expects both a right and a left hole to be complete.
-  deriving (Generic, NFData)
+  SBoth :: !(LeftId i) -> !(BothHoles nl nr s) -> !(RightId i) -> TypedScore ('S nl) ('S nr) s i
+
+instance (NFData s, NFData i) => NFData (TypedScore nl nr s i) where
+  rnf (SVal s) = rnf s
+  rnf (SRight i _) = rnf i
+  rnf (SLeft _ i) = rnf i
+  rnf (SBoth il _ ir) = il `deepseq` rnf ir
+
+data Score s i :: Type where
+  MkScore :: SNat nl -> SNat nr -> TypedScore nl nr s i -> Score s i
+
+instance (NFData s, NFData i) => NFData (Score s i) where
+  rnf (MkScore _ _ s) = rnf s
 
 -- | Creates a simple value score of type ()-().
 val :: s -> Score s i
-val = SVal
+val s = MkScore SZ SZ (SVal s)
 
 -- | Returns the ID on the left side of an 'Score',
 -- or 'Nothing' for 'SVal' and 'SLeft'.
 -- 
 -- > a-b -> a
 leftSide :: Score s i -> Maybe (LeftId i)
-leftSide (SVal _     ) = Nothing
-leftSide (SLeft  _ _ ) = Nothing
-leftSide (SRight i _ ) = Just i
-leftSide (SBoth i _ _) = Just i
+leftSide (MkScore _ _ (SVal _     )) = Nothing
+leftSide (MkScore _ _ (SLeft  _ _ )) = Nothing
+leftSide (MkScore _ _ (SRight i _ )) = Just i
+leftSide (MkScore _ _ (SBoth i _ _)) = Just i
 
 -- | Returns the ID on the right side of an 'Score',
 -- or 'Nothing' for 'SVal' and 'SRight'.
 --
 -- > a-b -> b
 rightSide :: Score s i -> Maybe (RightId i)
-rightSide (SVal _     ) = Nothing
-rightSide (SLeft  _ i ) = Just i
-rightSide (SRight _ _ ) = Nothing
-rightSide (SBoth _ _ i) = Just i
+rightSide (MkScore _ _ (SVal _     )) = Nothing
+rightSide (MkScore _ _ (SLeft  _ i )) = Just i
+rightSide (MkScore _ _ (SRight _ _ )) = Nothing
+rightSide (MkScore _ _ (SBoth _ _ i)) = Just i
 
-instance (Show i) => Show (Score s i) where
+instance (Show i) => Show (TypedScore nl nr s i) where
   show (SVal _       ) = "()-()"
   show (SLeft  _  ir ) = "()-" <> show ir
   show (SRight il _  ) = show il <> "-()"
   show (SBoth il _ ir) = show il <> "-" <> show ir
 
+instance (Show i) => Show (Score s i) where
+  show (MkScore _ _ s) = show s
+
+showTScore :: (Show s, Show i) => TypedScore nl nr s i -> String
+showTScore (SVal v       ) = show v
+showTScore (SLeft  _  ir ) = "()-" <> show ir
+showTScore (SRight il _  ) = show il <> "-()"
+showTScore (SBoth il _ ir) = show il <> "-" <> show ir
+
 showScore :: (Show s, Show i) => Score s i -> String
-showScore (SVal v       ) = show v
-showScore (SLeft  _  ir ) = "()-" <> show ir
-showScore (SRight il _  ) = show il <> "-()"
-showScore (SBoth il _ ir) = show il <> "-" <> show ir
+showScore (MkScore _ _ s) = showTScore s
 
 -------------------------
 -- semiring operations --
 -------------------------
 
-appendRight :: R.Semiring s => s -> RightHoles s -> RightHoles s
+appendRight :: R.Semiring s => s -> RightHoles n s -> RightHoles n s
 appendRight !s' fr !l = app $ fr l
  where
   app (RightEnd  r  ) = RightEnd $ r R.* s'
   app (RightHole fr') = RightHole $ appendRight s' fr'
 
-prependLeft :: R.Semiring s => s -> LeftHoles s -> LeftHoles s
+prependLeft :: R.Semiring s => s -> LeftHoles n s -> LeftHoles n s
 prependLeft !s fl = (s R.*) . fl
 
-prependRight :: R.Semiring s => s -> RightHoles s -> RightHoles s
+prependRight :: R.Semiring s => s -> RightHoles n s -> RightHoles n s
 prependRight !s fr !l = prep $ fr l
  where
   prep (RightEnd  r  ) = RightEnd $ s R.* r
   prep (RightHole fr') = RightHole $ prependRight s fr'
--- prependRight s (RightHole fr) = RightHole $ fmap (prependRight s) . fr
 
--- mkRightHoles :: R.Semiring s => [s] -> RightHoles s
--- mkRightHoles = foldr addHoleRight (RightEnd R.one)
 
 -- | Combines two partially applied 'Score's
 -- by applying them to each other and/or multiplying the underlying semiring values.
@@ -168,7 +202,7 @@ prependRight !s fr !l = prep $ fr l
 --
 -- > a-b × b-c -> a-c
 times
-  :: (R.Semiring s, Eq i, Show i) => Score s i -> Score s i -> Maybe (Score s i)
+  :: (R.Semiring s, Eq i, Show i) => TypedScore nl n s i -> TypedScore n nr s i -> Maybe (TypedScore nl nr s i)
 -- creates value
 times (SVal s1) (SVal s2) = Just $! SVal $ s1 R.* s2
 times (SLeft fl il) (SRight ir fr) | il `match` ir = Just $! SVal $ fl fr
@@ -186,19 +220,19 @@ times (SBoth il fa ia) (SBoth ib fb ir) | ia `match` ib =
 -- otherwise
 times _ _ = Nothing
 
-rhplus :: (R.Semiring s) => RightHoles s -> RightHoles s -> RightHoles s
+rhplus :: (R.Semiring s) => RightHoles n s -> RightHoles n s -> RightHoles n s
 rhplus r1 r2 !l = case (r1 l, r2 l) of
-  (RightEnd  e1, RightEnd e2 ) -> RightEnd $ e1 R.+ e2
-  (RightHole f1, RightHole f2) -> RightHole $ rhplus f1 f2
+    (RightEnd  e1, RightEnd e2 ) -> RightEnd $ e1 R.+ e2
+    (RightHole f1, RightHole f2) -> RightHole $ rhplus f1 f2
 
--- | Adds two partially applied 'Score's
+-- | Adds two partially applied 'TypedScore's
 -- by adding their underlying (or resulting) semiring values.
 -- This operation is only admitted
 -- if the two scores are of the same shape and have matching IDs.
 -- Otherwise, 'Nothing' is returned.
 --
 -- > a-b + a-b -> a-b
-plus :: (R.Semiring s, Eq i) => Score s i -> Score s i -> Maybe (Score s i)
+plus :: (R.Semiring s, Eq i) => TypedScore nl nr s i -> TypedScore nl nr s i -> Maybe (TypedScore nl nr s i)
 plus (SVal s1) (SVal s2) = Just $! SVal $ s1 R.+ s2
 plus (SRight i fr1) (SRight i' fr2) | i == i' =
   Just $! SRight i $ rhplus fr1 fr2
@@ -211,19 +245,38 @@ plus _ _ = Nothing
 -- helpers for constructing holes
 -- ------------------------------
 
-addHoleLeft :: s -> LeftHoles s -> LeftHoles s
+addHoleLeft :: s -> LeftHoles n s -> LeftHoles ('S n) s
 addHoleLeft !s fl fr = case fr s of
   RightHole fr' -> fl fr'
 
-mkLeftHole :: s -> LeftHoles s
+mkLeftHole :: s -> LeftHoles 'Z s
 mkLeftHole !s fr = case fr s of
   RightEnd v -> v
 
-addHoleRight :: R.Semiring s => s -> RightHoles s -> RightHoles s
+addHoleRight :: R.Semiring s => s -> RightHoles n s -> RightHoles ('S n) s
 addHoleRight !r !rh !l = RightHole $ prependRight (l R.* r) rh
 
-mkRightHole :: R.Semiring s => s -> RightHoles s
+mkRightHole :: R.Semiring s => s -> RightHoles 'Z s
 mkRightHole !r !l = RightEnd $ l R.* r
+
+-- proof helpers
+
+type family CreateHole (n :: Nat) where
+  CreateHole 'Z = 'S ('S 'Z)
+  CreateHole ('S n) = 'S ('S n)
+
+class AddHole (n :: Nat) where
+  addHole :: SNat n -> SNat (CreateHole n)
+
+instance AddHole 'Z where
+  addHole SZ = SS
+
+instance AddHole ('S n) where
+  addHole SS = SS
+
+canAddHole :: SNat n -> (AddHole n => r) -> r
+canAddHole SZ r = r
+canAddHole SS r = r
 
 -----------
 -- rules --
@@ -234,8 +287,8 @@ mkRightHole !r !l = RightEnd $ l R.* r
 -- If the score is not fully applied,
 -- throws an exception to indicate parser bugs.
 getScoreVal :: Score s i -> s
-getScoreVal (SVal s) = s
-getScoreVal _        = error "cannot get value from partial score"
+getScoreVal (MkScore _ _ (SVal s)) = s
+getScoreVal _ = error "cannot get value from partial score"
 
 -- | Adds two 'Score's that are alternative derivations of the same transition.
 -- This is expected to be called on compatible scores
@@ -245,7 +298,11 @@ getScoreVal _        = error "cannot get value from partial score"
 -- > --------- add
 -- >    a-b
 addScores :: (R.Semiring s, Eq i) => Score s i -> Score s i -> Score s i
-addScores a b = fromMaybe (error "illegal times") $ plus a b
+addScores (MkScore nla nra a) (MkScore nlb nrb b) = MkScore nla nra res
+  where res = fromMaybe (error "illegal times") $ do
+          Refl <- testEquality  nla nlb
+          Refl <- testEquality nra nrb
+          plus a b
 
 -- | Combines the 'Score's of two edges with a @split@ operation into the score of the parent edge.
 -- This is expected to be called on compatible scores
@@ -255,12 +312,14 @@ addScores a b = fromMaybe (error "illegal times") $ plus a b
 -- > --------- merge
 -- >    a-c
 mergeScores
-  :: (R.Semiring s, Eq i, Show i, Show s)
+  :: forall s i. (R.Semiring s, Eq i, Show i, Show s)
   => s         -- ^ The score of the split operation.
   -> Score s i -- ^ The 'Score' of the left child edge.
   -> Score s i -- ^ The 'Score' of the right child edge.
   -> Score s i -- ^ The 'Score' of the parent edge, if it exists.
-mergeScores op left right = fromMaybe err $ times left' right
+mergeScores op (MkScore nll nrl left) (MkScore nlr nrr right) = MkScore nll nrr $ fromMaybe err $ do
+  Refl <- testEquality nrl nlr
+  times (prep left) right
  where
   err =
     error
@@ -268,7 +327,8 @@ mergeScores op left right = fromMaybe err $ times left' right
       <> show left
       <> ", right="
       <> show right
-  left' = case left of
+  prep :: TypedScore nl nr s i -> TypedScore nl nr s i
+  prep l = case l of
     SVal s         -> SVal (op R.* s)
     SLeft  fl i    -> SLeft (prependLeft op fl) i
     SRight i  rs   -> SRight i (prependRight op rs)
@@ -277,31 +337,34 @@ mergeScores op left right = fromMaybe err $ times left' right
 -- | Creates the 'Score' of a left parent edge from a left child edge of a @vert@.
 -- Will throw an error if called on invalid input to indicate parser bugs.
 vertScoresLeft
-  :: (Eq i, Show i, R.Semiring s, Show s)
+  :: forall s i. (Eq i, Show i, R.Semiring s, Show s)
   => i         -- ^ The new ID that marks both parent edges
   -> Score s i -- ^ The 'Score' of the left child edge.
   -> Score s i -- ^ The 'Score' of the left parent edge, if it exists.
-vertScoresLeft newid = wrap
+vertScoresLeft newid (MkScore SZ nr s) = canAddHole nr $ MkScore SZ (addHole nr) $ wrap s
  where
   newir = RightId newid
   -- wrap the left input score into a new layer with a new ID
-  wrap (SVal v    ) = SLeft (addHoleLeft R.one $ mkLeftHole v) newir
+  wrap :: TypedScore 'Z nr s i -> TypedScore 'Z (CreateHole nr) s i
+  wrap (SVal v  ) = SLeft (addHoleLeft R.one $ mkLeftHole v) newir
   wrap (SLeft fl _) = SLeft (addHoleLeft R.one fl) newir
-  wrap other        = error $ "Attempting illegal left-vert on " <> show other
+vertScoresLeft _ (MkScore _ _ s) = error $ "Attempting illegal left-vert on " <> show s
 
 -- | Creates the 'Score' of a right parent edge
 -- from the middle and right child edges of a @vert@
 -- and a @horizontalize@ operation.
 vertScoresRight
-  :: (Eq i, R.Semiring s, Show i, Show s)
+  :: forall i s. (Eq i, R.Semiring s, Show i, Show s)
   => i                 -- ^ The new ID that marks both parent edges.
   -> s                 -- ^ The score of the @horizontalize@ operation.
   -> Score s i         -- ^ The 'Score' of the middle child edge.
   -> Score s i         -- ^ The 'Score' of the right child edge.
   -> Score s i -- ^ The 'Score' of the right parent edge, if it exists.
-vertScoresRight newid op m r = fromMaybe err $ do
-  mr <- times m r
-  pure $ unwrap mr
+vertScoresRight newid op (MkScore nlm nrm m) (MkScore nlr nrr r) =
+  canAddHole nlm $ MkScore (addHole nlm) nrr $ fromMaybe err $ do
+    Refl <- testEquality nrm nlr
+    mr <- times m r
+    pure $ unwrap mr
  where
   err =
     error $ "Attempting illegal right-vert: m=" <> show m <> ", r=" <> show r
@@ -309,6 +372,7 @@ vertScoresRight newid op m r = fromMaybe err $ do
   -- that consumes the left parent edge's value when supplied
   -- and combines with m on the right
   newil = LeftId newid
+  unwrap :: TypedScore nl nr s i -> TypedScore (CreateHole nl) nr s i
   unwrap (SVal s     ) = SRight newil $ addHoleRight op $ mkRightHole s -- [op, s]
   unwrap (SRight _ rs) = SRight newil (addHoleRight op rs)
   unwrap (SLeft fl ir) =
