@@ -205,6 +205,13 @@ derivBach = buildDerivation $ do
     horiNote (d' nat) ToBoth      True
     horiNote (c' shp) ToBoth      True
     horiNote (a' nat) ToBoth      True
+    horiNote (g' nat) ToBoth      False
+    horiNote (e' nat) (ToRight 1) False
+  freeze FreezeOp
+  hori $ mkHori $ do
+    horiNote (d' nat) ToBoth      True
+    horiNote (c' shp) ToBoth      True
+    horiNote (a' nat) ToBoth      True
     horiNote (g' nat) (ToLeft 1)  False
     horiNote (e' nat) (ToRight 1) False
     addPassing (g' nat) (e' nat)
