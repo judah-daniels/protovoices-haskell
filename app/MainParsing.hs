@@ -3,7 +3,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RebindableSyntax #-}
 {-# LANGUAGE PartialTypeSignatures #-}
-{-# OPTIONS_GHC -Wno-partial-type-signatures #-}
+{-# OPTIONS_GHC -Wno-all #-}
 module Main where
 
 import           Parser
@@ -234,8 +234,8 @@ mainGraph = do
   derivs <- parseSize pvDeriv input
   let ds = S.toList $ flattenDerivations derivs
   pics <- forM ds $ \d -> case replayDerivation derivationPlayerPV d of
-    Left error -> do
-      putStrLn error
+    Left err -> do
+      putStrLn err
       print d
       return Nothing
     Right g -> return $ Just g

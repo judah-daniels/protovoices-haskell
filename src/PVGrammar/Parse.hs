@@ -11,6 +11,8 @@ module PVGrammar.Parse
   , pvCount''
   , pvCount'
   , pvCount
+  , protoVoiceEvaluator
+  , protoVoiceEvaluatorNoRepSplit
   )
 where
 
@@ -393,10 +395,10 @@ pvSlice = Notes . MS.fromList . toList
 -- evaluators in specific semirings
 -- ================================
 
-protoVoiceEvaluator'
+protoVoiceEvaluatorNoRepSplit
   :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n)
   => Eval (Edges n) (t (Edge n)) (Notes n) (t2 n) (PVLeftMost n)
-protoVoiceEvaluator' = Eval vm vl vr filterSplit t s
+protoVoiceEvaluatorNoRepSplit = Eval vm vl vr filterSplit t s
  where
   (Eval vm vl vr mg t s) = protoVoiceEvaluator
   filterSplit l lt mid rt r typ = filter ok $ mg l lt mid rt r typ
@@ -423,7 +425,7 @@ pvDerivUnrestricted
        (Notes n)
        (t2 n)
        (Derivations (PVLeftMost n))
-pvDerivUnrestricted = mapEvalScore Do protoVoiceEvaluator'
+pvDerivUnrestricted = mapEvalScore Do protoVoiceEvaluator
 
 pvDeriv
   :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n)
@@ -433,12 +435,13 @@ pvDeriv
        ((), ((), Notes n))
        (t2 n)
        (Derivations (PVLeftMost n))
-pvDeriv = splitFirst $ rightBranchHori $ mapEvalScore Do protoVoiceEvaluator'
+pvDeriv =
+  splitFirst $ rightBranchHori $ mapEvalScore Do protoVoiceEvaluatorNoRepSplit
 
 pvCount''
   :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n)
   => Eval (Edges n) (t (Edge n)) (Notes n) (t2 n) Int
-pvCount'' = mapEvalScore (const 1) protoVoiceEvaluator'
+pvCount'' = mapEvalScore (const 1) protoVoiceEvaluatorNoRepSplit
 
 pvCount'
   :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n)
