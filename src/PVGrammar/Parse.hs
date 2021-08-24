@@ -185,12 +185,13 @@ protoVoiceEvaluator =
 -- | Computes the verticalization of a middle transition.
 -- If the verticalization is admitted, returns the corresponding operation.
 pvVertMiddle
-  :: (Eq n, Ord n, Hashable n) => VertMiddle (Edges n) (Notes n) (Hori n)
+  :: (Eq n, Ord n, Hashable n, IsNote n)
+  => VertMiddle (Edges n) (Notes n) (Hori n)
 pvVertMiddle (Notes nl, edges, Notes nr)
   | any notARepetition (edgesT edges) = Nothing
   | otherwise                         = Just (Notes top, op)
  where
-  notARepetition (p1, p2) = p1 /= p2
+  notARepetition (p1, p2) = fmap (pc . pitch) p1 /= fmap (pc . pitch) p2
   top     = MS.maxUnion nl nr
   leftMS  = nl MS.\\ nr
   left    = HM.fromList $ fmap ToLeft <$> MS.toOccurList leftMS

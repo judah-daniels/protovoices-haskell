@@ -12,6 +12,7 @@ module PVGrammar.Generate
   , addPassing
   , derivationPlayerPV
   , applyHori
+  , addOctaveRepetition
   )
 where
 
@@ -126,6 +127,13 @@ addPassing l r = MW.tell $ Endo h
  where
   h (HoriOp dist (Edges mTs mNTs)) = HoriOp dist (Edges mTs mNTs')
     where mNTs' = MS.insert (l, r) mNTs
+
+addOctaveRepetition
+  :: (Ord n, Hashable n) => n -> n -> MW.Writer (Endo (Hori n)) ()
+addOctaveRepetition l r = MW.tell $ Endo h
+ where
+  h (HoriOp dist (Edges mTs mNTs)) = HoriOp dist (Edges mTs' mNTs)
+    where mTs' = S.insert (Inner l, Inner r) mTs
 
 -- applying operations
 -- ===================

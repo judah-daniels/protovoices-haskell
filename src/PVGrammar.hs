@@ -129,7 +129,7 @@ data Split n = SplitOp
   , fromRight :: !(M.Map n [(n, LeftOrnament)])
   , keepLeft :: !(S.HashSet (Edge n))
   , keepRight :: !(S.HashSet (Edge n))
-  }
+  } -- TODO: allow introducing passing edges
   deriving (Eq, Ord, Generic)
 
 instance (NFData n) => NFData (Split n)
