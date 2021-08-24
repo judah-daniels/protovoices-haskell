@@ -16,16 +16,16 @@
 \node[slice] (slice4) at (4.0,-2) {\{C\}};
 \node[slice] (slice5) at (3.0,-3) {\{B,D\}};
 \node[slice] (slice6) at (2.0,-4) {\{C,D\}};
-\draw[transition,non-terminal] (slice0) -- (slice2);
-\draw[transition,terminal] (slice0) -- (slice3);
-\draw[transition,non-terminal] (slice0) -- (slice1);
-\draw[transition,non-terminal] (slice2) -- (slice1);
-\draw[transition,non-terminal] (slice3) -- (slice5);
-\draw[transition,terminal] (slice3) -- (slice6);
-\draw[transition,non-terminal] (slice3) -- (slice4);
-\draw[transition,terminal] (slice4) -- (slice1);
-\draw[transition,terminal] (slice5) -- (slice4);
-\draw[transition,terminal] (slice6) -- (slice5);
+\draw[transition,non-terminal] (slice0) -- (slice2) node[midway,below,sloped] {\{\}};
+\draw[transition,terminal] (slice0) -- (slice3) node[midway,below,sloped] {\{\}};
+\draw[transition,non-terminal] (slice0) -- (slice1) node[midway,below,sloped] {\{⋊-⋉\}};
+\draw[transition,non-terminal] (slice2) -- (slice1) node[midway,below,sloped] {\{\}};
+\draw[transition,non-terminal] (slice3) -- (slice5) node[midway,below,sloped] {\{C-B,E-D\}};
+\draw[transition,terminal] (slice3) -- (slice6) node[midway,below,sloped] {\{C-C\}};
+\draw[transition,non-terminal] (slice3) -- (slice4) node[midway,below,sloped] {\{C-C,E>C×1\}};
+\draw[transition,terminal] (slice4) -- (slice1) node[midway,below,sloped] {\{\}};
+\draw[transition,terminal] (slice5) -- (slice4) node[midway,below,sloped] {\{\}};
+\draw[transition,terminal] (slice6) -- (slice5) node[midway,below,sloped] {\{D-D\}};
 \draw[hori] (slice2) -- (slice3);
 \draw[hori] (slice2) -- (slice4);
 \end{tikzpicture}
