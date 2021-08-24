@@ -43,8 +43,15 @@ packages:
 extra-deps:
 # local packages
 - ../haskell-musicology/musicology-pitch
+- ../haskell-musicology/musicology-time
 - ../haskell-musicology/musicology-core
 - ../haskell-musicology/musicology-musicxml
+# - git: https://github.com/DCMLab/haskell-musicology.git
+#   commit: de3babd16d7b8cd5a62b2f95303ac89e150cfcdb
+#   subdirs:
+#   - musicology-pitch
+#   - musicology-core
+#   - musicology-musicxml
 
 # other packages
 - diagrams-lib-1.4.3@sha256:04f77778d4b550d3c8e54440800685f88467bef91075e82e009a8a6f45c51033,8232

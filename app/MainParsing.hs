@@ -32,6 +32,8 @@ import qualified Data.Semiring                 as R
 import qualified Data.List                     as L
 import qualified Data.Text                     as T
 import qualified Data.Text.IO                  as T
+import qualified Data.Text.Lazy                as TL
+import qualified Data.Text.Lazy.IO             as TL
 import           Control.Monad                  ( forM
                                                 , forM_
                                                 )
@@ -64,21 +66,25 @@ brahms1 =
 
 haydn5 = "/home/chfin/Uni/phd/data/kirlin_schenker/haydn5.xml"
 
-getPitchGroups :: FilePath -> IO [[OnOff SPitch (Ratio Int)]]
-getPitchGroups file = do
-  txt <- readFile file
-  return
-    $   fmap (fmap $ over onOffContent pitch)
-    $   onOffGroups
-    $   asNote
-    <$> xmlNotesHeard txt
+-- getPitchGroups :: FilePath -> IO [[OnOff SPitch (Ratio Int)]]
+-- getPitchGroups file = do
+--   txt <- TL.readFile file
+--   return
+--     $   fmap (fmap $ over onOffContent pitch)
+--     $   onOffGroups
+--     $   asNote
+--     <$> xmlNotesHeard txt
 
 slicesFromFile :: FilePath -> IO [[(SPitch, RightTied)]]
 slicesFromFile file = do
-  txt <- readFile file
-  let notes  = asNote <$> xmlNotesHeard txt
-      slices = slicePiece tiedSlicer notes
-  return $ mkSlice <$> filter (not . null) slices
+  txt <- TL.readFile file
+  case parseWithoutIds txt of
+    Nothing  -> pure []
+    Just doc -> do
+      let (xmlNotes, _) = parseScore doc
+          notes         = asNoteHeard <$> xmlNotes
+          slices        = slicePiece tiedSlicer notes
+      pure $ mkSlice <$> filter (not . null) slices
  where
   mkSlice notes = mkNote <$> notes
   mkNote (note, tie) = (pitch note, rightTie tie)

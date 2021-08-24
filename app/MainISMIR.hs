@@ -15,6 +15,8 @@ import           Musicology.Core.Slicing
 import           Musicology.MusicXML
 
 import           Data.Maybe                     ( catMaybes )
+import qualified Data.Text.Lazy                as TL
+import qualified Data.Text.Lazy.IO             as TL
 
 -- better do syntax
 import           Language.Haskell.DoNotation
@@ -100,12 +102,17 @@ plotDeriv fn deriv = do
     (Left  err) -> putStrLn err
     (Right g  ) -> viewGraph fn g
 
+
 slicesFromFile :: FilePath -> IO [[(SPitch, RightTied)]]
 slicesFromFile file = do
-  txt <- readFile file
-  let notes  = asNote <$> xmlNotesHeard txt
-      slices = slicePiece tiedSlicer notes
-  return $ mkSlice <$> filter (not . null) slices
+  txt <- TL.readFile file
+  case parseWithoutIds txt of
+    Nothing  -> pure []
+    Just doc -> do
+      let (xmlNotes, _) = parseScore doc
+          notes         = asNoteHeard <$> xmlNotes
+          slices        = slicePiece tiedSlicer notes
+      pure $ mkSlice <$> filter (not . null) slices
  where
   mkSlice notes = mkNote <$> notes
   mkNote (note, tie) = (pitch note, rightTie tie)
