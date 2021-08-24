@@ -13,6 +13,8 @@ module PVGrammar.Generate
   , derivationPlayerPV
   , applyHori
   , addOctaveRepetition
+  , addPassingLeft
+  , addPassingRight
   )
 where
 
@@ -50,8 +52,14 @@ splitT
   -> Bool
   -> Bool
   -> MW.Writer (Split n) ()
-splitT l r c o kl kr = MW.tell
-  $ SplitOp (M.singleton (l, r) [(c, o)]) M.empty M.empty M.empty kls krs
+splitT l r c o kl kr = MW.tell $ SplitOp (M.singleton (l, r) [(c, o)])
+                                         M.empty
+                                         M.empty
+                                         M.empty
+                                         kls
+                                         krs
+                                         MS.empty
+                                         MS.empty
  where
   kls = if kl then S.singleton (l, Inner c) else S.empty
   krs = if kr then S.singleton (Inner c, r) else S.empty
@@ -65,8 +73,14 @@ splitNT
   -> Bool
   -> Bool
   -> MW.Writer (Split n) ()
-splitNT l r c o kl kr = MW.tell
-  $ SplitOp M.empty (M.singleton (l, r) [(c, o)]) M.empty M.empty kls krs
+splitNT l r c o kl kr = MW.tell $ SplitOp M.empty
+                                          (M.singleton (l, r) [(c, o)])
+                                          M.empty
+                                          M.empty
+                                          kls
+                                          krs
+                                          MS.empty
+                                          MS.empty
  where
   kls =
     if o /= PassingRight && kl then S.singleton (Inner l, Inner c) else S.empty
@@ -87,6 +101,8 @@ addToLeft parent child op keep = MW.tell $ SplitOp
   M.empty
   (if keep then S.singleton (Inner parent, Inner child) else S.empty)
   S.empty
+  MS.empty
+  MS.empty
 
 addToRight
   :: (Ord n, Hashable n)
@@ -102,7 +118,14 @@ addToRight parent child op keep = MW.tell $ SplitOp
   (M.singleton parent [(child, op)])
   S.empty
   (if keep then S.singleton (Inner child, Inner parent) else S.empty)
+  MS.empty
+  MS.empty
 
+addPassingLeft :: (Ord n, Hashable n) => n -> n -> MW.Writer (Split n) ()
+addPassingLeft l m = MW.tell $ mempty { passLeft = MS.singleton (l, m) }
+
+addPassingRight :: (Ord n, Hashable n) => n -> n -> MW.Writer (Split n) ()
+addPassingRight m r = MW.tell $ mempty { passRight = MS.singleton (m, r) }
 
 mkHori :: MW.Writer (Endo (Hori n)) () -> Hori n
 mkHori actions = appEndo (MW.execWriter actions) emptyHori
@@ -144,14 +167,18 @@ applySplit
   => Split n
   -> Edges n
   -> Either String (Edges n, Notes n, Edges n)
-applySplit inSplit@(SplitOp splitTs splitNTs ls rs kl kr) inTop@(Edges topTs topNTs)
+applySplit inSplit@(SplitOp splitTs splitNTs ls rs keepl keepr passl passr) inTop@(Edges topTs topNTs)
   = do
     notesT                       <- applyTs topTs splitTs
     (notesNT, leftNTs, rightNTs) <- applyNTs topNTs splitNTs
     let notesL = collectNotes ls
         notesR = collectNotes rs
         notes  = MS.unions [notesT, notesNT, notesL, notesR]
-    pure (Edges kl leftNTs, Notes notes, Edges kr rightNTs)
+    pure
+      ( Edges keepl (MS.union leftNTs passl)
+      , Notes notes
+      , Edges keepr (MS.union rightNTs passr)
+      )
  where
 
   allOps opset = do

@@ -129,13 +129,15 @@ data Split n = SplitOp
   , fromRight :: !(M.Map n [(n, LeftOrnament)])
   , keepLeft :: !(S.HashSet (Edge n))
   , keepRight :: !(S.HashSet (Edge n))
-  } -- TODO: allow introducing passing edges
+  , passLeft :: !(MS.MultiSet (InnerEdge n))
+  , passRight :: !(MS.MultiSet (InnerEdge n))
+  }
   deriving (Eq, Ord, Generic)
 
 instance (NFData n) => NFData (Split n)
 
 instance (Notation n) => Show (Split n) where
-  show (SplitOp ts nts ls rs kl kr) =
+  show (SplitOp ts nts ls rs kl kr pl pr) =
     "ts:"
       <> showOps opTs
       <> ", nts:"
@@ -148,6 +150,10 @@ instance (Notation n) => Show (Split n) where
       <> showOps keepLs
       <> ", kr:"
       <> showOps keepRs
+      <> ", pl:"
+      <> showOps passLs
+      <> ", pr:"
+      <> showOps passRs
    where
     showOps ops = "{" <> L.intercalate "," ops <> "}"
     showEdge (n1, n2) = showNotation n1 <> "-" <> showNotation n2
@@ -164,21 +170,26 @@ instance (Notation n) => Show (Split n) where
     opRs   = showR <$> M.toList rs
     keepLs = showEdge <$> S.toList kl
     keepRs = showEdge <$> S.toList kr
+    passLs = showEdge <$> MS.toList pl
+    passRs = showEdge <$> MS.toList pr
 
 instance (Ord n, Hashable n) => Semigroup (Split n) where
-  (SplitOp ta nta la ra kla kra) <> (SplitOp tb ntb lb rb klb krb) = SplitOp
-    (ta <+> tb)
-    (nta <+> ntb)
-    (la <+> lb)
-    (ra <+> rb)
-    (S.union kla klb)
-    (S.union kra krb)
+  (SplitOp ta nta la ra kla kra pla pra) <> (SplitOp tb ntb lb rb klb krb plb prb)
+    = SplitOp (ta <+> tb)
+              (nta <+> ntb)
+              (la <+> lb)
+              (ra <+> rb)
+              (S.union kla klb)
+              (S.union kra krb)
+              (MS.union pla plb)
+              (MS.union pra prb)
    where
     (<+>) :: (Ord k, Semigroup a) => M.Map k a -> M.Map k a -> M.Map k a
     (<+>) = M.unionWith (<>)
 
 instance (Ord n, Hashable n) => Monoid (Split n) where
-  mempty = SplitOp M.empty M.empty M.empty M.empty S.empty S.empty
+  mempty =
+    SplitOp M.empty M.empty M.empty M.empty S.empty S.empty MS.empty MS.empty
 
 -- | Represents a freeze operation.
 -- Since this just ties all remaining edges

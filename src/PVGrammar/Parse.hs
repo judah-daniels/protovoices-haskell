@@ -350,7 +350,7 @@ pvMerge notesl (Edges leftTs leftNTs) (Notes notesm) (Edges rightTs rightNTs) no
   -- convert a combination into a derivation operation:
   -- turn the accumulated information into the format expected from the evaluator
   mkTop (ts, nts, rs, ls) = if True -- validate
-    then (top, SplitOp tmap ntmap rmap lmap leftTs rightTs)
+    then (top, SplitOp tmap ntmap rmap lmap leftTs rightTs passL passR)
     else
       error
       $  "invalid merge:\n  notesl="
@@ -379,6 +379,12 @@ pvMerge notesl (Edges leftTs leftNTs) (Notes notesm) (Edges rightTs rightNTs) no
     lmap  = mapify ls
     rmap  = mapify rs
     top   = Edges (S.fromList (fst <$> ts)) (MS.fromList (fst <$> nts))
+    passL = foldr MS.delete leftNTs $ catMaybes $ leftPassingChild <$> nts
+    passR = foldr MS.delete rightNTs $ catMaybes $ rightPassingChild <$> nts
+    leftPassingChild ((l, _r), (m, orn)) =
+      if orn == PassingRight then Just (l, m) else Nothing
+    rightPassingChild ((_l, r), (m, orn)) =
+      if orn == PassingLeft then Just (m, r) else Nothing
 
 -- | Computes all potential ways a surface transition could have been frozen.
 -- In this grammar, this operation is unique and just turns ties into edges.
@@ -407,7 +413,7 @@ protoVoiceEvaluatorNoRepSplit = Eval vm vl vr filterSplit t s
   ok (_, LMSplitOnly op ) = not $ onlyRepeats op
   ok (_, LMSplitRight op) = not $ onlyRepeats op
   ok _                    = False
-  onlyRepeats (SplitOp ts nts rs ls _ _) =
+  onlyRepeats (SplitOp ts nts rs ls _ _ _ _) =
     M.null nts && (allRepetitionsLeft || allRepetitionsRight)
    where
     allSinglesRepeat = all (check (== SingleRightRepeat)) (M.toList rs)
