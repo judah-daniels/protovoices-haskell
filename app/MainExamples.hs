@@ -24,7 +24,6 @@ import           Lens.Micro                     ( over )
 import           Data.Maybe                     ( catMaybes )
 import           Data.Either                    ( partitionEithers )
 
-import qualified Data.MultiSet                 as MS
 import qualified Data.Set                      as S
 import qualified Data.Semiring                 as R
 import qualified Data.List                     as L

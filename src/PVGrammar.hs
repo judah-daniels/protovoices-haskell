@@ -2,7 +2,6 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE StandaloneDeriving #-}
---{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveAnyClass #-}
 module PVGrammar where
 
@@ -80,14 +79,14 @@ instance (Notation n) => Show (Edges n) where
 -- ==========
 
 -- | Marks different types of ornaments in the derivation.
-data Ornament = FullNeighbor
+data DoubleOrnament = FullNeighbor
               | FullRepeat
               | LeftRepeatOfRight
               | RightRepeatOfLeft
               | RootNote
   deriving (Eq, Ord, Show, Generic)
 
-instance NFData Ornament
+instance NFData DoubleOrnament
 
 data Passing = PassingMid
              | PassingLeft
@@ -108,12 +107,12 @@ data RightOrnament = SingleRightNeighbor
 
 instance NFData RightOrnament
 
-isRepetitionOnLeft :: Ornament -> Bool
+isRepetitionOnLeft :: DoubleOrnament -> Bool
 isRepetitionOnLeft FullRepeat        = True
 isRepetitionOnLeft RightRepeatOfLeft = True
 isRepetitionOnLeft _                 = False
 
-isRepetitionOnRight :: Ornament -> Bool
+isRepetitionOnRight :: DoubleOrnament -> Bool
 isRepetitionOnRight FullRepeat        = True
 isRepetitionOnRight LeftRepeatOfRight = True
 isRepetitionOnRight _                 = False
@@ -123,14 +122,28 @@ isRepetitionOnRight _                 = False
 -- Each elaboration contains the child pitch, and the corresponding ornament.
 -- For every produced edge, a decisions is made whether to keep it or not.
 data Split n = SplitOp
-  { splitTs :: !(M.Map (Edge n) [(n, Ornament)])
+  { splitTs :: !(M.Map (Edge n) [(n, DoubleOrnament)])
+    -- ^ Maps every regular edge to a list of ornamentations.
   , splitNTs :: !(M.Map (InnerEdge n) [(n, Passing)])
+    -- ^ Maps every passing edge to a passing tone.
+    -- Since every passing edge is elaborated exactly once
+    -- but there can be several instances of the same edge in a transition,
+    -- the "same" edge can be elaborated with several passing notes,
+    -- one for each instance of the edge.
   , fromLeft :: !(M.Map n [(n, RightOrnament)])
+    -- ^ Maps notes from the left parent slice to lists of ornamentations.
   , fromRight :: !(M.Map n [(n, LeftOrnament)])
+    -- ^ Maps notes from the right parent slice to lists of ornamentations.
   , keepLeft :: !(S.HashSet (Edge n))
+    -- ^ The set of regular edges to keep in the left child transition.
   , keepRight :: !(S.HashSet (Edge n))
+    -- ^ The set of regular edges to keep in the right child transition.
   , passLeft :: !(MS.MultiSet (InnerEdge n))
+    -- ^ Contains the new passing edges introduced in the left child transition
+    -- (excluding those passed down from the parent transition).
   , passRight :: !(MS.MultiSet (InnerEdge n))
+    -- ^ Contains the new passing edges introduced in the right child transition
+    -- (excluding those passed down from the parent transition).
   }
   deriving (Eq, Ord, Generic)
 

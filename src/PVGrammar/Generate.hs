@@ -1,6 +1,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TypeFamilies #-}
 module PVGrammar.Generate
   ( mkSplit
   , splitT
@@ -15,6 +16,7 @@ module PVGrammar.Generate
   , addOctaveRepetition
   , addPassingLeft
   , addPassingRight
+  , freezable
   )
 where
 
@@ -36,6 +38,9 @@ import qualified Data.List                     as L
 import           Data.Foldable                  ( toList )
 import           Data.Hashable                  ( Hashable )
 import qualified Data.HashMap.Strict           as HM
+import           Musicology.Core                ( HasPitch(pitch)
+                                                , Pitched(IntervalOf)
+                                                )
 
 -- building operations
 -- ===================
@@ -48,7 +53,7 @@ splitT
   => StartStop n
   -> StartStop n
   -> n
-  -> Ornament
+  -> DoubleOrnament
   -> Bool
   -> Bool
   -> MW.Writer (Split n) ()
@@ -239,12 +244,20 @@ applySplit inSplit@(SplitOp splitTs splitNTs ls rs keepl keepr passl passr) inTo
   singleChild (_, (note, _)) = note
   collectNotes ops = MS.fromList $ singleChild <$> allOps ops
 
-applyFreeze :: Eq n => Freeze -> Edges n -> Either String (Edges n)
+freezable :: (Eq (IntervalOf n), HasPitch n) => Edges n -> Bool
+freezable (Edges ts nts) = MS.null nts && all isRep ts
+  where isRep (a, b) = fmap pitch a == fmap pitch b
+
+applyFreeze
+  :: (Eq (IntervalOf n), HasPitch n)
+  => Freeze
+  -> Edges n
+  -> Either String (Edges n)
 applyFreeze FreezeOp e@(Edges ts nts)
   | not $ MS.null nts  = Left "cannot freeze non-terminal edges"
   | not $ all isRep ts = Left "cannot freeze non-tie edges"
   | otherwise          = Right e
-  where isRep (a, b) = a == b
+  where isRep (a, b) = fmap pitch a == fmap pitch b
 
 applyHori
   :: forall n
@@ -293,7 +306,7 @@ applyHori (HoriOp dist childm) pl (Notes notesm) pr = do
 -- =================
 
 derivationPlayerPV
-  :: (Eq n, Ord n, Notation n, Hashable n)
+  :: (Eq n, Ord n, Notation n, Hashable n, Eq (IntervalOf n), HasPitch n)
   => DerivationPlayer (Split n) Freeze (Hori n) (Notes n) (Edges n)
 derivationPlayerPV = DerivationPlayer topEdges
                                       topNotes

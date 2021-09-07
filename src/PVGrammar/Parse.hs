@@ -103,7 +103,10 @@ findOrnament
   -> Bool
   -> Bool
   -> Maybe
-       (EdgeEither (Ornament, Edge n) (Passing, InnerEdge n))
+       ( EdgeEither
+           (DoubleOrnament, Edge n)
+           (Passing, InnerEdge n)
+       )
 findOrnament (Inner l) (Inner m) (Inner r) True True
   | pl == pm && pm == pr = Just $ T (FullRepeat, (Inner l, Inner r))
   | pl == pm && so       = Just $ T (RightRepeatOfLeft, (Inner l, Inner r))

@@ -7,3 +7,7 @@
 *.prof.html
 *.ps
 *.eventlog
+*.tex
+*.pdf
+*.musicxml
+*.txt

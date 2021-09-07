@@ -27,7 +27,7 @@ dependencies:
 - text
 - containers
 - unordered-containers
-- multiset
+- vector
 - transformers
 - mtl
 - fin
@@ -39,14 +39,9 @@ dependencies:
 - microlens
 - microlens-th
 - hashable
-- algebraic-graphs
 - semirings
 - parallel
 - deepseq
-- data-default
-- diagrams-lib
-- diagrams-svg
-- colour
 - process
 
 library:
