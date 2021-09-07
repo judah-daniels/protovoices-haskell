@@ -31,9 +31,13 @@ dependencies:
 - transformers
 - mtl
 - fin
+- mwc-random
+- mwc-probability
+- primitive
 - indexed
 - do-notation
 - microlens
+- microlens-th
 - hashable
 - algebraic-graphs
 - semirings
