@@ -89,8 +89,17 @@ class Jeffrey a where
 class GJeffrey t where
   gjeffreyPrior :: forall p. t p
 
+instance GJeffrey V1 where
+  gjeffreyPrior = undefined
+
+instance GJeffrey U1 where
+  gjeffreyPrior = U1
+
 instance (Jeffrey k) => GJeffrey (K1 i (HyperRep k)) where
   gjeffreyPrior = K1 $ HyperRep $ jeffreyPrior @k
+
+instance (Jeffrey k, k HyperRep ~ Hyper k) => GJeffrey (K1 i (k HyperRep)) where
+  gjeffreyPrior = K1 $ jeffreyPrior @k
 
 instance (GJeffrey t) => GJeffrey (M1 i c (t :: Type -> Type)) where
   gjeffreyPrior = M1 gjeffreyPrior

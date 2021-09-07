@@ -9,6 +9,9 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE UndecidableInstances #-}
 module PVGrammar.Prob.Simple where
 
 import           Inference.Conjugate
@@ -28,6 +31,7 @@ import           Musicology.Pitch              as MP
 import           Lens.Micro.TH                  ( makeLenses )
 import qualified Data.Bifunctor                as Bi
 import           Data.Tuple                     ( swap )
+import           GHC.Generics                   ( Generic )
 
 data PVParamsOuter f = PVParamsOuter
   { _pSingleFreeze :: f BetaBernoulli
@@ -35,6 +39,9 @@ data PVParamsOuter f = PVParamsOuter
   , _pDoubleLeftFreeze :: f BetaBernoulli
   , _pDoubleRightSplit :: f BetaBernoulli
   }
+  deriving (Generic)
+
+deriving instance (Show (f BetaBernoulli)) => Show (PVParamsOuter f)
 
 makeLenses ''PVParamsOuter
 
@@ -55,11 +62,17 @@ data PVParamsInner f = PVParamsInner
   , _pNewPassingLeft :: f BetaGeometric0
   , _pNewPassingRight :: f BetaGeometric0
   }
+  deriving (Generic)
+
+deriving instance (Show (f BetaBernoulli), Show (f BetaGeometric0), Show (f BetaGeometric1)) => Show (PVParamsInner f)
 
 makeLenses ''PVParamsInner
 
 data PVParams f = PVParams { _pOuter :: PVParamsOuter f
                            , _pInner :: PVParamsInner f }
+  deriving (Generic)
+
+deriving instance (Show (f BetaBernoulli), Show (f BetaGeometric0), Show (f BetaGeometric1)) => Show (PVParams f)
 
 makeLenses ''PVParams
 
