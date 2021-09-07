@@ -15,7 +15,9 @@ import           Inference.Conjugate
 import           PVGrammar
 import           Common
 import           PVGrammar.Generate
-import           Control.Monad                  ( replicateM )
+import           Control.Monad                  ( replicateM
+                                                , guard
+                                                )
 import qualified Data.Map.Strict               as M
 import           Data.Maybe                     ( catMaybes
                                                 , mapMaybe
@@ -25,6 +27,7 @@ import qualified Internal.MultiSet             as MS
 import           Musicology.Pitch              as MP
 import           Lens.Micro.TH                  ( makeLenses )
 import qualified Data.Bifunctor                as Bi
+import           Data.Tuple                     ( swap )
 
 data PVParamsOuter f = PVParamsOuter
   { _pSingleFreeze :: f BetaBernoulli
@@ -132,7 +135,7 @@ sampleSplit (sliceL, Edges ts nts, sliceR) = do
       notesR  = concatMap (\(_, ns) -> fmap (\(n, _, _) -> n) ns) childrenR
       notes   = notesT <> notesNT <> notesL <> notesR
   passLeft  <- sampleNewPassing notes sliceL pNewPassingLeft
-  passRight <- sampleNewPassing notes sliceR pNewPassingRight
+  passRight <- MS.map swap <$> sampleNewPassing notes sliceR pNewPassingRight
   let
 
     -- combine all sampling results into split operation 
@@ -298,13 +301,14 @@ sampleSplit (sliceL, Edges ts nts, sliceR) = do
     -> Accessor PVParamsInner BetaGeometric0
     -> m (MS.MultiSet (InnerEdge SPC))
   sampleNewPassing notes slice pNewPassing = case getInner slice of
-    Nothing             -> pure MS.empty
-    Just (Notes notesl) -> fmap (MS.fromList . concat) $ sequence $ do -- List
-      l <- MS.toList notesl
+    Nothing              -> pure MS.empty
+    Just (Notes parents) -> fmap (MS.fromList . concat) $ sequence $ do -- List
+      p <- MS.toList parents
       m <- notes
+      guard $ iabs (p `pto` m) < major second'
       pure $ do -- m
         n <- sampleValue $ pInner . pNewPassing
-        pure $ replicate n (l, m)
+        pure $ replicate n (p, m)
 
 sampleHori :: RandomInterpreter m PVParams => ContextDouble n -> m (Hori n)
 sampleHori _parents = pure undefined

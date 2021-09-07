@@ -66,6 +66,12 @@ data Edges n = Edges
                }
   deriving (Eq, Ord, Generic, NFData, Hashable)
 
+instance (Hashable n, Eq n) => Semigroup (Edges n) where
+  (Edges aT aNT) <> (Edges bT bNT) = Edges (aT <> bT) (aNT <> bNT)
+
+instance (Hashable n, Eq n) => Monoid (Edges n) where
+  mempty = Edges mempty MS.empty
+
 instance (Notation n) => Show (Edges n) where
   show (Edges ts nts) = "{" <> L.intercalate "," (tts <> tnts) <> "}"
    where

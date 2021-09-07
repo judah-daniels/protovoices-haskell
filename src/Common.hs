@@ -1,4 +1,3 @@
-
 {-# LANGUAGE ExplicitNamespaces #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TupleSections #-}
