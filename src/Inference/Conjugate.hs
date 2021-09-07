@@ -13,6 +13,9 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE PolyKinds #-}
 module Inference.Conjugate where
 
 import           Control.Monad.Primitive        ( PrimMonad )
@@ -45,18 +48,23 @@ import           Lens.Micro
 import           Lens.Micro.Extras
 import           System.Random.MWC.Probability
 import           Lens.Micro.TH                  ( makeLenses )
+import           GHC.TypeNats
+import           GHC.Generics
 
 type family Support a
+
+type family Probs a
+
+type family Hyper (a :: k) :: Type
 
 class Distribution a where
   distSample :: (PrimMonad m) => a -> Prob m (Support a)
   distLogP :: a -> Support a -> Double
 
 class Conjugate a where
-  type Hyper a
-  type Probs a
   sampleConjValue :: (PrimMonad m) => Probs a -> Prob m (Support a)
   evalConjLogP :: Probs a -> Support a -> Double
+  sampleConjParams :: (PrimMonad m) => Hyper a -> Prob m (Probs a)
   updatePrior :: Hyper a -> Support a -> Hyper a
 
 newtype HyperRep a = HyperRep { runHyper :: Hyper a }
@@ -67,6 +75,33 @@ deriving instance Show (Probs a) => Show (ProbsRep a)
 
 newtype ValueRep a = ValueRep { runValue :: Support a }
 deriving instance Show (Support a) => Show (ValueRep a)
+
+-----------------------------------------------------
+-- generic magic for conjugates and parameter sets --
+-----------------------------------------------------
+
+-- Jeffrey's prior
+-- ---------------
+
+class Jeffrey a where
+  jeffreyPrior :: Hyper a
+
+class GJeffrey t where
+  gjeffreyPrior :: forall p. t p
+
+instance (Jeffrey k) => GJeffrey (K1 i (HyperRep k)) where
+  gjeffreyPrior = K1 $ HyperRep $ jeffreyPrior @k
+
+instance (GJeffrey t) => GJeffrey (M1 i c (t :: Type -> Type)) where
+  gjeffreyPrior = M1 gjeffreyPrior
+
+instance (GJeffrey ta, GJeffrey tb) => GJeffrey (ta :*: tb) where
+  gjeffreyPrior = gjeffreyPrior @ta :*: gjeffreyPrior @tb
+
+type instance Hyper (a :: (Type -> Type) -> Type) = a HyperRep
+
+instance (Generic (a HyperRep), GJeffrey (Rep (a HyperRep))) => Jeffrey (a :: (Type -> Type) -> Type) where
+  jeffreyPrior = GHC.Generics.to (gjeffreyPrior @(Rep (a HyperRep)))
 
 -----------------------
 -- likelihood monads --
@@ -274,23 +309,27 @@ instance Distribution Bernoulli where
 data BetaBernoulli
 
 type instance Support BetaBernoulli = Bool
+type instance Probs BetaBernoulli = Double
+type instance Hyper BetaBernoulli = (Double, Double)
 
 instance Conjugate BetaBernoulli where
-  type Hyper BetaBernoulli = (Double, Double)
-  type Probs BetaBernoulli = Double
   sampleConjValue = bernoulli
   evalConjLogP prob True  = log prob
   evalConjLogP prob False = log (1 - prob)
+  sampleConjParams = uncurry beta
   updatePrior (a, b) True  = (a + 1, b)
   updatePrior (a, b) False = (a, b + 1)
+
+instance Jeffrey BetaBernoulli where
+  jeffreyPrior = (0.5, 0.5)
 
 data BetaGeometric0
 
 type instance Support BetaGeometric0 = Int
+type instance Probs BetaGeometric0 = Double
+type instance Hyper BetaGeometric0 = (Double, Double)
 
 instance Conjugate BetaGeometric0 where
-  type Hyper BetaGeometric0 = (Double, Double)
-  type Probs BetaGeometric0 = Double
   sampleConjValue = geometric0
    where
     geometric0 p = do
@@ -298,15 +337,19 @@ instance Conjugate BetaGeometric0 where
       if coin then pure 0 else (1 +) <$> geometric0 p
   evalConjLogP p val | val >= 0  = (log (1 - p) * fromIntegral val) + log p
                      | otherwise = log 0
+  sampleConjParams = uncurry beta
   updatePrior (a, b) k = (a + 1, b + fromIntegral k)
+
+instance Jeffrey BetaGeometric0 where
+  jeffreyPrior = (0.5, 0.5)
 
 data BetaGeometric1
 
 type instance Support BetaGeometric1 = Int
+type instance Probs BetaGeometric1 = Double
+type instance Hyper BetaGeometric1 = (Double, Double)
 
 instance Conjugate BetaGeometric1 where
-  type Hyper BetaGeometric1 = (Double, Double)
-  type Probs BetaGeometric1 = Double
   sampleConjValue = geometric1
    where
     geometric1 p = do
@@ -315,23 +358,30 @@ instance Conjugate BetaGeometric1 where
   evalConjLogP p val
     | val >= 1  = (log (1 - p) * fromIntegral (val - 1)) + log p
     | otherwise = log 0
+  sampleConjParams = uncurry beta
   updatePrior (a, b) k = (a + 1, b + fromIntegral (k - 1))
 
-data DirichletCategorical
+instance Jeffrey BetaGeometric1 where
+  jeffreyPrior = (0.5, 0.5)
 
-type instance Support DirichletCategorical = Int
+data DirichletCategorical (n :: Nat)
 
-instance Conjugate DirichletCategorical where
-  type Hyper DirichletCategorical = V.Vector Double
-  type Probs DirichletCategorical = V.Vector Double
+type instance Support (DirichletCategorical n) = Int
+type instance Probs (DirichletCategorical n) = V.Vector Double
+type instance Hyper (DirichletCategorical n) = V.Vector Double
+
+instance Conjugate (DirichletCategorical n) where
   sampleConjValue = categorical
   evalConjLogP probs cat = log $ fromMaybe 0 $ probs V.!? cat
+  sampleConjParams = dirichlet
   updatePrior counts obs
     | obs >= 0 && obs < V.length counts
     = counts V.// [(obs, (counts V.! obs) + 1)]
     | otherwise
     = counts
 
+instance KnownNat n => Jeffrey (DirichletCategorical n) where
+  jeffreyPrior = V.replicate (fromIntegral $ natVal (Proxy :: Proxy n)) 0.5
 
 -------------
 -- example --
@@ -339,11 +389,14 @@ instance Conjugate DirichletCategorical where
 
 data ExampleParams f =
   ExampleParams { _epP :: f BetaBernoulli
-                , _epCat1 :: f DirichletCategorical
-                , _epCat2 :: f DirichletCategorical
+                , _epCat1 :: f (DirichletCategorical 3)
+                , _epCat2 :: f (DirichletCategorical 3)
                 }
+  deriving (Generic)
 
-deriving instance (Show (f BetaBernoulli), Show (f DirichletCategorical)) => Show (ExampleParams f)
+deriving instance (Show (f BetaBernoulli), Show (f (DirichletCategorical 3))) => Show (ExampleParams f)
+
+-- instance Jeffrey (ExampleParams f) (ExampleParams HyperRep)
 
 exampleProbs :: ExampleParams ProbsRep
 exampleProbs = ExampleParams { _epP    = ProbsRep 0.7
@@ -360,8 +413,13 @@ examplePriors = ExampleParams { _epP    = HyperRep (0.5, 0.5)
 makeLenses ''ExampleParams
 
 exampleLk
-  :: (SampleCtx m BetaBernoulli, SampleCtx m DirichletCategorical)
+  :: (SampleCtx m BetaBernoulli, SampleCtx m (DirichletCategorical 3))
   => RandomInterpreter m ExampleParams => m Int
 exampleLk = do
   coin <- sampleValue epP
   sampleValue $ if coin then epCat1 else epCat2
+
+newtype ExParams2 f = ExParams2 { ep :: f BetaBernoulli }
+  deriving (Generic)
+
+deriving instance (Show (f BetaBernoulli)) => Show (ExParams2 f)
