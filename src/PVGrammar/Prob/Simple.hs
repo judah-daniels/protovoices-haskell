@@ -34,37 +34,37 @@ import           Data.Tuple                     ( swap )
 import           GHC.Generics                   ( Generic )
 
 data PVParamsOuter f = PVParamsOuter
-  { _pSingleFreeze :: f BetaBernoulli
-  , _pDoubleLeft :: f BetaBernoulli
-  , _pDoubleLeftFreeze :: f BetaBernoulli
-  , _pDoubleRightSplit :: f BetaBernoulli
+  { _pSingleFreeze :: f Beta Bernoulli
+  , _pDoubleLeft :: f Beta Bernoulli
+  , _pDoubleLeftFreeze :: f Beta Bernoulli
+  , _pDoubleRightSplit :: f Beta Bernoulli
   }
   deriving (Generic)
 
-deriving instance (Show (f BetaBernoulli)) => Show (PVParamsOuter f)
+deriving instance (Show (f Beta Bernoulli)) => Show (PVParamsOuter f)
 
 makeLenses ''PVParamsOuter
 
 data PVParamsInner f = PVParamsInner
-  { _pElaborateRegular :: f BetaGeometric1
-  , _pElaborateL :: f BetaGeometric0
-  , _pElaborateR :: f BetaGeometric0
-  , _pRootFifths :: f BetaGeometric0
-  , _pKeepL :: f BetaBernoulli
-  , _pKeepR :: f BetaBernoulli
-  , _pRepeatOverNeighbor :: f BetaBernoulli
-  , _pNBChromatic :: f BetaBernoulli
-  , _pNBAlt :: f BetaGeometric0
-  , _pRepeatLeftOverRight :: f BetaBernoulli
-  , _pConnect :: f BetaBernoulli
-  , _pConnectChromaticLeftOverRight :: f BetaBernoulli
-  , _pPassLeftOverRight :: f BetaBernoulli
-  , _pNewPassingLeft :: f BetaGeometric0
-  , _pNewPassingRight :: f BetaGeometric0
+  { _pElaborateRegular :: f Beta Geometric1
+  , _pElaborateL :: f Beta Geometric0
+  , _pElaborateR :: f Beta Geometric0
+  , _pRootFifths :: f Beta Geometric0
+  , _pKeepL :: f Beta Bernoulli
+  , _pKeepR :: f Beta Bernoulli
+  , _pRepeatOverNeighbor :: f Beta Bernoulli
+  , _pNBChromatic :: f Beta Bernoulli
+  , _pNBAlt :: f Beta Geometric0
+  , _pRepeatLeftOverRight :: f Beta Bernoulli
+  , _pConnect :: f Beta Bernoulli
+  , _pConnectChromaticLeftOverRight :: f Beta Bernoulli
+  , _pPassLeftOverRight :: f Beta Bernoulli
+  , _pNewPassingLeft :: f Beta Geometric0
+  , _pNewPassingRight :: f Beta Geometric0
   }
   deriving (Generic)
 
-deriving instance (Show (f BetaBernoulli), Show (f BetaGeometric0), Show (f BetaGeometric1)) => Show (PVParamsInner f)
+deriving instance (Show (f Beta Bernoulli), Show (f Beta Geometric0), Show (f Beta Geometric1)) => Show (PVParamsInner f)
 
 makeLenses ''PVParamsInner
 
@@ -72,7 +72,7 @@ data PVParams f = PVParams { _pOuter :: PVParamsOuter f
                            , _pInner :: PVParamsInner f }
   deriving (Generic)
 
-deriving instance (Show (f BetaBernoulli), Show (f BetaGeometric0), Show (f BetaGeometric1)) => Show (PVParams f)
+deriving instance (Show (f Beta Bernoulli), Show (f Beta Geometric0), Show (f Beta Geometric1)) => Show (PVParams f)
 
 makeLenses ''PVParams
 
@@ -89,9 +89,7 @@ type ContextDouble n
     )
 
 sampleSingleStep
-  :: (RandomInterpreter m PVParams, SampleCtx m BetaBernoulli, _)
-  => ContextSingle SPC
-  -> m (Leftmost (Split SPC) Freeze SPC)
+  :: _ => ContextSingle SPC -> m (Leftmost (Split SPC) Freeze SPC)
 sampleSingleStep parents@(_, trans, _) = if freezable trans
   then do
     shouldFreeze <- sampleValue $ pOuter . pSingleFreeze
@@ -200,7 +198,7 @@ sampleSplit (sliceL, Edges ts nts, sliceR) = do
   sampleNeighbor stepUp ref = do
     chromatic <- sampleValue $ pInner . pNBChromatic
     -- 
-    altUp     <- sampleConst $ Bernoulli 0.5
+    altUp     <- sampleConst Bernoulli 0.5
     alt       <- sampleValue $ pInner . pNBAlt
     let altInterval = alt *^ chromaticSemitone
     pure $ ref +^ if chromatic
@@ -210,7 +208,7 @@ sampleSplit (sliceL, Edges ts nts, sliceR) = do
         else minor second' ^-^ altInterval
 
   sampleRootNote = do
-    fifthsSign <- sampleConst $ Bernoulli 0.5
+    fifthsSign <- sampleConst Bernoulli 0.5
     fifthsN    <- sampleValue $ pInner . pRootFifths
     let interval = if fifthsSign then fifthsN else negate fifthsN
     pure $ spc interval
@@ -222,7 +220,7 @@ sampleSplit (sliceL, Edges ts nts, sliceR) = do
       if rep
         then pure (pl, FullRepeat)
         else do
-          stepUp <- sampleConst $ Bernoulli 0.5
+          stepUp <- sampleConst Bernoulli 0.5
           (, FullNeighbor) <$> sampleNeighbor stepUp pl
     | otherwise = do
       repeatLeft <- sampleValue $ pInner . pRepeatLeftOverRight
@@ -291,7 +289,7 @@ sampleSplit (sliceL, Edges ts nts, sliceR) = do
       if rep
         then pure (parent, keep, SingleRightRepeat)
         else do
-          stepUp <- sampleConst $ Bernoulli 0.5
+          stepUp <- sampleConst Bernoulli 0.5
           child  <- sampleNeighbor stepUp parent
           pure (child, keep, SingleRightNeighbor)
 
@@ -304,14 +302,14 @@ sampleSplit (sliceL, Edges ts nts, sliceR) = do
       if rep
         then pure (parent, keep, SingleLeftRepeat)
         else do
-          stepUp <- sampleConst $ Bernoulli 0.5
+          stepUp <- sampleConst Bernoulli 0.5
           child  <- sampleNeighbor stepUp parent
           pure (child, keep, SingleLeftNeighbor)
 
   sampleNewPassing
     :: [SPC]
     -> StartStop (Notes SPC)
-    -> Accessor PVParamsInner BetaGeometric0
+    -> Accessor PVParamsInner Beta Geometric0
     -> m (MS.MultiSet (InnerEdge SPC))
   sampleNewPassing notes slice pNewPassing = case getInner slice of
     Nothing              -> pure MS.empty

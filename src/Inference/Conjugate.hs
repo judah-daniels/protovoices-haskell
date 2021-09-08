@@ -16,9 +16,13 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE PartialTypeSignatures #-}
+{-# OPTIONS_GHC -Wno-partial-type-signatures #-}
 module Inference.Conjugate where
 
-import           Control.Monad.Primitive        ( PrimMonad )
+import           Control.Monad.Primitive        ( PrimMonad
+                                                , PrimState
+                                                )
 import           Control.Monad.Reader           ( ReaderT
                                                 , runReaderT
                                                 )
@@ -26,6 +30,7 @@ import           Control.Monad.Reader.Class     ( MonadReader(ask) )
 import           Control.Monad.State            ( StateT
                                                 , runStateT
                                                 , execStateT
+                                                , evalStateT
                                                 )
 import           Control.Monad.State.Class      ( modify
                                                 , put
@@ -51,35 +56,68 @@ import           Lens.Micro.TH                  ( makeLenses )
 import           GHC.TypeNats
 import           GHC.Generics
 
-type family Support (a :: k) :: Type
+----------------------------------------------------------------
+-- type classes and families for distributions and conjugates --
+----------------------------------------------------------------
 
-type family Probs (a :: k) :: Type
+-- | Describes a family of distributions with a fixed form.
+-- For example, a 'Bernoulli' distribution is parameterized by a probability @p@
+-- and produces binary samples
+-- (@True@ with probability @p@, @False@ with probability @1-p@).
+--
+-- Its 'Distribution' instance is:
+-- > instance Distribution Bernoulli where
+-- >   type Params Bernoulli = Double
+-- >   type Support Bernoulli = Bool
+-- >   distSample = uncurry bernoulli
+-- >   distLogP p True = log p
+-- >   distLogP p False = log (1 - p)
+class Distribution a where
+  type Params a :: Type
+  type Support a :: Type
+  distSample :: (PrimMonad m) => Params a -> Prob m (Support a)
+  distLogP :: Params a -> Support a -> Double
+
+-- | Used as a type-lifted kind for conjugate distribution pairs
+data Conj a b = Conj a b
+
+-- | Marks two distributions as a conjugate pair of prior and likelihood.
+-- The property of such a pair is that the posterior has the same form as the prior
+-- (including the same 'Params' and 'Support'),
+-- and that its parameters can be obtained analytically from the parameters of the prior
+-- and a set of observations.
+--
+-- The class method 'updatePrior' returns the parameters of the posterior
+-- given the prior parameters after a single observation.
+class (Distribution p, Distribution l, Support p ~ Params l) => Conjugate p l where
+  updatePrior :: Params p -> Support l -> Params p
 
 type family Hyper (a :: k) :: Type
+type instance Hyper (Conj p l) = Params p
 
-class Distribution a where
-  distSample :: (PrimMonad m) => a -> Prob m (Support a)
-  distLogP :: a -> Support a -> Double
+type family Probs (a :: k) :: Type
+type instance Probs (Conj p l) = Support p
 
-class Conjugate a where
-  sampleConjValue :: (PrimMonad m) => Probs a -> Prob m (Support a)
-  evalConjLogP :: Probs a -> Support a -> Double
-  updatePrior :: Hyper a -> Support a -> Hyper a
+type family Value (a :: k) :: Type
+type instance Value (Conj p l) = Support l
 
-newtype HyperRep a = HyperRep { runHyper :: Hyper a }
-deriving instance Show (Hyper a) => Show (HyperRep a)
+-- helper types for instantiating hyperparameters, parameters, and values
+-- ----------------------------------------------------------------------
 
-type instance Hyper (a :: (Type -> Type) -> Type) = a HyperRep
+newtype HyperRep p l = HyperRep { runHyper :: Hyper (Conj p l) }
+deriving instance Show (Hyper (Conj p l)) => Show (HyperRep p l)
 
-newtype ProbsRep a = ProbsRep { runProbs :: Probs a}
-deriving instance Show (Probs a) => Show (ProbsRep a)
+type instance Hyper (a :: (Type -> Type -> Type) -> Type) = a HyperRep
 
-type instance Probs (a :: (Type -> Type) -> Type) = a ProbsRep
+newtype ProbsRep p l = ProbsRep { runProbs :: Probs (Conj p l)}
+deriving instance Show (Probs (Conj p l)) => Show (ProbsRep p l)
 
-newtype ValueRep a = ValueRep { runValue :: Support a }
-deriving instance Show (Support a) => Show (ValueRep a)
+type instance Probs (a :: (Type -> Type -> Type) -> Type) = a ProbsRep
 
-type instance Support (a :: (Type -> Type) -> Type) = a ValueRep
+newtype ValueRep p l = ValueRep { runValue :: Value (Conj p l) }
+deriving instance Show (Value (Conj p l)) => Show (ValueRep p l)
+
+type instance Value (a :: (Type -> Type -> Type) -> Type) = a ValueRep
 
 -----------------------------------------------------
 -- generic magic for conjugates and parameter sets --
@@ -101,8 +139,8 @@ instance GJeffrey U1 where
   gjeffreyPrior = U1
 
 -- base case: k is a conjugate distribution
-instance (Jeffrey k) => GJeffrey (K1 i (HyperRep k)) where
-  gjeffreyPrior = K1 $ HyperRep $ jeffreyPrior @k
+instance (Jeffrey (Conj p l)) => GJeffrey (K1 i (HyperRep p l)) where
+  gjeffreyPrior = K1 $ HyperRep $ jeffreyPrior @(Conj p l)
 
 -- recursive case: k is another record
 instance (Jeffrey k, k HyperRep ~ Hyper k) => GJeffrey (K1 i (k HyperRep)) where
@@ -114,14 +152,17 @@ instance (GJeffrey t) => GJeffrey (M1 i c (t :: Type -> Type)) where
 instance (GJeffrey ta, GJeffrey tb) => GJeffrey (ta :*: tb) where
   gjeffreyPrior = gjeffreyPrior @ta :*: gjeffreyPrior @tb
 
-instance (Generic (a HyperRep), GJeffrey (Rep (a HyperRep))) => Jeffrey (a :: (Type -> Type) -> Type) where
-  jeffreyPrior = GHC.Generics.to (gjeffreyPrior @(Rep (a HyperRep)))
+instance (Generic (t HyperRep), GJeffrey (Rep (t HyperRep))) => Jeffrey (t :: (Type -> Type -> Type) -> Type) where
+  jeffreyPrior = GHC.Generics.to (gjeffreyPrior @(Rep (t HyperRep)))
 
 -- sampling from prior
 -- ------------------
 
 class Prior a where
   sampleProbs :: (PrimMonad m) => Hyper a -> Prob m (Probs a)
+
+instance Distribution p => Prior (Conj p l) where
+  sampleProbs = distSample @p
 
 class GPrior i o where
   gsampleProbs :: forall m p. PrimMonad m => i p -> Prob m (o p)
@@ -133,8 +174,9 @@ instance GPrior U1 U1 where
   gsampleProbs _ = pure U1
 
 -- base case: k is a conjugate distribution
-instance (Prior k) => GPrior (K1 i (HyperRep k)) (K1 i (ProbsRep k)) where
-  gsampleProbs (K1 (HyperRep hyper)) = K1 . ProbsRep <$> sampleProbs @k hyper
+instance (Prior (Conj p l)) => GPrior (K1 i (HyperRep p l)) (K1 i (ProbsRep p l)) where
+  gsampleProbs (K1 (HyperRep hyper)) =
+    K1 . ProbsRep <$> sampleProbs @(Conj p l) hyper
 
 -- recursive case: k is another record
 instance (Prior k, k HyperRep ~ Hyper k, k ProbsRep ~ Probs k) =>
@@ -154,26 +196,27 @@ instance (GPrior ia oa, GPrior ib ob) => GPrior (ia :+: ib) (oa :+: ob) where
 instance ( Generic (a HyperRep)
          , Generic (a ProbsRep)
          , GPrior (Rep (a HyperRep)) (Rep (a ProbsRep))
-         ) => Prior (a :: (Type -> Type) -> Type) where
+         ) => Prior (a :: (Type -> Type -> Type) -> Type) where
   sampleProbs hyper = GHC.Generics.to <$> gsampleProbs (from hyper)
 
 -----------------------
 -- likelihood monads --
 -----------------------
 
-type Accessor (p :: (Type -> Type) -> Type) a = forall f . Lens' (p f) (f a)
+type Accessor (r :: (Type -> Type -> Type) -> Type) p l
+  = forall f . Lens' (r f) (f p l)
 
-class Monad m => RandomInterpreter m p | m -> p where
-  -- TODO: This constraint requires annotating the model with a constraint
-  -- for every Conjugate that is used. Can this be derived from p using Generics?
+class Monad m => RandomInterpreter m r | m -> r where
   type SampleCtx m a :: Constraint
-  sampleValue :: (Conjugate a, SampleCtx m a) => Accessor p a -> m (Support a)
-  sampleConst :: (Distribution a, SampleCtx m a) => a -> m (Support a)
+  sampleValue :: (Conjugate p l, SampleCtx m l) => Accessor r p l -> m (Support l)
+  -- TODO: can we get rid of the first function parameter here?
+  -- sampleValue works without that for some reason
+  sampleConst :: (Distribution a, SampleCtx m a) => a -> Params a -> m (Support a)
 
-newtype Trace (p :: (Type -> Type) -> Type)  = Trace {runTrace :: S.Seq Dynamic}
+newtype Trace (r :: (Type -> Type -> Type) -> Type)  = Trace {runTrace :: S.Seq Dynamic}
   deriving (Show)
 
-takeTrace :: Typeable a => Trace p -> Maybe (a, Trace p)
+takeTrace :: Typeable a => Trace r -> Maybe (a, Trace r)
 takeTrace (Trace t) = do
   (valDyn, rest) <- case S.viewl t of
     S.EmptyL         -> Nothing
@@ -184,80 +227,95 @@ takeTrace (Trace t) = do
 -- just sample
 -- -----------
 
-newtype SampleI m p a = SampleI (ReaderT (p ProbsRep) (Prob m) a)
+newtype SampleI m r a = SampleI (ReaderT (r ProbsRep) (Prob m) a)
   deriving (Functor, Applicative, Monad)
 
-instance (PrimMonad m) => RandomInterpreter (SampleI m p) p where
-  type SampleCtx (SampleI m p) a = ()
+instance (PrimMonad m) => RandomInterpreter (SampleI m r) r where
+  type SampleCtx (SampleI m r) a = ()
   sampleValue
-    :: forall  a . (Conjugate a) => Accessor p a -> SampleI m p (Support a)
+    :: forall p l
+     . (Conjugate p l)
+    => Accessor r p l
+    -> SampleI m r (Support l)
   sampleValue getProbs = SampleI $ do
     probs <- ask
-    lift $ sampleConjValue @a $ runProbs $ view getProbs probs
-  sampleConst dist = SampleI $ lift $ distSample dist
+    lift $ distSample @l $ runProbs $ view getProbs probs
+  sampleConst
+    :: forall  a . (Distribution a) => a -> Params a -> SampleI m r (Support a)
+  sampleConst _ params = SampleI $ lift $ distSample @a params
 
-sampleResult :: p ProbsRep -> SampleI IO p a -> IO a
-sampleResult probs (SampleI a) =
-  createSystemRandom >>= sample (runReaderT a probs)
+sampleResult :: p ProbsRep -> SampleI m p a -> Gen (PrimState m) -> m a
+sampleResult probs (SampleI a) = sample (runReaderT a probs)
 
 -- sample and trace the execution process
 -- --------------------------------------
 
-newtype TraceI m p a = TraceI (ReaderT (p ProbsRep) (StateT (Trace p) (Prob m)) a)
+newtype TraceI m r a = TraceI (ReaderT (r ProbsRep) (StateT (Trace r) (Prob m)) a)
   deriving (Functor, Applicative, Monad)
 
-instance (PrimMonad m) => RandomInterpreter (TraceI m p) p where
-  type SampleCtx (TraceI m p) a = Typeable (Support a)
+instance (PrimMonad m) => RandomInterpreter (TraceI m r) r where
+  type SampleCtx (TraceI m r) l = Typeable (Support l)
   sampleValue
-    :: forall a
-     . (Conjugate a, Typeable (Support a))
-    => Accessor p a
-    -> TraceI m p (Support a)
+    :: forall p l
+     . (Conjugate p l, Typeable (Support l))
+    => Accessor r p l
+    -> TraceI m r (Support l)
   sampleValue getProbs = TraceI $ do
     probs <- ask
-    val   <- lift $ lift $ sampleConjValue @a $ runProbs $ view getProbs probs
+    val   <- lift $ lift $ distSample @l $ runProbs $ view getProbs probs
     modify $ \(Trace obs) -> Trace $ obs S.|> toDyn val
     pure val
-  sampleConst dist = TraceI $ do
-    val <- lift $ lift $ distSample dist
+  sampleConst
+    :: forall a
+     . (Distribution a, Typeable (Support a))
+    => a
+    -> Params a
+    -> TraceI m r (Support a)
+  sampleConst _ params = TraceI $ do
+    val <- lift $ lift $ distSample @a params
     modify $ \(Trace obs) -> Trace $ obs S.|> toDyn val
     pure val
 
-sampleTrace :: p ProbsRep -> TraceI IO p a -> IO (a, Trace p)
+sampleTrace :: r ProbsRep -> TraceI m r a -> Gen (PrimState m) -> m (a, Trace r)
 sampleTrace probs (TraceI a) = do
-  gen <- createSystemRandom
   let st = runReaderT a probs
       pr = runStateT st (Trace mempty)
-  sample pr gen
+  sample pr
 
 -- evaluate the probability of a trace
 -- -----------------------------------
 
-newtype EvalTraceI p a = EvalTraceI (ReaderT (p ProbsRep) (StateT (Trace p, Double) Maybe) a)
+newtype EvalTraceI r a = EvalTraceI (ReaderT (r ProbsRep) (StateT (Trace r, Double) Maybe) a)
   deriving (Functor, Applicative, Monad)
 
-instance RandomInterpreter (EvalTraceI p) p where
-  type SampleCtx (EvalTraceI p) a = Typeable (Support a)
+instance RandomInterpreter (EvalTraceI r) r where
+  type SampleCtx (EvalTraceI r) l = Typeable (Support l)
   sampleValue
-    :: forall a
-     . (Conjugate a, Typeable (Support a))
-    => Accessor p a
-    -> EvalTraceI p (Support a)
+    :: forall p l
+     . (Conjugate p l, Typeable (Support l))
+    => Accessor r p l
+    -> EvalTraceI r (Support l)
   sampleValue getProbs = EvalTraceI $ do
     probs              <- ask
     (trace, totalLogP) <- get
     (val  , trace'   ) <- lift $ lift $ takeTrace trace
-    let logP = evalConjLogP @a (runProbs $ view getProbs probs) val
+    let logP = distLogP @l (runProbs $ view getProbs probs) val
     put (trace', totalLogP + logP)
     pure val
-  sampleConst dist = EvalTraceI $ do
+  sampleConst
+    :: forall a
+     . (Distribution a, Typeable (Support a))
+    => a
+    -> Params a
+    -> EvalTraceI r (Support a)
+  sampleConst _ params = EvalTraceI $ do
     (trace, totalLogP) <- get
     (val  , trace'   ) <- lift $ lift $ takeTrace trace
-    let logP = distLogP dist val
+    let logP = distLogP @a params val
     put (trace', totalLogP + logP)
     pure val
 
-evalTraceLogP :: p ProbsRep -> Trace p -> EvalTraceI p a -> Maybe (a, Double)
+evalTraceLogP :: r ProbsRep -> Trace r -> EvalTraceI r a -> Maybe (a, Double)
 evalTraceLogP probs trace (EvalTraceI model) = do
   (val, (_trace, logp)) <- runStateT (runReaderT model probs) (trace, 0)
   pure (val, logp)
@@ -265,32 +323,33 @@ evalTraceLogP probs trace (EvalTraceI model) = do
 -- update priors
 -- -------------
 
-newtype UpdatePriorsI p a = UpdatePriorsI (StateT (Trace p, p HyperRep) Maybe a)
+newtype UpdatePriorsI r a = UpdatePriorsI (StateT (Trace r, r HyperRep) Maybe a)
   deriving (Functor, Applicative, Monad)
 
-instance RandomInterpreter (UpdatePriorsI p) p where
-  type SampleCtx (UpdatePriorsI p) a = Typeable (Support a)
+instance RandomInterpreter (UpdatePriorsI r) r where
+  type SampleCtx (UpdatePriorsI r) l = Typeable (Support l)
   sampleValue
-    :: forall a
-     . (Conjugate a, Typeable (Support a))
-    => Accessor p a
-    -> UpdatePriorsI p (Support a)
+    :: forall p l
+     . (Conjugate p l, Typeable (Support l))
+    => Accessor r p l
+    -> UpdatePriorsI r (Support l)
   sampleValue accessor = UpdatePriorsI $ do
     (trace, priors) <- get
     (val  , trace') <- lift $ takeTrace trace
-    let priors' :: p HyperRep
-        priors' = over accessor
-                       (\(HyperRep pr) -> HyperRep $ updatePrior @a pr val)
-                       priors
+    let priors' :: r HyperRep
+        priors' = over
+          accessor
+          (\(HyperRep pr) -> HyperRep $ updatePrior @p @l pr val)
+          priors
     put (trace', priors')
     pure val
-  sampleConst _ = UpdatePriorsI $ do
+  sampleConst _ _ = UpdatePriorsI $ do
     (trace, priors) <- get
     (val  , trace') <- lift $ takeTrace trace
     put (trace', priors)
     pure val
 
-getPosterior :: p HyperRep -> Trace p -> UpdatePriorsI p a -> Maybe (p HyperRep)
+getPosterior :: r HyperRep -> Trace r -> UpdatePriorsI r a -> Maybe (r HyperRep)
 getPosterior priors trace (UpdatePriorsI model) = do
   (_trace, posteriors) <- execStateT model (trace, priors)
   pure posteriors
@@ -298,13 +357,13 @@ getPosterior priors trace (UpdatePriorsI model) = do
 -- show how a trace is generated by a model
 -- ----------------------------------------
 
-newtype ShowTraceI p a = ShowTraceI (WriterT String (StateT (Trace p) Maybe) a)
+newtype ShowTraceI r a = ShowTraceI (WriterT String (StateT (Trace r) Maybe) a)
   deriving (Functor, Applicative, Monad)
 
 showTraceItem
-  :: forall a p
-   . (Show (Support a), Typeable a, Typeable (Support a))
-  => ShowTraceI p (Support a)
+  :: forall l r
+   . (Show (Support l), Typeable l, Typeable (Support l))
+  => ShowTraceI r (Support l)
 showTraceItem = ShowTraceI $ do
   trace         <- get
   (val, trace') <- lift $ lift $ takeTrace trace
@@ -313,48 +372,124 @@ showTraceItem = ShowTraceI $ do
     $  "Sampled value "
     <> show val
     <> " from a "
-    <> show (typeRep (Proxy :: Proxy a))
+    <> show (typeRep (Proxy :: Proxy l))
     <> ".\n"
   pure val
 
-instance RandomInterpreter (ShowTraceI p) p where
-  type SampleCtx (ShowTraceI p) a
-    = (Typeable (Support a), Typeable a, Show (Support a))
+instance RandomInterpreter (ShowTraceI r) r where
+  type SampleCtx (ShowTraceI r) l
+    = (Typeable (Support l), Typeable l, Show (Support l))
   sampleValue
-    :: forall a
-     . (Conjugate a, Typeable (Support a), Typeable a, Show (Support a))
-    => Accessor p a
-    -> ShowTraceI p (Support a)
-  sampleValue _ = showTraceItem @a
+    :: forall p l
+     . (Conjugate p l, Typeable (Support l), Typeable l, Show (Support l))
+    => Accessor r p l
+    -> ShowTraceI r (Support l)
+  sampleValue _ = showTraceItem @l
   sampleConst
     :: forall a
-     . (Distribution a, SampleCtx (ShowTraceI p) a)
+     . (Distribution a, SampleCtx (ShowTraceI r) a)
     => a
-    -> ShowTraceI p (Support a)
-  sampleConst _ = showTraceItem @a
+    -> Params a
+    -> ShowTraceI r (Support a)
+  sampleConst _ _ = showTraceItem @a
 
-showTrace :: Trace p -> ShowTraceI p a -> IO (Maybe a)
-showTrace trace (ShowTraceI model) = do
-  case runStateT (runWriterT model) trace of
+showTrace :: Trace r -> ShowTraceI r a -> Maybe (a, String)
+showTrace trace (ShowTraceI model) = evalStateT (runWriterT model) trace
+
+printTrace :: Trace r -> ShowTraceI r a -> IO ()
+printTrace trace model = do
+  case showTrace trace model of
     Nothing -> do
       putStrLn "Trace does not match the model"
-      pure Nothing
-    Just ((val, txt), _trace') -> do
+    Just (_, txt) -> do
       putStr txt
-      pure $ Just val
 
---------------------------
--- simple distributions --
---------------------------
+-------------------
+-- distributions --
+-------------------
 
-newtype Bernoulli = Bernoulli Double
+-- Beta
+-- ----
 
-type instance Support Bernoulli = Bool
+data Beta = Beta
+
+instance Distribution Beta where
+  type Params Beta = (Double, Double)
+  type Support Beta = Double
+  distSample = uncurry beta
+  distLogP (_a, _b) _p = undefined -- TODO
+
+instance Jeffrey (Conj Beta l) where
+  jeffreyPrior = (0.5, 0.5)
+
+-- Bernoulli
+-- ---------
+
+data Bernoulli = Bernoulli
 
 instance Distribution Bernoulli where
-  distSample (Bernoulli p) = bernoulli p
-  distLogP (Bernoulli p) True  = log p
-  distLogP (Bernoulli p) False = log (1 - p)
+  type Params Bernoulli = Double
+  type Support Bernoulli = Bool
+  distSample = bernoulli
+  distLogP p True  = log p
+  distLogP p False = log (1 - p)
+
+-- Categorical
+-- -----------
+
+data Categorical (n :: Nat) = Categorical
+
+instance Distribution (Categorical n) where
+  type Params (Categorical n) = V.Vector Double
+  type Support (Categorical n) = Int
+  distSample = categorical
+  distLogP ps cat = log $ fromMaybe 0 $ ps V.!? cat
+
+-- Dirichlet
+-- ---------
+
+data Dirichlet (n :: Nat) = Dirichlet
+
+instance Distribution (Dirichlet n) where
+  type Params (Dirichlet n) = V.Vector Double
+  type Support (Dirichlet n) = V.Vector Double
+  distSample = dirichlet
+  distLogP _counts _cat = undefined -- TODO
+
+instance KnownNat n => Jeffrey (Conj (Dirichlet n) l) where
+  jeffreyPrior = V.replicate (fromIntegral $ natVal (Proxy :: Proxy n)) 0.5
+
+-- Geometric (from 0)
+-- ------------------
+
+data Geometric0 = Geometric0
+
+instance Distribution Geometric0 where
+  type Params Geometric0 = Double
+  type Support Geometric0 = Int
+  distSample = geometric0
+   where
+    geometric0 p = do
+      coin <- bernoulli p
+      if coin then pure 0 else (1 +) <$> geometric0 p
+  distLogP p val | val >= 0  = (log (1 - p) * fromIntegral val) + log p
+                 | otherwise = log 0
+
+-- Geometric (from 1)
+-- ------------------
+
+data Geometric1 = Geometric1
+
+instance Distribution Geometric1 where
+  type Params Geometric1 = Double
+  type Support Geometric1 = Int
+  distSample = geometric1
+   where
+    geometric1 p = do
+      coin <- bernoulli p
+      if coin then pure 1 else (1 +) <$> geometric1 p
+  distLogP p val | val >= 1  = (log (1 - p) * fromIntegral (val - 1)) + log p
+                 | otherwise = log 0
 
 -----------------------------
 -- conjugate distributions --
@@ -363,114 +498,46 @@ instance Distribution Bernoulli where
 -- beta bernoulli
 -- --------------
 
-data BetaBernoulli
-
-type instance Support BetaBernoulli = Bool
-type instance Probs BetaBernoulli = Double
-type instance Hyper BetaBernoulli = (Double, Double)
-
-instance Conjugate BetaBernoulli where
-  sampleConjValue = bernoulli
-  evalConjLogP prob True  = log prob
-  evalConjLogP prob False = log (1 - prob)
-  updatePrior (a, b) True  = (a + 1, b)
+instance Conjugate Beta Bernoulli where
   updatePrior (a, b) False = (a, b + 1)
-
-instance Jeffrey BetaBernoulli where
-  jeffreyPrior = (0.5, 0.5)
-
-instance Prior BetaBernoulli where
-  sampleProbs = uncurry beta
+  updatePrior (a, b) True  = (a + 1, b)
 
 -- beta geometric0
 -- ---------------
 
-data BetaGeometric0
-
-type instance Support BetaGeometric0 = Int
-type instance Probs BetaGeometric0 = Double
-type instance Hyper BetaGeometric0 = (Double, Double)
-
-instance Conjugate BetaGeometric0 where
-  sampleConjValue = geometric0
-   where
-    geometric0 p = do
-      coin <- bernoulli p
-      if coin then pure 0 else (1 +) <$> geometric0 p
-  evalConjLogP p val | val >= 0  = (log (1 - p) * fromIntegral val) + log p
-                     | otherwise = log 0
+instance Conjugate Beta Geometric0 where
   updatePrior (a, b) k = (a + 1, b + fromIntegral k)
-
-instance Jeffrey BetaGeometric0 where
-  jeffreyPrior = (0.5, 0.5)
-
-instance Prior BetaGeometric0 where
-  sampleProbs = uncurry beta
 
 -- beta geometric1
 -- ---------------
 
-data BetaGeometric1
-
-type instance Support BetaGeometric1 = Int
-type instance Probs BetaGeometric1 = Double
-type instance Hyper BetaGeometric1 = (Double, Double)
-
-instance Conjugate BetaGeometric1 where
-  sampleConjValue = geometric1
-   where
-    geometric1 p = do
-      coin <- bernoulli p
-      if coin then pure 1 else (1 +) <$> geometric1 p
-  evalConjLogP p val
-    | val >= 1  = (log (1 - p) * fromIntegral (val - 1)) + log p
-    | otherwise = log 0
+instance Conjugate Beta Geometric1 where
   updatePrior (a, b) k = (a + 1, b + fromIntegral (k - 1))
-
-instance Jeffrey BetaGeometric1 where
-  jeffreyPrior = (0.5, 0.5)
-
-instance Prior BetaGeometric1 where
-  sampleProbs = uncurry beta
 
 -- dirichlet categorical
 -- ---------------------
 
-data DirichletCategorical (n :: Nat)
-
-type instance Support (DirichletCategorical n) = Int
-type instance Probs (DirichletCategorical n) = V.Vector Double
-type instance Hyper (DirichletCategorical n) = V.Vector Double
-
-instance Conjugate (DirichletCategorical n) where
-  sampleConjValue = categorical
-  evalConjLogP probs cat = log $ fromMaybe 0 $ probs V.!? cat
+instance Conjugate (Dirichlet n) (Categorical n) where
   updatePrior counts obs
     | obs >= 0 && obs < V.length counts
     = counts V.// [(obs, (counts V.! obs) + 1)]
     | otherwise
     = counts
 
-instance KnownNat n => Jeffrey (DirichletCategorical n) where
-  jeffreyPrior = V.replicate (fromIntegral $ natVal (Proxy :: Proxy n)) 0.5
-
-instance Prior (DirichletCategorical n) where
-  sampleProbs = dirichlet
-
 -------------
 -- example --
 -------------
 
 data ExampleParams f =
-  ExampleParams { _epP :: f BetaBernoulli
-                , _epCat1 :: f (DirichletCategorical 3)
-                , _epCat2 :: f (DirichletCategorical 3)
+  ExampleParams { _epP :: f Beta Bernoulli
+                , _epCat1 :: f (Dirichlet 3) (Categorical 3)
+                , _epCat2 :: f (Dirichlet 3) (Categorical 3)
                 }
   deriving (Generic)
 
-deriving instance (Show (f BetaBernoulli), Show (f (DirichletCategorical 3))) => Show (ExampleParams f)
+makeLenses ''ExampleParams
 
--- instance Jeffrey (ExampleParams f) (ExampleParams HyperRep)
+deriving instance (Show (f Beta Bernoulli), Show (f (Dirichlet 3) (Categorical 3))) => Show (ExampleParams f)
 
 exampleProbs :: ExampleParams ProbsRep
 exampleProbs = ExampleParams { _epP    = ProbsRep 0.7
@@ -484,16 +551,19 @@ examplePriors = ExampleParams { _epP    = HyperRep (0.5, 0.5)
                               , _epCat2 = HyperRep $ V.fromList [0.5, 0.5, 0.5]
                               }
 
-makeLenses ''ExampleParams
-
-exampleLk
-  :: (SampleCtx m BetaBernoulli, SampleCtx m (DirichletCategorical 3))
-  => RandomInterpreter m ExampleParams => m Int
+exampleLk :: _ => RandomInterpreter m ExampleParams => m Int
 exampleLk = do
   coin <- sampleValue epP
   sampleValue $ if coin then epCat1 else epCat2
 
-newtype ExParams2 f = ExParams2 { ep :: f BetaBernoulli }
-  deriving (Generic)
-
-deriving instance (Show (f BetaBernoulli)) => Show (ExParams2 f)
+exampleMain :: IO ()
+exampleMain = do
+  let prior = jeffreyPrior @ExampleParams
+  gen             <- createSystemRandom
+  probs           <- sample (sampleProbs @ExampleParams $ prior) gen
+  (result, trace) <- sampleTrace probs exampleLk gen
+  putStrLn "trace:"
+  printTrace trace exampleLk
+  putStrLn $ "result: " <> show result
+  let logp = snd <$> evalTraceLogP probs trace exampleLk
+  putStrLn $ "log p(trace) = " <> show logp
