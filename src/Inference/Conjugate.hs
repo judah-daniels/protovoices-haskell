@@ -51,9 +51,9 @@ import           Lens.Micro.TH                  ( makeLenses )
 import           GHC.TypeNats
 import           GHC.Generics
 
-type family Support a
+type family Support (a :: k) :: Type
 
-type family Probs a
+type family Probs (a :: k) :: Type
 
 type family Hyper (a :: k) :: Type
 
@@ -64,17 +64,22 @@ class Distribution a where
 class Conjugate a where
   sampleConjValue :: (PrimMonad m) => Probs a -> Prob m (Support a)
   evalConjLogP :: Probs a -> Support a -> Double
-  sampleConjParams :: (PrimMonad m) => Hyper a -> Prob m (Probs a)
   updatePrior :: Hyper a -> Support a -> Hyper a
 
 newtype HyperRep a = HyperRep { runHyper :: Hyper a }
 deriving instance Show (Hyper a) => Show (HyperRep a)
 
+type instance Hyper (a :: (Type -> Type) -> Type) = a HyperRep
+
 newtype ProbsRep a = ProbsRep { runProbs :: Probs a}
 deriving instance Show (Probs a) => Show (ProbsRep a)
 
+type instance Probs (a :: (Type -> Type) -> Type) = a ProbsRep
+
 newtype ValueRep a = ValueRep { runValue :: Support a }
 deriving instance Show (Support a) => Show (ValueRep a)
+
+type instance Support (a :: (Type -> Type) -> Type) = a ValueRep
 
 -----------------------------------------------------
 -- generic magic for conjugates and parameter sets --
@@ -95,9 +100,11 @@ instance GJeffrey V1 where
 instance GJeffrey U1 where
   gjeffreyPrior = U1
 
+-- base case: k is a conjugate distribution
 instance (Jeffrey k) => GJeffrey (K1 i (HyperRep k)) where
   gjeffreyPrior = K1 $ HyperRep $ jeffreyPrior @k
 
+-- recursive case: k is another record
 instance (Jeffrey k, k HyperRep ~ Hyper k) => GJeffrey (K1 i (k HyperRep)) where
   gjeffreyPrior = K1 $ jeffreyPrior @k
 
@@ -107,10 +114,48 @@ instance (GJeffrey t) => GJeffrey (M1 i c (t :: Type -> Type)) where
 instance (GJeffrey ta, GJeffrey tb) => GJeffrey (ta :*: tb) where
   gjeffreyPrior = gjeffreyPrior @ta :*: gjeffreyPrior @tb
 
-type instance Hyper (a :: (Type -> Type) -> Type) = a HyperRep
-
 instance (Generic (a HyperRep), GJeffrey (Rep (a HyperRep))) => Jeffrey (a :: (Type -> Type) -> Type) where
   jeffreyPrior = GHC.Generics.to (gjeffreyPrior @(Rep (a HyperRep)))
+
+-- sampling from prior
+-- ------------------
+
+class Prior a where
+  sampleProbs :: (PrimMonad m) => Hyper a -> Prob m (Probs a)
+
+class GPrior i o where
+  gsampleProbs :: forall m p. PrimMonad m => i p -> Prob m (o p)
+
+instance GPrior V1 V1 where
+  gsampleProbs = undefined
+
+instance GPrior U1 U1 where
+  gsampleProbs _ = pure U1
+
+-- base case: k is a conjugate distribution
+instance (Prior k) => GPrior (K1 i (HyperRep k)) (K1 i (ProbsRep k)) where
+  gsampleProbs (K1 (HyperRep hyper)) = K1 . ProbsRep <$> sampleProbs @k hyper
+
+-- recursive case: k is another record
+instance (Prior k, k HyperRep ~ Hyper k, k ProbsRep ~ Probs k) =>
+         GPrior (K1 i (k HyperRep)) (K1 i (k ProbsRep)) where
+  gsampleProbs (K1 hyper) = K1 <$> sampleProbs @k hyper
+
+instance (GPrior ti to) => GPrior (M1 i c ti) (M1 i' c' to) where
+  gsampleProbs (M1 x) = M1 <$> gsampleProbs x
+
+instance (GPrior ia oa, GPrior ib ob) => GPrior (ia :*: ib) (oa :*: ob) where
+  gsampleProbs (a :*: b) = (:*:) <$> gsampleProbs a <*> gsampleProbs b
+
+instance (GPrior ia oa, GPrior ib ob) => GPrior (ia :+: ib) (oa :+: ob) where
+  gsampleProbs (L1 a) = L1 <$> gsampleProbs a
+  gsampleProbs (R1 b) = R1 <$> gsampleProbs b
+
+instance ( Generic (a HyperRep)
+         , Generic (a ProbsRep)
+         , GPrior (Rep (a HyperRep)) (Rep (a ProbsRep))
+         ) => Prior (a :: (Type -> Type) -> Type) where
+  sampleProbs hyper = GHC.Generics.to <$> gsampleProbs (from hyper)
 
 -----------------------
 -- likelihood monads --
@@ -315,6 +360,9 @@ instance Distribution Bernoulli where
 -- conjugate distributions --
 -----------------------------
 
+-- beta bernoulli
+-- --------------
+
 data BetaBernoulli
 
 type instance Support BetaBernoulli = Bool
@@ -325,12 +373,17 @@ instance Conjugate BetaBernoulli where
   sampleConjValue = bernoulli
   evalConjLogP prob True  = log prob
   evalConjLogP prob False = log (1 - prob)
-  sampleConjParams = uncurry beta
   updatePrior (a, b) True  = (a + 1, b)
   updatePrior (a, b) False = (a, b + 1)
 
 instance Jeffrey BetaBernoulli where
   jeffreyPrior = (0.5, 0.5)
+
+instance Prior BetaBernoulli where
+  sampleProbs = uncurry beta
+
+-- beta geometric0
+-- ---------------
 
 data BetaGeometric0
 
@@ -346,11 +399,16 @@ instance Conjugate BetaGeometric0 where
       if coin then pure 0 else (1 +) <$> geometric0 p
   evalConjLogP p val | val >= 0  = (log (1 - p) * fromIntegral val) + log p
                      | otherwise = log 0
-  sampleConjParams = uncurry beta
   updatePrior (a, b) k = (a + 1, b + fromIntegral k)
 
 instance Jeffrey BetaGeometric0 where
   jeffreyPrior = (0.5, 0.5)
+
+instance Prior BetaGeometric0 where
+  sampleProbs = uncurry beta
+
+-- beta geometric1
+-- ---------------
 
 data BetaGeometric1
 
@@ -367,11 +425,16 @@ instance Conjugate BetaGeometric1 where
   evalConjLogP p val
     | val >= 1  = (log (1 - p) * fromIntegral (val - 1)) + log p
     | otherwise = log 0
-  sampleConjParams = uncurry beta
   updatePrior (a, b) k = (a + 1, b + fromIntegral (k - 1))
 
 instance Jeffrey BetaGeometric1 where
   jeffreyPrior = (0.5, 0.5)
+
+instance Prior BetaGeometric1 where
+  sampleProbs = uncurry beta
+
+-- dirichlet categorical
+-- ---------------------
 
 data DirichletCategorical (n :: Nat)
 
@@ -382,7 +445,6 @@ type instance Hyper (DirichletCategorical n) = V.Vector Double
 instance Conjugate (DirichletCategorical n) where
   sampleConjValue = categorical
   evalConjLogP probs cat = log $ fromMaybe 0 $ probs V.!? cat
-  sampleConjParams = dirichlet
   updatePrior counts obs
     | obs >= 0 && obs < V.length counts
     = counts V.// [(obs, (counts V.! obs) + 1)]
@@ -391,6 +453,9 @@ instance Conjugate (DirichletCategorical n) where
 
 instance KnownNat n => Jeffrey (DirichletCategorical n) where
   jeffreyPrior = V.replicate (fromIntegral $ natVal (Proxy :: Proxy n)) 0.5
+
+instance Prior (DirichletCategorical n) where
+  sampleProbs = dirichlet
 
 -------------
 -- example --
