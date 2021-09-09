@@ -528,6 +528,9 @@ instance Conjugate (Dirichlet n) (Categorical n) where
 -- example --
 -------------
 
+-- | An example of a record that describes conjugate pairs of variables.
+-- It can be instantiated with different type constructors for 'f' (kind @* -> * -> *@),
+-- which allows it to represent hyperparameters, parameters, or values of the model.
 data ExampleParams f =
   ExampleParams { _epP :: f Beta Bernoulli
                 , _epCat1 :: f (Dirichlet 3) (Categorical 3)
@@ -535,35 +538,94 @@ data ExampleParams f =
                 }
   deriving (Generic)
 
+-- We need lenses to the fields of ExampleParams, which can be generated automatically.
 makeLenses ''ExampleParams
 
-deriving instance (Show (f Beta Bernoulli), Show (f (Dirichlet 3) (Categorical 3))) => Show (ExampleParams f)
+-- The Show instance for ExampleParams needs to be standalone
+-- because of the Show (f p l) constraints that GHC can't figure out on its own.
+-- Here we specify it manually for nicer output.
+instance ( Show (f Beta Bernoulli)
+                  , Show (f (Dirichlet 3) (Categorical 3)))
+                  => Show (ExampleParams f) where
+  show (ExampleParams p cat1 cat2) =
+    "ExampleParams"
+      <> "\n  epP    = "
+      <> show p
+      <> "\n  epCat1 = "
+      <> show cat1
+      <> "\n  epCat2 = "
+      <> show cat2
 
-exampleProbs :: ExampleParams ProbsRep
-exampleProbs = ExampleParams { _epP    = ProbsRep 0.7
-                             , _epCat1 = ProbsRep $ V.fromList [0.3, 0.1, 0.6]
-                             , _epCat2 = ProbsRep $ V.fromList [0.1, 0.8, 0.1]
-                             }
-
-examplePriors :: ExampleParams HyperRep
-examplePriors = ExampleParams { _epP    = HyperRep (0.5, 0.5)
-                              , _epCat1 = HyperRep $ V.fromList [0.5, 0.5, 0.5]
-                              , _epCat2 = HyperRep $ V.fromList [0.5, 0.5, 0.5]
-                              }
-
+-- | The likelihood of the example model, described as a probabilistic program.
+-- It uses lenses into the parameter record to refer to the parameters it draws samples from.
+-- The distribution of each variable is thus determined by the type of the lens / record field.
+-- The likelihood can be interpreted by different interpreters 'm' for inference.
 exampleLk :: _ => RandomInterpreter m ExampleParams => m Int
 exampleLk = do
   coin <- sampleValue epP
   sampleValue $ if coin then epCat1 else epCat2
 
+-- | An example of how to work with a model.
 exampleMain :: IO ()
 exampleMain = do
-  let prior = jeffreyPrior @ExampleParams
-  gen             <- createSystemRandom
-  probs           <- sample (sampleProbs @ExampleParams $ prior) gen
+  -- Define a prior distribution.
+  -- Here, ExampleParams' Generic instance is used to get Jeffrey's prior for all its fields.
+  let prior :: ExampleParams HyperRep
+      prior = jeffreyPrior @ExampleParams
+  putStrLn "prior:"
+  print prior
+  -- Initialize a mutable random state
+  gen                             <- createSystemRandom
+  -- Sample a set of probabilities from the prior.
+  -- This is again done using the Generic instance of ExampleParams.
+  probs :: ExampleParams ProbsRep <- sample (sampleProbs @ExampleParams prior)
+                                            gen
+  putStrLn "sampled probabilities:"
+  print probs
+  -- Sample a trace from the likelihood
   (result, trace) <- sampleTrace probs exampleLk gen
+  -- Print the trace (which contains only the sampled values).
+  -- The source of each value is obtained by running the trace through the model again.
   putStrLn "trace:"
   printTrace trace exampleLk
   putStrLn $ "result: " <> show result
+  -- Evaluate the log probability of the trace.
   let logp = snd <$> evalTraceLogP probs trace exampleLk
   putStrLn $ "log p(trace) = " <> show logp
+  -- Update the priors according to the sampled trace.
+  -- Normally, this trace is obtained from observations in a dataset.
+  let posteriorMb = getPosterior prior trace exampleLk
+  putStrLn "posterior (using sampled trace):"
+  case posteriorMb of
+    Just posterior -> print posterior
+    Nothing        -> putStrLn "failed to compute posterior"
+  -- Construct traces manually (e.g. from observations)
+  -- by storing the sequence of sampled values as they appear in the dataset.
+  let tracesObs =
+        [ Trace $ S.fromList [toDyn True, toDyn (0 :: Int)]
+        , Trace $ S.fromList [toDyn False, toDyn (1 :: Int)]
+        , Trace $ S.fromList [toDyn True, toDyn (0 :: Int)]
+        , Trace $ S.fromList [toDyn False, toDyn (2 :: Int)]
+        , Trace $ S.fromList [toDyn True, toDyn (0 :: Int)]
+        , Trace $ S.fromList [toDyn False, toDyn (1 :: Int)]
+        , Trace $ S.fromList [toDyn False, toDyn (2 :: Int)]
+        , Trace $ S.fromList [toDyn False, toDyn (1 :: Int)]
+        ]
+      posteriorObsMb =
+        foldM (\hyper obs -> getPosterior hyper obs exampleLk) prior tracesObs
+  putStrLn "posterior (using observations):"
+  case posteriorObsMb of
+    Just posteriorObs -> print posteriorObs
+    Nothing           -> putStrLn "failed to compute posterior"
+
+-- exampleProbs :: ExampleParams ProbsRep
+-- exampleProbs = ExampleParams { _epP    = ProbsRep 0.7
+--                              , _epCat1 = ProbsRep $ V.fromList [0.3, 0.1, 0.6]
+--                              , _epCat2 = ProbsRep $ V.fromList [0.1, 0.8, 0.1]
+--                              }
+
+-- examplePriors :: ExampleParams HyperRep
+-- examplePriors = ExampleParams { _epP    = HyperRep (0.5, 0.5)
+--                               , _epCat1 = HyperRep $ V.fromList [0.5, 0.5, 0.5]
+--                               , _epCat2 = HyperRep $ V.fromList [0.5, 0.5, 0.5]
+--                               }
