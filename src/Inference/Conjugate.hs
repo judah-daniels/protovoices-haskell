@@ -80,8 +80,14 @@ class Distribution a where
   distSample :: (PrimMonad m) => a -> Params a -> Prob m (Support a)
   distLogP :: a -> Params a -> Support a -> Double
 
--- | Used as a type-lifted kind for conjugate distribution pairs
-data Conj a b = Conj a b
+-- -- | Used as a type-lifted kind for conjugate distribution pairs.
+-- data Conj a b = Conj a b
+
+-- | A type-level marker for treating a distribution as a prior.
+newtype AsPrior p = AsPrior p
+
+-- -- | A type-level marker for treating a distribution as a likelihood.
+-- newtype AsLk l = AsLk l
 
 -- | Marks two distributions as a conjugate pair of prior and likelihood.
 -- The property of such a pair is that the posterior has the same form as the prior
@@ -97,10 +103,10 @@ class (Distribution p, Distribution l, Support p ~ Params l) => Conjugate p l wh
   updatePrior :: l -> Params p -> Support l -> Params p
 
 type family Hyper (a :: k) :: Type
-type instance Hyper (Conj p l) = Params p
+type instance Hyper (AsPrior p) = Params p
 
 type family Probs (a :: k) :: Type
-type instance Probs (Conj p l) = Support p
+type instance Probs (AsPrior p) = Support p
 
 -- type family Value (a :: k) :: Type
 -- type instance Value (Conj p l) = Support l
@@ -108,15 +114,15 @@ type instance Probs (Conj p l) = Support p
 -- helper types for instantiating hyperparameters, parameters, and values
 -- ----------------------------------------------------------------------
 
-newtype HyperRep p l = HyperRep { runHyper :: Hyper (Conj p l) }
-deriving instance Show (Hyper (Conj p l)) => Show (HyperRep p l)
+newtype HyperRep p = HyperRep { runHyper :: Hyper (AsPrior p) }
+deriving instance Show (Hyper (AsPrior p)) => Show (HyperRep p)
 
-type instance Hyper (a :: (Type -> Type -> Type) -> Type) = a HyperRep
+type instance Hyper (a :: (Type -> Type) -> Type) = a HyperRep
 
-newtype ProbsRep p l = ProbsRep { runProbs :: Probs (Conj p l)}
-deriving instance Show (Probs (Conj p l)) => Show (ProbsRep p l)
+newtype ProbsRep p = ProbsRep { runProbs :: Probs (AsPrior p)}
+deriving instance Show (Probs (AsPrior p)) => Show (ProbsRep p)
 
-type instance Probs (a :: (Type -> Type -> Type) -> Type) = a ProbsRep
+type instance Probs (a :: (Type -> Type) -> Type) = a ProbsRep
 
 -- newtype ValueRep p l = ValueRep { runValue :: Value (Conj p l) }
 -- deriving instance Show (Value (Conj p l)) => Show (ValueRep p l)
@@ -143,8 +149,8 @@ instance GJeffrey U1 where
   gjeffreyPrior = U1
 
 -- base case: k is a conjugate distribution
-instance (Jeffrey (Conj p l)) => GJeffrey (K1 i (HyperRep p l)) where
-  gjeffreyPrior = K1 $ HyperRep $ jeffreyPrior @(Conj p l)
+instance (Jeffrey (AsPrior p)) => GJeffrey (K1 i (HyperRep p)) where
+  gjeffreyPrior = K1 $ HyperRep $ jeffreyPrior @(AsPrior p)
 
 -- recursive case: k is another record
 instance (Jeffrey k, k HyperRep ~ Hyper k) => GJeffrey (K1 i (k HyperRep)) where
@@ -156,7 +162,7 @@ instance (GJeffrey t) => GJeffrey (M1 i c (t :: Type -> Type)) where
 instance (GJeffrey ta, GJeffrey tb) => GJeffrey (ta :*: tb) where
   gjeffreyPrior = gjeffreyPrior @ta :*: gjeffreyPrior @tb
 
-instance (Generic (t HyperRep), GJeffrey (Rep (t HyperRep))) => Jeffrey (t :: (Type -> Type -> Type) -> Type) where
+instance (Generic (t HyperRep), GJeffrey (Rep (t HyperRep))) => Jeffrey (t :: (Type -> Type) -> Type) where
   jeffreyPrior = GHC.Generics.to (gjeffreyPrior @(Rep (t HyperRep)))
 
 -- sampling from prior
@@ -164,9 +170,6 @@ instance (Generic (t HyperRep), GJeffrey (Rep (t HyperRep))) => Jeffrey (t :: (T
 
 class Prior a where
   sampleProbs :: (PrimMonad m) => Hyper a -> Prob m (Probs a)
-
-instance Conjugate p l => Prior (Conj p l) where
-  sampleProbs = distSample $ priorSingleton @p @l
 
 class GPrior i o where
   gsampleProbs :: forall m p. PrimMonad m => i p -> Prob m (o p)
@@ -178,9 +181,9 @@ instance GPrior U1 U1 where
   gsampleProbs _ = pure U1
 
 -- base case: k is a conjugate distribution
-instance (Prior (Conj p l)) => GPrior (K1 i (HyperRep p l)) (K1 i (ProbsRep p l)) where
+instance (Prior (AsPrior p)) => GPrior (K1 i (HyperRep p)) (K1 i (ProbsRep p)) where
   gsampleProbs (K1 (HyperRep hyper)) =
-    K1 . ProbsRep <$> sampleProbs @(Conj p l) hyper
+    K1 . ProbsRep <$> sampleProbs @(AsPrior p) hyper
 
 -- recursive case: k is another record
 instance (Prior k, k HyperRep ~ Hyper k, k ProbsRep ~ Probs k) =>
@@ -200,22 +203,21 @@ instance (GPrior ia oa, GPrior ib ob) => GPrior (ia :+: ib) (oa :+: ob) where
 instance ( Generic (a HyperRep)
          , Generic (a ProbsRep)
          , GPrior (Rep (a HyperRep)) (Rep (a ProbsRep))
-         ) => Prior (a :: (Type -> Type -> Type) -> Type) where
+         ) => Prior (a :: (Type -> Type) -> Type) where
   sampleProbs hyper = GHC.Generics.to <$> gsampleProbs (from hyper)
 
 -----------------------
 -- likelihood monads --
 -----------------------
 
-type Accessor (r :: (Type -> Type -> Type) -> Type) p l
-  = forall f . Lens' (r f) (f p l)
+type Accessor (r :: (Type -> Type) -> Type) p = forall f . Lens' (r f) (f p)
 
 class Monad m => RandomInterpreter m r | m -> r where
   type SampleCtx m a :: Constraint
-  sampleValue :: (Conjugate p l, SampleCtx m l) => l -> Accessor r p l -> m (Support l)
+  sampleValue :: (Conjugate p l, SampleCtx m l) => l -> Accessor r p -> m (Support l)
   sampleConst :: (Distribution a, SampleCtx m a) => a -> Params a -> m (Support a)
 
-newtype Trace (r :: (Type -> Type -> Type) -> Type)  = Trace {runTrace :: S.Seq Dynamic}
+newtype Trace (r :: (Type -> Type) -> Type)  = Trace {runTrace :: S.Seq Dynamic}
   deriving (Show)
 
 takeTrace :: Typeable a => Trace r -> Maybe (a, Trace r)
@@ -238,7 +240,7 @@ instance (PrimMonad m) => RandomInterpreter (SampleI m r) r where
     :: forall p l
      . (Conjugate p l)
     => l
-    -> Accessor r p l
+    -> Accessor r p
     -> SampleI m r (Support l)
   sampleValue lk getProbs = SampleI $ do
     probs <- ask
@@ -262,7 +264,7 @@ instance (PrimMonad m) => RandomInterpreter (TraceI m r) r where
     :: forall p l
      . (Conjugate p l, Typeable (Support l))
     => l
-    -> Accessor r p l
+    -> Accessor r p
     -> TraceI m r (Support l)
   sampleValue lk getProbs = TraceI $ do
     probs <- ask
@@ -298,7 +300,7 @@ instance RandomInterpreter (EvalTraceI r) r where
     :: forall p l
      . (Conjugate p l, Typeable (Support l))
     => l
-    -> Accessor r p l
+    -> Accessor r p
     -> EvalTraceI r (Support l)
   sampleValue lk getProbs = EvalTraceI $ do
     probs              <- ask
@@ -337,7 +339,7 @@ instance RandomInterpreter (UpdatePriorsI r) r where
     :: forall p l
      . (Conjugate p l, Typeable (Support l))
     => l
-    -> Accessor r p l
+    -> Accessor r p
     -> UpdatePriorsI r (Support l)
   sampleValue lk accessor = UpdatePriorsI $ do
     (trace, priors) <- get
@@ -389,7 +391,7 @@ instance RandomInterpreter (ShowTraceI r) r where
     :: forall p l
      . (Conjugate p l, Typeable (Support l), Typeable l, Show (Support l))
     => l
-    -> Accessor r p l
+    -> Accessor r p
     -> ShowTraceI r (Support l)
   sampleValue _ _ = showTraceItem @l
   sampleConst
@@ -426,8 +428,11 @@ instance Distribution Beta where
   distSample _ = uncurry beta
   distLogP _ (_a, _b) _p = undefined -- TODO
 
-instance Jeffrey (Conj Beta l) where
+instance Jeffrey (AsPrior Beta) where
   jeffreyPrior = (0.5, 0.5)
+
+instance Prior (AsPrior Beta) where
+  sampleProbs = distSample Beta
 
 -- Bernoulli
 -- ---------
@@ -478,8 +483,11 @@ instance Distribution (Dirichlet n) where
   distSample _ = dirichlet
   distLogP _ _counts _cat = undefined -- TODO
 
-instance KnownNat n => Jeffrey (Conj (Dirichlet n) l) where
+instance KnownNat n => Jeffrey (AsPrior (Dirichlet n)) where
   jeffreyPrior = V.replicate (fromIntegral $ natVal (Proxy :: Proxy n)) 0.5
+
+instance Prior (AsPrior (Dirichlet n)) where
+  sampleProbs = distSample Dirichlet
 
 -- Geometric (from 0)
 -- ------------------
@@ -568,9 +576,9 @@ instance Conjugate (Dirichlet n) (Categorical n) where
 -- It can be instantiated with different type constructors for 'f' (kind @* -> * -> *@),
 -- which allows it to represent hyperparameters, parameters, or values of the model.
 data ExampleParams f =
-  ExampleParams { _epP :: f Beta Bernoulli
-                , _epCat1 :: f (Dirichlet 3) (Categorical 3)
-                , _epCat2 :: f (Dirichlet 3) (Categorical 3)
+  ExampleParams { _epP :: f Beta
+                , _epCat1 :: f (Dirichlet 3)
+                , _epCat2 :: f (Dirichlet 3)
                 }
   deriving (Generic)
 
@@ -580,9 +588,9 @@ makeLenses ''ExampleParams
 -- The Show instance for ExampleParams needs to be standalone
 -- because of the Show (f p l) constraints that GHC can't figure out on its own.
 -- Here we specify it manually for nicer output.
-instance ( Show (f Beta Bernoulli)
-                  , Show (f (Dirichlet 3) (Categorical 3)))
-                  => Show (ExampleParams f) where
+instance ( Show (f Beta)
+         , Show (f (Dirichlet 3)))
+         => Show (ExampleParams f) where
   show (ExampleParams p cat1 cat2) =
     "ExampleParams"
       <> "\n  epP    = "
@@ -599,7 +607,7 @@ instance ( Show (f Beta Bernoulli)
 exampleLk :: _ => RandomInterpreter m ExampleParams => m Int
 exampleLk = do
   coin <- sampleValue Bernoulli epP
-  sampleValue Categorical $ if coin then epCat1 else epCat2
+  sampleValue (Categorical @3) $ if coin then epCat1 else epCat2
 
 -- | An example of how to work with a model.
 exampleMain :: IO ()

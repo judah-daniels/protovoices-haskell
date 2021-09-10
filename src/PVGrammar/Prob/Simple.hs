@@ -35,46 +35,45 @@ import qualified Internal.MultiSet             as MS
 import           Musicology.Pitch              as MP
 import           Lens.Micro.TH                  ( makeLenses )
 import           GHC.Generics                   ( Generic )
-import           Data.Traversable               ( for )
 
 data PVParamsOuter f = PVParamsOuter
-  { _pSingleFreeze :: f Beta Bernoulli
-  , _pDoubleLeft :: f Beta Bernoulli
-  , _pDoubleLeftFreeze :: f Beta Bernoulli
-  , _pDoubleRightSplit :: f Beta Bernoulli
+  { _pSingleFreeze :: f Beta
+  , _pDoubleLeft :: f Beta
+  , _pDoubleLeftFreeze :: f Beta
+  , _pDoubleRightSplit :: f Beta
   }
   deriving (Generic)
 
-deriving instance (Show (f Beta Bernoulli)) => Show (PVParamsOuter f)
+deriving instance (Show (f Beta)) => Show (PVParamsOuter f)
 
 makeLenses ''PVParamsOuter
 
 data PVParamsInner f = PVParamsInner
-  { _pElaborateRegular :: f Beta Geometric1
-  , _pElaborateL :: f Beta Geometric0
-  , _pElaborateR :: f Beta Geometric0
-  , _pRootFifths :: f Beta Geometric0
-  , _pKeepL :: f Beta Bernoulli
-  , _pKeepR :: f Beta Bernoulli
-  , _pRepeatOverNeighbor :: f Beta Bernoulli
-  , _pNBChromatic :: f Beta Bernoulli
-  , _pNBAlt :: f Beta Geometric0
-  , _pRepeatLeftOverRight :: f Beta Bernoulli
-  , _pConnect :: f Beta Bernoulli
-  , _pConnectChromaticLeftOverRight :: f Beta Bernoulli
-  , _pPassLeftOverRight :: f Beta Bernoulli
-  , _pNewPassingLeft :: f Beta Geometric0
-  , _pNewPassingRight :: f Beta Geometric0
-  , _pNoteHoriDirection :: f (Dirichlet 3) (Categorical 3)
-  , _pNotesOnOtherSide :: f Beta Binomial
+  { _pElaborateRegular :: f Beta
+  , _pElaborateL :: f Beta
+  , _pElaborateR :: f Beta
+  , _pRootFifths :: f Beta
+  , _pKeepL :: f Beta
+  , _pKeepR :: f Beta
+  , _pRepeatOverNeighbor :: f Beta
+  , _pNBChromatic :: f Beta
+  , _pNBAlt :: f Beta
+  , _pRepeatLeftOverRight :: f Beta
+  , _pConnect :: f Beta
+  , _pConnectChromaticLeftOverRight :: f Beta
+  , _pPassLeftOverRight :: f Beta
+  , _pNewPassingLeft :: f Beta
+  , _pNewPassingRight :: f Beta
+  , _pNoteHoriDirection :: f (Dirichlet 3)
+  , _pNotesOnOtherSide :: f Beta
   }
   deriving (Generic)
 
-deriving instance ( Show (f Beta Bernoulli)
-                  , Show (f Beta Geometric0)
-                  , Show (f Beta Geometric1)
-                  , Show (f (Dirichlet 3) (Categorical 3))
-                  , Show (f Beta Binomial)
+deriving instance ( Show (f Beta)
+                  , Show (f Beta)
+                  , Show (f Beta)
+                  , Show (f (Dirichlet 3))
+                  , Show (f Beta)
                   ) => Show (PVParamsInner f)
 
 makeLenses ''PVParamsInner
@@ -83,11 +82,11 @@ data PVParams f = PVParams { _pOuter :: PVParamsOuter f
                            , _pInner :: PVParamsInner f }
   deriving (Generic)
 
-deriving instance ( Show (f Beta Bernoulli)
-                  , Show (f Beta Geometric0)
-                  , Show (f Beta Geometric1)
-                  , Show (f (Dirichlet 3) (Categorical 3))
-                  , Show (f Beta Binomial)
+deriving instance ( Show (f Beta)
+                  , Show (f Beta)
+                  , Show (f Beta)
+                  , Show (f (Dirichlet 3))
+                  , Show (f Beta)
                   ) => Show (PVParams f)
 
 makeLenses ''PVParams
@@ -352,7 +351,7 @@ sampleNewPassing
   :: _
   => [SPC]
   -> StartStop (Notes SPC)
-  -> Accessor PVParamsInner Beta Geometric0
+  -> Accessor PVParamsInner Beta
   -> m (MS.MultiSet (InnerEdge SPC))
 sampleNewPassing notes slice pNewPassing = case getInner slice of
   Nothing              -> pure MS.empty
