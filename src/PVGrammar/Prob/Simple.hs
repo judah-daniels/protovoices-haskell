@@ -12,26 +12,30 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE DataKinds #-}
 module PVGrammar.Prob.Simple where
 
+import           Common
 import           Inference.Conjugate
 import           PVGrammar
-import           Common
 import           PVGrammar.Generate
+
 import           Control.Monad                  ( replicateM
                                                 , guard
                                                 )
+import qualified Data.Bifunctor                as Bi
+import qualified Data.HashMap.Strict           as HM
+import qualified Data.HashSet                  as S
 import qualified Data.Map.Strict               as M
 import           Data.Maybe                     ( catMaybes
                                                 , mapMaybe
                                                 )
-import qualified Data.HashSet                  as S
+import           Data.Tuple                     ( swap )
 import qualified Internal.MultiSet             as MS
 import           Musicology.Pitch              as MP
 import           Lens.Micro.TH                  ( makeLenses )
-import qualified Data.Bifunctor                as Bi
-import           Data.Tuple                     ( swap )
 import           GHC.Generics                   ( Generic )
+import           Data.Traversable               ( for )
 
 data PVParamsOuter f = PVParamsOuter
   { _pSingleFreeze :: f Beta Bernoulli
@@ -61,10 +65,17 @@ data PVParamsInner f = PVParamsInner
   , _pPassLeftOverRight :: f Beta Bernoulli
   , _pNewPassingLeft :: f Beta Geometric0
   , _pNewPassingRight :: f Beta Geometric0
+  , _pNoteHoriDirection :: f (Dirichlet 3) (Categorical 3)
+  , _pNotesOnOtherSide :: f Beta Binomial
   }
   deriving (Generic)
 
-deriving instance (Show (f Beta Bernoulli), Show (f Beta Geometric0), Show (f Beta Geometric1)) => Show (PVParamsInner f)
+deriving instance ( Show (f Beta Bernoulli)
+                  , Show (f Beta Geometric0)
+                  , Show (f Beta Geometric1)
+                  , Show (f (Dirichlet 3) (Categorical 3))
+                  , Show (f Beta Binomial)
+                  ) => Show (PVParamsInner f)
 
 makeLenses ''PVParamsInner
 
@@ -72,7 +83,12 @@ data PVParams f = PVParams { _pOuter :: PVParamsOuter f
                            , _pInner :: PVParamsInner f }
   deriving (Generic)
 
-deriving instance (Show (f Beta Bernoulli), Show (f Beta Geometric0), Show (f Beta Geometric1)) => Show (PVParams f)
+deriving instance ( Show (f Beta Bernoulli)
+                  , Show (f Beta Geometric0)
+                  , Show (f Beta Geometric1)
+                  , Show (f (Dirichlet 3) (Categorical 3))
+                  , Show (f Beta Binomial)
+                  ) => Show (PVParams f)
 
 makeLenses ''PVParams
 
@@ -81,18 +97,13 @@ type PVProbsInner = PVParamsInner ProbsRep
 
 type ContextSingle n = (StartStop (Notes n), Edges n, StartStop (Notes n))
 type ContextDouble n
-  = ( StartStop (Notes n)
-    , Edges n
-    , StartStop (Notes n)
-    , Edges n
-    , StartStop (Notes n)
-    )
+  = (StartStop (Notes n), Edges n, Notes n, Edges n, StartStop (Notes n))
 
 sampleSingleStep
   :: _ => ContextSingle SPC -> m (Leftmost (Split SPC) Freeze SPC)
 sampleSingleStep parents@(_, trans, _) = if freezable trans
   then do
-    shouldFreeze <- sampleValue $ pOuter . pSingleFreeze
+    shouldFreeze <- sampleValue Bernoulli $ pOuter . pSingleFreeze
     if shouldFreeze
       then LMFreezeOnly <$> sampleFreeze parents
       else LMSplitOnly <$> sampleSplit parents
@@ -106,20 +117,20 @@ sampleDoubleStep
 sampleDoubleStep parents@(sliceL, transL, sliceM, transR, sliceR) afterSplitRight
   = if afterSplitRight
     then do
-      shouldSplitRight <- sampleValue $ pOuter . pDoubleRightSplit
+      shouldSplitRight <- sampleValue Bernoulli $ pOuter . pDoubleRightSplit
       if shouldSplitRight
-        then LMSplitRight <$> sampleSplit (sliceM, transR, sliceR)
+        then LMSplitRight <$> sampleSplit (Inner sliceM, transR, sliceR)
         else LMHorizontalize <$> sampleHori parents
     else do
-      continueLeft <- sampleValue $ pOuter . pDoubleLeft
+      continueLeft <- sampleValue Bernoulli $ pOuter . pDoubleLeft
       if continueLeft
         then if freezable transL
           then do
-            shouldFreeze <- sampleValue $ pOuter . pDoubleLeftFreeze
+            shouldFreeze <- sampleValue Bernoulli $ pOuter . pDoubleLeftFreeze
             if shouldFreeze
-              then LMSplitLeft <$> sampleSplit (sliceL, transL, sliceM)
-              else LMFreezeLeft <$> sampleFreeze (sliceL, transL, sliceM)
-          else LMSplitLeft <$> sampleSplit (sliceL, transL, sliceM)
+              then LMSplitLeft <$> sampleSplit (sliceL, transL, Inner sliceM)
+              else LMFreezeLeft <$> sampleFreeze (sliceL, transL, Inner sliceM)
+          else LMSplitLeft <$> sampleSplit (sliceL, transL, Inner sliceM)
         else sampleDoubleStep parents False
 
 sampleFreeze :: RandomInterpreter m PVParams => ContextSingle n -> m Freeze
@@ -196,10 +207,10 @@ sampleSplit (sliceL, Edges ts nts, sliceR) = do
  where
   sampleNeighbor :: Bool -> SPC -> m SPC
   sampleNeighbor stepUp ref = do
-    chromatic <- sampleValue $ pInner . pNBChromatic
+    chromatic <- sampleValue Bernoulli $ pInner . pNBChromatic
     -- 
     altUp     <- sampleConst Bernoulli 0.5
-    alt       <- sampleValue $ pInner . pNBAlt
+    alt       <- sampleValue Geometric0 $ pInner . pNBAlt
     let altInterval = alt *^ chromaticSemitone
     pure $ ref +^ if chromatic
       then (if altUp then id else down) altInterval
@@ -209,83 +220,83 @@ sampleSplit (sliceL, Edges ts nts, sliceR) = do
 
   sampleRootNote = do
     fifthsSign <- sampleConst Bernoulli 0.5
-    fifthsN    <- sampleValue $ pInner . pRootFifths
+    fifthsN    <- sampleValue Geometric0 $ pInner . pRootFifths
     let interval = if fifthsSign then fifthsN else negate fifthsN
     pure $ spc interval
 
   sampleDoubleChild :: SPC -> SPC -> m (SPC, DoubleOrnament)
   sampleDoubleChild pl pr
     | pl == pr = do
-      rep <- sampleValue $ pInner . pRepeatOverNeighbor
+      rep <- sampleValue Bernoulli $ pInner . pRepeatOverNeighbor
       if rep
         then pure (pl, FullRepeat)
         else do
           stepUp <- sampleConst Bernoulli 0.5
           (, FullNeighbor) <$> sampleNeighbor stepUp pl
     | otherwise = do
-      repeatLeft <- sampleValue $ pInner . pRepeatLeftOverRight
+      repeatLeft <- sampleValue Bernoulli $ pInner . pRepeatLeftOverRight
       if repeatLeft
         then pure (pl, RightRepeatOfLeft)
         else pure (pr, LeftRepeatOfRight)
 
   sampleT :: Edge SPC -> m (Edge SPC, [((SPC, DoubleOrnament), (Bool, Bool))])
   sampleT (l, r) = do
-    n <- sampleValue $ pInner . pElaborateRegular
+    n <- sampleValue Geometric1 $ pInner . pElaborateRegular
     fmap (((l, r), ) . catMaybes) $ replicateM n $ case (l, r) of
       ((:⋊), (:⋉)) -> do
         child <- sampleRootNote
         pure $ Just ((child, RootNote), (False, False))
       (Inner pl, Inner pr) -> do
         (child, orn) <- sampleDoubleChild pl pr
-        keepLeft     <- sampleValue $ pInner . pKeepL
-        keepRight    <- sampleValue $ pInner . pKeepR
+        keepLeft     <- sampleValue Bernoulli $ pInner . pKeepL
+        keepRight    <- sampleValue Bernoulli $ pInner . pKeepR
         pure $ Just ((child, orn), (keepLeft, keepRight))
       _ -> pure Nothing
 
   -- requires distance >= M2
   sampleChromPassing pl pr = do
-    atLeft <- sampleValue $ pInner . pConnectChromaticLeftOverRight
+    atLeft <- sampleValue Bernoulli $ pInner . pConnectChromaticLeftOverRight
     let dir   = if direction (pl `pto` pr) == GT then id else down
         child = if atLeft
           then pl +^ dir chromaticSemitone
           else pr -^ dir chromaticSemitone
-    keepL <- sampleValue $ pInner . pKeepL
-    keepR <- sampleValue $ pInner . pKeepR
+    keepL <- sampleValue Bernoulli $ pInner . pKeepL
+    keepR <- sampleValue Bernoulli $ pInner . pKeepR
     pure ((child, PassingMid), (keepL, keepR))
 
   sampleMidPassing pl pr = do
     child <- sampleNeighbor (direction (pl `pto` pr) == GT) pl
-    keepL <- sampleValue $ pInner . pKeepL
-    keepR <- sampleValue $ pInner . pKeepR
+    keepL <- sampleValue Bernoulli $ pInner . pKeepL
+    keepR <- sampleValue Bernoulli $ pInner . pKeepR
     pure ((child, PassingMid), (keepL, keepR))
 
   sampleNonMidPassing pl pr = do
-    left <- sampleValue $ pInner . pPassLeftOverRight
+    left <- sampleValue Bernoulli $ pInner . pPassLeftOverRight
     let dirUp = direction (pl `pto` pr) == GT
     if left
       then do
         child <- sampleNeighbor dirUp pl
-        keepl <- sampleValue $ pInner . pKeepL
+        keepl <- sampleValue Bernoulli $ pInner . pKeepL
         pure ((child, PassingLeft), (keepl, True))
       else do
         child <- sampleNeighbor (not dirUp) pr
-        keepr <- sampleValue $ pInner . pKeepR
+        keepr <- sampleValue Bernoulli $ pInner . pKeepR
         pure ((child, PassingRight), (True, keepr))
 
   sampleNT :: InnerEdge SPC -> m (InnerEdge SPC, ((SPC, Passing), (Bool, Bool)))
   sampleNT (pl, pr) = fmap ((pl, pr), ) $ case degree $ iabs $ pl `pto` pr of
     1 -> sampleChromPassing pl pr
     2 -> do
-      connect <- sampleValue $ pInner . pConnect
+      connect <- sampleValue Bernoulli $ pInner . pConnect
       if connect then sampleMidPassing pl pr else sampleNonMidPassing pl pr
     _ -> sampleNonMidPassing pl pr
 
   sampleL :: SPC -> m (SPC, [(SPC, Bool, RightOrnament)])
   sampleL parent = do
-    n <- sampleValue $ pInner . pElaborateL
+    n <- sampleValue Geometric0 $ pInner . pElaborateL
     fmap (parent, ) $ replicateM n $ do
-      rep  <- sampleValue $ pInner . pRepeatOverNeighbor
-      keep <- sampleValue $ pInner . pKeepL
+      rep  <- sampleValue Bernoulli $ pInner . pRepeatOverNeighbor
+      keep <- sampleValue Bernoulli $ pInner . pKeepL
       if rep
         then pure (parent, keep, SingleRightRepeat)
         else do
@@ -295,10 +306,10 @@ sampleSplit (sliceL, Edges ts nts, sliceR) = do
 
   sampleR :: SPC -> m (SPC, [(SPC, Bool, LeftOrnament)])
   sampleR parent = do
-    n <- sampleValue $ pInner . pElaborateR
+    n <- sampleValue Geometric0 $ pInner . pElaborateR
     fmap (parent, ) $ replicateM n $ do
-      rep  <- sampleValue $ pInner . pRepeatOverNeighbor
-      keep <- sampleValue $ pInner . pKeepR
+      rep  <- sampleValue Bernoulli $ pInner . pRepeatOverNeighbor
+      keep <- sampleValue Bernoulli $ pInner . pKeepR
       if rep
         then pure (parent, keep, SingleLeftRepeat)
         else do
@@ -306,21 +317,49 @@ sampleSplit (sliceL, Edges ts nts, sliceR) = do
           child  <- sampleNeighbor stepUp parent
           pure (child, keep, SingleLeftNeighbor)
 
-  sampleNewPassing
-    :: [SPC]
-    -> StartStop (Notes SPC)
-    -> Accessor PVParamsInner Beta Geometric0
-    -> m (MS.MultiSet (InnerEdge SPC))
-  sampleNewPassing notes slice pNewPassing = case getInner slice of
-    Nothing              -> pure MS.empty
-    Just (Notes parents) -> fmap (MS.fromList . concat) $ sequence $ do -- List
-      p <- MS.toList parents
-      m <- notes
-      guard $ iabs (p `pto` m) < major second'
-      pure $ do -- m
-        n <- sampleValue $ pInner . pNewPassing
-        pure $ replicate n (p, m)
+sampleHori :: _ => ContextDouble n -> m (Hori n)
+sampleHori (sliceL, transL, Notes sliceM, transR, sliceR) = do
+  -- distribute notes
+  dists <- mapM distNote $ MS.toOccurList sliceM
+  let notesLeft = flip fmap dists $ \((note, n), to) -> case to of
+        ToRight dl -> (note, n - dl)
+        _          -> (note, n)
+      notesRight = flip fmap dists $ \((note, n), to) -> case to of
+        ToLeft dr -> (note, n - dr)
+        _         -> (note, n)
+  -- generate repetition edges
+  -- generate passing edges
+  -- construct result
+  let distMap = HM.fromList (Bi.first fst <$> dists)
+      edges   = undefined
+  pure $ HoriOp distMap edges
+ where
+  -- distribute a note to the two child slices
+  distNote (note, n) = do
+    dir <- sampleValue Categorical $ pInner . pNoteHoriDirection
+    to  <- case dir of
+      0 -> pure ToBoth
+      1 -> do
+        nother <- sampleValue (Binomial n) $ pInner . pNotesOnOtherSide
+        pure $ ToLeft $ n - nother
+      _ -> do
+        nother <- sampleValue (Binomial n) $ pInner . pNotesOnOtherSide
+        pure $ ToRight $ n - nother
+    pure ((note, n), to)
 
-sampleHori :: RandomInterpreter m PVParams => ContextDouble n -> m (Hori n)
-sampleHori _parents = pure undefined
 
+sampleNewPassing
+  :: _
+  => [SPC]
+  -> StartStop (Notes SPC)
+  -> Accessor PVParamsInner Beta Geometric0
+  -> m (MS.MultiSet (InnerEdge SPC))
+sampleNewPassing notes slice pNewPassing = case getInner slice of
+  Nothing              -> pure MS.empty
+  Just (Notes parents) -> fmap (MS.fromList . concat) $ sequence $ do -- List
+    p <- MS.toList parents
+    m <- notes
+    guard $ iabs (p `pto` m) < major second'
+    pure $ do -- m
+      n <- sampleValue Geometric0 $ pInner . pNewPassing
+      pure $ replicate n (p, m)
