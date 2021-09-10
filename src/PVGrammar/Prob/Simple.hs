@@ -13,6 +13,7 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TypeApplications #-}
 module PVGrammar.Prob.Simple where
 
 import           Common
@@ -30,11 +31,12 @@ import qualified Data.Map.Strict               as M
 import           Data.Maybe                     ( catMaybes
                                                 , mapMaybe
                                                 )
-import           Data.Tuple                     ( swap )
 import qualified Internal.MultiSet             as MS
 import           Musicology.Pitch              as MP
 import           Lens.Micro.TH                  ( makeLenses )
 import           GHC.Generics                   ( Generic )
+import           Control.Monad.Trans.Except
+import           Control.Monad.Trans.Class      ( lift )
 
 data PVParamsOuter f = PVParamsOuter
   { _pSingleFreeze :: f Beta
@@ -49,6 +51,7 @@ deriving instance (Show (f Beta)) => Show (PVParamsOuter f)
 makeLenses ''PVParamsOuter
 
 data PVParamsInner f = PVParamsInner
+  -- split
   { _pElaborateRegular :: f Beta
   , _pElaborateL :: f Beta
   , _pElaborateR :: f Beta
@@ -64,8 +67,11 @@ data PVParamsInner f = PVParamsInner
   , _pPassLeftOverRight :: f Beta
   , _pNewPassingLeft :: f Beta
   , _pNewPassingRight :: f Beta
+  -- hori
+  , _pNewPassingMid :: f Beta
   , _pNoteHoriDirection :: f (Dirichlet 3)
   , _pNotesOnOtherSide :: f Beta
+  , _pHoriRepetitionEdge :: f Beta
   }
   deriving (Generic)
 
@@ -98,28 +104,75 @@ type ContextSingle n = (StartStop (Notes n), Edges n, StartStop (Notes n))
 type ContextDouble n
   = (StartStop (Notes n), Edges n, Notes n, Edges n, StartStop (Notes n))
 
+sampleDerivation'
+  :: _ => m (Either String [Leftmost (Split SPC) Freeze (Hori SPC)])
+sampleDerivation' =
+  sampleDerivation $ PathEnd (Edges (S.singleton ((:⋊), (:⋉))) MS.empty)
+
+sampleDerivation
+  :: _
+  => Path (Edges SPC) (Notes SPC)
+  -> m (Either String [Leftmost (Split SPC) Freeze (Hori SPC)])
+sampleDerivation top = runExceptT $ go (:⋊) top False
+ where
+  go sl surface ars = case surface of
+    -- 1 trans left:
+    PathEnd t -> do
+      step <- lift $ sampleSingleStep (sl, t, (:⋉))
+      case step of
+        LMSingleSplit splitOp -> do
+          (ctl, cs, ctr) <- except $ applySplit splitOp t
+          nextSteps      <- go sl (Path ctl cs (PathEnd ctr)) False
+          pure $ LMSplitOnly splitOp : nextSteps
+        LMSingleFreeze freezeOp -> pure [LMFreezeOnly freezeOp]
+    -- 2 transs left
+    Path tl sm (PathEnd tr) -> goDouble sl tl sm tr (:⋉) ars PathEnd
+    -- 3 or more transs left
+    Path tl sm (Path tr sr rest) ->
+      goDouble sl tl sm tr (Inner sr) ars (\tr' -> Path tr' sr rest)
+
+  -- helper for the two cases of 2+ edges (2 and 3+):
+  goDouble sl tl sm tr sr ars mkrest = do
+    step <- lift $ sampleDoubleStep (sl, tl, sm, tr, sr) ars
+    case step of
+      LMDoubleSplitLeft splitOp -> do
+        (ctl, cs, ctr) <- except $ applySplit splitOp tl
+        nextSteps      <- go sl (Path ctl cs (Path ctr sm (mkrest tr))) False
+        pure $ LMSplitLeft splitOp : nextSteps
+      LMDoubleFreezeLeft freezeOp -> do
+        nextSteps <- go (Inner sm) (mkrest tr) False
+        pure $ LMFreezeLeft freezeOp : nextSteps
+      LMDoubleSplitRight splitOp -> do
+        (ctl, cs, ctr) <- except $ applySplit splitOp tr
+        nextSteps      <- go sl (Path tl sm (Path ctl cs (mkrest ctr))) True
+        pure $ LMSplitRight splitOp : nextSteps
+      LMDoubleHori horiOp -> do
+        (ctl, csl, ctm, csr, ctr) <- except $ applyHori horiOp tl sm tr
+        nextSteps <- go sl (Path ctl csl (Path ctm csr (mkrest ctr))) False
+        pure $ LMHorizontalize horiOp : nextSteps
+
 sampleSingleStep
-  :: _ => ContextSingle SPC -> m (Leftmost (Split SPC) Freeze SPC)
+  :: _ => ContextSingle SPC -> m (LeftmostSingle (Split SPC) Freeze)
 sampleSingleStep parents@(_, trans, _) = if freezable trans
   then do
     shouldFreeze <- sampleValue Bernoulli $ pOuter . pSingleFreeze
     if shouldFreeze
-      then LMFreezeOnly <$> sampleFreeze parents
-      else LMSplitOnly <$> sampleSplit parents
-  else LMSplitOnly <$> sampleSplit parents
+      then LMSingleFreeze <$> sampleFreeze parents
+      else LMSingleSplit <$> sampleSplit parents
+  else LMSingleSplit <$> sampleSplit parents
 
 sampleDoubleStep
   :: _
   => ContextDouble SPC
   -> Bool
-  -> m (Leftmost (Split SPC) Freeze (Hori SPC))
+  -> m (LeftmostDouble (Split SPC) Freeze (Hori SPC))
 sampleDoubleStep parents@(sliceL, transL, sliceM, transR, sliceR) afterSplitRight
   = if afterSplitRight
     then do
       shouldSplitRight <- sampleValue Bernoulli $ pOuter . pDoubleRightSplit
       if shouldSplitRight
-        then LMSplitRight <$> sampleSplit (Inner sliceM, transR, sliceR)
-        else LMHorizontalize <$> sampleHori parents
+        then LMDoubleSplitRight <$> sampleSplit (Inner sliceM, transR, sliceR)
+        else LMDoubleHori <$> sampleHori parents
     else do
       continueLeft <- sampleValue Bernoulli $ pOuter . pDoubleLeft
       if continueLeft
@@ -127,9 +180,11 @@ sampleDoubleStep parents@(sliceL, transL, sliceM, transR, sliceR) afterSplitRigh
           then do
             shouldFreeze <- sampleValue Bernoulli $ pOuter . pDoubleLeftFreeze
             if shouldFreeze
-              then LMSplitLeft <$> sampleSplit (sliceL, transL, Inner sliceM)
-              else LMFreezeLeft <$> sampleFreeze (sliceL, transL, Inner sliceM)
-          else LMSplitLeft <$> sampleSplit (sliceL, transL, Inner sliceM)
+              then LMDoubleSplitLeft
+                <$> sampleSplit (sliceL, transL, Inner sliceM)
+              else LMDoubleFreezeLeft
+                <$> sampleFreeze (sliceL, transL, Inner sliceM)
+          else LMDoubleSplitLeft <$> sampleSplit (sliceL, transL, Inner sliceM)
         else sampleDoubleStep parents False
 
 sampleFreeze :: RandomInterpreter m PVParams => ContextSingle n -> m Freeze
@@ -150,16 +205,21 @@ sampleSplit (sliceL, Edges ts nts, sliceR) = do
     Nothing            -> pure []
     Just (Notes notes) -> mapM sampleR $ MS.toList notes
   -- introduce new passing edges left and right
-  let notesT  = concatMap (\(_, ns) -> fst . fst <$> ns) childrenT
-      notesNT = fmap (fst . fst . snd) childrenNT
-      notesL  = concatMap (\(_, ns) -> fmap (\(n, _, _) -> n) ns) childrenL
-      notesR  = concatMap (\(_, ns) -> fmap (\(n, _, _) -> n) ns) childrenR
-      notes   = notesT <> notesNT <> notesL <> notesR
-  passLeft  <- sampleNewPassing notes sliceL pNewPassingLeft
-  passRight <- MS.map swap <$> sampleNewPassing notes sliceR pNewPassingRight
+  let notesT     = concatMap (\(_, ns) -> fst . fst <$> ns) childrenT
+      notesNT    = fmap (fst . fst . snd) childrenNT
+      notesFromL = concatMap (\(_, ns) -> fmap (\(n, _, _) -> n) ns) childrenL
+      notesFromR = concatMap (\(_, ns) -> fmap (\(n, _, _) -> n) ns) childrenR
+      notes      = notesT <> notesNT <> notesFromL <> notesFromR
+  passLeft <- case getInner sliceL of
+    Nothing -> pure MS.empty
+    Just (Notes notesl) ->
+      samplePassing (MS.toList notesl) notes pNewPassingLeft
+  passRight <- case getInner sliceR of
+    Nothing -> pure MS.empty
+    Just (Notes notesr) ->
+      samplePassing notes (MS.toList notesr) pNewPassingRight
+  -- combine all sampling results into split operation 
   let
-
-    -- combine all sampling results into split operation 
     splitTs  = M.fromList $ Bi.second (fmap fst) <$> childrenT
     splitNTs = M.fromListWith (<>) $ Bi.second ((: []) . fst) <$> childrenNT
     fromLeft =
@@ -316,26 +376,35 @@ sampleSplit (sliceL, Edges ts nts, sliceR) = do
           child  <- sampleNeighbor stepUp parent
           pure (child, keep, SingleLeftNeighbor)
 
-sampleHori :: _ => ContextDouble n -> m (Hori n)
-sampleHori (sliceL, transL, Notes sliceM, transR, sliceR) = do
+sampleHori :: _ => ContextDouble SPC -> m (Hori SPC)
+sampleHori (_sliceL, _transL, Notes sliceM, _transR, _sliceR) = do
   -- distribute notes
   dists <- mapM distNote $ MS.toOccurList sliceM
-  let notesLeft = flip fmap dists $ \((note, n), to) -> case to of
-        ToRight dl -> (note, n - dl)
-        _          -> (note, n)
-      notesRight = flip fmap dists $ \((note, n), to) -> case to of
-        ToLeft dr -> (note, n - dr)
-        _         -> (note, n)
+  let notesLeft = catMaybes $ flip fmap dists $ \((note, n), to) -> case to of
+        ToRight dl -> if n - dl > 0 then Just note else Nothing
+        _          -> Just note
+      notesRight = catMaybes $ flip fmap dists $ \((note, n), to) -> case to of
+        ToLeft dr -> if n - dr > 0 then Just note else Nothing
+        _         -> Just note
   -- generate repetition edges
+  repeats <- sequence $ do -- List
+    l <- notesLeft
+    r <- notesRight
+    guard $ l == r
+    pure $ do -- m
+      rep <- sampleValue Bernoulli $ pInner . pHoriRepetitionEdge
+      pure $ if rep then Just (Inner l, Inner r) else Nothing
+  let repEdges = S.fromList $ catMaybes repeats
   -- generate passing edges
+  passEdges <- samplePassing notesLeft notesRight pNewPassingMid
   -- construct result
   let distMap = HM.fromList (Bi.first fst <$> dists)
-      edges   = undefined
+      edges   = Edges repEdges passEdges
   pure $ HoriOp distMap edges
  where
   -- distribute a note to the two child slices
   distNote (note, n) = do
-    dir <- sampleValue Categorical $ pInner . pNoteHoriDirection
+    dir <- sampleValue (Categorical @3) $ pInner . pNoteHoriDirection
     to  <- case dir of
       0 -> pure ToBoth
       1 -> do
@@ -346,19 +415,17 @@ sampleHori (sliceL, transL, Notes sliceM, transR, sliceR) = do
         pure $ ToRight $ n - nother
     pure ((note, n), to)
 
-
-sampleNewPassing
+samplePassing
   :: _
   => [SPC]
-  -> StartStop (Notes SPC)
+  -> [SPC]
   -> Accessor PVParamsInner Beta
   -> m (MS.MultiSet (InnerEdge SPC))
-sampleNewPassing notes slice pNewPassing = case getInner slice of
-  Nothing              -> pure MS.empty
-  Just (Notes parents) -> fmap (MS.fromList . concat) $ sequence $ do -- List
-    p <- MS.toList parents
-    m <- notes
-    guard $ iabs (p `pto` m) < major second'
+samplePassing notesLeft notesRight pNewPassing =
+  fmap (MS.fromList . concat) $ sequence $ do -- List
+    l <- notesLeft
+    r <- notesRight
+    guard $ iabs (l `pto` r) <= major second'
     pure $ do -- m
       n <- sampleValue Geometric0 $ pInner . pNewPassing
-      pure $ replicate n (p, m)
+      pure $ replicate n (l, r)

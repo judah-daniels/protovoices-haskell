@@ -11,11 +11,13 @@ module PVGrammar.Generate
   , mkHori
   , horiNote
   , addPassing
-  , derivationPlayerPV
-  , applyHori
   , addOctaveRepetition
   , addPassingLeft
   , addPassingRight
+  , derivationPlayerPV
+  , applySplit
+  , applyFreeze
+  , applyHori
   , freezable
   )
 where

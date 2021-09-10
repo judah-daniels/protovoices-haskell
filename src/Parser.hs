@@ -6,8 +6,7 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
 module Parser
-  ( Path(..)
-  , Parsable
+  ( Parsable
   , Normal
   , Normal'
   , tcGetByLength
@@ -439,30 +438,6 @@ mergeAll mrg n (!tchart, !vchart) = do
 
 -- parsing entry point
 ----------------------
-
-data Path a e = Path !a !e !(Path a e)
-              | PathEnd !a
-
-instance (Show a, Show e) => Show (Path a e) where
-  show (Path a e rst) = show a <> "\n+-" <> show e <> "\n" <> show rst
-  show (PathEnd a   ) = show a
-
-pathLen :: Path a e -> Int
-pathLen (Path _ _ rest) = pathLen rest + 1
-pathLen (PathEnd _    ) = 1
-
-pathHead :: Path a e -> a
-pathHead (Path l _ _) = l
-pathHead (PathEnd l ) = l
-
-mapNodesWithIndex :: Int -> (Int -> a -> b) -> Path a e -> Path b e
-mapNodesWithIndex i f (Path l m rest) =
-  Path (f i l) m (mapNodesWithIndex (i + 1) f rest)
-mapNodesWithIndex i f (PathEnd n) = PathEnd (f i n)
-
-mapEdges :: (a -> e -> a -> b) -> Path a e -> [b]
-mapEdges f (Path l m rest) = f l m r : mapEdges f rest where r = pathHead rest
-mapEdges _ (PathEnd _    ) = []
 
 -- | The main entrypoint to the parser.
 -- Expects an evaluator for the specific grammar

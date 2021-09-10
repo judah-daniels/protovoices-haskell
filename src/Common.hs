@@ -34,6 +34,33 @@ import           Musicology.Pitch               ( Notation(..) )
 import qualified Text.ParserCombinators.ReadP  as ReadP
 import           Data.Hashable                  ( Hashable )
 
+-- Path: alternating slices and transitions
+-- ========================================
+
+data Path a e = Path !a !e !(Path a e)
+              | PathEnd !a
+
+instance (Show a, Show e) => Show (Path a e) where
+  show (Path a e rst) = show a <> "\n+-" <> show e <> "\n" <> show rst
+  show (PathEnd a   ) = show a
+
+pathLen :: Path a e -> Int
+pathLen (Path _ _ rest) = pathLen rest + 1
+pathLen (PathEnd _    ) = 1
+
+pathHead :: Path a e -> a
+pathHead (Path l _ _) = l
+pathHead (PathEnd l ) = l
+
+mapNodesWithIndex :: Int -> (Int -> a -> b) -> Path a e -> Path b e
+mapNodesWithIndex i f (Path l m rest) =
+  Path (f i l) m (mapNodesWithIndex (i + 1) f rest)
+mapNodesWithIndex i f (PathEnd n) = PathEnd (f i n)
+
+mapEdges :: (a -> e -> a -> b) -> Path a e -> [b]
+mapEdges f (Path l m rest) = f l m r : mapEdges f rest where r = pathHead rest
+mapEdges _ (PathEnd _    ) = []
+
 -- StartStop
 -- =========
 
@@ -236,6 +263,16 @@ data Leftmost s f h = LMSplitLeft !s
   deriving (Eq, Ord, Show, Generic)
 
 instance (NFData s, NFData f, NFData h) => NFData (Leftmost s f h)
+
+data LeftmostSingle s f = LMSingleSplit !s
+                        | LMSingleFreeze !f
+  deriving (Eq, Ord, Show, Generic)
+
+data LeftmostDouble s f h = LMDoubleSplitLeft !s
+                          | LMDoubleFreezeLeft !f
+                          | LMDoubleSplitRight !s
+                          | LMDoubleHori !h
+  deriving (Eq, Ord, Show, Generic)
 
 mkLeftmostEval
   :: VertMiddle e a h
