@@ -31,8 +31,7 @@ dependencies:
 - transformers
 - mtl
 - fin
-- mwc-random
-- math-functions
+- conjugate-programs
 - mwc-probability
 - primitive
 - indexed

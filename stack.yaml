@@ -52,6 +52,7 @@ extra-deps:
 #   - musicology-pitch
 #   - musicology-core
 #   - musicology-musicxml
+- ../inference/conjugate-programs/ # TODO: make this refer to a git repo
 
 # other packages
 - diagrams-lib-1.4.3@sha256:04f77778d4b550d3c8e54440800685f88467bef91075e82e009a8a6f45c51033,8232

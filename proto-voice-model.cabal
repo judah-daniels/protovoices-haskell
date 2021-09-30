@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 184460987b2c78f11202e5599a5d6d3cbc7cdc2578835d5f1d4d1b7d37189c77
+-- hash: 7e6c9ab396bc290e3e7d70f1da6fa808ee738654ba869a93d8f412376a24adbb
 
 name:           proto-voice-model
 version:        0.1.0.0
@@ -29,7 +29,6 @@ library
   exposed-modules:
       Common
       Display
-      Inference.Conjugate
       Internal.MultiSet
       Parser
       PVGrammar
@@ -50,13 +49,13 @@ library
   ghc-options: -Wall
   build-depends:
       base >=4.7 && <5
+    , conjugate-programs
     , containers
     , deepseq
     , do-notation
     , fin
     , hashable
     , indexed
-    , math-functions
     , microlens
     , microlens-th
     , mtl
@@ -64,7 +63,6 @@ library
     , musicology-musicxml
     , musicology-pitch
     , mwc-probability
-    , mwc-random
     , parallel
     , primitive
     , process
@@ -82,13 +80,13 @@ executable examples
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
+    , conjugate-programs
     , containers
     , deepseq
     , do-notation
     , fin
     , hashable
     , indexed
-    , math-functions
     , microlens
     , microlens-th
     , mtl
@@ -96,7 +94,6 @@ executable examples
     , musicology-musicxml
     , musicology-pitch
     , mwc-probability
-    , mwc-random
     , parallel
     , primitive
     , process
@@ -115,13 +112,13 @@ executable ismir2021
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
+    , conjugate-programs
     , containers
     , deepseq
     , do-notation
     , fin
     , hashable
     , indexed
-    , math-functions
     , microlens
     , microlens-th
     , mtl
@@ -129,7 +126,6 @@ executable ismir2021
     , musicology-musicxml
     , musicology-pitch
     , mwc-probability
-    , mwc-random
     , parallel
     , primitive
     , process
@@ -148,13 +144,13 @@ executable parse
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
+    , conjugate-programs
     , containers
     , deepseq
     , do-notation
     , fin
     , hashable
     , indexed
-    , math-functions
     , microlens
     , microlens-th
     , mtl
@@ -162,7 +158,6 @@ executable parse
     , musicology-musicxml
     , musicology-pitch
     , mwc-probability
-    , mwc-random
     , parallel
     , primitive
     , process
@@ -184,13 +179,13 @@ test-suite proto-voice-model-test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
+    , conjugate-programs
     , containers
     , deepseq
     , do-notation
     , fin
     , hashable
     , indexed
-    , math-functions
     , microlens
     , microlens-th
     , mtl
@@ -198,7 +193,6 @@ test-suite proto-voice-model-test
     , musicology-musicxml
     , musicology-pitch
     , mwc-probability
-    , mwc-random
     , parallel
     , primitive
     , process

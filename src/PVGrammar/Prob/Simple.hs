@@ -17,13 +17,14 @@
 module PVGrammar.Prob.Simple where
 
 import           Common
-import           Inference.Conjugate
 import           PVGrammar
 import           PVGrammar.Generate
 
 import           Control.Monad                  ( replicateM
                                                 , guard
                                                 )
+import           Control.Monad.Trans.Except
+import           Control.Monad.Trans.Class      ( lift )
 import qualified Data.Bifunctor                as Bi
 import qualified Data.HashMap.Strict           as HM
 import qualified Data.HashSet                  as S
@@ -31,12 +32,11 @@ import qualified Data.Map.Strict               as M
 import           Data.Maybe                     ( catMaybes
                                                 , mapMaybe
                                                 )
-import qualified Internal.MultiSet             as MS
-import           Musicology.Pitch              as MP
-import           Lens.Micro.TH                  ( makeLenses )
 import           GHC.Generics                   ( Generic )
-import           Control.Monad.Trans.Except
-import           Control.Monad.Trans.Class      ( lift )
+import           Inference.Conjugate
+import qualified Internal.MultiSet             as MS
+import           Lens.Micro.TH                  ( makeLenses )
+import           Musicology.Pitch              as MP
 
 data PVParamsOuter f = PVParamsOuter
   { _pSingleFreeze :: f Beta
@@ -408,10 +408,10 @@ sampleHori (_sliceL, _transL, Notes sliceM, _transR, _sliceR) = do
     to  <- case dir of
       0 -> pure ToBoth
       1 -> do
-        nother <- sampleValue (Binomial n) $ pInner . pNotesOnOtherSide
+        nother <- sampleValue (Binomial $ n - 1) $ pInner . pNotesOnOtherSide
         pure $ ToLeft $ n - nother
       _ -> do
-        nother <- sampleValue (Binomial n) $ pInner . pNotesOnOtherSide
+        nother <- sampleValue (Binomial $ n - 1) $ pInner . pNotesOnOtherSide
         pure $ ToRight $ n - nother
     pure ((note, n), to)
 
