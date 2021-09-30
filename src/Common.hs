@@ -10,29 +10,33 @@
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE EmptyDataDecls #-}
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE StandaloneKindSignatures #-}
 module Common where
 
-import           GHC.Generics                   ( Generic )
 import           Control.DeepSeq                ( NFData )
+import           GHC.Generics                   ( Generic )
 
+import qualified Control.Monad.Indexed         as MI
+import qualified Control.Monad.Writer.Strict   as MW
+import           Data.Bifunctor                 ( second )
+import           Data.Hashable                  ( Hashable )
+import           Data.Kind                      ( Type )
+import           Data.Semigroup                 ( stimesMonoid )
 import qualified Data.Semiring                 as R
 import qualified Data.Set                      as S
-import qualified Control.Monad.Writer.Strict   as MW
-import qualified Control.Monad.Indexed         as MI
+import           Data.Typeable                  ( Proxy(Proxy) )
 import           Debug.Trace                    ( trace )
-import           Data.Semigroup                 ( stimesMonoid )
-import           GHC.TypeNats                   ( Nat
-                                                , KnownNat
-                                                , type (<=)
-                                                , type (+)
+import           GHC.TypeNats                   ( type (+)
                                                 , type (-)
+                                                , type (<=)
+                                                , KnownNat
+                                                , Nat
                                                 , natVal
                                                 )
-import           Data.Bifunctor                 ( second )
-import           Data.Typeable                  ( Proxy(Proxy) )
 import           Musicology.Pitch               ( Notation(..) )
 import qualified Text.ParserCombinators.ReadP  as ReadP
-import           Data.Hashable                  ( Hashable )
 
 -- Path: alternating slices and transitions
 -- ========================================
@@ -153,12 +157,12 @@ type Merge e a v
 -- | A combined evaluator for verticalizations, merges, and thaws.
 -- Additionally, contains a function for mapping terminal slices to semiring values.
 data Eval e e' a a' v = Eval
-  { evalVertMiddle  :: !(VertMiddle e a v)
-  , evalVertLeft :: !(VertLeft e a)
-  , evalVertRight :: !(VertRight e a)
-  , evalMerge :: !(Merge e a v)
-  , evalThaw  :: !(StartStop a -> Maybe e' -> StartStop a -> IsLast -> [(e, v)])
-  , evalSlice :: !(a' -> a)
+  { evalVertMiddle :: !(VertMiddle e a v)
+  , evalVertLeft   :: !(VertLeft e a)
+  , evalVertRight  :: !(VertRight e a)
+  , evalMerge      :: !(Merge e a v)
+  , evalThaw :: !(StartStop a -> Maybe e' -> StartStop a -> IsLast -> [(e, v)])
+  , evalSlice      :: !(a' -> a)
   }
 
 -- | Maps a function over all scores produced by the evaluator.
@@ -254,25 +258,51 @@ splitFirst = mapEvalScore snd . productEval evalSplitBeforeHori
 -- left-most derivation outer operations
 -- =====================================
 
-data Leftmost s f h = LMSplitLeft !s
-                    | LMFreezeLeft !f
-                    | LMSplitRight !s
-                    | LMHorizontalize !h
-                    | LMSplitOnly !s
-                    | LMFreezeOnly !f
-  deriving (Eq, Ord, Show, Generic)
+-- data Leftmost s f h = LMSplitLeft !s
+--                     | LMFreezeLeft !f
+--                     | LMSplitRight !s
+--                     | LMHorizontalize !h
+--                     | LMSplitOnly !s
+--                     | LMFreezeOnly !f
+--   deriving (Eq, Ord, Show, Generic)
 
-instance (NFData s, NFData f, NFData h) => NFData (Leftmost s f h)
+-- instance (NFData s, NFData f, NFData h) => NFData (Leftmost s f h)
 
 data LeftmostSingle s f = LMSingleSplit !s
                         | LMSingleFreeze !f
   deriving (Eq, Ord, Show, Generic)
+
+instance (NFData s, NFData f) => NFData (LeftmostSingle s f)
 
 data LeftmostDouble s f h = LMDoubleSplitLeft !s
                           | LMDoubleFreezeLeft !f
                           | LMDoubleSplitRight !s
                           | LMDoubleHori !h
   deriving (Eq, Ord, Show, Generic)
+
+instance (NFData s, NFData f, NFData h) => NFData (LeftmostDouble s f h)
+
+type Leftmost s f h = Either (LeftmostSingle s f) (LeftmostDouble s f h)
+
+pattern LMSplitLeft :: s -> Leftmost s f h
+pattern LMSplitLeft s = Right (LMDoubleSplitLeft s)
+
+pattern LMFreezeLeft :: f -> Leftmost s f h
+pattern LMFreezeLeft f = Right (LMDoubleFreezeLeft f)
+
+pattern LMSplitRight :: s -> Leftmost s f h
+pattern LMSplitRight s = Right (LMDoubleSplitRight s)
+
+pattern LMHorizontalize :: h -> Leftmost s f h
+pattern LMHorizontalize h = Right (LMDoubleHori h)
+
+pattern LMSplitOnly :: s -> Leftmost s f h
+pattern LMSplitOnly s = Left (LMSingleSplit s)
+
+pattern LMFreezeOnly :: f -> Leftmost s f h
+pattern LMFreezeOnly f = Left (LMSingleFreeze f)
+
+{-# COMPLETE LMSplitLeft, LMFreezeLeft, LMSplitRight, LMHorizontalize, LMSplitOnly, LMFreezeOnly #-}
 
 mkLeftmostEval
   :: VertMiddle e a h
@@ -317,7 +347,8 @@ instance (Monoid w) => MI.IxMonad (IndexedWriter w) where
 itell :: Monoid w => w -> IndexedWriter w i j ()
 itell = IW . MW.tell
 
-data Prod (a :: Nat) (b :: Bool)
+type Prod :: Nat -> Bool -> Type
+data Prod a b
 
 type DerivAction s f h n n' snd snd'
   = IndexedWriter [Leftmost s f h] (Prod n snd) (Prod n' snd') ()

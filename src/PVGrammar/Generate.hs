@@ -19,28 +19,28 @@ module PVGrammar.Generate
   , applyFreeze
   , applyHori
   , freezable
-  )
-where
+  ) where
 
-import           PVGrammar               hiding ( splitTs
-                                                , splitNTs
-                                                )
 import           Common
 import           Display
+import           PVGrammar               hiding ( splitNTs
+                                                , splitTs
+                                                )
 
 import           Musicology.Pitch               ( Notation(..) )
 
-import qualified Control.Monad.Writer.Strict   as MW
-import           Data.Monoid                    ( Endo(..) )
-import qualified Data.Map.Strict               as M
-import qualified Internal.MultiSet             as MS
-import qualified Data.HashSet                  as S
 import           Control.Monad                  ( foldM )
-import qualified Data.List                     as L
+import qualified Control.Monad.Writer.Strict   as MW
 import           Data.Foldable                  ( toList )
-import           Data.Hashable                  ( Hashable )
 import qualified Data.HashMap.Strict           as HM
-import           Musicology.Core                ( HasPitch(pitch)
+import qualified Data.HashSet                  as S
+import           Data.Hashable                  ( Hashable )
+import qualified Data.List                     as L
+import qualified Data.Map.Strict               as M
+import           Data.Monoid                    ( Endo(..) )
+import qualified Internal.MultiSet             as MS
+import qualified Musicology.Core               as MC
+                                                ( HasPitch(pitch)
                                                 , Pitched(IntervalOf)
                                                 )
 
@@ -246,12 +246,12 @@ applySplit inSplit@(SplitOp splitTs splitNTs ls rs keepl keepr passl passr) inTo
   singleChild (_, (note, _)) = note
   collectNotes ops = MS.fromList $ singleChild <$> allOps ops
 
-freezable :: (Eq (IntervalOf n), HasPitch n) => Edges n -> Bool
+freezable :: (Eq (MC.IntervalOf n), MC.HasPitch n) => Edges n -> Bool
 freezable (Edges ts nts) = MS.null nts && all isRep ts
-  where isRep (a, b) = fmap pitch a == fmap pitch b
+  where isRep (a, b) = fmap MC.pitch a == fmap MC.pitch b
 
 applyFreeze
-  :: (Eq (IntervalOf n), HasPitch n)
+  :: (Eq (MC.IntervalOf n), MC.HasPitch n)
   => Freeze
   -> Edges n
   -> Either String (Edges n)
@@ -259,7 +259,7 @@ applyFreeze FreezeOp e@(Edges ts nts)
   | not $ MS.null nts  = Left "cannot freeze non-terminal edges"
   | not $ all isRep ts = Left "cannot freeze non-tie edges"
   | otherwise          = Right e
-  where isRep (a, b) = fmap pitch a == fmap pitch b
+  where isRep (a, b) = fmap MC.pitch a == fmap MC.pitch b
 
 applyHori
   :: forall n
@@ -308,7 +308,7 @@ applyHori (HoriOp dist childm) pl (Notes notesm) pr = do
 -- =================
 
 derivationPlayerPV
-  :: (Eq n, Ord n, Notation n, Hashable n, Eq (IntervalOf n), HasPitch n)
+  :: (Eq n, Ord n, Notation n, Hashable n, Eq (MC.IntervalOf n), MC.HasPitch n)
   => DerivationPlayer (Split n) Freeze (Hori n) (Notes n) (Edges n)
 derivationPlayerPV = DerivationPlayer topEdges
                                       topNotes
