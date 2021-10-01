@@ -6,49 +6,49 @@
 {-# OPTIONS_GHC -Wno-all #-}
 module Main where
 
-import           Parser
-import           PVGrammar
-import           PVGrammar.Parse
-import           PVGrammar.Generate
 import           Common
 import           Display
+import           PVGrammar
+import           PVGrammar.Generate
+import           PVGrammar.Parse
+import           Parser
 import           ScoresCommon
 
---import Musicology.Internal.Helpers
-import           Musicology.MusicXML
 import           Musicology.Core
 import           Musicology.Core.Slicing
+--import Musicology.Internal.Helpers
+import           Musicology.MusicXML
 import           Musicology.Pitch.Spelled      as MT
 
+import           Data.Either                    ( partitionEithers )
+import           Data.Maybe                     ( catMaybes )
 import           Data.Ratio                     ( Ratio(..) )
 import           Lens.Micro                     ( over )
-import           Data.Maybe                     ( catMaybes )
-import           Data.Either                    ( partitionEithers )
 
-import qualified Internal.MultiSet             as MS
+import           Control.Monad                  ( forM
+                                                , forM_
+                                                )
 import qualified Data.HashMap.Strict           as HS
-import qualified Data.Set                      as S
-import qualified Data.Semiring                 as R
 import qualified Data.List                     as L
+import qualified Data.Semiring                 as R
+import qualified Data.Set                      as S
 import qualified Data.Text                     as T
 import qualified Data.Text.IO                  as T
 import qualified Data.Text.Lazy                as TL
 import qualified Data.Text.Lazy.IO             as TL
-import           Control.Monad                  ( forM
-                                                , forM_
+import qualified Internal.MultiSet             as MS
+
+
+import           Control.DeepSeq                ( deepseq
+                                                , force
                                                 )
-
-
+import           Data.String                    ( fromString )
 -- better do syntax
 import qualified Language.Haskell.DoNotation   as Do
 -- import           Prelude                 hiding ( Monad(..)
 --                                                 , pure
 --                                                 )
 import           Prelude
-import           Data.String                    ( fromString )
-import           Control.DeepSeq                ( force
-                                                , deepseq
-                                                )
 
 -- utilities
 -- =========
@@ -186,11 +186,11 @@ derivBrahms = buildDerivation $ do
     horiNote (b' nat) (ToRight 1) False
     horiNote (g' shp) (ToLeft 1)  False
   split $ mkSplit $ do
-    addToRight (g' shp) (a' nat) SingleLeftNeighbor False
+    addToRight (g' shp) (a' nat) LeftNeighbor False
   freeze FreezeOp
   freeze FreezeOp
   split $ mkSplit $ do
-    addToRight (b' nat) (c' shp) SingleLeftNeighbor False
+    addToRight (b' nat) (c' shp) LeftNeighbor False
   freeze FreezeOp
   freeze FreezeOp
   freeze FreezeOp

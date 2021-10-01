@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 7e6c9ab396bc290e3e7d70f1da6fa808ee738654ba869a93d8f412376a24adbb
+-- hash: 6279c2df88fe5dc434a98d4b78150ae331c0f5005163f3d5ce7b417ee0fd7d1e
 
 name:           proto-voice-model
 version:        0.1.0.0
@@ -48,7 +48,8 @@ library
       src
   ghc-options: -Wall
   build-depends:
-      base >=4.7 && <5
+      aeson
+    , base >=4.7 && <5
     , conjugate-programs
     , containers
     , deepseq
@@ -79,7 +80,8 @@ executable examples
       Paths_proto_voice_model
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      base >=4.7 && <5
+      aeson
+    , base >=4.7 && <5
     , conjugate-programs
     , containers
     , deepseq
@@ -111,7 +113,8 @@ executable ismir2021
       Paths_proto_voice_model
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      base >=4.7 && <5
+      aeson
+    , base >=4.7 && <5
     , conjugate-programs
     , containers
     , deepseq
@@ -143,7 +146,8 @@ executable parse
       Paths_proto_voice_model
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      base >=4.7 && <5
+      aeson
+    , base >=4.7 && <5
     , conjugate-programs
     , containers
     , deepseq
@@ -178,7 +182,8 @@ test-suite proto-voice-model-test
       test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      base >=4.7 && <5
+      aeson
+    , base >=4.7 && <5
     , conjugate-programs
     , containers
     , deepseq

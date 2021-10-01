@@ -20,11 +20,11 @@ import           Common
 import           PVGrammar
 import           PVGrammar.Generate
 
-import           Control.Monad                  ( replicateM
-                                                , guard
+import           Control.Monad                  ( guard
+                                                , replicateM
                                                 )
-import           Control.Monad.Trans.Except
 import           Control.Monad.Trans.Class      ( lift )
+import           Control.Monad.Trans.Except
 import qualified Data.Bifunctor                as Bi
 import qualified Data.HashMap.Strict           as HM
 import qualified Data.HashSet                  as S
@@ -39,12 +39,12 @@ import           Lens.Micro.TH                  ( makeLenses )
 import           Musicology.Pitch              as MP
 
 data PVParamsOuter f = PVParamsOuter
-  { _pSingleFreeze :: f Beta
-  , _pDoubleLeft :: f Beta
+  { _pSingleFreeze     :: f Beta
+  , _pDoubleLeft       :: f Beta
   , _pDoubleLeftFreeze :: f Beta
   , _pDoubleRightSplit :: f Beta
   }
-  deriving (Generic)
+  deriving Generic
 
 deriving instance (Show (f Beta)) => Show (PVParamsOuter f)
 
@@ -52,28 +52,28 @@ makeLenses ''PVParamsOuter
 
 data PVParamsInner f = PVParamsInner
   -- split
-  { _pElaborateRegular :: f Beta
-  , _pElaborateL :: f Beta
-  , _pElaborateR :: f Beta
-  , _pRootFifths :: f Beta
-  , _pKeepL :: f Beta
-  , _pKeepR :: f Beta
-  , _pRepeatOverNeighbor :: f Beta
-  , _pNBChromatic :: f Beta
-  , _pNBAlt :: f Beta
-  , _pRepeatLeftOverRight :: f Beta
-  , _pConnect :: f Beta
+  { _pElaborateRegular              :: f Beta
+  , _pElaborateL                    :: f Beta
+  , _pElaborateR                    :: f Beta
+  , _pRootFifths                    :: f Beta
+  , _pKeepL                         :: f Beta
+  , _pKeepR                         :: f Beta
+  , _pRepeatOverNeighbor            :: f Beta
+  , _pNBChromatic                   :: f Beta
+  , _pNBAlt                         :: f Beta
+  , _pRepeatLeftOverRight           :: f Beta
+  , _pConnect                       :: f Beta
   , _pConnectChromaticLeftOverRight :: f Beta
-  , _pPassLeftOverRight :: f Beta
-  , _pNewPassingLeft :: f Beta
-  , _pNewPassingRight :: f Beta
+  , _pPassLeftOverRight             :: f Beta
+  , _pNewPassingLeft                :: f Beta
+  , _pNewPassingRight               :: f Beta
   -- hori
-  , _pNewPassingMid :: f Beta
-  , _pNoteHoriDirection :: f (Dirichlet 3)
-  , _pNotesOnOtherSide :: f Beta
-  , _pHoriRepetitionEdge :: f Beta
+  , _pNewPassingMid                 :: f Beta
+  , _pNoteHoriDirection             :: f (Dirichlet 3)
+  , _pNotesOnOtherSide              :: f Beta
+  , _pHoriRepetitionEdge            :: f Beta
   }
-  deriving (Generic)
+  deriving Generic
 
 deriving instance ( Show (f Beta)
                   , Show (f Beta)
@@ -84,9 +84,11 @@ deriving instance ( Show (f Beta)
 
 makeLenses ''PVParamsInner
 
-data PVParams f = PVParams { _pOuter :: PVParamsOuter f
-                           , _pInner :: PVParamsInner f }
-  deriving (Generic)
+data PVParams f = PVParams
+  { _pOuter :: PVParamsOuter f
+  , _pInner :: PVParamsInner f
+  }
+  deriving Generic
 
 deriving instance ( Show (f Beta)
                   , Show (f Beta)
@@ -190,7 +192,7 @@ sampleDoubleStep parents@(sliceL, transL, sliceM, transR, sliceR) afterSplitRigh
 sampleFreeze :: RandomInterpreter m PVParams => ContextSingle n -> m Freeze
 sampleFreeze _parent = pure FreezeOp
 
-sampleSplit :: forall  m . _ => ContextSingle SPC -> m (Split SPC)
+sampleSplit :: forall m . _ => ContextSingle SPC -> m (Split SPC)
 sampleSplit (sliceL, Edges ts nts, sliceR) = do
   -- ornament regular edges at least once
   childrenT  <- mapM sampleT $ S.toList ts
@@ -342,7 +344,8 @@ sampleSplit (sliceL, Edges ts nts, sliceR) = do
         keepr <- sampleValue Bernoulli $ pInner . pKeepR
         pure ((child, PassingRight), (True, keepr))
 
-  sampleNT :: InnerEdge SPC -> m (InnerEdge SPC, ((SPC, Passing), (Bool, Bool)))
+  sampleNT
+    :: InnerEdge SPC -> m (InnerEdge SPC, ((SPC, Passing), (Bool, Bool)))
   sampleNT (pl, pr) = fmap ((pl, pr), ) $ case degree $ iabs $ pl `pto` pr of
     1 -> sampleChromPassing pl pr
     2 -> do
@@ -357,11 +360,11 @@ sampleSplit (sliceL, Edges ts nts, sliceR) = do
       rep  <- sampleValue Bernoulli $ pInner . pRepeatOverNeighbor
       keep <- sampleValue Bernoulli $ pInner . pKeepL
       if rep
-        then pure (parent, keep, SingleRightRepeat)
+        then pure (parent, keep, RightRepeat)
         else do
           stepUp <- sampleConst Bernoulli 0.5
           child  <- sampleNeighbor stepUp parent
-          pure (child, keep, SingleRightNeighbor)
+          pure (child, keep, RightNeighbor)
 
   sampleR :: SPC -> m (SPC, [(SPC, Bool, LeftOrnament)])
   sampleR parent = do
@@ -370,11 +373,11 @@ sampleSplit (sliceL, Edges ts nts, sliceR) = do
       rep  <- sampleValue Bernoulli $ pInner . pRepeatOverNeighbor
       keep <- sampleValue Bernoulli $ pInner . pKeepR
       if rep
-        then pure (parent, keep, SingleLeftRepeat)
+        then pure (parent, keep, LeftRepeat)
         else do
           stepUp <- sampleConst Bernoulli 0.5
           child  <- sampleNeighbor stepUp parent
-          pure (child, keep, SingleLeftNeighbor)
+          pure (child, keep, LeftNeighbor)
 
 sampleHori :: _ => ContextDouble SPC -> m (Hori SPC)
 sampleHori (_sliceL, _transL, Notes sliceM, _transR, _sliceR) = do

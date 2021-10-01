@@ -6,32 +6,32 @@
 {-# OPTIONS_GHC -Wno-all #-}
 module Main where
 
-import           Parser
-import           PVGrammar
-import           PVGrammar.Parse
-import           PVGrammar.Generate
 import           Common
 import           Display
+import           PVGrammar
+import           PVGrammar.Generate
+import           PVGrammar.Parse
+import           Parser
 
---import Musicology.Internal.Helpers
-import           Musicology.MusicXML
 import           Musicology.Core
 import           Musicology.Core.Slicing
+--import Musicology.Internal.Helpers
+import           Musicology.MusicXML
 import           Musicology.Pitch.Spelled      as MT
 
+import           Data.Either                    ( partitionEithers )
+import           Data.Maybe                     ( catMaybes )
 import           Data.Ratio                     ( Ratio(..) )
 import           Lens.Micro                     ( over )
-import           Data.Maybe                     ( catMaybes )
-import           Data.Either                    ( partitionEithers )
 
-import qualified Data.Set                      as S
-import qualified Data.Semiring                 as R
-import qualified Data.List                     as L
-import qualified Data.Text                     as T
-import qualified Data.Text.IO                  as T
 import           Control.Monad                  ( forM
                                                 , forM_
                                                 )
+import qualified Data.List                     as L
+import qualified Data.Semiring                 as R
+import qualified Data.Set                      as S
+import qualified Data.Text                     as T
+import qualified Data.Text.IO                  as T
 import           Data.Typeable                  ( Proxy(Proxy) )
 
 -- better do syntax
@@ -131,7 +131,7 @@ derivBach = buildDerivation $ do
     horiNote (d' nat) ToBoth      True
     horiNote (f' nat) (ToRight 1) False
     horiNote (a' nat) (ToRight 1) False
-  split $ mkSplit $ addToRight (d' nat) (d' nat) SingleLeftRepeat False
+  split $ mkSplit $ addToRight (d' nat) (d' nat) LeftRepeat False
   freeze FreezeOp
   freeze FreezeOp
   hori $ mkHori $ do
@@ -236,7 +236,7 @@ derivBach = buildDerivation $ do
   split $ mkSplit $ do
     splitNT (f' nat) (d' nat) (e' nat) PassingMid False False
     splitT (Inner $ a' nat) (Inner $ a' nat) (a' nat) FullRepeat True True
-    addToRight (a' nat) (a' nat) SingleLeftRepeat True
+    addToRight (a' nat) (a' nat) LeftRepeat True
   freeze FreezeOp
   freeze FreezeOp
   freeze FreezeOp

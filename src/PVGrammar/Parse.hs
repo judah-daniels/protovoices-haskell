@@ -13,38 +13,37 @@ module PVGrammar.Parse
   , pvCount
   , protoVoiceEvaluator
   , protoVoiceEvaluatorNoRepSplit
-  )
-where
+  ) where
 
 import           Common
 import           PVGrammar
 
-import           Musicology.Pitch               ( Notation
-                                                , Diatonic
+import           Musicology.Pitch               ( Diatonic
                                                 , Interval(..)
-                                                , pto
+                                                , Notation
                                                 , pc
+                                                , pto
                                                 )
 
+import           Control.DeepSeq                ( NFData )
+import           Control.Monad                  ( foldM )
+import           Data.Foldable                  ( foldl'
+                                                , toList
+                                                )
+import qualified Data.HashMap.Strict           as HM
 import qualified Data.HashSet                  as S
+import           Data.Hashable                  ( Hashable )
 import qualified Data.List                     as L
 import qualified Data.Map.Strict               as M
-import qualified Internal.MultiSet             as MS
-import           Data.Foldable                  ( toList
-                                                , foldl'
-                                                )
 import           Data.Maybe                     ( catMaybes
                                                 , maybeToList
                                                 )
-import           Control.Monad                  ( foldM )
 import           GHC.Generics                   ( Generic )
-import           Data.Hashable                  ( Hashable )
-import           Control.DeepSeq                ( NFData )
-import qualified Data.HashMap.Strict           as HM
+import qualified Internal.MultiSet             as MS
 import           Musicology.Core                ( HasPitch(..)
+                                                , Pitch
                                                 , Pitched(..)
                                                 , isStep
-                                                , Pitch
                                                 )
 
 -- helper type: Either for terminal and non-terminal edges
@@ -157,16 +156,16 @@ findPassing (NT l) m (T (Inner r)) | isStep (pm `pto` pr) && between pl pm pr =
 findPassing _ _ _ = Nothing
 
 findRightOrnament :: (IsNote n) => n -> n -> Maybe RightOrnament
-findRightOrnament l m | pl == pm             = Just SingleRightRepeat
-                      | isStep (pl `pto` pm) = Just SingleRightNeighbor
+findRightOrnament l m | pl == pm             = Just RightRepeat
+                      | isStep (pl `pto` pm) = Just RightNeighbor
                       | otherwise            = Nothing
  where
   pl = pc $ pitch l
   pm = pc $ pitch m
 
 findLeftOrnament :: (IsNote n) => n -> n -> Maybe LeftOrnament
-findLeftOrnament m r | pm == pr             = Just SingleLeftRepeat
-                     | isStep (pm `pto` pr) = Just SingleLeftNeighbor
+findLeftOrnament m r | pm == pr             = Just LeftRepeat
+                     | isStep (pm `pto` pr) = Just LeftNeighbor
                      | otherwise            = Nothing
  where
   pm = pc $ pitch m
@@ -419,8 +418,8 @@ protoVoiceEvaluatorNoRepSplit = Eval vm vl vr filterSplit t s
   onlyRepeats (SplitOp ts nts rs ls _ _ _ _) =
     M.null nts && (allRepetitionsLeft || allRepetitionsRight)
    where
-    allSinglesRepeat = all (check (== SingleRightRepeat)) (M.toList rs)
-      && all (check (== SingleLeftRepeat)) (M.toList ls)
+    allSinglesRepeat = all (check (== RightRepeat)) (M.toList rs)
+      && all (check (== LeftRepeat)) (M.toList ls)
     allRepetitionsLeft =
       all (check isRepetitionOnLeft) (M.toList ts) && allSinglesRepeat
     allRepetitionsRight =

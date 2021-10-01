@@ -13,6 +13,8 @@
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE StandaloneKindSignatures #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DeriveTraversable #-}
 module Common where
 
 import           Control.DeepSeq                ( NFData )
@@ -20,12 +22,21 @@ import           GHC.Generics                   ( Generic )
 
 import qualified Control.Monad.Indexed         as MI
 import qualified Control.Monad.Writer.Strict   as MW
+import           Data.Aeson                     ( (.:)
+                                                , (.=)
+                                                , FromJSON(..)
+                                                , ToJSON(..)
+                                                )
+import qualified Data.Aeson                    as Aeson
+import qualified Data.Aeson.Types              as Aeson
+import           Data.Aeson.Types               ( unexpected )
 import           Data.Bifunctor                 ( second )
 import           Data.Hashable                  ( Hashable )
 import           Data.Kind                      ( Type )
 import           Data.Semigroup                 ( stimesMonoid )
 import qualified Data.Semiring                 as R
 import qualified Data.Set                      as S
+import qualified Data.Text                     as T
 import           Data.Typeable                  ( Proxy(Proxy) )
 import           Debug.Trace                    ( trace )
 import           GHC.TypeNats                   ( type (+)
@@ -43,6 +54,7 @@ import qualified Text.ParserCombinators.ReadP  as ReadP
 
 data Path a e = Path !a !e !(Path a e)
               | PathEnd !a
+  deriving (Eq, Ord , Generic)
 
 instance (Show a, Show e) => Show (Path a e) where
   show (Path a e rst) = show a <> "\n+-" <> show e <> "\n" <> show rst
@@ -74,7 +86,7 @@ mapEdges _ (PathEnd _    ) = []
 data StartStop a = (:⋊)
                   | Inner !a
                   | (:⋉)
-  deriving (Ord, Eq, Generic, NFData, Hashable)
+  deriving (Ord, Eq, Generic, NFData, Hashable, Functor, Foldable, Traversable)
 
 -- some instances for StartStop
 
@@ -89,10 +101,10 @@ instance (Notation a) => Notation (StartStop a) where
   showNotation (Inner a) = showNotation a
   parseNotation = ReadP.pfail
 
-instance Functor StartStop where
-  fmap _ (:⋊)      = (:⋊)
-  fmap _ (:⋉)      = (:⋉)
-  fmap f (Inner a) = Inner $ f a
+instance FromJSON a => FromJSON (StartStop a) where
+  parseJSON (Aeson.String "start") = pure (:⋊)
+  parseJSON (Aeson.String "stop" ) = pure (:⋉)
+  parseJSON other                  = Inner <$> parseJSON other
 
 -- some helper functions for StartStop
 
@@ -274,6 +286,12 @@ data LeftmostSingle s f = LMSingleSplit !s
 
 instance (NFData s, NFData f) => NFData (LeftmostSingle s f)
 
+instance (ToJSON s, ToJSON f) => ToJSON (LeftmostSingle s f) where
+  toJSON (LMSingleSplit  s) = toVariant "splitOnly" s
+  toJSON (LMSingleFreeze f) = toVariant "freezeOnly" f
+  toEncoding (LMSingleSplit  s) = toVariantEnc "splitOnly" s
+  toEncoding (LMSingleFreeze f) = toVariantEnc "freezeOnly" f
+
 data LeftmostDouble s f h = LMDoubleSplitLeft !s
                           | LMDoubleFreezeLeft !f
                           | LMDoubleSplitRight !s
@@ -282,27 +300,98 @@ data LeftmostDouble s f h = LMDoubleSplitLeft !s
 
 instance (NFData s, NFData f, NFData h) => NFData (LeftmostDouble s f h)
 
-type Leftmost s f h = Either (LeftmostSingle s f) (LeftmostDouble s f h)
+instance (ToJSON s, ToJSON f, ToJSON h) => ToJSON (LeftmostDouble s f h) where
+  toJSON (LMDoubleSplitLeft  s) = toVariant "splitLeft" s
+  toJSON (LMDoubleSplitRight s) = toVariant "splitRight" s
+  toJSON (LMDoubleFreezeLeft f) = toVariant "freezeLeft" f
+  toJSON (LMDoubleHori       h) = toVariant "hori" h
+  toEncoding (LMDoubleSplitLeft  s) = toVariantEnc "splitLeft" s
+  toEncoding (LMDoubleSplitRight s) = toVariantEnc "splitRight" s
+  toEncoding (LMDoubleFreezeLeft f) = toVariantEnc "freezeLeft" f
+  toEncoding (LMDoubleHori       h) = toVariantEnc "hori" h
+
+data Leftmost s f h = LMSingle (LeftmostSingle s f)
+                    | LMDouble (LeftmostDouble s f h)
+  deriving (Eq, Ord, Show, Generic)
+
+instance (FromJSON s, FromJSON f, FromJSON h) => FromJSON (Leftmost s f h) where
+  parseJSON = Aeson.withObject "Leftmost" $ \obj -> do
+    typ <- obj .: "type"
+    val <- obj .: "value"
+    case typ of
+      "freezeLeft" -> LMFreezeLeft <$> parseJSON val
+      "freezeOnly" -> LMFreezeOnly <$> parseJSON val
+      "splitLeft"  -> LMSplitLeft <$> parseJSON val
+      "splitRight" -> LMSplitRight <$> parseJSON val
+      "splitOnly"  -> LMSplitOnly <$> parseJSON val
+      "hori"       -> LMHorizontalize <$> parseJSON val
+      other        -> unexpected other
+
+instance (ToJSON s, ToJSON f, ToJSON h) => ToJSON (Leftmost s f h) where
+  toJSON (LMSingle sg) = toJSON sg
+  toJSON (LMDouble db) = toJSON db
+  toEncoding (LMSingle sg) = toEncoding sg
+  toEncoding (LMDouble db) = toEncoding db
+
+instance (NFData s, NFData f, NFData h) => NFData (Leftmost s f h)
 
 pattern LMSplitLeft :: s -> Leftmost s f h
-pattern LMSplitLeft s = Right (LMDoubleSplitLeft s)
+pattern LMSplitLeft s = LMDouble (LMDoubleSplitLeft s)
 
 pattern LMFreezeLeft :: f -> Leftmost s f h
-pattern LMFreezeLeft f = Right (LMDoubleFreezeLeft f)
+pattern LMFreezeLeft f = LMDouble (LMDoubleFreezeLeft f)
 
 pattern LMSplitRight :: s -> Leftmost s f h
-pattern LMSplitRight s = Right (LMDoubleSplitRight s)
+pattern LMSplitRight s = LMDouble (LMDoubleSplitRight s)
 
 pattern LMHorizontalize :: h -> Leftmost s f h
-pattern LMHorizontalize h = Right (LMDoubleHori h)
+pattern LMHorizontalize h = LMDouble (LMDoubleHori h)
 
 pattern LMSplitOnly :: s -> Leftmost s f h
-pattern LMSplitOnly s = Left (LMSingleSplit s)
+pattern LMSplitOnly s = LMSingle (LMSingleSplit s)
 
 pattern LMFreezeOnly :: f -> Leftmost s f h
-pattern LMFreezeOnly f = Left (LMSingleFreeze f)
+pattern LMFreezeOnly f = LMSingle (LMSingleFreeze f)
 
 {-# COMPLETE LMSplitLeft, LMFreezeLeft, LMSplitRight, LMHorizontalize, LMSplitOnly, LMFreezeOnly #-}
+
+-- representing full analyses
+-- --------------------------
+
+data Analysis s f h e a = Analysis
+  { anaDerivation :: [Leftmost s f h]
+  , anaTop        :: Path (StartStop a) e
+  -- TODO: better: Path e a, and check that first and last slice are start/stop?
+  }
+  deriving (Eq, Ord, Show, Generic)
+
+instance (FromJSON s, FromJSON f, FromJSON h, FromJSON e, FromJSON a) => FromJSON (Analysis s f h e a) where
+  parseJSON = Aeson.withObject "Analysis" $ \v -> do
+    deriv    <- v .: "derivation"
+    start    <- v .: "start"
+    segments <- v .: "topSegments"
+    top      <- parseTop start segments
+    pure $ Analysis { anaDerivation = deriv, anaTop = top }
+   where
+    parseTop
+      :: Aeson.Value -> [Aeson.Value] -> Aeson.Parser (Path (StartStop a) e)
+    parseTop start segs = do
+      startSlice <- parseSlice start
+      segments   <- mapM parseSegment segs
+      pure $ mkPath startSlice segments
+     where
+      mkPath :: StartStop a -> [(e, StartStop a)] -> Path (StartStop a) e
+      mkPath s []                  = PathEnd s
+      mkPath s ((t, nextS) : rest) = Path s t $ mkPath nextS rest
+    parseSlice   = Aeson.withObject "Slice" $ \v -> v .: "notes"
+    parseTrans   = Aeson.withObject "Transition" $ \v -> v .: "edges"
+    parseSegment = Aeson.withObject "Segment" $ \v -> do
+      trans  <- v .: "trans" >>= parseTrans
+      rslice <- v .: "rslice" >>= parseSlice
+      pure (trans, rslice)
+
+-- evaluators
+-- ==========
 
 mkLeftmostEval
   :: VertMiddle e a h
@@ -470,3 +559,9 @@ traceLevel = 0
 traceIf :: Int -> [Char] -> Bool -> Bool
 traceIf l msg value =
   if traceLevel >= l && value then trace msg value else value
+
+toVariant :: ToJSON a => T.Text -> a -> Aeson.Value
+toVariant typ val = Aeson.object ["type" .= typ, "value" .= val]
+
+toVariantEnc :: (ToJSON a) => T.Text -> a -> Aeson.Encoding
+toVariantEnc typ val = Aeson.pairs ("type" .= typ <> "value" .= val)
