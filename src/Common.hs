@@ -23,7 +23,6 @@ import           GHC.Generics                   ( Generic )
 import qualified Control.Monad.Indexed         as MI
 import qualified Control.Monad.Writer.Strict   as MW
 import           Data.Aeson                     ( (.:)
-                                                , (.=)
                                                 , FromJSON(..)
                                                 , ToJSON(..)
                                                 )
@@ -36,7 +35,6 @@ import           Data.Kind                      ( Type )
 import           Data.Semigroup                 ( stimesMonoid )
 import qualified Data.Semiring                 as R
 import qualified Data.Set                      as S
-import qualified Data.Text                     as T
 import           Data.Typeable                  ( Proxy(Proxy) )
 import           Debug.Trace                    ( trace )
 import           GHC.TypeNats                   ( type (+)
@@ -46,6 +44,7 @@ import           GHC.TypeNats                   ( type (+)
                                                 , Nat
                                                 , natVal
                                                 )
+import           GHC.Unicode                    ( toLower )
 import           Musicology.Pitch               ( Notation(..) )
 import qualified Text.ParserCombinators.ReadP  as ReadP
 
@@ -276,39 +275,28 @@ splitFirst = mapEvalScore snd . productEval evalSplitBeforeHori
 --                     | LMHorizontalize !h
 --                     | LMSplitOnly !s
 --                     | LMFreezeOnly !f
---   deriving (Eq, Ord, Show, Generic)
-
--- instance (NFData s, NFData f, NFData h) => NFData (Leftmost s f h)
+--   deriving (Eq, Ord, Show, Generic, NFData)
 
 data LeftmostSingle s f = LMSingleSplit !s
                         | LMSingleFreeze !f
-  deriving (Eq, Ord, Show, Generic)
-
-instance (NFData s, NFData f) => NFData (LeftmostSingle s f)
+  deriving (Eq, Ord, Show, Generic, NFData)
 
 instance (ToJSON s, ToJSON f) => ToJSON (LeftmostSingle s f) where
-  toJSON (LMSingleSplit  s) = toVariant "splitOnly" s
-  toJSON (LMSingleFreeze f) = toVariant "freezeOnly" f
-  toEncoding (LMSingleSplit  s) = toVariantEnc "splitOnly" s
-  toEncoding (LMSingleFreeze f) = toVariantEnc "freezeOnly" f
+  toJSON =
+    Aeson.genericToJSON $ variantDefaults ((<> "Only") . firstToLower . drop 8)
+  toEncoding = Aeson.genericToEncoding
+    $ variantDefaults ((<> "Only") . firstToLower . drop 8)
 
 data LeftmostDouble s f h = LMDoubleSplitLeft !s
                           | LMDoubleFreezeLeft !f
                           | LMDoubleSplitRight !s
                           | LMDoubleHori !h
-  deriving (Eq, Ord, Show, Generic)
-
-instance (NFData s, NFData f, NFData h) => NFData (LeftmostDouble s f h)
+  deriving (Eq, Ord, Show, Generic, NFData)
 
 instance (ToJSON s, ToJSON f, ToJSON h) => ToJSON (LeftmostDouble s f h) where
-  toJSON (LMDoubleSplitLeft  s) = toVariant "splitLeft" s
-  toJSON (LMDoubleSplitRight s) = toVariant "splitRight" s
-  toJSON (LMDoubleFreezeLeft f) = toVariant "freezeLeft" f
-  toJSON (LMDoubleHori       h) = toVariant "hori" h
-  toEncoding (LMDoubleSplitLeft  s) = toVariantEnc "splitLeft" s
-  toEncoding (LMDoubleSplitRight s) = toVariantEnc "splitRight" s
-  toEncoding (LMDoubleFreezeLeft f) = toVariantEnc "freezeLeft" f
-  toEncoding (LMDoubleHori       h) = toVariantEnc "hori" h
+  toJSON = Aeson.genericToJSON $ variantDefaults (firstToLower . drop 8)
+  toEncoding =
+    Aeson.genericToEncoding $ variantDefaults (firstToLower . drop 8)
 
 data Leftmost s f h = LMSingle (LeftmostSingle s f)
                     | LMDouble (LeftmostDouble s f h)
@@ -360,29 +348,31 @@ pattern LMFreezeOnly f = LMSingle (LMSingleFreeze f)
 
 data Analysis s f h e a = Analysis
   { anaDerivation :: [Leftmost s f h]
-  , anaTop        :: Path (StartStop a) e
+  , anaTop        :: Path e a
   -- TODO: better: Path e a, and check that first and last slice are start/stop?
   }
   deriving (Eq, Ord, Show, Generic)
 
 instance (FromJSON s, FromJSON f, FromJSON h, FromJSON e, FromJSON a) => FromJSON (Analysis s f h e a) where
   parseJSON = Aeson.withObject "Analysis" $ \v -> do
-    deriv    <- v .: "derivation"
-    start    <- v .: "start"
+    deriv <- v .: "derivation"
+    start <- v .: "start" >>= parseSlice
+    case start of
+      (:⋊) -> pure ()
+      _    -> fail "Start slice is not ⋊."
     segments <- v .: "topSegments"
-    top      <- parseTop start segments
+    top      <- parseTop segments
     pure $ Analysis { anaDerivation = deriv, anaTop = top }
    where
-    parseTop
-      :: Aeson.Value -> [Aeson.Value] -> Aeson.Parser (Path (StartStop a) e)
-    parseTop start segs = do
-      startSlice <- parseSlice start
-      segments   <- mapM parseSegment segs
-      pure $ mkPath startSlice segments
+    parseTop :: [Aeson.Value] -> Aeson.Parser (Path e a)
+    parseTop segs = do
+      segments <- mapM parseSegment segs
+      mkPath segments
      where
-      mkPath :: StartStop a -> [(e, StartStop a)] -> Path (StartStop a) e
-      mkPath s []                  = PathEnd s
-      mkPath s ((t, nextS) : rest) = Path s t $ mkPath nextS rest
+      mkPath :: [(e, StartStop a)] -> Aeson.Parser (Path e a)
+      mkPath [(t, (:⋉))          ] = pure $ PathEnd t
+      mkPath ((t, Inner s) : rest) = Path t s <$> mkPath rest
+      mkPath _                     = fail "Invalid top path."
     parseSlice   = Aeson.withObject "Slice" $ \v -> v .: "notes"
     parseTrans   = Aeson.withObject "Transition" $ \v -> v .: "edges"
     parseSegment = Aeson.withObject "Segment" $ \v -> do
@@ -560,8 +550,18 @@ traceIf :: Int -> [Char] -> Bool -> Bool
 traceIf l msg value =
   if traceLevel >= l && value then trace msg value else value
 
-toVariant :: ToJSON a => T.Text -> a -> Aeson.Value
-toVariant typ val = Aeson.object ["type" .= typ, "value" .= val]
+-- toVariant :: ToJSON a => T.Text -> a -> Aeson.Value
+-- toVariant typ val = Aeson.object ["type" .= typ, "value" .= val]
 
-toVariantEnc :: (ToJSON a) => T.Text -> a -> Aeson.Encoding
-toVariantEnc typ val = Aeson.pairs ("type" .= typ <> "value" .= val)
+-- toVariantEnc :: (ToJSON a) => T.Text -> a -> Aeson.Encoding
+-- toVariantEnc typ val = Aeson.pairs ("type" .= typ <> "value" .= val)
+
+firstToLower :: String -> String
+firstToLower ""         = ""
+firstToLower (h : rest) = toLower h : rest
+
+variantDefaults :: (String -> String) -> Aeson.Options
+variantDefaults rename = Aeson.defaultOptions
+  { Aeson.constructorTagModifier = rename
+  , Aeson.sumEncoding            = Aeson.TaggedObject "type" "value"
+  }
