@@ -180,7 +180,7 @@ findLeftOrnament m r | pm == pr             = Just LeftRepeat
 -- but can be embedded into different semirings using 'evalMapScores'.
 protoVoiceEvaluator
   :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n)
-  => Eval (Edges n) (t (Edge n)) (Notes n) (t2 n) (PVLeftMost n)
+  => Eval (Edges n) (t (Edge n)) (Notes n) (t2 n) (PVLeftmost n)
 protoVoiceEvaluator =
   mkLeftmostEval pvVertMiddle pvVertLeft pvVertRight pvMerge pvThaw pvSlice
 
@@ -406,7 +406,7 @@ pvSlice = Notes . MS.fromList . toList
 
 protoVoiceEvaluatorNoRepSplit
   :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n)
-  => Eval (Edges n) (t (Edge n)) (Notes n) (t2 n) (PVLeftMost n)
+  => Eval (Edges n) (t (Edge n)) (Notes n) (t2 n) (PVLeftmost n)
 protoVoiceEvaluatorNoRepSplit = Eval vm vl vr filterSplit t s
  where
   (Eval vm vl vr mg t s) = protoVoiceEvaluator
@@ -433,7 +433,7 @@ pvDerivUnrestricted
        (t (Edge n))
        (Notes n)
        (t2 n)
-       (Derivations (PVLeftMost n))
+       (Derivations (PVLeftmost n))
 pvDerivUnrestricted = mapEvalScore Do protoVoiceEvaluator
 
 pvDeriv
@@ -443,7 +443,7 @@ pvDeriv
        (t (Edge n))
        ((), ((), Notes n))
        (t2 n)
-       (Derivations (PVLeftMost n))
+       (Derivations (PVLeftmost n))
 pvDeriv =
   splitFirst $ rightBranchHori $ mapEvalScore Do protoVoiceEvaluatorNoRepSplit
 

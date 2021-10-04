@@ -106,15 +106,12 @@ type ContextSingle n = (StartStop (Notes n), Edges n, StartStop (Notes n))
 type ContextDouble n
   = (StartStop (Notes n), Edges n, Notes n, Edges n, StartStop (Notes n))
 
-sampleDerivation'
-  :: _ => m (Either String [Leftmost (Split SPC) Freeze (Hori SPC)])
+sampleDerivation' :: _ => m (Either String [PVLeftmost SPC])
 sampleDerivation' =
   sampleDerivation $ PathEnd (Edges (S.singleton ((:⋊), (:⋉))) MS.empty)
 
 sampleDerivation
-  :: _
-  => Path (Edges SPC) (Notes SPC)
-  -> m (Either String [Leftmost (Split SPC) Freeze (Hori SPC)])
+  :: _ => Path (Edges SPC) (Notes SPC) -> m (Either String [PVLeftmost SPC])
 sampleDerivation top = runExceptT $ go (:⋊) top False
  where
   go sl surface ars = case surface of

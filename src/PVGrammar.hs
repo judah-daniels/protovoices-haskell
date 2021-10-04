@@ -322,7 +322,7 @@ instance (Notation n, Eq n, Hashable n) => FromJSON (Hori n) where
         _              -> Aeson.unexpected typ
 
 -- | 'Leftmost' specialized to the split, freeze, and horizontalize operations of the grammar.
-type PVLeftMost n = Leftmost (Split n) Freeze (Hori n)
+type PVLeftmost n = Leftmost (Split n) Freeze (Hori n)
 
 -- helpers
 -- =======
