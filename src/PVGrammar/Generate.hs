@@ -316,6 +316,6 @@ derivationPlayerPV = DerivationPlayer topEdges
                                       applyFreeze
                                       applyHori
  where
-  topEdges (:⋊) (:⋉) = Edges (S.singleton ((:⋊), (:⋉))) MS.empty
-  topEdges _    _    = Edges S.empty MS.empty
+  topEdges Start Stop = Edges (S.singleton (Start, Stop)) MS.empty
+  topEdges _     _    = Edges S.empty MS.empty
   topNotes = Notes MS.empty

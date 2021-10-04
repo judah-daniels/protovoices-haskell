@@ -54,8 +54,8 @@ instance (Notation n, Eq n, Hashable n) => FromJSON (Notes n) where
 -- This is useful to get all objects that an 'Edge' can connect to. 
 innerNotes :: StartStop (Notes n) -> [StartStop n]
 innerNotes (Inner (Notes n)) = Inner <$> MS.distinctElems n
-innerNotes (:⋊)              = [(:⋊)]
-innerNotes (:⋉)              = [(:⋉)]
+innerNotes Start             = [Start]
+innerNotes Stop              = [Stop]
 
 -- transition type: sets of obligatory edges
 --------------------------------------------

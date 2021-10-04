@@ -82,27 +82,27 @@ mapEdges _ (PathEnd _    ) = []
 -- | A container type that augements the type @a@
 -- with symbols for beginning (@:⋊@) and end (@:⋉@).
 -- Every other value is wrapped in an @Inner@ constructor.
-data StartStop a = (:⋊)
-                  | Inner !a
-                  | (:⋉)
+data StartStop a = Start
+                 | Inner !a
+                 | Stop
   deriving (Ord, Eq, Generic, NFData, Hashable, Functor, Foldable, Traversable)
 
 -- some instances for StartStop
 
 instance Show a => Show (StartStop a) where
-  show (:⋊)      = "⋊"
-  show (:⋉)      = "⋉"
+  show Start     = "⋊"
+  show Stop      = "⋉"
   show (Inner a) = show a
 
 instance (Notation a) => Notation (StartStop a) where
-  showNotation (:⋊)      = "⋊"
-  showNotation (:⋉)      = "⋉"
+  showNotation Start     = "⋊"
+  showNotation Stop      = "⋉"
   showNotation (Inner a) = showNotation a
   parseNotation = ReadP.pfail
 
 instance FromJSON a => FromJSON (StartStop a) where
-  parseJSON (Aeson.String "start") = pure (:⋊)
-  parseJSON (Aeson.String "stop" ) = pure (:⋉)
+  parseJSON (Aeson.String "start") = pure Start
+  parseJSON (Aeson.String "stop" ) = pure Stop
   parseJSON other                  = Inner <$> parseJSON other
 
 -- some helper functions for StartStop
@@ -121,24 +121,24 @@ getInner _         = Nothing
 
 getInnerE :: StartStop a -> Either String a
 getInnerE (Inner a) = Right a
-getInnerE (:⋊)      = Left "expected inner but found ⋊"
-getInnerE (:⋉)      = Left "expected inner but found ⋉"
+getInnerE Start     = Left "expected inner but found ⋊"
+getInnerE Stop      = Left "expected inner but found ⋉"
 
 isInner :: StartStop a -> Bool
 isInner (Inner _) = True
 isInner _         = False
 
 isStart :: StartStop a -> Bool
-isStart (:⋊) = True
-isStart _    = False
+isStart Start = True
+isStart _     = False
 
 isStop :: StartStop a -> Bool
-isStop (:⋉) = True
+isStop Stop = True
 isStop _    = False
 
 distStartStop :: StartStop (a, b) -> (StartStop a, StartStop b)
-distStartStop (:⋊)           = ((:⋊), (:⋊))
-distStartStop (:⋉)           = ((:⋉), (:⋉))
+distStartStop Start          = (Start, Start)
+distStartStop Stop           = (Stop, Stop)
 distStartStop (Inner (a, b)) = (Inner a, Inner b)
 
 -- evaluator interface
@@ -358,8 +358,8 @@ instance (FromJSON s, FromJSON f, FromJSON h, FromJSON e, FromJSON a) => FromJSO
     deriv <- v .: "derivation"
     start <- v .: "start" >>= parseSlice
     case start of
-      (:⋊) -> pure ()
-      _    -> fail "Start slice is not ⋊."
+      Start -> pure ()
+      _     -> fail "Start slice is not ⋊."
     segments <- v .: "topSegments"
     top      <- parseTop segments
     pure $ Analysis { anaDerivation = deriv, anaTop = top }
@@ -370,7 +370,7 @@ instance (FromJSON s, FromJSON f, FromJSON h, FromJSON e, FromJSON a) => FromJSO
       mkPath segments
      where
       mkPath :: [(e, StartStop a)] -> Aeson.Parser (Path e a)
-      mkPath [(t, (:⋉))          ] = pure $ PathEnd t
+      mkPath [(t, Stop)          ] = pure $ PathEnd t
       mkPath ((t, Inner s) : rest) = Path t s <$> mkPath rest
       mkPath _                     = fail "Invalid top path."
     parseSlice   = Aeson.withObject "Slice" $ \v -> v .: "notes"

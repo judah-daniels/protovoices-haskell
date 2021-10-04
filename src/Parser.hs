@@ -14,8 +14,7 @@ module Parser
   , parse
   , parseSize
   , parseSilent
-  )
-where
+  ) where
 
 import           Common
 import qualified Scoring.FunTyped              as S
@@ -26,17 +25,17 @@ import qualified Data.Semiring                 as R
 
 import           Control.Monad.State           as ST
 
-import           GHC.Generics                   ( Generic )
 import           Control.DeepSeq
-import           Data.Foldable                  ( foldl' )
-import           Data.Maybe                     ( fromMaybe
-                                                , catMaybes
-                                                )
-import qualified Data.Set                      as Set
 import qualified Control.Parallel.Strategies   as P
+import           Data.Foldable                  ( foldl' )
 import           Data.Hashable                  ( Hashable
                                                 , hashWithSalt
                                                 )
+import           Data.Maybe                     ( catMaybes
+                                                , fromMaybe
+                                                )
+import qualified Data.Set                      as Set
+import           GHC.Generics                   ( Generic )
 
 -- Basic Types
 -- ===========
@@ -87,7 +86,7 @@ transLen (Transition l _ r _) = sLast r - sFirst l + 1
 --------
 
 data Item i v = (:=)
-  { iItem :: !i
+  { iItem  :: !i
   , iValue :: !(S.Score v Int)
   }
   deriving (Generic, NFData)
@@ -101,8 +100,8 @@ type TItem e a v = Item (Transition e a) v
 -- Vert Items
 
 data Vert e a v = Vert
-  { vTop :: !(Slice a)
-  , vOp :: !v
+  { vTop    :: !(Slice a)
+  , vOp     :: !v
   , vMiddle :: !(TItem e a v)
   }
   deriving (Generic, NFData)
@@ -457,8 +456,8 @@ parse logCharts eval path = do
   return $ R.sum $ S.getScoreVal . iValue <$> goals
  where
   wrapPath (Path a e rst) = Path (Inner a) (Just e) $ wrapPath rst
-  wrapPath (PathEnd a   ) = Path (Inner a) Nothing $ PathEnd (:⋉)
-  path' = Path (:⋊) Nothing $ wrapPath path
+  wrapPath (PathEnd a   ) = Path (Inner a) Nothing $ PathEnd Stop
+  path' = Path Start Nothing $ wrapPath path
   len   = pathLen path'
   slicePath =
     mapNodesWithIndex 0 (\i n -> Slice i (evalSlice eval <$> n) i i) path'

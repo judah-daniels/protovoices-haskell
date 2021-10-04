@@ -124,8 +124,8 @@ findOrnament (Inner l) (Inner m) (Inner r) _ _
   pr = pc $ pitch r
   s1 = isStep $ pl `pto` pm
   s2 = isStep $ pm `pto` pr
-findOrnament (:⋊) (Inner _) (:⋉) _ _ = Just $ T (RootNote, ((:⋊), (:⋉)))
-findOrnament _    _         _    _ _ = Nothing
+findOrnament Start (Inner _) Stop _ _ = Just $ T (RootNote, (Start, Stop))
+findOrnament _     _         _    _ _ = Nothing
 
 -- | Attempts to reduce three notes as a passing motion
 -- where one of the child edges is a non-terminal edge.

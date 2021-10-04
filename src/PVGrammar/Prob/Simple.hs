@@ -108,16 +108,16 @@ type ContextDouble n
 
 sampleDerivation' :: _ => m (Either String [PVLeftmost SPC])
 sampleDerivation' =
-  sampleDerivation $ PathEnd (Edges (S.singleton ((:⋊), (:⋉))) MS.empty)
+  sampleDerivation $ PathEnd (Edges (S.singleton (Start, Stop)) MS.empty)
 
 sampleDerivation
   :: _ => Path (Edges SPC) (Notes SPC) -> m (Either String [PVLeftmost SPC])
-sampleDerivation top = runExceptT $ go (:⋊) top False
+sampleDerivation top = runExceptT $ go Start top False
  where
   go sl surface ars = case surface of
     -- 1 trans left:
     PathEnd t -> do
-      step <- lift $ sampleSingleStep (sl, t, (:⋉))
+      step <- lift $ sampleSingleStep (sl, t, Stop)
       case step of
         LMSingleSplit splitOp -> do
           (ctl, cs, ctr) <- except $ applySplit splitOp t
@@ -125,7 +125,7 @@ sampleDerivation top = runExceptT $ go (:⋊) top False
           pure $ LMSplitOnly splitOp : nextSteps
         LMSingleFreeze freezeOp -> pure [LMFreezeOnly freezeOp]
     -- 2 transs left
-    Path tl sm (PathEnd tr) -> goDouble sl tl sm tr (:⋉) ars PathEnd
+    Path tl sm (PathEnd tr) -> goDouble sl tl sm tr Stop ars PathEnd
     -- 3 or more transs left
     Path tl sm (Path tr sr rest) ->
       goDouble sl tl sm tr (Inner sr) ars (\tr' -> Path tr' sr rest)
@@ -301,7 +301,7 @@ sampleSplit (sliceL, Edges ts nts, sliceR) = do
   sampleT (l, r) = do
     n <- sampleValue Geometric1 $ pInner . pElaborateRegular
     fmap (((l, r), ) . catMaybes) $ replicateM n $ case (l, r) of
-      ((:⋊), (:⋉)) -> do
+      (Start, Stop) -> do
         child <- sampleRootNote
         pure $ Just ((child, RootNote), (False, False))
       (Inner pl, Inner pr) -> do

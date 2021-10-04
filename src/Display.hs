@@ -16,11 +16,11 @@ import           Common
 import qualified Data.Set                      as S
 
 import           Control.Monad                  ( mzero )
-import           Control.Monad.Trans            ( lift )
 import qualified Control.Monad.State           as ST
+import           Control.Monad.Trans            ( lift )
+import           Data.Foldable                  ( foldl' )
 import qualified Data.List                     as L
 import qualified Data.Map                      as M
-import           Data.Foldable                  ( foldl' )
 import qualified Data.Text                     as T
 import qualified Data.Text.IO                  as T
 import           System.Process                 ( callCommand )
@@ -37,13 +37,13 @@ type DerivSlice a = (Int, Int, StartStop a)
 type DerivTrans a e = (DerivSlice a, e, DerivSlice a)
 
 data DerivationGraph a e = DGraph
-  { dgNextId :: Int
-  , dgSlices :: S.Set (DerivSlice a)
+  { dgNextId      :: Int
+  , dgSlices      :: S.Set (DerivSlice a)
   , dgTransitions :: S.Set (DerivTrans a e)
-  , dgHoriEdges :: S.Set (DerivSlice a, DerivSlice a)
-  , dgSurface :: [DerivTrans a e]
-  , dgFoot :: [DerivTrans a e]
-  , dgRoot :: [DerivTrans a e]
+  , dgHoriEdges   :: S.Set (DerivSlice a, DerivSlice a)
+  , dgSurface     :: [DerivTrans a e]
+  , dgFoot        :: [DerivTrans a e]
+  , dgRoot        :: [DerivTrans a e]
   }
   deriving (Eq, Ord, Show)
 
@@ -88,10 +88,10 @@ addHoriEdge edge = do
   ST.put $ graph { dgHoriEdges = horis' }
 
 data DerivationPlayer s f h a e = DerivationPlayer
-  { dpTopTrans :: StartStop a -> StartStop a -> e
-  , dpTopSlice :: a
-  , dpSplit :: s -> e -> Either String (e, a, e)
-  , dpFreeze :: f -> e -> Either String e
+  { dpTopTrans      :: StartStop a -> StartStop a -> e
+  , dpTopSlice      :: a
+  , dpSplit         :: s -> e -> Either String (e, a, e)
+  , dpFreeze        :: f -> e -> Either String e
   , dpHorizontalize :: h -> e -> a -> e -> Either String (e, a, e, a, e)
   }
 
@@ -148,7 +148,7 @@ initialGraph n player = DGraph (1 + n)
                                []
                                top
  where
-  topContents = (:⋊) : replicate (n - 1) (Inner $ dpTopSlice player) <> [(:⋉)]
+  topContents = Start : replicate (n - 1) (Inner $ dpTopSlice player) <> [Stop]
   topSlices   = zipWith (\i s -> (0, i, s)) [0 ..] topContents
   gets (_, _, s) = s
   top = zipWith (\l r -> (l, dpTopTrans player (gets l) (gets r), r))
@@ -248,8 +248,8 @@ tikzDerivationGraph showS showT (DGraph _ slices trans horis openTrans foot _)
   showText :: (Show a) => a -> T.Text
   showText = T.pack . show
   -- printing nodes and edges
-  showSlice (:⋊)      = "$\\rtimes$"
-  showSlice (:⋉)      = "$\\ltimes$"
+  showSlice Start     = "$\\rtimes$"
+  showSlice Stop      = "$\\ltimes$"
   showSlice (Inner s) = showS s
   showNode (x, y, i, c) =
     "\\node[slice] (slice"
