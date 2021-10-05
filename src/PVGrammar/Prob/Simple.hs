@@ -22,9 +22,14 @@ import           PVGrammar.Generate
 
 import           Control.Monad                  ( guard
                                                 , replicateM
+                                                , unless
+                                                , when
                                                 )
 import           Control.Monad.Trans.Class      ( lift )
 import           Control.Monad.Trans.Except
+import           Control.Monad.Trans.State      ( StateT
+                                                , execStateT
+                                                )
 import qualified Data.Bifunctor                as Bi
 import qualified Data.HashMap.Strict           as HM
 import qualified Data.HashSet                  as S
@@ -37,6 +42,14 @@ import           Inference.Conjugate
 import qualified Internal.MultiSet             as MS
 import           Lens.Micro.TH                  ( makeLenses )
 import           Musicology.Pitch              as MP
+                                         hiding ( a
+                                                , b
+                                                , c
+                                                , d
+                                                , e
+                                                , f
+                                                , g
+                                                )
 
 data PVParamsOuter f = PVParamsOuter
   { _pSingleFreeze     :: f Beta
@@ -110,6 +123,10 @@ sampleDerivation' :: _ => m (Either String [PVLeftmost SPC])
 sampleDerivation' =
   sampleDerivation $ PathEnd (Edges (S.singleton (Start, Stop)) MS.empty)
 
+obsDerivation' :: [PVLeftmost SPC] -> Either String (Trace PVParams)
+obsDerivation' deriv =
+  obsDerivation deriv $ PathEnd (Edges (S.singleton (Start, Stop)) MS.empty)
+
 sampleDerivation
   :: _ => Path (Edges SPC) (Notes SPC) -> m (Either String [PVLeftmost SPC])
 sampleDerivation top = runExceptT $ go Start top False
@@ -124,9 +141,9 @@ sampleDerivation top = runExceptT $ go Start top False
           nextSteps      <- go sl (Path ctl cs (PathEnd ctr)) False
           pure $ LMSplitOnly splitOp : nextSteps
         LMSingleFreeze freezeOp -> pure [LMFreezeOnly freezeOp]
-    -- 2 transs left
+    -- 2 trans left
     Path tl sm (PathEnd tr) -> goDouble sl tl sm tr Stop ars PathEnd
-    -- 3 or more transs left
+    -- 3 or more trans left
     Path tl sm (Path tr sr rest) ->
       goDouble sl tl sm tr (Inner sr) ars (\tr' -> Path tr' sr rest)
 
@@ -150,6 +167,53 @@ sampleDerivation top = runExceptT $ go Start top False
         nextSteps <- go sl (Path ctl csl (Path ctm csr (mkrest ctr))) False
         pure $ LMHorizontalize horiOp : nextSteps
 
+obsDerivation
+  :: [PVLeftmost SPC]
+  -> Path (Edges SPC) (Notes SPC)
+  -> Either String (Trace PVParams)
+obsDerivation deriv top = execStateT (go Start top False deriv) (Trace mempty)
+ where
+  go
+    :: StartStop (Notes SPC)
+    -> Path (Edges SPC) (Notes SPC)
+    -> Bool
+    -> [PVLeftmost SPC]
+    -> StateT (Trace PVParams) (Either String) ()
+  go _sl _surface        _ars []          = lift $ Left "Derivation incomplete."
+  go sl  (PathEnd trans) _ars (op : rest) = case op of
+    LMSingle single -> do
+      obsSingleStep (sl, trans, Stop) single
+      case single of
+        LMSingleFreeze _       -> pure ()
+        LMSingleSplit  splitOp -> do
+          (ctl, cs, ctr) <- lift $ applySplit splitOp trans
+          go sl (Path ctl cs (PathEnd ctr)) False rest
+    LMDouble _ -> lift $ Left "Double operation on single transition."
+  go sl (Path tl sm (PathEnd tr)) ars (op : rest) =
+    goDouble op rest ars (sl, tl, sm, tr, Stop) PathEnd
+  go sl (Path tl sm (Path tr sr pathRest)) ars (op : derivRest) =
+    goDouble op derivRest ars (sl, tl, sm, tr, Inner sr)
+      $ \tr' -> Path tr' sr pathRest
+
+  goDouble op rest ars (sl, tl, sm, tr, sr) mkRest = case op of
+    LMSingle _ -> lift $ Left "Single operation with several transitions left."
+    LMDouble double -> do
+      obsDoubleStep (sl, tl, sm, tr, sr) ars double
+      case double of
+        LMDoubleFreezeLeft _ -> do
+          when ars $ lift $ Left "FreezeLeft after SplitRight."
+          go (Inner sm) (mkRest tr) False rest
+        LMDoubleSplitLeft splitOp -> do
+          when ars $ lift $ Left "SplitLeft after SplitRight."
+          (ctl, cs, ctr) <- lift $ applySplit splitOp tl
+          go sl (Path ctl cs $ Path ctr sm $ mkRest tr) False rest
+        LMDoubleSplitRight splitOp -> do
+          (ctl, cs, ctr) <- lift $ applySplit splitOp tr
+          go sl (Path tl sm $ Path ctl cs $ mkRest ctr) True rest
+        LMDoubleHori horiOp -> do
+          (ctl, csl, ctm, csr, ctr) <- lift $ applyHori horiOp tl sm tr
+          go sl (Path ctl csl $ Path ctm csr $ mkRest ctr) False rest
+
 sampleSingleStep
   :: _ => ContextSingle SPC -> m (LeftmostSingle (Split SPC) Freeze)
 sampleSingleStep parents@(_, trans, _) = if freezable trans
@@ -160,13 +224,29 @@ sampleSingleStep parents@(_, trans, _) = if freezable trans
       else LMSingleSplit <$> sampleSplit parents
   else LMSingleSplit <$> sampleSplit parents
 
+obsSingleStep
+  :: ContextSingle SPC
+  -> LeftmostSingle (Split SPC) Freeze
+  -> StateT (Trace PVParams) (Either String) ()
+obsSingleStep parents@(_, trans, _) singleOp = if freezable trans
+  then case singleOp of
+    LMSingleFreeze f -> do
+      observeValue Bernoulli (pOuter . pSingleFreeze) True
+      observeFreeze parents f
+    LMSingleSplit s -> do
+      observeValue Bernoulli (pOuter . pSingleFreeze) False
+      observeSplit parents s
+  else case singleOp of
+    LMSingleFreeze _ -> lift $ Left "Freezing a non-freezable transition."
+    LMSingleSplit  s -> observeSplit parents s
+
 sampleDoubleStep
   :: _
   => ContextDouble SPC
   -> Bool
   -> m (LeftmostDouble (Split SPC) Freeze (Hori SPC))
-sampleDoubleStep parents@(sliceL, transL, sliceM, transR, sliceR) afterSplitRight
-  = if afterSplitRight
+sampleDoubleStep parents@(sliceL, transL, sliceM, transR, sliceR) afterRightSplit
+  = if afterRightSplit
     then do
       shouldSplitRight <- sampleValue Bernoulli $ pOuter . pDoubleRightSplit
       if shouldSplitRight
@@ -184,10 +264,40 @@ sampleDoubleStep parents@(sliceL, transL, sliceM, transR, sliceR) afterSplitRigh
               else LMDoubleFreezeLeft
                 <$> sampleFreeze (sliceL, transL, Inner sliceM)
           else LMDoubleSplitLeft <$> sampleSplit (sliceL, transL, Inner sliceM)
-        else sampleDoubleStep parents False
+        else sampleDoubleStep parents True
+
+obsDoubleStep
+  :: ContextDouble SPC
+  -> Bool
+  -> LeftmostDouble (Split SPC) Freeze (Hori SPC)
+  -> StateT (Trace PVParams) (Either String) ()
+obsDoubleStep parents@(sliceL, transL, sliceM, transR, sliceR) afterRightSplit doubleOp
+  = case doubleOp of
+    LMDoubleFreezeLeft f -> do
+      observeValue Bernoulli (pOuter . pDoubleLeft)       True
+      observeValue Bernoulli (pOuter . pDoubleLeftFreeze) True
+      observeFreeze (sliceL, transL, Inner sliceM) f
+    LMDoubleSplitLeft s -> do
+      observeValue Bernoulli (pOuter . pDoubleLeft)       True
+      observeValue Bernoulli (pOuter . pDoubleLeftFreeze) False
+      observeSplit (sliceL, transL, Inner sliceM) s
+    LMDoubleSplitRight s -> do
+      unless afterRightSplit
+        $ observeValue Bernoulli (pOuter . pDoubleLeft) False
+      observeValue Bernoulli (pOuter . pDoubleRightSplit) True
+      observeSplit (Inner sliceM, transR, sliceR) s
+    LMDoubleHori h -> do
+      unless afterRightSplit
+        $ observeValue Bernoulli (pOuter . pDoubleLeft) False
+      observeValue Bernoulli (pOuter . pDoubleRightSplit) False
+      observeHori parents h
 
 sampleFreeze :: RandomInterpreter m PVParams => ContextSingle n -> m Freeze
-sampleFreeze _parent = pure FreezeOp
+sampleFreeze _parents = pure FreezeOp
+
+observeFreeze
+  :: ContextSingle SPC -> Freeze -> StateT (Trace PVParams) (Either String) ()
+observeFreeze _parents FreezeOp = pure ()
 
 sampleSplit :: forall m . _ => ContextSingle SPC -> m (Split SPC)
 sampleSplit (sliceL, Edges ts nts, sliceR) = do
@@ -376,6 +486,12 @@ sampleSplit (sliceL, Edges ts nts, sliceR) = do
           child  <- sampleNeighbor stepUp parent
           pure (child, keep, LeftNeighbor)
 
+observeSplit
+  :: ContextSingle SPC
+  -> Split SPC
+  -> StateT (Trace PVParams) (Either String) ()
+observeSplit = error "not implemented"
+
 sampleHori :: _ => ContextDouble SPC -> m (Hori SPC)
 sampleHori (_sliceL, _transL, Notes sliceM, _transR, _sliceR) = do
   -- distribute notes
@@ -414,6 +530,10 @@ sampleHori (_sliceL, _transL, Notes sliceM, _transR, _sliceR) = do
         nother <- sampleValue (Binomial $ n - 1) $ pInner . pNotesOnOtherSide
         pure $ ToRight $ n - nother
     pure ((note, n), to)
+
+observeHori
+  :: ContextDouble SPC -> Hori SPC -> StateT (Trace PVParams) (Either String) ()
+observeHori = error "not implemented"
 
 samplePassing
   :: _
