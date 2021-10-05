@@ -533,7 +533,47 @@ sampleHori (_sliceL, _transL, Notes sliceM, _transR, _sliceR) = do
 
 observeHori
   :: ContextDouble SPC -> Hori SPC -> StateT (Trace PVParams) (Either String) ()
-observeHori = error "not implemented"
+observeHori (_sliceL, _transL, Notes sliceM, _transR, _sliceR) (HoriOp obsDists (Edges repEdges passEdges))
+  = do
+    -- observe note distribution
+    dists <- mapM (observeNoteDist obsDists) $ MS.toOccurList sliceM
+    let notesLeft = catMaybes $ flip fmap dists $ \((note, n), to) ->
+          case to of
+            ToRight dl -> if n - dl > 0 then Just note else Nothing
+            _          -> Just note
+        notesRight = catMaybes $ flip fmap dists $ \((note, n), to) ->
+          case to of
+            ToLeft dr -> if n - dr > 0 then Just note else Nothing
+            _         -> Just note
+    -- observe repetition edges
+    sequence_ $ do -- List
+      l <- notesLeft
+      r <- notesRight
+      guard $ l == r
+      pure $ observeValue Bernoulli
+                          (pInner . pHoriRepetitionEdge)
+                          (S.member (Inner l, Inner r) repEdges)
+    -- observe passing edges
+    observePassing notesLeft notesRight pNewPassingMid passEdges
+ where
+  observeNoteDist distMap (parent, n) = case HM.lookup parent distMap of
+    Nothing ->
+      lift $ Left $ "Note " <> showNotation parent <> " is not distributed."
+    Just dir -> do
+      case dir of
+        ToBoth -> do
+          observeValue (Categorical @3) (pInner . pNoteHoriDirection) 0
+        ToLeft ndiff -> do
+          observeValue (Categorical @3) (pInner . pNoteHoriDirection) 1
+          observeValue (Binomial $ n - 1)
+                       (pInner . pNotesOnOtherSide)
+                       (n - ndiff)
+        ToRight ndiff -> do
+          observeValue (Categorical @3) (pInner . pNoteHoriDirection) 2
+          observeValue (Binomial $ n - 1)
+                       (pInner . pNotesOnOtherSide)
+                       (n - ndiff)
+      pure ((parent, n), dir)
 
 samplePassing
   :: _
@@ -549,3 +589,12 @@ samplePassing notesLeft notesRight pNewPassing =
     pure $ do -- m
       n <- sampleValue Geometric0 $ pInner . pNewPassing
       pure $ replicate n (l, r)
+
+observePassing
+  :: [SPC]
+  -> [SPC]
+  -> Accessor PVParamsInner Beta
+  -> MS.MultiSet (InnerEdge SPC)
+  -> StateT (Trace PVParams) (Either String) ()
+observePassing notesLeft notesRight pNewPassing edges =
+  error "not implemented."
