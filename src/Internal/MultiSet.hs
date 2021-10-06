@@ -2,15 +2,16 @@
 {-# LANGUAGE DeriveGeneric #-}
 module Internal.MultiSet where
 
-import qualified Data.HashMap.Strict           as HM
-import           GHC.Generics                   ( Generic )
-import           Data.Hashable                  ( Hashable )
 import           Control.DeepSeq                ( NFData )
-import           Data.Foldable                  ( foldl'
-                                                , all
-                                                )
 import           Control.Monad                 as M
+import           Data.Foldable                  ( all
+                                                , foldl'
+                                                )
+import qualified Data.HashMap.Strict           as HM
 import           Data.HashSet                   ( HashSet )
+import           Data.Hashable                  ( Hashable )
+import           GHC.Generics                   ( Generic )
+import           Prelude                 hiding ( lookup )
 
 newtype MultiSet a = MS { unMS :: HM.HashMap a Int }
   deriving (Eq, Ord, Show, Generic, Hashable, NFData)
@@ -93,4 +94,10 @@ singleton :: Hashable a => a -> MultiSet a
 singleton a = MS $ HM.singleton a 1
 
 member :: (Eq k, Hashable k) => k -> MultiSet k -> Bool
-member a (MS as) = HM.lookupDefault 0 a as > 0
+member a as = lookup a as > 0
+
+lookup :: (Eq k, Hashable k) => k -> MultiSet k -> Int
+lookup a (MS as) = HM.lookupDefault 0 a as
+
+(!) :: (Eq k, Hashable k) => MultiSet k -> k -> Int
+as ! a = lookup a as

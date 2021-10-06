@@ -34,9 +34,7 @@ import qualified Data.Bifunctor                as Bi
 import qualified Data.HashMap.Strict           as HM
 import qualified Data.HashSet                  as S
 import qualified Data.Map.Strict               as M
-import           Data.Maybe                     ( catMaybes
-                                                , mapMaybe
-                                                )
+import           Data.Maybe                     ( catMaybes )
 import           GHC.Generics                   ( Generic )
 import           Inference.Conjugate
 import qualified Internal.MultiSet             as MS
@@ -119,6 +117,8 @@ type ContextSingle n = (StartStop (Notes n), Edges n, StartStop (Notes n))
 type ContextDouble n
   = (StartStop (Notes n), Edges n, Notes n, Edges n, StartStop (Notes n))
 
+type PVObs a = StateT (Trace PVParams) (Either String) a
+
 sampleDerivation' :: _ => m (Either String [PVLeftmost SPC])
 sampleDerivation' =
   sampleDerivation $ PathEnd (Edges (S.singleton (Start, Stop)) MS.empty)
@@ -178,7 +178,7 @@ obsDerivation deriv top = execStateT (go Start top False deriv) (Trace mempty)
     -> Path (Edges SPC) (Notes SPC)
     -> Bool
     -> [PVLeftmost SPC]
-    -> StateT (Trace PVParams) (Either String) ()
+    -> PVObs ()
   go _sl _surface        _ars []          = lift $ Left "Derivation incomplete."
   go sl  (PathEnd trans) _ars (op : rest) = case op of
     LMSingle single -> do
@@ -225,9 +225,7 @@ sampleSingleStep parents@(_, trans, _) = if freezable trans
   else LMSingleSplit <$> sampleSplit parents
 
 obsSingleStep
-  :: ContextSingle SPC
-  -> LeftmostSingle (Split SPC) Freeze
-  -> StateT (Trace PVParams) (Either String) ()
+  :: ContextSingle SPC -> LeftmostSingle (Split SPC) Freeze -> PVObs ()
 obsSingleStep parents@(_, trans, _) singleOp = if freezable trans
   then case singleOp of
     LMSingleFreeze f -> do
@@ -270,7 +268,7 @@ obsDoubleStep
   :: ContextDouble SPC
   -> Bool
   -> LeftmostDouble (Split SPC) Freeze (Hori SPC)
-  -> StateT (Trace PVParams) (Either String) ()
+  -> PVObs ()
 obsDoubleStep parents@(sliceL, transL, sliceM, transR, sliceR) afterRightSplit doubleOp
   = case doubleOp of
     LMDoubleFreezeLeft f -> do
@@ -295,9 +293,62 @@ obsDoubleStep parents@(sliceL, transL, sliceM, transR, sliceR) afterRightSplit d
 sampleFreeze :: RandomInterpreter m PVParams => ContextSingle n -> m Freeze
 sampleFreeze _parents = pure FreezeOp
 
-observeFreeze
-  :: ContextSingle SPC -> Freeze -> StateT (Trace PVParams) (Either String) ()
+observeFreeze :: ContextSingle SPC -> Freeze -> PVObs ()
 observeFreeze _parents FreezeOp = pure ()
+
+-- helper for sampleSplit and observeSplit
+collectElabos
+  :: [((StartStop SPC, StartStop SPC), [(SPC, o1)])]
+  -> [((SPC, SPC), (SPC, Passing))]
+  -> [(SPC, [(SPC, o2)])]
+  -> [(SPC, [(SPC, o3)])]
+  -> ( M.Map (StartStop SPC, StartStop SPC) [(SPC, o1)]
+     , M.Map (SPC, SPC) [(SPC, Passing)]
+     , M.Map SPC [(SPC, o2)]
+     , M.Map SPC [(SPC, o3)]
+     , S.HashSet (Edge SPC)
+     , S.HashSet (Edge SPC)
+     )
+collectElabos childrenT childrenNT childrenL childrenR =
+  let splitTs    = M.fromList childrenT
+      splitNTs   = M.fromListWith (<>) $ Bi.second (: []) <$> childrenNT
+      fromLeft   = M.fromList childrenL
+      fromRight  = M.fromList childrenR
+      keepLeftT  = getEdges childrenT (\p m -> (fst p, Inner m))
+      keepLeftL  = getEdges childrenL (\l m -> (Inner l, Inner m))
+      keepLeftNT = do -- List
+        ((l, _), (m, orn)) <- childrenNT
+        guard $ orn == PassingRight
+        pure (Inner l, Inner m)
+      leftEdges   = S.fromList $ keepLeftT <> keepLeftNT <> keepLeftL
+      keepRightT  = getEdges childrenT (\p m -> (Inner m, snd p))
+      keepRightR  = getEdges childrenR (\r m -> (Inner m, Inner r))
+      keepRightNT = do -- List
+        ((_, r), (m, orn)) <- childrenNT
+        guard $ orn == PassingLeft
+        pure (Inner m, Inner r)
+      rightEdges = S.fromList $ keepRightT <> keepRightNT <> keepRightR
+  in  (splitTs, splitNTs, fromLeft, fromRight, leftEdges, rightEdges)
+ where
+  getEdges :: [(p, [(c, o)])] -> (p -> c -> Edge SPC) -> [Edge SPC]
+  getEdges elabos mkEdge = do -- List
+    (p, cs) <- elabos
+    (c, _ ) <- cs
+    pure $ mkEdge p c
+
+-- helper for sampleSplit and observeSplit
+collectNotes
+  :: [((StartStop SPC, StartStop SPC), [(SPC, o1)])]
+  -> [((SPC, SPC), (SPC, Passing))]
+  -> [(SPC, [(SPC, o2)])]
+  -> [(SPC, [(SPC, o3)])]
+  -> [SPC]
+collectNotes childrenT childrenNT childrenL childrenR =
+  let notesT     = concatMap (fmap fst . snd) childrenT
+      notesNT    = fmap (fst . snd) childrenNT
+      notesFromL = concatMap (fmap fst . snd) childrenL
+      notesFromR = concatMap (fmap fst . snd) childrenR
+  in  notesT <> notesNT <> notesFromL <> notesFromR
 
 sampleSplit :: forall m . _ => ContextSingle SPC -> m (Split SPC)
 sampleSplit (sliceL, Edges ts nts, sliceR) = do
@@ -314,11 +365,7 @@ sampleSplit (sliceL, Edges ts nts, sliceR) = do
     Nothing            -> pure []
     Just (Notes notes) -> mapM sampleR $ MS.toList notes
   -- introduce new passing edges left and right
-  let notesT     = concatMap (\(_, ns) -> fst . fst <$> ns) childrenT
-      notesNT    = fmap (fst . fst . snd) childrenNT
-      notesFromL = concatMap (\(_, ns) -> fmap (\(n, _, _) -> n) ns) childrenL
-      notesFromR = concatMap (\(_, ns) -> fmap (\(n, _, _) -> n) ns) childrenR
-      notes      = notesT <> notesNT <> notesFromL <> notesFromR
+  let notes = collectNotes childrenT childrenNT childrenL childrenR
   passLeft <- case getInner sliceL of
     Nothing -> pure MS.empty
     Just (Notes notesl) ->
@@ -327,42 +374,12 @@ sampleSplit (sliceL, Edges ts nts, sliceR) = do
     Nothing -> pure MS.empty
     Just (Notes notesr) ->
       samplePassing notes (MS.toList notesr) pNewPassingRight
-  -- combine all sampling results into split operation 
-  let
-    splitTs  = M.fromList $ Bi.second (fmap fst) <$> childrenT
-    splitNTs = M.fromListWith (<>) $ Bi.second ((: []) . fst) <$> childrenNT
-    fromLeft =
-      M.fromList $ Bi.second (fmap (\(n, _, o) -> (n, o))) <$> childrenL
-    fromRight =
-      M.fromList $ Bi.second (fmap (\(n, _, o) -> (n, o))) <$> childrenR
-    keepLeftT = catMaybes $ do -- List
-      ((l, _), cs     ) <- childrenT
-      ((m, _), (kl, _)) <- cs
-      pure $ if kl then Just (l, Inner m) else Nothing
-    keepLeftNT = mapMaybe
-      (\((l, _), ((m, _), (kl, _))) ->
-        if kl then Just (Inner l, Inner m) else Nothing
-      )
-      childrenNT
-    keepLeftL = catMaybes $ do -- List
-      (l, cs)      <- childrenL
-      (m, keep, _) <- cs
-      pure $ if keep then Just (Inner l, Inner m) else Nothing
-    keepLeft   = S.fromList $ keepLeftT <> keepLeftNT <> keepLeftL
-    keepRightT = catMaybes $ do -- List
-      ((_, r), cs     ) <- childrenT
-      ((m, _), (_, kr)) <- cs
-      pure $ if kr then Just (Inner m, r) else Nothing
-    keepRightNT = mapMaybe
-      (\((_, r), ((m, _), (_, kr))) ->
-        if kr then Just (Inner m, Inner r) else Nothing
-      )
-      childrenNT
-    keepRightR = catMaybes $ do -- List
-      (r, cs)      <- childrenR
-      (m, keep, _) <- cs
-      pure $ if keep then Just (Inner m, Inner r) else Nothing
-    keepRight = S.fromList $ keepRightT <> keepRightNT <> keepRightR
+  let (splitTs, splitNTs, fromLeft, fromRight, leftEdges, rightEdges) =
+        collectElabos childrenT childrenNT childrenL childrenR
+  -- decide which edges to keep
+  keepLeft  <- sampleKeepEdges pKeepL leftEdges
+  keepRight <- sampleKeepEdges pKeepR rightEdges
+  -- combine all sampling results into split operation
   pure $ SplitOp { splitTs
                  , splitNTs
                  , fromLeft
@@ -372,125 +389,185 @@ sampleSplit (sliceL, Edges ts nts, sliceR) = do
                  , passLeft
                  , passRight
                  }
- where
-  sampleNeighbor :: Bool -> SPC -> m SPC
-  sampleNeighbor stepUp ref = do
-    chromatic <- sampleValue Bernoulli $ pInner . pNBChromatic
-    -- 
-    altUp     <- sampleConst Bernoulli 0.5
-    alt       <- sampleValue Geometric0 $ pInner . pNBAlt
-    let altInterval = alt *^ chromaticSemitone
-    pure $ ref +^ if chromatic
-      then (if altUp then id else down) altInterval
-      else (if stepUp then id else down) $ if altUp == stepUp
-        then major second' ^+^ altInterval
-        else minor second' ^-^ altInterval
 
-  sampleRootNote = do
-    fifthsSign <- sampleConst Bernoulli 0.5
-    fifthsN    <- sampleValue Geometric0 $ pInner . pRootFifths
-    let interval = if fifthsSign then fifthsN else negate fifthsN
-    pure $ spc interval
+observeSplit :: ContextSingle SPC -> Split SPC -> PVObs ()
+observeSplit (sliceL, Edges ts nts, sliceR) (SplitOp splitTs splitNTs fromLeft fromRight keepLeft keepRight passLeft passRight)
+  = do
+  -- observe ornaments of regular edges
+    childrenT  <- mapM (observeT splitTs) $ S.toList ts
+    -- observe ornaments of passing edges
+    childrenNT <- mapM (observeNT splitNTs) $ MS.toList nts
+    -- observe ornaments of left notes
+    childrenL  <- case getInner sliceL of
+      Nothing            -> pure []
+      Just (Notes notes) -> mapM (observeL fromLeft) $ MS.toList notes
+    -- observe ornaments of right notes
+    childrenR <- case getInner sliceR of
+      Nothing            -> pure []
+      Just (Notes notes) -> mapM (observeR fromRight) $ MS.toList notes
+    -- observe new passing edges
+    let notes = collectNotes childrenT childrenNT childrenL childrenR
+    case getInner sliceL of
+      Nothing -> pure ()
+      Just (Notes notesl) ->
+        observePassing (MS.toList notesl) notes pNewPassingLeft passLeft
+    case getInner sliceR of
+      Nothing -> pure ()
+      Just (Notes notesr) ->
+        observePassing notes (MS.toList notesr) pNewPassingRight passRight
+    -- observe which edges are kept
+    let (_, _, _, _, leftEdges, rightEdges) =
+          collectElabos childrenT childrenNT childrenL childrenR
+    observeKeepEdges pKeepL leftEdges  keepLeft
+    observeKeepEdges pKeepR rightEdges keepRight
 
-  sampleDoubleChild :: SPC -> SPC -> m (SPC, DoubleOrnament)
-  sampleDoubleChild pl pr
-    | pl == pr = do
-      rep <- sampleValue Bernoulli $ pInner . pRepeatOverNeighbor
-      if rep
-        then pure (pl, FullRepeat)
-        else do
-          stepUp <- sampleConst Bernoulli 0.5
-          (, FullNeighbor) <$> sampleNeighbor stepUp pl
-    | otherwise = do
-      repeatLeft <- sampleValue Bernoulli $ pInner . pRepeatLeftOverRight
-      if repeatLeft
-        then pure (pl, RightRepeatOfLeft)
-        else pure (pr, LeftRepeatOfRight)
+sampleNeighbor :: _ => Bool -> SPC -> m SPC
+sampleNeighbor stepUp ref = do
+  chromatic <- sampleValue Bernoulli $ pInner . pNBChromatic
+  -- 
+  altUp     <- sampleConst Bernoulli 0.5
+  alt       <- sampleValue Geometric0 $ pInner . pNBAlt
+  let altInterval = alt *^ chromaticSemitone
+  pure $ ref +^ if chromatic
+    then (if altUp then id else down) altInterval
+    else (if stepUp then id else down) $ if altUp == stepUp
+      then major second' ^+^ altInterval
+      else minor second' ^-^ altInterval
 
-  sampleT :: Edge SPC -> m (Edge SPC, [((SPC, DoubleOrnament), (Bool, Bool))])
-  sampleT (l, r) = do
-    n <- sampleValue Geometric1 $ pInner . pElaborateRegular
-    fmap (((l, r), ) . catMaybes) $ replicateM n $ case (l, r) of
-      (Start, Stop) -> do
-        child <- sampleRootNote
-        pure $ Just ((child, RootNote), (False, False))
-      (Inner pl, Inner pr) -> do
-        (child, orn) <- sampleDoubleChild pl pr
-        keepLeft     <- sampleValue Bernoulli $ pInner . pKeepL
-        keepRight    <- sampleValue Bernoulli $ pInner . pKeepR
-        pure $ Just ((child, orn), (keepLeft, keepRight))
-      _ -> pure Nothing
+sampleRootNote :: _ => m SPC
+sampleRootNote = do
+  fifthsSign <- sampleConst Bernoulli 0.5
+  fifthsN    <- sampleValue Geometric0 $ pInner . pRootFifths
+  let interval = if fifthsSign then fifthsN else negate fifthsN
+  pure $ spc interval
 
-  -- requires distance >= M2
-  sampleChromPassing pl pr = do
-    atLeft <- sampleValue Bernoulli $ pInner . pConnectChromaticLeftOverRight
-    let dir   = if direction (pl `pto` pr) == GT then id else down
-        child = if atLeft
-          then pl +^ dir chromaticSemitone
-          else pr -^ dir chromaticSemitone
-    keepL <- sampleValue Bernoulli $ pInner . pKeepL
-    keepR <- sampleValue Bernoulli $ pInner . pKeepR
-    pure ((child, PassingMid), (keepL, keepR))
-
-  sampleMidPassing pl pr = do
-    child <- sampleNeighbor (direction (pl `pto` pr) == GT) pl
-    keepL <- sampleValue Bernoulli $ pInner . pKeepL
-    keepR <- sampleValue Bernoulli $ pInner . pKeepR
-    pure ((child, PassingMid), (keepL, keepR))
-
-  sampleNonMidPassing pl pr = do
-    left <- sampleValue Bernoulli $ pInner . pPassLeftOverRight
-    let dirUp = direction (pl `pto` pr) == GT
-    if left
-      then do
-        child <- sampleNeighbor dirUp pl
-        keepl <- sampleValue Bernoulli $ pInner . pKeepL
-        pure ((child, PassingLeft), (keepl, True))
+sampleDoubleChild :: _ => SPC -> SPC -> m (SPC, DoubleOrnament)
+sampleDoubleChild pl pr
+  | pl == pr = do
+    rep <- sampleValue Bernoulli $ pInner . pRepeatOverNeighbor
+    if rep
+      then pure (pl, FullRepeat)
       else do
-        child <- sampleNeighbor (not dirUp) pr
-        keepr <- sampleValue Bernoulli $ pInner . pKeepR
-        pure ((child, PassingRight), (True, keepr))
+        stepUp <- sampleConst Bernoulli 0.5
+        (, FullNeighbor) <$> sampleNeighbor stepUp pl
+  | otherwise = do
+    repeatLeft <- sampleValue Bernoulli $ pInner . pRepeatLeftOverRight
+    if repeatLeft
+      then pure (pl, RightRepeatOfLeft)
+      else pure (pr, LeftRepeatOfRight)
 
-  sampleNT
-    :: InnerEdge SPC -> m (InnerEdge SPC, ((SPC, Passing), (Bool, Bool)))
-  sampleNT (pl, pr) = fmap ((pl, pr), ) $ case degree $ iabs $ pl `pto` pr of
-    1 -> sampleChromPassing pl pr
-    2 -> do
-      connect <- sampleValue Bernoulli $ pInner . pConnect
-      if connect then sampleMidPassing pl pr else sampleNonMidPassing pl pr
-    _ -> sampleNonMidPassing pl pr
+sampleT :: _ => Edge SPC -> m (Edge SPC, [(SPC, DoubleOrnament)])
+sampleT (l, r) = do
+  n <- sampleValue Geometric1 $ pInner . pElaborateRegular
+  fmap (((l, r), ) . catMaybes) $ replicateM n $ case (l, r) of
+    (Start, Stop) -> do
+      child <- sampleRootNote
+      pure $ Just (child, RootNote)
+    (Inner pl, Inner pr) -> do
+      (child, orn) <- sampleDoubleChild pl pr
+      -- keepLeft     <- sampleValue Bernoulli $ pInner . pKeepL
+      -- keepRight    <- sampleValue Bernoulli $ pInner . pKeepR
+      pure $ Just (child, orn)
+    _ -> pure Nothing
 
-  sampleL :: SPC -> m (SPC, [(SPC, Bool, RightOrnament)])
-  sampleL parent = do
-    n <- sampleValue Geometric0 $ pInner . pElaborateL
-    fmap (parent, ) $ replicateM n $ do
-      rep  <- sampleValue Bernoulli $ pInner . pRepeatOverNeighbor
-      keep <- sampleValue Bernoulli $ pInner . pKeepL
-      if rep
-        then pure (parent, keep, RightRepeat)
-        else do
-          stepUp <- sampleConst Bernoulli 0.5
-          child  <- sampleNeighbor stepUp parent
-          pure (child, keep, RightNeighbor)
+observeT
+  :: M.Map (Edge SPC) [(n, DoubleOrnament)]
+  -> Edge SPC
+  -> PVObs (Edge SPC, [(SPC, DoubleOrnament)])
+observeT splitTs (l, r) = do
+  pure undefined
 
-  sampleR :: SPC -> m (SPC, [(SPC, Bool, LeftOrnament)])
-  sampleR parent = do
-    n <- sampleValue Geometric0 $ pInner . pElaborateR
-    fmap (parent, ) $ replicateM n $ do
-      rep  <- sampleValue Bernoulli $ pInner . pRepeatOverNeighbor
-      keep <- sampleValue Bernoulli $ pInner . pKeepR
-      if rep
-        then pure (parent, keep, LeftRepeat)
-        else do
-          stepUp <- sampleConst Bernoulli 0.5
-          child  <- sampleNeighbor stepUp parent
-          pure (child, keep, LeftNeighbor)
+-- requires distance >= M2
+sampleChromPassing :: _ => Pitch a -> Pitch a -> m (Pitch a, Passing)
+sampleChromPassing pl pr = do
+  atLeft <- sampleValue Bernoulli $ pInner . pConnectChromaticLeftOverRight
+  let dir   = if direction (pl `pto` pr) == GT then id else down
+      child = if atLeft
+        then pl +^ dir chromaticSemitone
+        else pr -^ dir chromaticSemitone
+  pure (child, PassingMid)
 
-observeSplit
-  :: ContextSingle SPC
-  -> Split SPC
-  -> StateT (Trace PVParams) (Either String) ()
-observeSplit = error "not implemented"
+sampleMidPassing :: _ => Pitch SIC -> Pitch SIC -> m (SPC, Passing)
+sampleMidPassing pl pr = do
+  child <- sampleNeighbor (direction (pl `pto` pr) == GT) pl
+  pure (child, PassingMid)
+
+sampleNonMidPassing :: _ => Pitch SIC -> Pitch SIC -> m (SPC, Passing)
+sampleNonMidPassing pl pr = do
+  left <- sampleValue Bernoulli $ pInner . pPassLeftOverRight
+  let dirUp = direction (pl `pto` pr) == GT
+  if left
+    then do
+      child <- sampleNeighbor dirUp pl
+      pure (child, PassingLeft)
+    else do
+      child <- sampleNeighbor (not dirUp) pr
+      pure (child, PassingRight)
+
+sampleNT :: _ => InnerEdge SPC -> m (InnerEdge SPC, (SPC, Passing))
+sampleNT (pl, pr) = fmap ((pl, pr), ) $ case degree $ iabs $ pl `pto` pr of
+  1 -> sampleChromPassing pl pr
+  2 -> do
+    connect <- sampleValue Bernoulli $ pInner . pConnect
+    if connect then sampleMidPassing pl pr else sampleNonMidPassing pl pr
+  _ -> sampleNonMidPassing pl pr
+
+observeNT
+  :: _
+  => M.Map (InnerEdge SPC) [(SPC, Passing)]
+  -> InnerEdge SPC
+  -> PVObs (InnerEdge SPC, (SPC, Passing))
+observeNT splitNTs (pl, pr) = undefined
+
+sampleL :: _ => SPC -> m (SPC, [(SPC, RightOrnament)])
+sampleL parent = do
+  n <- sampleValue Geometric0 $ pInner . pElaborateL
+  fmap (parent, ) $ replicateM n $ do
+    rep <- sampleValue Bernoulli $ pInner . pRepeatOverNeighbor
+    if rep
+      then pure (parent, RightRepeat)
+      else do
+        stepUp <- sampleConst Bernoulli 0.5
+        child  <- sampleNeighbor stepUp parent
+        pure (child, RightNeighbor)
+
+observeL
+  :: M.Map SPC [(SPC, RightOrnament)]
+  -> SPC
+  -> PVObs (SPC, [(SPC, RightOrnament)])
+observeL = error "not implemented"
+
+sampleR :: _ => SPC -> m (SPC, [(SPC, LeftOrnament)])
+sampleR parent = do
+  n <- sampleValue Geometric0 $ pInner . pElaborateR
+  fmap (parent, ) $ replicateM n $ do
+    rep <- sampleValue Bernoulli $ pInner . pRepeatOverNeighbor
+    if rep
+      then pure (parent, LeftRepeat)
+      else do
+        stepUp <- sampleConst Bernoulli 0.5
+        child  <- sampleNeighbor stepUp parent
+        pure (child, LeftNeighbor)
+
+observeR
+  :: M.Map SPC [(SPC, LeftOrnament)]
+  -> SPC
+  -> PVObs (SPC, [(SPC, LeftOrnament)])
+observeR = error "not implemented"
+
+sampleKeepEdges
+  :: _ => Accessor PVParamsInner Beta -> S.HashSet e -> m (S.HashSet e)
+sampleKeepEdges pKeep set = do
+  kept <- mapM sKeep (S.toList set)
+  pure $ S.fromList $ catMaybes kept
+ where
+  sKeep elt = do
+    keep <- sampleValue Bernoulli (pInner . pKeep)
+    pure $ if keep then Just elt else Nothing
+
+observeKeepEdges
+  :: Accessor PVParamsInner Beta -> S.HashSet e -> S.HashSet e -> PVObs ()
+observeKeepEdges pKeep candidates kept = undefined
 
 sampleHori :: _ => ContextDouble SPC -> m (Hori SPC)
 sampleHori (_sliceL, _transL, Notes sliceM, _transR, _sliceR) = do
@@ -531,8 +608,7 @@ sampleHori (_sliceL, _transL, Notes sliceM, _transR, _sliceR) = do
         pure $ ToRight $ n - nother
     pure ((note, n), to)
 
-observeHori
-  :: ContextDouble SPC -> Hori SPC -> StateT (Trace PVParams) (Either String) ()
+observeHori :: ContextDouble SPC -> Hori SPC -> PVObs ()
 observeHori (_sliceL, _transL, Notes sliceM, _transR, _sliceR) (HoriOp obsDists (Edges repEdges passEdges))
   = do
     -- observe note distribution
@@ -595,6 +671,9 @@ observePassing
   -> [SPC]
   -> Accessor PVParamsInner Beta
   -> MS.MultiSet (InnerEdge SPC)
-  -> StateT (Trace PVParams) (Either String) ()
-observePassing notesLeft notesRight pNewPassing edges =
-  error "not implemented."
+  -> PVObs ()
+observePassing notesLeft notesRight pNewPassing edges = sequence_ $ do
+  l <- notesLeft
+  r <- notesRight
+  guard $ iabs (l `pto` r) <= major second'
+  pure $ observeValue Geometric0 (pInner . pNewPassing) (edges MS.! (l, r))
