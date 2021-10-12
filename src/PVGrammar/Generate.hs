@@ -19,6 +19,7 @@ module PVGrammar.Generate
   , applyFreeze
   , applyHori
   , freezable
+  , debugPVAnalysis
   ) where
 
 import           Common
@@ -303,6 +304,14 @@ applyHori (HoriOp dist childm) pl (Notes notesm) pr = do
     notes  = MS.toSet notesms
     notesi = S.map Inner notes
     ts'    = S.filter ((`S.member` notesi) . accessor) ts
+
+-- debugging analyses
+
+debugPVAnalysis
+  :: (Notation n, Ord n, Hashable n, MC.HasPitch n, Eq (MC.IntervalOf n))
+  => PVAnalysis n
+  -> IO (Either String ())
+debugPVAnalysis = debugAnalysis applySplit applyFreeze applyHori
 
 -- derivation player
 -- =================

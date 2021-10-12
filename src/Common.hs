@@ -15,12 +15,22 @@
 {-# LANGUAGE StandaloneKindSignatures #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE DefaultSignatures #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE ConstrainedClassMethods #-}
+{-# LANGUAGE PartialTypeSignatures #-}
+{-# OPTIONS_GHC -Wno-partial-type-signatures #-}
 module Common where
 
 import           Control.DeepSeq                ( NFData )
-import           GHC.Generics                   ( Generic )
-
+import           Control.Monad                  ( when )
+import           Control.Monad.Except           ( ExceptT
+                                                , runExceptT
+                                                )
 import qualified Control.Monad.Indexed         as MI
+import           Control.Monad.Trans            ( lift )
+import           Control.Monad.Trans.Except     ( except )
 import qualified Control.Monad.Writer.Strict   as MW
 import           Data.Aeson                     ( (.:)
                                                 , FromJSON(..)
@@ -37,6 +47,7 @@ import qualified Data.Semiring                 as R
 import qualified Data.Set                      as S
 import           Data.Typeable                  ( Proxy(Proxy) )
 import           Debug.Trace                    ( trace )
+import           GHC.Generics                   ( Generic )
 import           GHC.TypeNats                   ( type (+)
                                                 , type (-)
                                                 , type (<=)
@@ -226,7 +237,7 @@ productEval (Eval vertm1 vertl1 vertr1 merge1 thaw1 slice1) (Eval vertm2 vertl2 
 -- ---------------------
 
 data RightBranchHori = RBBranches
-                        | RBClear
+                     | RBClear
   deriving (Eq, Ord, Show, Generic, NFData, Hashable)
 
 evalRightBranchHori :: Eval RightBranchHori e' () a' ()
@@ -248,7 +259,7 @@ rightBranchHori = mapEvalScore snd . productEval evalRightBranchHori
 -- ----------------------------
 
 data Merged = Merged
-               | NotMerged
+            | NotMerged
   deriving (Eq, Ord, Show, Generic, NFData, Hashable)
 
 evalSplitBeforeHori :: (Eval Merged e' () a' ())
@@ -279,7 +290,7 @@ splitFirst = mapEvalScore snd . productEval evalSplitBeforeHori
 
 data LeftmostSingle s f = LMSingleSplit !s
                         | LMSingleFreeze !f
-  deriving (Eq, Ord, Show, Generic, NFData)
+  deriving (Eq, Ord, Show, Generic, NFData, Functor, Foldable, Traversable)
 
 instance (ToJSON s, ToJSON f) => ToJSON (LeftmostSingle s f) where
   toJSON =
@@ -300,7 +311,7 @@ instance (ToJSON s, ToJSON f, ToJSON h) => ToJSON (LeftmostDouble s f h) where
 
 data Leftmost s f h = LMSingle (LeftmostSingle s f)
                     | LMDouble (LeftmostDouble s f h)
-  deriving (Eq, Ord, Show, Generic)
+  deriving (Eq, Ord, Show, Generic, NFData)
 
 instance (FromJSON s, FromJSON f, FromJSON h) => FromJSON (Leftmost s f h) where
   parseJSON = Aeson.withObject "Leftmost" $ \obj -> do
@@ -320,8 +331,6 @@ instance (ToJSON s, ToJSON f, ToJSON h) => ToJSON (Leftmost s f h) where
   toJSON (LMDouble db) = toJSON db
   toEncoding (LMSingle sg) = toEncoding sg
   toEncoding (LMDouble db) = toEncoding db
-
-instance (NFData s, NFData f, NFData h) => NFData (Leftmost s f h)
 
 pattern LMSplitLeft :: s -> Leftmost s f h
 pattern LMSplitLeft s = LMDouble (LMDoubleSplitLeft s)
@@ -344,7 +353,7 @@ pattern LMFreezeOnly f = LMSingle (LMSingleFreeze f)
 {-# COMPLETE LMSplitLeft, LMFreezeLeft, LMSplitRight, LMHorizontalize, LMSplitOnly, LMFreezeOnly #-}
 
 -- representing full analyses
--- --------------------------
+-- ==========================
 
 data Analysis s f h e a = Analysis
   { anaDerivation :: [Leftmost s f h]
@@ -379,6 +388,72 @@ instance (FromJSON s, FromJSON f, FromJSON h, FromJSON e, FromJSON a) => FromJSO
       trans  <- v .: "trans" >>= parseTrans
       rslice <- v .: "rslice" >>= parseSlice
       pure (trans, rslice)
+
+debugAnalysis
+  :: forall e a s f h
+   . (Show e, Show a, Show s, Show h)
+  => (s -> e -> Either String (e, a, e))
+  -> (f -> e -> Either String e)
+  -> (h -> e -> a -> e -> Either String (e, a, e, a, e))
+  -> Analysis s f h e a
+  -> IO (Either String ())
+debugAnalysis doSplit doFreeze doHori (Analysis deriv top) = runExceptT
+  $ go Start top False deriv
+ where
+  go
+    :: StartStop a
+    -> Path e a
+    -> Bool
+    -> [Leftmost s f h]
+    -> ExceptT String IO ()
+  go _sl _surface _ars [] = except $ Left "Derivation incomplete."
+  go sl surface@(PathEnd trans) _ars (op : rest) = do
+    lift $ putStrLn $ "\nCurrent surface: " <> show surface
+    case op of
+      LMSingle single -> do
+        -- debugSingleStep (sl, trans, Stop) single
+        case single of
+          LMSingleFreeze freezeOp -> do
+            lift $ putStrLn "freezing only (terminating)"
+            _ <- except $ doFreeze freezeOp trans
+            pure ()
+          LMSingleSplit splitOp -> do
+            lift $ putStrLn $ "splitting only: " <> show splitOp
+            (ctl, cs, ctr) <- except $ doSplit splitOp trans
+            go sl (Path ctl cs (PathEnd ctr)) False rest
+      LMDouble _ -> except $ Left "Double operation on single transition."
+  go sl surface@(Path tl sm (PathEnd tr)) ars (op : rest) = do
+    lift $ putStrLn $ "\nCurrent surface: " <> show surface
+    goDouble op rest ars (sl, tl, sm, tr, Stop) PathEnd
+  go sl surface@(Path tl sm (Path tr sr pathRest)) ars (op : derivRest) = do
+    lift $ putStrLn $ "\nCurrent surface: " <> show surface
+    goDouble op derivRest ars (sl, tl, sm, tr, Inner sr)
+      $ \tr' -> Path tr' sr pathRest
+
+  goDouble op rest ars (sl, tl, sm, tr, _sr) mkRest = case op of
+    LMSingle _ ->
+      except $ Left "Single operation with several transitions left."
+    LMDouble double -> do
+      -- observeDoubleStep (sl, tl, sm, tr, sr) ars double
+      case double of
+        LMDoubleFreezeLeft freezeOp -> do
+          when ars $ except $ Left "FreezeLeft after SplitRight."
+          lift $ putStrLn "freezing left"
+          _ <- except $ doFreeze freezeOp tl
+          go (Inner sm) (mkRest tr) False rest
+        LMDoubleSplitLeft splitOp -> do
+          when ars $ except $ Left "SplitLeft after SplitRight."
+          lift $ putStrLn $ "splitting left: " <> show splitOp
+          (ctl, cs, ctr) <- except $ doSplit splitOp tl
+          go sl (Path ctl cs $ Path ctr sm $ mkRest tr) False rest
+        LMDoubleSplitRight splitOp -> do
+          lift $ putStrLn $ "splitting right: " <> show splitOp
+          (ctl, cs, ctr) <- except $ doSplit splitOp tr
+          go sl (Path tl sm $ Path ctl cs $ mkRest ctr) True rest
+        LMDoubleHori horiOp -> do
+          lift $ putStrLn $ "horizontalizing: " <> show horiOp
+          (ctl, csl, ctm, csr, ctr) <- except $ doHori horiOp tl sm tr
+          go sl (Path ctl csl $ Path ctm csr $ mkRest ctr) False rest
 
 -- evaluators
 -- ==========

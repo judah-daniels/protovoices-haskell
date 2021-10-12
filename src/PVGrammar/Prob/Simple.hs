@@ -34,12 +34,17 @@ import           Data.Foldable                  ( forM_ )
 import qualified Data.HashMap.Strict           as HM
 import qualified Data.HashSet                  as S
 import           Data.Hashable                  ( Hashable )
+import qualified Data.List                     as L
 import qualified Data.Map.Strict               as M
 import           Data.Maybe                     ( catMaybes
                                                 , fromMaybe
                                                 )
+-- import qualified Debug.Trace                   as DT
 import           GHC.Generics                   ( Generic )
-import           Inference.Conjugate
+import           Inference.Conjugate           -- hiding ( observeConst
+                                         --        , observeValue
+                                         --        )
+-- import qualified Inference.Conjugate           as IC
 import qualified Internal.MultiSet             as MS
 import           Lens.Micro.TH                  ( makeLenses )
 import           Musicology.Pitch              as MP
@@ -51,6 +56,39 @@ import           Musicology.Pitch              as MP
                                                 , f
                                                 , g
                                                 )
+import           System.Random.MWC.Probability  ( categorical )
+
+-- observeValue
+--   :: _ => String -> l -> Accessor r p -> Support l -> StateT (Trace r) m ()
+-- observeValue name dist acc val = do
+--   DT.traceM str
+--   IC.observeValue name dist acc $ DT.trace str val
+--  where
+--   str =
+--     "Observd value "
+--       <> show val
+--       <> " from a "
+--       <> show dist
+--       <> " at "
+--       <> name
+--       <> "."
+
+-- observeConst
+--   :: _ => String -> d -> Params d -> Support d -> StateT (Trace r) m ()
+-- observeConst name dist params val = do
+--   DT.traceM str
+--   IC.observeConst name dist params $ DT.trace str val
+--  where
+--   str =
+--     "Observd value "
+--       <> show val
+--       <> " from a "
+--       <> show dist
+--       <> " at "
+--       <> name
+--       <> "."
+
+
 
 data PVParamsOuter f = PVParamsOuter
   { _pSingleFreeze     :: f Beta
@@ -76,6 +114,9 @@ data PVParamsInner f = PVParamsInner
   , _pNBChromatic                   :: f Beta
   , _pNBAlt                         :: f Beta
   , _pRepeatLeftOverRight           :: f Beta
+  , _pRepeatAlter                   :: f Beta
+  , _pRepeatAlterUp                 :: f Beta
+  , _pRepeatAlterSemis              :: f Beta
   , _pConnect                       :: f Beta
   , _pConnectChromaticLeftOverRight :: f Beta
   , _pPassLeftOverRight             :: f Beta
@@ -113,6 +154,15 @@ deriving instance ( Show (f Beta)
 
 makeLenses ''PVParams
 
+data MagicalOctaves = MagicalOctaves
+  deriving (Eq, Ord, Show)
+
+instance Distribution MagicalOctaves where
+  type Params MagicalOctaves = ()
+  type Support MagicalOctaves = Int
+  distSample _ _ = (`subtract` 2) <$> categorical [0.1, 0.2, 0.4, 0.2, 0.1]
+  distLogP _ _ _ = 0
+
 type PVProbs = PVParams ProbsRep
 type PVProbsInner = PVParamsInner ProbsRep
 
@@ -122,16 +172,43 @@ type ContextDouble n
 
 type PVObs a = StateT (Trace PVParams) (Either String) a
 
-sampleDerivation' :: _ => m (Either String [PVLeftmost SPC])
+roundtrip :: FilePath -> IO (Either String [PVLeftmost SPitch])
+roundtrip fn = do
+  anaE <- loadAnalysis fn
+  case anaE of
+    Left  err -> error err
+    Right ana -> do
+      let traceE = observeDerivation' $ anaDerivation ana
+      case traceE of
+        Left  err   -> error err
+        Right trace -> do
+          pure $ traceTrace trace sampleDerivation'
+
+trainSinglePiece :: FilePath -> IO (Maybe (PVParams HyperRep))
+trainSinglePiece fn = do
+  anaE <- loadAnalysis fn
+  case anaE of
+    Left  err -> error err
+    Right ana -> do
+      let traceE = observeDerivation' $ anaDerivation ana
+      case traceE of
+        Left  err   -> error err
+        Right trace -> do
+          let prior = uniformPrior @PVParams
+          pure $ getPosterior prior trace (sampleDerivation $ anaTop ana)
+
+sampleDerivation' :: _ => m (Either String [PVLeftmost SPitch])
 sampleDerivation' =
   sampleDerivation $ PathEnd (Edges (S.singleton (Start, Stop)) MS.empty)
 
-obsDerivation' :: [PVLeftmost SPC] -> Either String (Trace PVParams)
-obsDerivation' deriv =
-  obsDerivation deriv $ PathEnd (Edges (S.singleton (Start, Stop)) MS.empty)
+observeDerivation' :: [PVLeftmost SPitch] -> Either String (Trace PVParams)
+observeDerivation' deriv =
+  observeDerivation deriv $ PathEnd (Edges (S.singleton (Start, Stop)) MS.empty)
 
 sampleDerivation
-  :: _ => Path (Edges SPC) (Notes SPC) -> m (Either String [PVLeftmost SPC])
+  :: _
+  => Path (Edges SPitch) (Notes SPitch)
+  -> m (Either String [PVLeftmost SPitch])
 sampleDerivation top = runExceptT $ go Start top False
  where
   go sl surface ars = case surface of
@@ -170,22 +247,23 @@ sampleDerivation top = runExceptT $ go Start top False
         nextSteps <- go sl (Path ctl csl (Path ctm csr (mkrest ctr))) False
         pure $ LMHorizontalize horiOp : nextSteps
 
-obsDerivation
-  :: [PVLeftmost SPC]
-  -> Path (Edges SPC) (Notes SPC)
+observeDerivation
+  :: [PVLeftmost SPitch]
+  -> Path (Edges SPitch) (Notes SPitch)
   -> Either String (Trace PVParams)
-obsDerivation deriv top = execStateT (go Start top False deriv) (Trace mempty)
+observeDerivation deriv top = execStateT (go Start top False deriv)
+                                         (Trace mempty)
  where
   go
-    :: StartStop (Notes SPC)
-    -> Path (Edges SPC) (Notes SPC)
+    :: StartStop (Notes SPitch)
+    -> Path (Edges SPitch) (Notes SPitch)
     -> Bool
-    -> [PVLeftmost SPC]
+    -> [PVLeftmost SPitch]
     -> PVObs ()
   go _sl _surface        _ars []          = lift $ Left "Derivation incomplete."
   go sl  (PathEnd trans) _ars (op : rest) = case op of
     LMSingle single -> do
-      obsSingleStep (sl, trans, Stop) single
+      observeSingleStep (sl, trans, Stop) single
       case single of
         LMSingleFreeze _       -> pure ()
         LMSingleSplit  splitOp -> do
@@ -201,7 +279,7 @@ obsDerivation deriv top = execStateT (go Start top False deriv) (Trace mempty)
   goDouble op rest ars (sl, tl, sm, tr, sr) mkRest = case op of
     LMSingle _ -> lift $ Left "Single operation with several transitions left."
     LMDouble double -> do
-      obsDoubleStep (sl, tl, sm, tr, sr) ars double
+      observeDoubleStep (sl, tl, sm, tr, sr) ars double
       case double of
         LMDoubleFreezeLeft _ -> do
           when ars $ lift $ Left "FreezeLeft after SplitRight."
@@ -218,24 +296,31 @@ obsDerivation deriv top = execStateT (go Start top False deriv) (Trace mempty)
           go sl (Path ctl csl $ Path ctm csr $ mkRest ctr) False rest
 
 sampleSingleStep
-  :: _ => ContextSingle SPC -> m (LeftmostSingle (Split SPC) Freeze)
+  :: _ => ContextSingle SPitch -> m (LeftmostSingle (Split SPitch) Freeze)
 sampleSingleStep parents@(_, trans, _) = if freezable trans
   then do
-    shouldFreeze <- sampleValue Bernoulli $ pOuter . pSingleFreeze
+    shouldFreeze <-
+      sampleValue "shouldFreeze (single)" Bernoulli $ pOuter . pSingleFreeze
     if shouldFreeze
       then LMSingleFreeze <$> sampleFreeze parents
       else LMSingleSplit <$> sampleSplit parents
   else LMSingleSplit <$> sampleSplit parents
 
-obsSingleStep
-  :: ContextSingle SPC -> LeftmostSingle (Split SPC) Freeze -> PVObs ()
-obsSingleStep parents@(_, trans, _) singleOp = if freezable trans
+observeSingleStep
+  :: ContextSingle SPitch -> LeftmostSingle (Split SPitch) Freeze -> PVObs ()
+observeSingleStep parents@(_, trans, _) singleOp = if freezable trans
   then case singleOp of
     LMSingleFreeze f -> do
-      observeValue Bernoulli (pOuter . pSingleFreeze) True
+      observeValue "shouldFreeze (single)"
+                   Bernoulli
+                   (pOuter . pSingleFreeze)
+                   True
       observeFreeze parents f
     LMSingleSplit s -> do
-      observeValue Bernoulli (pOuter . pSingleFreeze) False
+      observeValue "shouldFreeze (single)"
+                   Bernoulli
+                   (pOuter . pSingleFreeze)
+                   False
       observeSplit parents s
   else case singleOp of
     LMSingleFreeze _ -> lift $ Left "Freezing a non-freezable transition."
@@ -243,74 +328,91 @@ obsSingleStep parents@(_, trans, _) singleOp = if freezable trans
 
 sampleDoubleStep
   :: _
-  => ContextDouble SPC
+  => ContextDouble SPitch
   -> Bool
-  -> m (LeftmostDouble (Split SPC) Freeze (Hori SPC))
+  -> m (LeftmostDouble (Split SPitch) Freeze (Hori SPitch))
 sampleDoubleStep parents@(sliceL, transL, sliceM, transR, sliceR) afterRightSplit
   = if afterRightSplit
     then do
-      shouldSplitRight <- sampleValue Bernoulli $ pOuter . pDoubleRightSplit
+      shouldSplitRight <-
+        sampleValue "shouldSplitRight" Bernoulli $ pOuter . pDoubleRightSplit
       if shouldSplitRight
         then LMDoubleSplitRight <$> sampleSplit (Inner sliceM, transR, sliceR)
         else LMDoubleHori <$> sampleHori parents
     else do
-      continueLeft <- sampleValue Bernoulli $ pOuter . pDoubleLeft
+      continueLeft <-
+        sampleValue "continueLeft" Bernoulli $ pOuter . pDoubleLeft
       if continueLeft
         then if freezable transL
           then do
-            shouldFreeze <- sampleValue Bernoulli $ pOuter . pDoubleLeftFreeze
+            shouldFreeze <-
+              sampleValue "shouldFreeze (double)" Bernoulli
+              $ pOuter
+              . pDoubleLeftFreeze
             if shouldFreeze
-              then LMDoubleSplitLeft
-                <$> sampleSplit (sliceL, transL, Inner sliceM)
-              else LMDoubleFreezeLeft
+              then LMDoubleFreezeLeft
                 <$> sampleFreeze (sliceL, transL, Inner sliceM)
+              else LMDoubleSplitLeft
+                <$> sampleSplit (sliceL, transL, Inner sliceM)
           else LMDoubleSplitLeft <$> sampleSplit (sliceL, transL, Inner sliceM)
         else sampleDoubleStep parents True
 
-obsDoubleStep
-  :: ContextDouble SPC
+observeDoubleStep
+  :: ContextDouble SPitch
   -> Bool
-  -> LeftmostDouble (Split SPC) Freeze (Hori SPC)
+  -> LeftmostDouble (Split SPitch) Freeze (Hori SPitch)
   -> PVObs ()
-obsDoubleStep parents@(sliceL, transL, sliceM, transR, sliceR) afterRightSplit doubleOp
+observeDoubleStep parents@(sliceL, transL, sliceM, transR, sliceR) afterRightSplit doubleOp
   = case doubleOp of
     LMDoubleFreezeLeft f -> do
-      observeValue Bernoulli (pOuter . pDoubleLeft)       True
-      observeValue Bernoulli (pOuter . pDoubleLeftFreeze) True
+      observeValue "continueLeft" Bernoulli (pOuter . pDoubleLeft) True
+      observeValue "shouldFreeze (double)"
+                   Bernoulli
+                   (pOuter . pDoubleLeftFreeze)
+                   True
       observeFreeze (sliceL, transL, Inner sliceM) f
     LMDoubleSplitLeft s -> do
-      observeValue Bernoulli (pOuter . pDoubleLeft)       True
-      observeValue Bernoulli (pOuter . pDoubleLeftFreeze) False
+      observeValue "continueLeft" Bernoulli (pOuter . pDoubleLeft) True
+      when (freezable transL) $ observeValue "shouldFreeze (double)"
+                                             Bernoulli
+                                             (pOuter . pDoubleLeftFreeze)
+                                             False
       observeSplit (sliceL, transL, Inner sliceM) s
     LMDoubleSplitRight s -> do
       unless afterRightSplit
-        $ observeValue Bernoulli (pOuter . pDoubleLeft) False
-      observeValue Bernoulli (pOuter . pDoubleRightSplit) True
+        $ observeValue "continueLeft" Bernoulli (pOuter . pDoubleLeft) False
+      observeValue "shouldSplitRight"
+                   Bernoulli
+                   (pOuter . pDoubleRightSplit)
+                   True
       observeSplit (Inner sliceM, transR, sliceR) s
     LMDoubleHori h -> do
       unless afterRightSplit
-        $ observeValue Bernoulli (pOuter . pDoubleLeft) False
-      observeValue Bernoulli (pOuter . pDoubleRightSplit) False
+        $ observeValue "continueLeft" Bernoulli (pOuter . pDoubleLeft) False
+      observeValue "shouldSplitRight"
+                   Bernoulli
+                   (pOuter . pDoubleRightSplit)
+                   False
       observeHori parents h
 
 sampleFreeze :: RandomInterpreter m PVParams => ContextSingle n -> m Freeze
 sampleFreeze _parents = pure FreezeOp
 
-observeFreeze :: ContextSingle SPC -> Freeze -> PVObs ()
+observeFreeze :: ContextSingle SPitch -> Freeze -> PVObs ()
 observeFreeze _parents FreezeOp = pure ()
 
 -- helper for sampleSplit and observeSplit
 collectElabos
-  :: [(Edge SPC, [(SPC, o1)])]
-  -> [(InnerEdge SPC, [(SPC, Passing)])]
-  -> [(SPC, [(SPC, o2)])]
-  -> [(SPC, [(SPC, o3)])]
-  -> ( M.Map (StartStop SPC, StartStop SPC) [(SPC, o1)]
-     , M.Map (SPC, SPC) [(SPC, Passing)]
-     , M.Map SPC [(SPC, o2)]
-     , M.Map SPC [(SPC, o3)]
-     , S.HashSet (Edge SPC)
-     , S.HashSet (Edge SPC)
+  :: [(Edge SPitch, [(SPitch, o1)])]
+  -> [(InnerEdge SPitch, [(SPitch, Passing)])]
+  -> [(SPitch, [(SPitch, o2)])]
+  -> [(SPitch, [(SPitch, o3)])]
+  -> ( M.Map (StartStop SPitch, StartStop SPitch) [(SPitch, o1)]
+     , M.Map (SPitch, SPitch) [(SPitch, Passing)]
+     , M.Map SPitch [(SPitch, o2)]
+     , M.Map SPitch [(SPitch, o3)]
+     , S.HashSet (Edge SPitch)
+     , S.HashSet (Edge SPitch)
      )
 collectElabos childrenT childrenNT childrenL childrenR =
   let splitTs    = M.fromList childrenT
@@ -322,7 +424,7 @@ collectElabos childrenT childrenNT childrenL childrenR =
       keepLeftNT = do -- List
         ((l, _), cs ) <- childrenNT
         (m     , orn) <- cs
-        guard $ orn == PassingRight
+        guard $ orn /= PassingRight
         pure (Inner l, Inner m)
       leftEdges   = S.fromList $ keepLeftT <> keepLeftNT <> keepLeftL
       keepRightT  = getEdges childrenT (\p m -> (Inner m, snd p))
@@ -330,12 +432,12 @@ collectElabos childrenT childrenNT childrenL childrenR =
       keepRightNT = do -- List
         ((_, r), cs ) <- childrenNT
         (m     , orn) <- cs
-        guard $ orn == PassingLeft
+        guard $ orn /= PassingLeft
         pure (Inner m, Inner r)
       rightEdges = S.fromList $ keepRightT <> keepRightNT <> keepRightR
   in  (splitTs, splitNTs, fromLeft, fromRight, leftEdges, rightEdges)
  where
-  getEdges :: [(p, [(c, o)])] -> (p -> c -> Edge SPC) -> [Edge SPC]
+  getEdges :: [(p, [(c, o)])] -> (p -> c -> Edge SPitch) -> [Edge SPitch]
   getEdges elabos mkEdge = do -- List
     (p, cs) <- elabos
     (c, _ ) <- cs
@@ -343,170 +445,243 @@ collectElabos childrenT childrenNT childrenL childrenR =
 
 -- helper for sampleSplit and observeSplit
 collectNotes
-  :: [(Edge SPC, [(SPC, o1)])]
-  -> [(InnerEdge SPC, [(SPC, Passing)])]
-  -> [(SPC, [(SPC, o2)])]
-  -> [(SPC, [(SPC, o3)])]
-  -> [SPC]
+  :: [(Edge SPitch, [(SPitch, o1)])]
+  -> [(InnerEdge SPitch, [(SPitch, Passing)])]
+  -> [(SPitch, [(SPitch, o2)])]
+  -> [(SPitch, [(SPitch, o3)])]
+  -> [SPitch]
 collectNotes childrenT childrenNT childrenL childrenR =
   let notesT     = concatMap (fmap fst . snd) childrenT
       notesNT    = concatMap (fmap fst . snd) childrenNT
       notesFromL = concatMap (fmap fst . snd) childrenL
       notesFromR = concatMap (fmap fst . snd) childrenR
-  in  notesT <> notesNT <> notesFromL <> notesFromR
+  in  L.sort $ notesT <> notesNT <> notesFromL <> notesFromR
 
-sampleSplit :: forall m . _ => ContextSingle SPC -> m (Split SPC)
-sampleSplit (sliceL, Edges ts nts, sliceR) = do
+sampleSplit :: forall m . _ => ContextSingle SPitch -> m (Split SPitch)
+sampleSplit (sliceL, _edges@(Edges ts nts), sliceR) = do
+  -- DT.traceM $ "\nPerforming split (smp) on: " <> show edges
   -- ornament regular edges at least once
-  childrenT  <- mapM sampleT $ S.toList ts
+  childrenT  <- mapM sampleT $ L.sort $ S.toList ts
+  -- DT.traceM $ "childrenT (smp): " <> show childrenT
   -- ornament passing edges exactly once
-  childrenNT <- mapM sampleNT $ MS.toOccurList nts
+  childrenNT <- mapM sampleNT $ L.sort $ MS.toOccurList nts
+  -- DT.traceM $ "childrenNT (smp): " <> show childrenNT
   -- ornament left notes
   childrenL  <- case getInner sliceL of
     Nothing            -> pure []
-    Just (Notes notes) -> mapM sampleL $ MS.toList notes
+    Just (Notes notes) -> mapM sampleL $ L.sort $ MS.toList notes
+  -- DT.traceM $ "childrenL (smp): " <> show childrenL
   -- ornament right notes
   childrenR <- case getInner sliceR of
     Nothing            -> pure []
-    Just (Notes notes) -> mapM sampleR $ MS.toList notes
+    Just (Notes notes) -> mapM sampleR $ L.sort $ MS.toList notes
+  -- DT.traceM $ "childrenR (smp): " <> show childrenR
   -- introduce new passing edges left and right
   let notes = collectNotes childrenT childrenNT childrenL childrenR
   passLeft <- case getInner sliceL of
     Nothing -> pure MS.empty
     Just (Notes notesl) ->
-      samplePassing (MS.toList notesl) notes pNewPassingLeft
+      samplePassing (L.sort $ MS.toList notesl) notes pNewPassingLeft
   passRight <- case getInner sliceR of
     Nothing -> pure MS.empty
     Just (Notes notesr) ->
-      samplePassing notes (MS.toList notesr) pNewPassingRight
+      samplePassing notes (L.sort $ MS.toList notesr) pNewPassingRight
   let (splitTs, splitNTs, fromLeft, fromRight, leftEdges, rightEdges) =
         collectElabos childrenT childrenNT childrenL childrenR
   -- decide which edges to keep
   keepLeft  <- sampleKeepEdges pKeepL leftEdges
   keepRight <- sampleKeepEdges pKeepR rightEdges
   -- combine all sampling results into split operation
-  pure $ SplitOp { splitTs
-                 , splitNTs
-                 , fromLeft
-                 , fromRight
-                 , keepLeft
-                 , keepRight
-                 , passLeft
-                 , passRight
-                 }
+  let splitOp = SplitOp { splitTs
+                        , splitNTs
+                        , fromLeft
+                        , fromRight
+                        , keepLeft
+                        , keepRight
+                        , passLeft
+                        , passRight
+                        }
+  -- DT.traceM $ "Performing split (smp): " <> show splitOp
+  pure splitOp
 
-observeSplit :: ContextSingle SPC -> Split SPC -> PVObs ()
-observeSplit (sliceL, Edges ts nts, sliceR) (SplitOp splitTs splitNTs fromLeft fromRight keepLeft keepRight passLeft passRight)
+observeSplit :: ContextSingle SPitch -> Split SPitch -> PVObs ()
+observeSplit (sliceL, _edges@(Edges ts nts), sliceR) _splitOp@(SplitOp splitTs splitNTs fromLeft fromRight keepLeft keepRight passLeft passRight)
   = do
+    -- DT.traceM $ "\nPerforming split (obs): " <> show splitOp
   -- observe ornaments of regular edges
-    childrenT  <- mapM (observeT splitTs) $ S.toList ts
+    childrenT  <- mapM (observeT splitTs) $ L.sort $ S.toList ts
+    -- DT.traceM $ "childrenT (obs): " <> show childrenT
     -- observe ornaments of passing edges
-    childrenNT <- mapM (observeNT splitNTs) $ MS.toOccurList nts
+    childrenNT <- mapM (observeNT splitNTs) $ L.sort $ MS.toOccurList nts
+    -- DT.traceM $ "childrenNT (obs): " <> show childrenNT
     -- observe ornaments of left notes
     childrenL  <- case getInner sliceL of
       Nothing            -> pure []
-      Just (Notes notes) -> mapM (observeL fromLeft) $ MS.toList notes
+      Just (Notes notes) -> mapM (observeL fromLeft) $ L.sort $ MS.toList notes
+    -- DT.traceM $ "childrenL (obs): " <> show childrenL
     -- observe ornaments of right notes
     childrenR <- case getInner sliceR of
-      Nothing            -> pure []
-      Just (Notes notes) -> mapM (observeR fromRight) $ MS.toList notes
+      Nothing -> pure []
+      Just (Notes notes) ->
+        mapM (observeR fromRight) $ L.sort $ MS.toList notes
+    -- DT.traceM $ "childrenR (obs): " <> show childrenR
     -- observe new passing edges
     let notes = collectNotes childrenT childrenNT childrenL childrenR
     case getInner sliceL of
-      Nothing -> pure ()
-      Just (Notes notesl) ->
-        observePassing (MS.toList notesl) notes pNewPassingLeft passLeft
+      Nothing             -> pure ()
+      Just (Notes notesl) -> observePassing (L.sort $ MS.toList notesl)
+                                            notes
+                                            pNewPassingLeft
+                                            passLeft
     case getInner sliceR of
-      Nothing -> pure ()
-      Just (Notes notesr) ->
-        observePassing notes (MS.toList notesr) pNewPassingRight passRight
+      Nothing             -> pure ()
+      Just (Notes notesr) -> observePassing notes
+                                            (L.sort $ MS.toList notesr)
+                                            pNewPassingRight
+                                            passRight
     -- observe which edges are kept
     let (_, _, _, _, leftEdges, rightEdges) =
           collectElabos childrenT childrenNT childrenL childrenR
     observeKeepEdges pKeepL leftEdges  keepLeft
     observeKeepEdges pKeepR rightEdges keepRight
 
-sampleRootNote :: _ => m SPC
+sampleRootNote :: _ => m SPitch
 sampleRootNote = do
-  fifthsSign <- sampleConst Bernoulli 0.5
-  fifthsN    <- sampleValue Geometric0 $ pInner . pRootFifths
-  let interval = if fifthsSign then fifthsN else negate fifthsN
-  pure $ spc interval
+  fifthsSign <- sampleConst "rootFifthsSign" Bernoulli 0.5
+  fifthsN    <- sampleValue "rootFifthsN" Geometric0 $ pInner . pRootFifths
+  os         <- sampleConst "rootOctave" MagicalOctaves ()
+  let fs = if fifthsSign then fifthsN else negate (fifthsN + 1)
+      p  = (emb <$> spc fs) +^ (octave ^* (os + 4))
+  -- DT.traceM $ "root note (sample): " <> show p
+  pure p
 
-observeRootNote :: SPC -> PVObs ()
+observeRootNote :: SPitch -> PVObs ()
 observeRootNote child = do
-  observeConst Bernoulli 0.5 fifthsSign
-  observeValue Geometric0 (pInner . pRootFifths) fifthsN
+  observeConst "rootFifthsSign" Bernoulli 0.5 fifthsSign
+  observeValue "rootFifthsN" Geometric0 (pInner . pRootFifths) fifthsN
+  observeConst "rootOctave" MagicalOctaves () (octaves child - 4)
+  -- DT.traceM $ "root note (obs): " <> show child
  where
   fs         = fifths child
   fifthsSign = fs >= 0
-  fifthsN    = abs fs
+  fifthsN    = if fifthsSign then fs else negate fs - 1
 
-sampleNeighbor :: _ => Bool -> SPC -> m SPC
+sampleOctaveShift :: _ => String -> m SInterval
+sampleOctaveShift name = do
+  n <- sampleConst name MagicalOctaves ()
+  let os = octave ^* (n - 4)
+  -- DT.traceM $ "octave shift (smp) " <> show os
+  pure os
+
+observeOctaveShift :: _ => String -> SInterval -> PVObs ()
+observeOctaveShift name interval = do
+  let n = octaves (interval ^+^ major second)
+  observeConst name MagicalOctaves () $ n + 4
+  -- DT.traceM $ "octave shift (obs) " <> show (octave @SInterval ^* n)
+
+sampleNeighbor :: _ => Bool -> SPitch -> m SPitch
 sampleNeighbor stepUp ref = do
-  chromatic <- sampleValue Bernoulli $ pInner . pNBChromatic
+  chromatic <- sampleValue "nbChromatic" Bernoulli $ pInner . pNBChromatic
+  os        <- sampleOctaveShift "nbOctShift"
+  alt       <- sampleValue "nbAlt" Geometric0 $ pInner . pNBAlt
+  let altInterval = emb (alt *^ chromaticSemitone @SIC)
   if chromatic
     then do
-      alt <- sampleValue Geometric0 $ pInner . pNBAlt
-      let altInterval = alt *^ chromaticSemitone
-      pure $ ref +^ if stepUp then altInterval else down altInterval
+      pure $ ref +^ os +^ if stepUp then altInterval else down altInterval
     else do
-      alt   <- sampleValue Geometric0 $ pInner . pNBAlt
-      altUp <- sampleConst Bernoulli 0.5
-      let altInterval = alt *^ chromaticSemitone
-          step        = if altUp == stepUp
-            then major second' ^+^ altInterval
-            else minor second' ^-^ altInterval
-      pure $ ref +^ if stepUp then step else down step
+      altUp <- sampleConst "nbAltUp" Bernoulli 0.5
+      let step = if altUp == stepUp
+            then major second ^+^ altInterval
+            else minor second ^-^ altInterval
+      pure $ ref +^ os +^ if stepUp then step else down step
 
-observeNeighbor :: Bool -> SPC -> SPC -> PVObs ()
+observeNeighbor :: Bool -> SPitch -> SPitch -> PVObs ()
 observeNeighbor goesUp ref nb = do
-  let interval    = ref `pto` nb
+  let interval    = ic $ ref `pto` nb
       isChromatic = direction interval == EQ
-  observeValue Bernoulli (pInner . pNBChromatic) isChromatic
+  observeValue "nbChromatic" Bernoulli (pInner . pNBChromatic) isChromatic
+  observeOctaveShift "nbOctShift" (ref `pto` nb)
   if isChromatic
     then do
       let alt = abs (alteration interval)
-      observeValue Geometric0 (pInner . pNBAlt) alt
+      observeValue "nbAlt" Geometric0 (pInner . pNBAlt) alt
     else do
       let alt   = alteration (iabs interval)
           altUp = (alt >= 0) == goesUp
           altN  = if alt >= 0 then alt else (-alt) - 1
-      observeValue Geometric0 (pInner . pNBAlt) altN
-      observeConst Bernoulli 0.5 altUp
+      observeValue "nbAlt" Geometric0 (pInner . pNBAlt) altN
+      observeConst "nbAltUp" Bernoulli 0.5 altUp
 
-sampleDoubleChild :: _ => SPC -> SPC -> m (SPC, DoubleOrnament)
+sampleDoubleChild :: _ => SPitch -> SPitch -> m (SPitch, DoubleOrnament)
 sampleDoubleChild pl pr
-  | pl == pr = do
-    rep <- sampleValue Bernoulli $ pInner . pRepeatOverNeighbor
+  | degree pl == degree pr = do
+    rep <-
+      sampleValue "repeatOverNeighbor" Bernoulli $ pInner . pRepeatOverNeighbor
     if rep
-      then pure (pl, FullRepeat)
+      then do
+        os <- sampleOctaveShift "doubleChildOctave"
+        pure (pl +^ os, FullRepeat)
       else do
-        stepUp <- sampleConst Bernoulli 0.5
+        stepUp <- sampleConst "stepUp" Bernoulli 0.5
         (, FullNeighbor) <$> sampleNeighbor stepUp pl
   | otherwise = do
-    repeatLeft <- sampleValue Bernoulli $ pInner . pRepeatLeftOverRight
+    repeatLeft <-
+      sampleValue "repeatLeftOverRight" Bernoulli
+      $ pInner
+      . pRepeatLeftOverRight
+    repeatAlter <- sampleValue "repeatAlter" Bernoulli $ pInner . pRepeatAlter
+    alt         <- if repeatAlter
+      then do
+        alterUp <-
+          sampleValue "repeatAlterUp" Bernoulli $ pInner . pRepeatAlterUp
+        semis <-
+          sampleValue "repeatAlterSemis" Geometric1 $ pInner . pRepeatAlterSemis
+        pure $ (if alterUp then id else down) $ chromaticSemitone ^* semis
+      else pure unison
+    os <- sampleOctaveShift "doubleChildOctave"
     if repeatLeft
-      then pure (pl, RightRepeatOfLeft)
-      else pure (pr, LeftRepeatOfRight)
+      then pure (pl +^ os +^ alt, RightRepeatOfLeft)
+      else pure (pr +^ os +^ alt, LeftRepeatOfRight)
 
-observeDoubleChild :: SPC -> SPC -> SPC -> PVObs ()
+observeDoubleChild :: SPitch -> SPitch -> SPitch -> PVObs ()
 observeDoubleChild pl pr child
-  | pl == pr = do
-    let isRep = child == pl
-    observeValue Bernoulli (pInner . pRepeatOverNeighbor) isRep
-    unless isRep $ do
-      let dir    = direction (pl `pto` child)
-      let goesUp = dir == GT || (dir == EQ && alteration child > alteration pl)
-      observeConst Bernoulli 0.5 goesUp
-      observeNeighbor goesUp pl child
-  | otherwise = observeValue Bernoulli
-                             (pInner . pRepeatLeftOverRight)
-                             (pl == child)
+  | degree pl == degree pr = do
+    let isRep = pc child == pc pl
+    observeValue "RepeatOverNeighbor"
+                 Bernoulli
+                 (pInner . pRepeatOverNeighbor)
+                 isRep
+    if isRep
+      then do
+        observeOctaveShift "doubleChildOctave" (pl `pto` child)
+      else do
+        let dir = direction (pc pl `pto` pc child)
+        let goesUp =
+              dir == GT || (dir == EQ && alteration child > alteration pl)
+        observeConst "stepUp" Bernoulli 0.5 goesUp
+        observeNeighbor goesUp pl child
+  | otherwise = do
+    let repeatLeft = degree pl == degree child
+        ref        = if repeatLeft then pl else pr
+        alt        = alteration child - alteration ref
+    observeValue "repeatLeftOverRight"
+                 Bernoulli
+                 (pInner . pRepeatLeftOverRight)
+                 repeatLeft
+    observeValue "repeatAlter" Bernoulli (pInner . pRepeatAlter) (alt /= 0)
+    when (alt /= 0) $ do
+      observeValue "repeatAlterUp" Bernoulli (pInner . pRepeatAlterUp) (alt > 0)
+      observeValue "repeatAlterSemis"
+                   Geometric1
+                   (pInner . pRepeatAlterSemis)
+                   (abs alt)
+    observeOctaveShift "doubleChildOctave" $ ref `pto` child
 
-sampleT :: _ => Edge SPC -> m (Edge SPC, [(SPC, DoubleOrnament)])
+
+sampleT :: _ => Edge SPitch -> m (Edge SPitch, [(SPitch, DoubleOrnament)])
 sampleT (l, r) = do
-  n        <- sampleValue Geometric1 $ pInner . pElaborateRegular
+  -- DT.traceM $ "elaborating T (smp): " <> show (l, r)
+  n <- sampleValue "elaborateRegular" Geometric1 $ pInner . pElaborateRegular
   children <- permutationPlate n $ case (l, r) of
     (Start, Stop) -> do
       child <- sampleRootNote
@@ -518,11 +693,16 @@ sampleT (l, r) = do
   pure ((l, r), catMaybes children)
 
 observeT
-  :: M.Map (Edge SPC) [(SPC, DoubleOrnament)]
-  -> Edge SPC
-  -> PVObs (Edge SPC, [(SPC, DoubleOrnament)])
+  :: M.Map (Edge SPitch) [(SPitch, DoubleOrnament)]
+  -> Edge SPitch
+  -> PVObs (Edge SPitch, [(SPitch, DoubleOrnament)])
 observeT splitTs parents = do
+  -- DT.traceM $ "elaborating T (obs): " <> show parents
   let children = fromMaybe [] $ M.lookup parents splitTs
+  observeValue "elaborateRegular"
+               Geometric1
+               (pInner . pElaborateRegular)
+               (length children)
   forM_ children $ \(child, _) -> case parents of
     (Start, Stop) -> do
       observeRootNote child
@@ -532,33 +712,43 @@ observeT splitTs parents = do
   pure (parents, children)
 
 -- requires distance >= M2
-sampleChromPassing :: _ => Pitch a -> Pitch a -> m (Pitch a, Passing)
+sampleChromPassing :: _ => SPitch -> SPitch -> m (SPitch, Passing)
 sampleChromPassing pl pr = do
-  atLeft <- sampleValue Bernoulli $ pInner . pConnectChromaticLeftOverRight
-  let dir   = if direction (pl `pto` pr) == GT then id else down
+  atLeft <-
+    sampleValue "connectChromaticLeftOverRight" Bernoulli
+    $ pInner
+    . pConnectChromaticLeftOverRight
+  os <- sampleOctaveShift "connectChromaticOctave"
+  let dir   = if direction (pc pl `pto` pc pr) == GT then id else down
       child = if atLeft
         then pl +^ dir chromaticSemitone
         else pr -^ dir chromaticSemitone
-  pure (child, PassingMid)
+  pure (child +^ os, PassingMid)
 
-observeChromPassing :: SPC -> SPC -> SPC -> PVObs ()
-observeChromPassing pl _pr child = observeValue
-  Bernoulli
-  (pInner . pConnectChromaticLeftOverRight)
-  (degree pl == degree child)
+observeChromPassing :: SPitch -> SPitch -> SPitch -> PVObs ()
+observeChromPassing pl pr child = do
+  let isLeft = degree pl == degree child
+  observeValue "connectChromaticLeftOverRight"
+               Bernoulli
+               (pInner . pConnectChromaticLeftOverRight)
+               isLeft
+  observeOctaveShift "connectChromaticOctave"
+                     ((if isLeft then pl else pr) `pto` child)
 
-sampleMidPassing :: _ => Pitch SIC -> Pitch SIC -> m (SPC, Passing)
+sampleMidPassing :: _ => SPitch -> SPitch -> m (SPitch, Passing)
 sampleMidPassing pl pr = do
-  child <- sampleNeighbor (direction (pl `pto` pr) == GT) pl
+  child <- sampleNeighbor (direction (pc pl `pto` pc pr) == GT) pl
   pure (child, PassingMid)
 
-observeMidPassing :: SPC -> SPC -> SPC -> PVObs ()
-observeMidPassing pl pr = observeNeighbor (direction (pl `pto` pr) == GT) pl
+observeMidPassing :: SPitch -> SPitch -> SPitch -> PVObs ()
+observeMidPassing pl pr =
+  observeNeighbor (direction (pc pl `pto` pc pr) == GT) pl
 
-sampleNonMidPassing :: _ => Pitch SIC -> Pitch SIC -> m (SPC, Passing)
+sampleNonMidPassing :: _ => SPitch -> SPitch -> m (SPitch, Passing)
 sampleNonMidPassing pl pr = do
-  left <- sampleValue Bernoulli $ pInner . pPassLeftOverRight
-  let dirUp = direction (pl `pto` pr) == GT
+  left <-
+    sampleValue "passLeftOverRight" Bernoulli $ pInner . pPassLeftOverRight
+  let dirUp = direction (pc pl `pto` pc pr) == GT
   if left
     then do
       child <- sampleNeighbor dirUp pl
@@ -567,111 +757,140 @@ sampleNonMidPassing pl pr = do
       child <- sampleNeighbor (not dirUp) pr
       pure (child, PassingRight)
 
-observeNonMidPassing :: SPC -> SPC -> SPC -> Passing -> PVObs ()
+observeNonMidPassing :: SPitch -> SPitch -> SPitch -> Passing -> PVObs ()
 observeNonMidPassing pl pr child orn = do
   let left  = orn == PassingLeft
-      dirUp = direction (pl `pto` pr) == GT
-  observeValue Bernoulli (pInner . pPassLeftOverRight) left
+      dirUp = direction (pc pl `pto` pc pr) == GT
+  observeValue "passLeftOverRight" Bernoulli (pInner . pPassLeftOverRight) left
   if left
     then observeNeighbor dirUp pl child
     else observeNeighbor (not dirUp) pr child
 
-sampleNT :: _ => (InnerEdge SPC, Int) -> m (InnerEdge SPC, [(SPC, Passing)])
+sampleNT
+  :: _ => (InnerEdge SPitch, Int) -> m (InnerEdge SPitch, [(SPitch, Passing)])
 sampleNT ((pl, pr), n) = do
-  children <- permutationPlate n $ case degree $ iabs $ pl `pto` pr of
+  -- DT.traceM $ "Elaborating edge (smp): " <> show ((pl, pr), n)
+  children <- permutationPlate n $ case degree $ iabs $ pc pl `pto` pc pr of
     1 -> sampleChromPassing pl pr
     2 -> do
-      connect <- sampleValue Bernoulli $ pInner . pConnect
+      connect <- sampleValue "passingConnect" Bernoulli $ pInner . pConnect
       if connect then sampleMidPassing pl pr else sampleNonMidPassing pl pr
     _ -> sampleNonMidPassing pl pr
   pure ((pl, pr), children)
 
 observeNT
   :: _
-  => M.Map (InnerEdge SPC) [(SPC, Passing)]
-  -> (InnerEdge SPC, Int)
-  -> PVObs (InnerEdge SPC, [(SPC, Passing)])
+  => M.Map (InnerEdge SPitch) [(SPitch, Passing)]
+  -> (InnerEdge SPitch, Int)
+  -> PVObs (InnerEdge SPitch, [(SPitch, Passing)])
 observeNT splitNTs ((pl, pr), _n) = do
+  -- DT.traceM $ "Elaborating edge (obs): " <> show ((pl, pr), n)
   let children = fromMaybe [] $ M.lookup (pl, pr) splitNTs
-  forM_ children $ \(child, orn) -> case degree $ iabs $ pl `pto` pr of
+  forM_ children $ \(child, orn) -> case degree $ iabs $ pc pl `pto` pc pr of
     1 -> observeChromPassing pl pr child
     2 -> case orn of
-      PassingMid -> observeMidPassing pl pr child
-      _          -> observeNonMidPassing pl pr child orn
+      PassingMid -> do
+        observeValue "passingConnect" Bernoulli (pInner . pConnect) True
+        observeMidPassing pl pr child
+      _ -> do
+        observeValue "passingConnect" Bernoulli (pInner . pConnect) False
+        observeNonMidPassing pl pr child orn
     _ -> observeNonMidPassing pl pr child orn
   pure ((pl, pr), children)
 
 sampleSingleOrn
-  :: _ => SPC -> o -> o -> Accessor PVParamsInner Beta -> m (SPC, [(SPC, o)])
+  :: _
+  => SPitch
+  -> o
+  -> o
+  -> Accessor PVParamsInner Beta
+  -> m (SPitch, [(SPitch, o)])
 sampleSingleOrn parent oRepeat oNeighbor pElaborate = do
-  n        <- sampleValue Geometric0 $ pInner . pElaborate
+  n        <- sampleValue "elaborateSingle" Geometric0 $ pInner . pElaborate
   children <- permutationPlate n $ do
-    rep <- sampleValue Bernoulli $ pInner . pRepeatOverNeighbor
+    rep <-
+      sampleValue "repeatOverNeighborSingle" Bernoulli
+      $ pInner
+      . pRepeatOverNeighbor
     if rep
-      then pure (parent, oRepeat)
+      then do
+        os <- sampleOctaveShift "singleChildOctave"
+        pure (parent +^ os, oRepeat)
       else do
-        stepUp <- sampleConst Bernoulli 0.5
+        stepUp <- sampleConst "singleUp" Bernoulli 0.5
         child  <- sampleNeighbor stepUp parent
         pure (child, oNeighbor)
   pure (parent, children)
 
 observeSingleOrn
-  :: M.Map SPC [(SPC, o)]
-  -> SPC
+  :: M.Map SPitch [(SPitch, o)]
+  -> SPitch
   -> Accessor PVParamsInner Beta
-  -> PVObs (SPC, [(SPC, o)])
+  -> PVObs (SPitch, [(SPitch, o)])
 observeSingleOrn table parent pElaborate = do
   let children = fromMaybe [] $ M.lookup parent table
-  observeValue Geometric0 (pInner . pElaborate) (length children)
+  observeValue "elaborateSingle"
+               Geometric0
+               (pInner . pElaborate)
+               (length children)
   forM_ children $ \(child, _) -> do
-    let rep = child == parent
-    observeValue Bernoulli (pInner . pRepeatOverNeighbor) rep
-    unless rep $ do
-      let dir = direction (child `pto` parent)
-          up  = dir == GT || (dir == EQ && alteration child > alteration parent)
-      observeConst Bernoulli 0.5 up
-      observeNeighbor up parent child
+    let rep = pc child == pc parent
+    observeValue "repeatOverNeighborSingle"
+                 Bernoulli
+                 (pInner . pRepeatOverNeighbor)
+                 rep
+    if rep
+      then do
+        observeOctaveShift "singleChildOctave" (parent `pto` child)
+      else do
+        let dir = direction (pc parent `pto` pc child)
+            up =
+              dir == GT || (dir == EQ && alteration child > alteration parent)
+        observeConst "singleUp" Bernoulli 0.5 up
+        observeNeighbor up parent child
   pure (parent, children)
 
-sampleL :: _ => SPC -> m (SPC, [(SPC, RightOrnament)])
+sampleL :: _ => SPitch -> m (SPitch, [(SPitch, RightOrnament)])
 sampleL parent = sampleSingleOrn parent RightRepeat RightNeighbor pElaborateL
 
 observeL
-  :: M.Map SPC [(SPC, RightOrnament)]
-  -> SPC
-  -> PVObs (SPC, [(SPC, RightOrnament)])
+  :: M.Map SPitch [(SPitch, RightOrnament)]
+  -> SPitch
+  -> PVObs (SPitch, [(SPitch, RightOrnament)])
 observeL ls parent = observeSingleOrn ls parent pElaborateL
 
-sampleR :: _ => SPC -> m (SPC, [(SPC, LeftOrnament)])
+sampleR :: _ => SPitch -> m (SPitch, [(SPitch, LeftOrnament)])
 sampleR parent = sampleSingleOrn parent LeftRepeat LeftNeighbor pElaborateR
 
 observeR
-  :: M.Map SPC [(SPC, LeftOrnament)]
-  -> SPC
-  -> PVObs (SPC, [(SPC, LeftOrnament)])
+  :: M.Map SPitch [(SPitch, LeftOrnament)]
+  -> SPitch
+  -> PVObs (SPitch, [(SPitch, LeftOrnament)])
 observeR rs parent = observeSingleOrn rs parent pElaborateR
 
 sampleKeepEdges
   :: _ => Accessor PVParamsInner Beta -> S.HashSet e -> m (S.HashSet e)
 sampleKeepEdges pKeep set = do
-  kept <- mapM sKeep (S.toList set)
+  kept <- mapM sKeep (L.sort $ S.toList set)
   pure $ S.fromList $ catMaybes kept
  where
   sKeep elt = do
-    keep <- sampleValue Bernoulli (pInner . pKeep)
+    keep <- sampleValue "keep" Bernoulli (pInner . pKeep)
     pure $ if keep then Just elt else Nothing
 
 observeKeepEdges
-  :: (Eq e, Hashable e)
+  :: (Eq e, Hashable e, Ord e)
   => Accessor PVParamsInner Beta
   -> S.HashSet e
   -> S.HashSet e
   -> PVObs ()
-observeKeepEdges pKeep candidates kept = mapM_ oKeep (S.toList candidates)
+observeKeepEdges pKeep candidates kept = mapM_ oKeep
+                                               (L.sort $ S.toList candidates)
  where
-  oKeep edge = observeValue Bernoulli (pInner . pKeep) (S.member edge kept)
+  oKeep edge =
+    observeValue "keep" Bernoulli (pInner . pKeep) (S.member edge kept)
 
-sampleHori :: _ => ContextDouble SPC -> m (Hori SPC)
+sampleHori :: _ => ContextDouble SPitch -> m (Hori SPitch)
 sampleHori (_sliceL, _transL, Notes sliceM, _transR, _sliceR) = do
   -- distribute notes
   dists <- mapM distNote $ MS.toOccurList sliceM
@@ -685,9 +904,10 @@ sampleHori (_sliceL, _transL, Notes sliceM, _transR, _sliceR) = do
   repeats <- sequence $ do -- List
     l <- notesLeft
     r <- notesRight
-    guard $ l == r
+    guard $ pc l == pc r
     pure $ do -- m
-      rep <- sampleValue Bernoulli $ pInner . pHoriRepetitionEdge
+      rep <-
+        sampleValue "horiRepeatEdge" Bernoulli $ pInner . pHoriRepetitionEdge
       pure $ if rep then Just (Inner l, Inner r) else Nothing
   let repEdges = S.fromList $ catMaybes repeats
   -- generate passing edges
@@ -699,18 +919,27 @@ sampleHori (_sliceL, _transL, Notes sliceM, _transR, _sliceR) = do
  where
   -- distribute a note to the two child slices
   distNote (note, n) = do
-    dir <- sampleValue (Categorical @3) $ pInner . pNoteHoriDirection
-    to  <- case dir of
+    dir <-
+      sampleValue "noteHoriDirection" (Categorical @3)
+      $ pInner
+      . pNoteHoriDirection
+    to <- case dir of
       0 -> pure ToBoth
       1 -> do
-        nother <- sampleValue (Binomial $ n - 1) $ pInner . pNotesOnOtherSide
+        nother <-
+          sampleValue "notesOnOtherSide" (Binomial $ n - 1)
+          $ pInner
+          . pNotesOnOtherSide
         pure $ ToLeft $ n - nother
       _ -> do
-        nother <- sampleValue (Binomial $ n - 1) $ pInner . pNotesOnOtherSide
+        nother <-
+          sampleValue "notesOnOtherSide" (Binomial $ n - 1)
+          $ pInner
+          . pNotesOnOtherSide
         pure $ ToRight $ n - nother
     pure ((note, n), to)
 
-observeHori :: ContextDouble SPC -> Hori SPC -> PVObs ()
+observeHori :: ContextDouble SPitch -> Hori SPitch -> PVObs ()
 observeHori (_sliceL, _transL, Notes sliceM, _transR, _sliceR) (HoriOp obsDists (Edges repEdges passEdges))
   = do
     -- observe note distribution
@@ -727,8 +956,9 @@ observeHori (_sliceL, _transL, Notes sliceM, _transR, _sliceR) (HoriOp obsDists 
     sequence_ $ do -- List
       l <- notesLeft
       r <- notesRight
-      guard $ l == r
-      pure $ observeValue Bernoulli
+      guard $ pc l == pc r
+      pure $ observeValue "horiRepeatEdge"
+                          Bernoulli
                           (pInner . pHoriRepetitionEdge)
                           (S.member (Inner l, Inner r) repEdges)
     -- observe passing edges
@@ -740,42 +970,65 @@ observeHori (_sliceL, _transL, Notes sliceM, _transR, _sliceR) (HoriOp obsDists 
     Just dir -> do
       case dir of
         ToBoth -> do
-          observeValue (Categorical @3) (pInner . pNoteHoriDirection) 0
+          observeValue "noteHoriDirection"
+                       (Categorical @3)
+                       (pInner . pNoteHoriDirection)
+                       0
         ToLeft ndiff -> do
-          observeValue (Categorical @3) (pInner . pNoteHoriDirection) 1
-          observeValue (Binomial $ n - 1)
+          observeValue "noteHoriDirection"
+                       (Categorical @3)
+                       (pInner . pNoteHoriDirection)
+                       1
+          observeValue "notesOnOtherSide"
+                       (Binomial $ n - 1)
                        (pInner . pNotesOnOtherSide)
                        (n - ndiff)
         ToRight ndiff -> do
-          observeValue (Categorical @3) (pInner . pNoteHoriDirection) 2
-          observeValue (Binomial $ n - 1)
+          observeValue "noteHoriDirection"
+                       (Categorical @3)
+                       (pInner . pNoteHoriDirection)
+                       2
+          observeValue "notesOnOtherSide"
+                       (Binomial $ n - 1)
                        (pInner . pNotesOnOtherSide)
                        (n - ndiff)
       pure ((parent, n), dir)
 
 samplePassing
   :: _
-  => [SPC]
-  -> [SPC]
+  => [SPitch]
+  -> [SPitch]
   -> Accessor PVParamsInner Beta
-  -> m (MS.MultiSet (InnerEdge SPC))
+  -> m (MS.MultiSet (InnerEdge SPitch))
 samplePassing notesLeft notesRight pNewPassing =
   fmap (MS.fromList . concat) $ sequence $ do -- List
+    -- DT.traceM $ "notesLeft (smp)" <> show notesLeft
+    -- DT.traceM $ "notesRight (smp)" <> show notesRight
     l <- notesLeft
     r <- notesRight
-    guard $ iabs (l `pto` r) <= major second'
+    let step = iabs (pc l `pto` pc r)
+    guard $ degree step >= 2 || (degree step == 1 && alteration step >= 0)
+    -- DT.traceM $ "parent edge (sample)" <> show (l, r)
     pure $ do -- m
-      n <- sampleValue Geometric0 $ pInner . pNewPassing
+      n <- sampleValue "newPassing" Geometric0 $ pInner . pNewPassing
       pure $ replicate n (l, r)
 
 observePassing
-  :: [SPC]
-  -> [SPC]
+  :: [SPitch]
+  -> [SPitch]
   -> Accessor PVParamsInner Beta
-  -> MS.MultiSet (InnerEdge SPC)
+  -> MS.MultiSet (InnerEdge SPitch)
   -> PVObs ()
 observePassing notesLeft notesRight pNewPassing edges = sequence_ $ do
+  -- DT.traceM $ "edges (obs)" <> show edges
+  -- DT.traceM $ "notesLeft (obs)" <> show notesLeft
+  -- DT.traceM $ "notesRight (obs)" <> show notesRight
   l <- notesLeft
   r <- notesRight
-  guard $ iabs (l `pto` r) <= major second'
-  pure $ observeValue Geometric0 (pInner . pNewPassing) (edges MS.! (l, r))
+  let step = iabs (pc l `pto` pc r)
+  guard $ degree step >= 2 || (degree step == 1 && alteration step >= 0)
+  -- DT.traceM $ "parent edge (obs)" <> show (l, r)
+  pure $ observeValue "newPassing"
+                      Geometric0
+                      (pInner . pNewPassing)
+                      (edges MS.! (l, r))

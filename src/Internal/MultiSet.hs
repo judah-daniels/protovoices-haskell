@@ -1,5 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE TupleSections #-}
 module Internal.MultiSet where
 
 import           Control.DeepSeq                ( NFData )
@@ -54,9 +55,18 @@ toSet (MS a) = HM.keysSet a
 size :: MultiSet a -> Int
 size (MS a) = foldl' (+) 0 a
 
-map :: (Eq a, Hashable a) => (t -> a) -> MultiSet t -> MultiSet a
+map :: (Eq b, Hashable b) => (a -> b) -> MultiSet a -> MultiSet b
 map f (MS a) =
   MS $ HM.foldlWithKey' (\m k o -> HM.insertWith (+) (f k) o m) HM.empty a
+
+traverse
+  :: (Eq b, Hashable b, Applicative f)
+  => (a -> f b)
+  -> MultiSet a
+  -> f (MultiSet b)
+traverse f (MS m) = MS . HM.fromListWith (+) <$> Prelude.traverse
+  (\(k, v) -> (, v) <$> f k)
+  (HM.toList m)
 
 filter :: (a -> Bool) -> MultiSet a -> MultiSet a
 filter f (MS a) = MS $ HM.filterWithKey (\k _ -> f k) a

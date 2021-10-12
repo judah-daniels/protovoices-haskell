@@ -6,13 +6,23 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE ApplicativeDo #-}
 module PVGrammar where
 
 import           Common
 
-import           Musicology.Pitch               ( Notation(..) )
+import           Musicology.Pitch               ( Notation(..)
+                                                , SInterval
+                                                , SPC
+                                                , SPitch
+                                                , pc
+                                                )
 
 import           Control.DeepSeq                ( NFData )
+import           Control.Monad.Identity         ( runIdentity )
 import           Data.Aeson                     ( (.:)
                                                 , FromJSON
                                                 , ToJSON
@@ -24,6 +34,7 @@ import qualified Data.HashSet                  as S
 import           Data.Hashable                  ( Hashable )
 import qualified Data.List                     as L
 import qualified Data.Map.Strict               as M
+import           Data.Traversable               ( for )
 import           GHC.Generics                   ( Generic )
 import qualified Internal.MultiSet             as MS
 
@@ -353,3 +364,108 @@ parseInnerEdge = Aeson.withObject "InnerEdge" $ \v -> do
     _ -> fail "Edge is not an inner edge"
 
 type PVAnalysis n = Analysis (Split n) Freeze (Hori n) (Edges n) (Notes n)
+
+loadAnalysis :: FilePath -> IO (Either String (PVAnalysis SPitch))
+loadAnalysis = Aeson.eitherDecodeFileStrict
+
+loadAnalysis' :: FilePath -> IO (Either String (PVAnalysis SPC))
+loadAnalysis' fn = fmap (analysisMapPitch (pc @SInterval)) <$> loadAnalysis fn
+
+analysisTraversePitches
+  :: (Applicative f, Eq n', Hashable n', Ord n')
+  => (n -> f n')
+  -> PVAnalysis n
+  -> f (PVAnalysis n')
+analysisTraversePitches f (Analysis deriv top) = do
+  deriv' <- traverse (leftmostTraversePitch f) deriv
+  top'   <- pathTraversePitch f top
+  pure $ Analysis deriv' top'
+
+analysisMapPitch
+  :: (Eq n', Hashable n', Ord n') => (n -> n') -> PVAnalysis n -> PVAnalysis n'
+analysisMapPitch f = runIdentity . analysisTraversePitches (pure . f)
+
+pathTraversePitch
+  :: (Applicative f, Eq n', Hashable n')
+  => (n -> f n')
+  -> Path (Edges n) (Notes n)
+  -> f (Path (Edges n') (Notes n'))
+pathTraversePitch f (Path e a rest) = do
+  e'    <- edgesTraversePitch f e
+  a'    <- notesTraversePitch f a
+  rest' <- pathTraversePitch f rest
+  pure $ Path e' a' rest'
+pathTraversePitch f (PathEnd e) = PathEnd <$> edgesTraversePitch f e
+
+traverseEdge :: Applicative f => (n -> f n') -> (n, n) -> f (n', n')
+traverseEdge f (n1, n2) = (,) <$> f n1 <*> f n2
+
+traverseSet
+  :: (Applicative f, Eq n', Hashable n')
+  => (n -> f n')
+  -> S.HashSet n
+  -> f (S.HashSet n')
+traverseSet f set = S.fromList <$> traverse f (S.toList set)
+
+notesTraversePitch
+  :: (Eq n, Hashable n, Applicative f) => (a -> f n) -> Notes a -> f (Notes n)
+notesTraversePitch f (Notes notes) = Notes <$> MS.traverse f notes
+
+edgesTraversePitch
+  :: (Applicative f, Eq n', Hashable n')
+  => (n -> f n')
+  -> Edges n
+  -> f (Edges n')
+edgesTraversePitch f (Edges reg pass) = do
+  reg'  <- traverseSet (traverseEdge (traverse f)) reg
+  pass' <- MS.traverse (traverseEdge f) pass
+  pure $ Edges reg' pass'
+
+leftmostTraversePitch
+  :: (Applicative f, Eq n', Hashable n', Ord n')
+  => (n -> f n')
+  -> Leftmost (Split n) Freeze (Hori n)
+  -> f (Leftmost (Split n') Freeze (Hori n'))
+leftmostTraversePitch f lm = case lm of
+  LMSplitLeft     s  -> LMSplitLeft <$> splitTraversePitch f s
+  LMSplitRight    s  -> LMSplitRight <$> splitTraversePitch f s
+  LMSplitOnly     s  -> LMSplitOnly <$> splitTraversePitch f s
+  LMFreezeLeft    fr -> pure $ LMFreezeLeft fr
+  LMFreezeOnly    fr -> pure $ LMFreezeOnly fr
+  LMHorizontalize h  -> LMHorizontalize <$> horiTraversePitch f h
+
+splitTraversePitch
+  :: forall f n n'
+   . (Applicative f, Ord n', Hashable n')
+  => (n -> f n')
+  -> Split n
+  -> f (Split n')
+splitTraversePitch f (SplitOp ts nts ls rs kl kr pl pr) = do
+  ts'  <- traverseElabo (traverseEdge (traverse f)) ts
+  nts' <- traverseElabo (traverseEdge f) nts
+  ls'  <- traverseElabo f ls
+  rs'  <- traverseElabo f rs
+  kl'  <- traverseSet (traverseEdge (traverse f)) kl
+  kr'  <- traverseSet (traverseEdge (traverse f)) kr
+  pl'  <- MS.traverse (traverseEdge f) pl
+  pr'  <- MS.traverse (traverseEdge f) pr
+  pure $ SplitOp ts' nts' ls' rs' kl' kr' pl' pr'
+ where
+  traverseElabo
+    :: forall p p' o
+     . (Ord p')
+    => (p -> f p')
+    -> M.Map p [(n, o)]
+    -> f (M.Map p' [(n', o)])
+  traverseElabo fparent mp = fmap M.fromList $ for (M.toList mp) $ \(e, cs) ->
+    do
+      e'  <- fparent e
+      cs' <- traverse (\(n, o) -> (, o) <$> f n) cs
+      pure (e', cs')
+
+horiTraversePitch
+  :: (Applicative f, Eq n', Hashable n') => (n -> f n') -> Hori n -> f (Hori n')
+horiTraversePitch f (HoriOp dist edges) = do
+  dist'  <- traverse (\(k, v) -> (, v) <$> f k) $ HM.toList dist
+  edges' <- edgesTraversePitch f edges
+  pure $ HoriOp (HM.fromListWith (<>) dist') edges'
