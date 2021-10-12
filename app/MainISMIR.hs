@@ -2,17 +2,17 @@
 {-# LANGUAGE FlexibleContexts #-}
 module Main where
 
-import           Parser
-import           PVGrammar
-import           PVGrammar.Parse
-import           PVGrammar.Generate
 import           Common
 import           Display
+import           PVGrammar
+import           PVGrammar.Generate
+import           PVGrammar.Parse
+import           Parser
 
 import           Musicology.Core
-import           Musicology.Pitch.Spelled      as MT
 import           Musicology.Core.Slicing
 import           Musicology.MusicXML
+import           Musicology.Pitch.Spelled      as MT
 
 import           Data.Maybe                     ( catMaybes )
 import qualified Data.Text.Lazy                as TL
@@ -25,11 +25,11 @@ import           Prelude                 hiding ( Monad(..)
                                                 )
 
 -- | The example derivation shown in Figure 4, specified manually.
-deriv321sus :: [PVLeftMost (Pitch MT.SIC)]
+deriv321sus :: [PVLeftmost (Pitch MT.SIC)]
 deriv321sus = buildDerivation $ do
   split $ mkSplit $ do
-    splitT (:⋊) (:⋉) (c' nat) RootNote False False
-    splitT (:⋊) (:⋉) (e' nat) RootNote False False
+    splitT Start Stop (c' nat) RootNote False False
+    splitT Start Stop (e' nat) RootNote False False
   hori $ mkHori $ do
     horiNote (c' nat) ToBoth     True
     horiNote (e' nat) (ToLeft 1) False

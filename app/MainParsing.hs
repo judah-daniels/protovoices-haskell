@@ -161,11 +161,11 @@ plotSteps fn deriv = do
 -- example derivations
 -- ===================
 
-derivBrahms :: [PVLeftMost (Pitch MT.SIC)]
+derivBrahms :: [PVLeftmost (Pitch MT.SIC)]
 derivBrahms = buildDerivation $ do
   split $ mkSplit $ do
-    splitT (:⋊) (:⋉) (c' shp) RootNote False False
-    splitT (:⋊) (:⋉) (a' nat) RootNote False False
+    splitT Start Stop (c' shp) RootNote False False
+    splitT Start Stop (a' nat) RootNote False False
   hori $ mkHori $ do
     horiNote (a' nat) ToBoth     True
     horiNote (c' shp) (ToLeft 1) False

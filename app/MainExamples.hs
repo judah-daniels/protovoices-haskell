@@ -87,14 +87,14 @@ examplePartials = buildDerivation $ do
   freeze ()
   hori ()
 
-derivBach :: [PVLeftMost (Pitch MT.SIC)]
+derivBach :: [PVLeftmost (Pitch MT.SIC)]
 derivBach = buildDerivation $ do
   split $ mkSplit $ do
-    splitT (:⋊) (:⋉) (d' nat) RootNote False False
-    splitT (:⋊) (:⋉) (d' nat) RootNote False False
-    splitT (:⋊) (:⋉) (f' nat) RootNote False False
-    splitT (:⋊) (:⋉) (a' nat) RootNote False False
-    splitT (:⋊) (:⋉) (a' nat) RootNote False False
+    splitT Start Stop (d' nat) RootNote False False
+    splitT Start Stop (d' nat) RootNote False False
+    splitT Start Stop (f' nat) RootNote False False
+    splitT Start Stop (a' nat) RootNote False False
+    splitT Start Stop (a' nat) RootNote False False
   hori $ mkHori $ do
     horiNote (d' nat) ToBoth      True
     horiNote (f' nat) ToBoth      True
