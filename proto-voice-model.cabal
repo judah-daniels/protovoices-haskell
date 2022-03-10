@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 6279c2df88fe5dc434a98d4b78150ae331c0f5005163f3d5ce7b417ee0fd7d1e
+-- hash: 13940ab145fd6a8cd40f647164b99e41e714b4b7c1bda6d343839991ff279e2d
 
 name:           proto-voice-model
 version:        0.1.0.0
@@ -29,6 +29,7 @@ library
   exposed-modules:
       Common
       Display
+      GreedyParser
       Internal.MultiSet
       Parser
       PVGrammar
@@ -64,9 +65,11 @@ library
     , musicology-musicxml
     , musicology-pitch
     , mwc-probability
+    , mwc-random
     , parallel
     , primitive
     , process
+    , random
     , semirings
     , text
     , transformers
@@ -96,10 +99,12 @@ executable examples
     , musicology-musicxml
     , musicology-pitch
     , mwc-probability
+    , mwc-random
     , parallel
     , primitive
     , process
     , proto-voice-model
+    , random
     , semirings
     , text
     , transformers
@@ -129,10 +134,12 @@ executable ismir2021
     , musicology-musicxml
     , musicology-pitch
     , mwc-probability
+    , mwc-random
     , parallel
     , primitive
     , process
     , proto-voice-model
+    , random
     , semirings
     , text
     , transformers
@@ -162,10 +169,12 @@ executable parse
     , musicology-musicxml
     , musicology-pitch
     , mwc-probability
+    , mwc-random
     , parallel
     , primitive
     , process
     , proto-voice-model
+    , random
     , semirings
     , text
     , transformers
@@ -198,10 +207,12 @@ test-suite proto-voice-model-test
     , musicology-musicxml
     , musicology-pitch
     , mwc-probability
+    , mwc-random
     , parallel
     , primitive
     , process
     , proto-voice-model
+    , random
     , semirings
     , text
     , transformers

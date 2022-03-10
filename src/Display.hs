@@ -312,6 +312,8 @@ showTex x = T.pack $ concatMap escapeTex $ show x
   escapeTex '♯' = "$\\sharp$"
   escapeTex '{' = "\\{"
   escapeTex '}' = "\\}"
+  escapeTex '⋉' = "$\\ltimes$"
+  escapeTex '⋊' = "$\\rtimes$"
   escapeTex c   = [c]
 
 mkTikzPic :: (Semigroup a, IsString a) => a -> a

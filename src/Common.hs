@@ -1,8 +1,5 @@
-{-# LANGUAGE ExplicitNamespaces #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -11,17 +8,75 @@
 {-# LANGUAGE EmptyDataDecls #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE PatternSynonyms #-}
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE StandaloneKindSignatures #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveTraversable #-}
-{-# LANGUAGE DefaultSignatures #-}
-{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE ConstrainedClassMethods #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# OPTIONS_GHC -Wno-partial-type-signatures #-}
-module Common where
+module Common
+  ( Path(..)
+  , pathLen
+  , pathHead
+  , pathSetHead
+  , mapNodes
+  , mapNodesWithIndex
+  , mapEdges
+  , reversePath
+  , StartStop(..)
+  , onlyInner
+  , getInner
+  , getInnerE
+  , isInner
+  , isStart
+  , isStop
+  , distStartStop
+  , SplitType(..)
+  , VertMiddle
+  , VertLeft
+  , VertRight
+  , Merge
+  , Eval(..)
+  , mapEvalScore
+  , productEval
+  , RightBranchHori(..)
+  , evalRightBranchHori
+  , rightBranchHori
+  , Merged(..)
+  , evalSplitBeforeHori
+  , splitFirst
+  , Leftmost
+    ( LMDouble
+    , LMFreezeLeft
+    , LMFreezeOnly
+    , LMHorizontalize
+    , LMSingle
+    , LMSplitLeft
+    , LMSplitOnly
+    , LMSplitRight
+    )
+  , LeftmostSingle(..)
+  , LeftmostDouble(..)
+  , Analysis(..)
+  , debugAnalysis
+  , mkLeftmostEval
+  , PartialDeriv(..)
+  , itell
+  , buildDerivation
+  , buildPartialDerivation
+  , split
+  , freeze
+  , splitRight
+  , hori
+  , Derivations(..)
+  , mapDerivations
+  , flattenDerivations
+  , flattenDerivationsRed
+  , firstDerivation
+  , traceLevel
+  , traceIf
+  ) where
 
 import           Control.DeepSeq                ( NFData )
 import           Control.Monad                  ( when )
@@ -39,7 +94,10 @@ import           Data.Aeson                     ( (.:)
 import qualified Data.Aeson                    as Aeson
 import qualified Data.Aeson.Types              as Aeson
 import           Data.Aeson.Types               ( unexpected )
-import           Data.Bifunctor                 ( second )
+import           Data.Bifunctor                 ( Bifunctor
+                                                , bimap
+                                                , second
+                                                )
 import           Data.Hashable                  ( Hashable )
 import           Data.Kind                      ( Type )
 import           Data.Semigroup                 ( stimesMonoid )
@@ -66,6 +124,10 @@ data Path a e = Path !a !e !(Path a e)
               | PathEnd !a
   deriving (Eq, Ord , Generic)
 
+instance Bifunctor Path where
+  bimap fa _  (PathEnd a   ) = PathEnd (fa a)
+  bimap fa fe (Path a e rst) = Path (fa a) (fe e) $ bimap fa fe rst
+
 instance (Show a, Show e) => Show (Path a e) where
   show (Path a e rst) = show a <> "\n+-" <> show e <> "\n" <> show rst
   show (PathEnd a   ) = show a
@@ -78,6 +140,14 @@ pathHead :: Path a e -> a
 pathHead (Path l _ _) = l
 pathHead (PathEnd l ) = l
 
+pathSetHead :: Path a e -> a -> Path a e
+pathSetHead (Path _ e rst) a' = Path a' e rst
+pathSetHead (PathEnd _   ) a' = PathEnd a'
+
+mapNodes :: (a -> b) -> Path a e -> Path b e
+mapNodes f (Path l m rest) = Path (f l) m $ mapNodes f rest
+mapNodes f (PathEnd r    ) = PathEnd (f r)
+
 mapNodesWithIndex :: Int -> (Int -> a -> b) -> Path a e -> Path b e
 mapNodesWithIndex i f (Path l m rest) =
   Path (f i l) m (mapNodesWithIndex (i + 1) f rest)
@@ -86,6 +156,14 @@ mapNodesWithIndex i f (PathEnd n) = PathEnd (f i n)
 mapEdges :: (a -> e -> a -> b) -> Path a e -> [b]
 mapEdges f (Path l m rest) = f l m r : mapEdges f rest where r = pathHead rest
 mapEdges _ (PathEnd _    ) = []
+
+reversePath :: Path a e -> Path a e
+reversePath path = case path of
+  PathEnd end   -> PathEnd end
+  Path l m rest -> go m rest (PathEnd l)
+ where
+  go m  (PathEnd end   ) acc = Path end m acc
+  go m1 (Path l m2 rest) acc = go m2 rest $ Path l m1 acc
 
 -- StartStop
 -- =========

@@ -457,10 +457,12 @@ parse logCharts eval path = do
  where
   wrapPath (Path a e rst) = Path (Inner a) (Just e) $ wrapPath rst
   wrapPath (PathEnd a   ) = Path (Inner a) Nothing $ PathEnd Stop
-  path' = Path Start Nothing $ wrapPath path
-  len   = pathLen path'
-  slicePath =
-    mapNodesWithIndex 0 (\i n -> Slice i (evalSlice eval <$> n) i i) path'
+  path'     = Path Start Nothing $ wrapPath path
+  len       = pathLen path'
+  slicePath = mapNodesWithIndex
+    0
+    (\i notes -> Slice i (evalSlice eval <$> notes) i i)
+    path'
   mkTrans l esurf r = mk
     <$> evalThaw eval (sContent l) esurf (sContent r) (isStop $ sContent r)
     where mk (e, v) = Transition l e r False := S.val v

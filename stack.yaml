@@ -17,7 +17,7 @@
 #
 # resolver: ./custom-snapshot.yaml
 # resolver: https://example.com/snapshots/2018-01-01.yaml
-resolver: lts-17.10
+resolver: lts-18.26
 
 # User packages to be built.
 # Various formats can be used as shown in the example below.
@@ -53,6 +53,9 @@ extra-deps:
 #   - musicology-core
 #   - musicology-musicxml
 - ../inference/conjugate-programs/ # TODO: make this refer to a git repo
+
+# newer version of random
+- random-1.2.1@sha256:8bee24dc0c985a90ee78d94c61f8aed21c49633686f0f1c14c5078d818ee43a2,6598
 
 # other packages
 - diagrams-lib-1.4.3@sha256:04f77778d4b550d3c8e54440800685f88467bef91075e82e009a8a6f45c51033,8232

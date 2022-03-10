@@ -8,11 +8,19 @@ module Main where
 
 import           Common
 import           Display
+import           GreedyParser                  as Greedy
 import           PVGrammar
 import           PVGrammar.Generate
 import           PVGrammar.Parse
+import           PVGrammar.Prob.Simple          ( observeDerivation
+                                                , sampleDerivation
+                                                )
 import           Parser
-import           ScoresCommon
+import           ScoresCommon                   ( FreezeScore(FreezeScore)
+                                                , HoriScore(HoriScore)
+                                                , LeftmostScore
+                                                , SplitScore(SplitScore)
+                                                )
 
 import           Musicology.Core
 import           Musicology.Core.Slicing
@@ -25,12 +33,15 @@ import           Data.Maybe                     ( catMaybes )
 import           Data.Ratio                     ( Ratio(..) )
 import           Lens.Micro                     ( over )
 
-import           Control.Monad                  ( forM
+import           Control.Monad                  ( foldM
+                                                , forM
                                                 , forM_
                                                 )
-import qualified Data.HashMap.Strict           as HS
+import           Control.Monad.Except           ( runExceptT )
+import qualified Data.HashSet                  as HS
 import qualified Data.List                     as L
 import qualified Data.Semiring                 as R
+import qualified Data.Sequence                 as Seq
 import qualified Data.Set                      as S
 import qualified Data.Text                     as T
 import qualified Data.Text.IO                  as T
@@ -42,13 +53,22 @@ import qualified Internal.MultiSet             as MS
 import           Control.DeepSeq                ( deepseq
                                                 , force
                                                 )
+import           Control.Monad.Trans.Maybe      ( MaybeT(MaybeT) )
+import           Data.Bifunctor                 ( Bifunctor(bimap) )
 import           Data.String                    ( fromString )
+import           Inference.Conjugate            ( runTrace
+                                                , showTrace
+                                                , traceTrace
+                                                )
 -- better do syntax
 import qualified Language.Haskell.DoNotation   as Do
 -- import           Prelude                 hiding ( Monad(..)
 --                                                 , pure
 --                                                 )
 import           Prelude
+
+ifThenElse True  t e = t
+ifThenElse False t e = e
 
 -- utilities
 -- =========
@@ -65,6 +85,9 @@ brahms1 =
   "/home/chfin/dateien/dev/haskell/work/proto-voice-model/brahms1.musicxml"
 
 haydn5 = "/home/chfin/Uni/phd/data/kirlin_schenker/haydn5.xml"
+
+invention =
+  "/home/chfin/Uni/phd/data/protovoice-annotations/bach/inventions/BWV_0784.musicxml"
 
 -- getPitchGroups :: FilePath -> IO [[OnOff SPitch (Ratio Int)]]
 -- getPitchGroups file = do
@@ -90,9 +113,9 @@ slicesFromFile file = do
   mkNote (note, tie) = (pitch note, rightTie tie)
 
 slicesToPath
-  :: (Interval i, Ord (ICOf i), Eq i)
+  :: (Interval i, Ord i, Eq i)
   => [[(Pitch i, RightTied)]]
-  -> Path [Pitch (ICOf i)] [Edge (Pitch (ICOf i))]
+  -> Path [Pitch i] [Edge (Pitch i)]
 slicesToPath = go
  where
   -- normalizeTies (s : next : rest) = (fixTie <$> s)
@@ -102,17 +125,21 @@ slicesToPath = go
   --   fixTie (p, t) = if p `L.elem` nextNotes then (p, t) else (p, Ends)
   -- normalizeTies [s] = [map (fmap $ const Ends) s]
   -- normalizeTies []  = []
-  mkSlice = fmap (pc . fst)
+  mkSlice = fmap fst
   mkEdges notes = catMaybes $ mkEdge <$> notes
    where
     mkEdge (p, Ends ) = Nothing
-    mkEdge (p, Holds) = let p' = pc p in Just (Inner p', Inner p')
+    mkEdge (p, Holds) = let p' = p in Just (Inner p', Inner p')
   go []             = error "cannot construct path from empty list"
   go [notes       ] = PathEnd (mkSlice notes)
   go (notes : rest) = Path (mkSlice notes) (mkEdges notes) $ go rest
 
-testslices from to =
-  slicesToPath . drop (from - 1) . take to <$> slicesFromFile testfile
+loadInput = fmap slicesToPath . slicesFromFile
+
+loadInput' fn from to =
+  slicesToPath . drop (from - 1) . take to <$> slicesFromFile fn
+
+testslices = loadInput' testfile
 
 -- manual inputs
 -- -------------
@@ -157,6 +184,36 @@ plotSteps fn deriv = do
       (errors, steps) = partitionEithers graphs
   mapM_ putStrLn errors
   viewGraphs fn $ reverse steps
+
+checkDeriv deriv original = do
+  case replayDerivation derivationPlayerPV deriv of
+    (Left  err) -> putStrLn err
+    (Right g  ) -> do
+      let path' = case dgFoot g of
+            (_ : (_, tlast, slast) : rst) -> do
+              s <- getSlice slast
+              foldM foldPath (PathEnd s, tlast) rst
+            _ -> Nothing
+          orig' = bimap (Notes . MS.fromList)
+                        (\e -> Edges (HS.fromList e) MS.empty)
+                        original
+      case path' of
+        Nothing          -> putStrLn "failed to check result path"
+        Just (result, _) -> if result == orig'
+          then putStrLn "roundtrip ok"
+          else do
+            putStrLn "roundtrip not ok, surfaces are not equal:"
+            putStrLn "original:"
+            print original
+            putStrLn "recreated:"
+            print result
+
+ where
+  foldPath (pacc, tacc) (_, tnew, snew) = do
+    s <- getSlice snew
+    pure (Path s tacc pacc, tnew)
+  getSlice (_, _, s) = getInner s
+
 
 -- example derivations
 -- ===================
@@ -212,9 +269,29 @@ derivScore = buildDerivation $ do
   freeze $ FreezeScore $ Do "R"
   where (>>) = (Do.>>)
 
-
 -- mains
 -- =====
+
+mainGreedy file = do
+  input <- loadInput file
+  print input
+  result <- runExceptT $ Greedy.parseRandom protoVoiceEvaluator input
+  case result of
+    Left  err                  -> print err
+    -- Right _   -> putStrLn "Ok."
+    Right (Analysis deriv top) -> do
+      print "done parsing."
+      checkDeriv deriv input
+      -- case observeDerivation deriv top of
+      --   Left  err   -> print err
+      --   Right trace -> do
+      --     print "done observing parse."
+      --     putStrLn
+      --       $  "trace has "
+      --       <> show (Seq.length (runTrace trace))
+      --       <> " items."
+      --     -- let res = traceTrace trace (sampleDerivation top)
+      --     -- pure ()
 
 mainTest from to = do
   putStrLn $ "slices " <> show from <> " to " <> show to
@@ -258,7 +335,7 @@ logFull tc vc n = do
 
 mainResult
   :: Parsable e a v
-  => Eval e [Edge (Pitch SIC)] a [Pitch SIC] v
+  => Eval e [Edge (Pitch SInterval)] a [Pitch SInterval] v
   -> Int
   -> Int
   -> IO v

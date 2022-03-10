@@ -16,7 +16,24 @@
 {-# LANGUAGE TypeApplications #-}
 module PVGrammar.Prob.Simple where
 
-import           Common
+import           Common                         ( Analysis
+                                                  ( anaDerivation
+                                                  , anaTop
+                                                  )
+                                                -- , LMFreezeLeft
+                                                -- , LMFreezeOnly
+                                                -- , LMHorizontalize
+                                                -- , LMSplitLeft
+                                                -- , LMSplitOnly
+                                                -- , LMSplitRight
+                                                -- , LMSplitOnly
+                                                , Leftmost(..)
+                                                , LeftmostDouble(..)
+                                                , LeftmostSingle(..)
+                                                , Path(..)
+                                                , StartStop(..)
+                                                , getInner
+                                                )
 import           PVGrammar
 import           PVGrammar.Generate
 
@@ -41,9 +58,7 @@ import           Data.Maybe                     ( catMaybes
                                                 )
 -- import qualified Debug.Trace                   as DT
 import           GHC.Generics                   ( Generic )
-import           Inference.Conjugate           -- hiding ( observeConst
-                                         --        , observeValue
-                                         --        )
+import           Inference.Conjugate
 -- import qualified Inference.Conjugate           as IC
 import qualified Internal.MultiSet             as MS
 import           Lens.Micro.TH                  ( makeLenses )
@@ -87,8 +102,6 @@ import           System.Random.MWC.Probability  ( categorical )
 --       <> " at "
 --       <> name
 --       <> "."
-
-
 
 data PVParamsOuter f = PVParamsOuter
   { _pSingleFreeze     :: f Beta
@@ -508,7 +521,7 @@ observeSplit :: ContextSingle SPitch -> Split SPitch -> PVObs ()
 observeSplit (sliceL, _edges@(Edges ts nts), sliceR) _splitOp@(SplitOp splitTs splitNTs fromLeft fromRight keepLeft keepRight passLeft passRight)
   = do
     -- DT.traceM $ "\nPerforming split (obs): " <> show splitOp
-  -- observe ornaments of regular edges
+    -- observe ornaments of regular edges
     childrenT  <- mapM (observeT splitTs) $ L.sort $ S.toList ts
     -- DT.traceM $ "childrenT (obs): " <> show childrenT
     -- observe ornaments of passing edges

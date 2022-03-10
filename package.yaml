@@ -32,6 +32,8 @@ dependencies:
 - mtl
 - fin
 - conjugate-programs
+- random
+- mwc-random
 - mwc-probability
 - primitive
 - indexed

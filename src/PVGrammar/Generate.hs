@@ -20,6 +20,7 @@ module PVGrammar.Generate
   , applyHori
   , freezable
   , debugPVAnalysis
+  , checkDerivation
   ) where
 
 import           Common
@@ -32,6 +33,7 @@ import           Musicology.Pitch               ( Notation(..) )
 
 import           Control.Monad                  ( foldM )
 import qualified Control.Monad.Writer.Strict   as MW
+import           Data.Bifunctor                 ( bimap )
 import           Data.Foldable                  ( toList )
 import qualified Data.HashMap.Strict           as HM
 import qualified Data.HashSet                  as S
@@ -328,3 +330,39 @@ derivationPlayerPV = DerivationPlayer topEdges
   topEdges Start Stop = Edges (S.singleton (Start, Stop)) MS.empty
   topEdges _     _    = Edges S.empty MS.empty
   topNotes = Notes MS.empty
+
+-- | Compares the output of a derivation
+-- with the original piece (as provided to the parser).
+-- Returns 'True' if the output matches the original
+-- and 'False' if the output doesn't match or the derivation is invalid.
+checkDerivation
+  :: ( Ord n
+     , Notation n
+     , Hashable n
+     , Eq (MC.IntervalOf n)
+     , MC.HasPitch n
+     , Show n
+     )
+  => [Leftmost (Split n) Freeze (Hori n)]
+  -> Path [n] [Edge n]
+  -> Bool
+checkDerivation deriv original =
+  case replayDerivation derivationPlayerPV deriv of
+    (Left  _) -> False
+    (Right g) -> do
+      let path' = case dgFoot g of
+            (_ : (_, tlast, slast) : rst) -> do
+              s <- getSlice slast
+              foldM foldPath (PathEnd s, tlast) rst
+            _ -> Nothing
+          orig' = bimap (Notes . MS.fromList)
+                        (\e -> Edges (S.fromList e) MS.empty)
+                        original
+      case path' of
+        Nothing          -> False
+        Just (result, _) -> result == orig'
+ where
+  foldPath (pacc, tacc) (_, tnew, snew) = do
+    s <- getSlice snew
+    pure (Path s tacc pacc, tnew)
+  getSlice (_, _, s) = getInner s
