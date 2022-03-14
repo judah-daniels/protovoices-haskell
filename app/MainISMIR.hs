@@ -4,7 +4,9 @@ module Main where
 
 import           Common
 import           Display
-import           PVGrammar
+import           PVGrammar               hiding ( slicesFromFile
+                                                , slicesToPath
+                                                )
 import           PVGrammar.Generate
 import           PVGrammar.Parse
 import           Parser

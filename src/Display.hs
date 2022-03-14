@@ -1,5 +1,4 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TupleSections #-}
 module Display where
 
 import           Common
@@ -320,9 +319,11 @@ mkTikzPic :: (Semigroup a, IsString a) => a -> a
 mkTikzPic content =
   "\\begin{tikzpicture}\n" <> content <> "\n\\end{tikzpicture}"
 
-tikzStandalone :: (Semigroup a, IsString a) => a -> a
-tikzStandalone content =
-  "\\documentclass[varwidth]{standalone}\n\
+tikzStandalone :: (Semigroup a, IsString a) => Bool -> a -> a
+tikzStandalone varwidth content =
+  "\\documentclass"
+    <> (if varwidth then "[varwidth]" else "")
+    <> "{standalone}\n\
 \\\usepackage{tikz}\n\
 \\\usepackage{amssymb}\n\
 \\\begin{document}\n\
@@ -337,9 +338,10 @@ tikzStandalone content =
 writeGraph
   :: (Show a, Eq a, Eq e, Show e) => FilePath -> DerivationGraph a e -> IO ()
 writeGraph fn g =
-  T.writeFile fn $ tikzStandalone $ mkTikzPic $ tikzDerivationGraph showTex
-                                                                    showTex
-                                                                    g
+  T.writeFile fn $ tikzStandalone False $ mkTikzPic $ tikzDerivationGraph
+    showTex
+    showTex
+    g
 
 viewGraph
   :: (Eq a, Eq e, Show a, Show e) => FilePath -> DerivationGraph a e -> IO ()
@@ -351,7 +353,7 @@ writeGraphs
   :: (Show e, Show a, Eq a, Eq e) => FilePath -> [DerivationGraph a e] -> IO ()
 writeGraphs fn gs =
   T.writeFile fn
-    $   tikzStandalone
+    $   tikzStandalone True
     $   T.intercalate "\n\n"
     $   mkTikzPic
     .   tikzDerivationGraph showTex showTex

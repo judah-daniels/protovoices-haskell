@@ -1,11 +1,9 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TupleSections #-}
@@ -14,7 +12,9 @@ module PVGrammar where
 
 import           Common
 
-import           Musicology.Pitch               ( Notation(..)
+import           Musicology.Pitch               ( Interval
+                                                , Notation(..)
+                                                , Pitch
                                                 , SInterval
                                                 , SPC
                                                 , SPitch
@@ -34,9 +34,14 @@ import qualified Data.HashSet                  as S
 import           Data.Hashable                  ( Hashable )
 import qualified Data.List                     as L
 import qualified Data.Map.Strict               as M
+import           Data.Maybe                     ( catMaybes )
+import qualified Data.Text.Lazy.IO             as TL
 import           Data.Traversable               ( for )
 import           GHC.Generics                   ( Generic )
 import qualified Internal.MultiSet             as MS
+import qualified Musicology.Core               as Music
+import qualified Musicology.Core.Slicing       as Music
+import qualified Musicology.MusicXML           as MusicXML
 
 -- element types
 -- =============
@@ -110,6 +115,9 @@ instance (Eq n, Hashable n, Notation n) => FromJSON (Edges n) where
     passing <- v .: "passing" >>= mapM parseInnerEdge
     pure $ Edges (S.fromList (regular :: [Edge n]))
                  (MS.fromList (passing :: [InnerEdge n]))
+
+topEdges :: (Hashable n) => Edges n
+topEdges = Edges (S.singleton (Start, Stop)) MS.empty
 
 -- operations
 -- ==========
@@ -370,6 +378,54 @@ loadAnalysis = Aeson.eitherDecodeFileStrict
 
 loadAnalysis' :: FilePath -> IO (Either String (PVAnalysis SPC))
 loadAnalysis' fn = fmap (analysisMapPitch (pc @SInterval)) <$> loadAnalysis fn
+
+slicesFromFile :: FilePath -> IO [[(SPitch, Music.RightTied)]]
+slicesFromFile file = do
+  txt <- TL.readFile file
+  case MusicXML.parseWithoutIds txt of
+    Nothing  -> pure []
+    Just doc -> do
+      let (xmlNotes, _) = MusicXML.parseScore doc
+          notes         = MusicXML.asNoteHeard <$> xmlNotes
+          slices        = Music.slicePiece Music.tiedSlicer notes
+      pure $ mkSlice <$> filter (not . null) slices
+ where
+  mkSlice notes = mkNote <$> notes
+  mkNote (note, tie) = (Music.pitch note, Music.rightTie tie)
+
+slicesToPath
+  :: (Interval i, Ord i, Eq i)
+  => [[(Pitch i, Music.RightTied)]]
+  -> Path [Pitch i] [Edge (Pitch i)]
+slicesToPath = go
+ where
+  -- normalizeTies (s : next : rest) = (fixTie <$> s)
+  --   : normalizeTies (next : rest)
+  --  where
+  --   nextNotes = fst <$> next
+  --   fixTie (p, t) = if p `L.elem` nextNotes then (p, t) else (p, Ends)
+  -- normalizeTies [s] = [map (fmap $ const Ends) s]
+  -- normalizeTies []  = []
+  mkSlice = fmap fst
+  mkEdges notes = catMaybes $ mkEdge <$> notes
+   where
+    mkEdge (_, Music.Ends ) = Nothing
+    mkEdge (p, Music.Holds) = Just (Inner p, Inner p)
+  go []             = error "cannot construct path from empty list"
+  go [notes       ] = PathEnd (mkSlice notes)
+  go (notes : rest) = Path (mkSlice notes) (mkEdges notes) $ go rest
+
+loadInput :: FilePath -> IO (Path [Pitch SInterval] [Edge (Pitch SInterval)])
+loadInput = fmap slicesToPath . slicesFromFile
+
+loadInput'
+  :: FilePath
+  -> Int
+  -> Int
+  -> IO (Path [Pitch SInterval] [Edge (Pitch SInterval)])
+loadInput' fn from to =
+  slicesToPath . drop (from - 1) . take to <$> slicesFromFile fn
+
 
 analysisTraversePitches
   :: (Applicative f, Eq n', Hashable n', Ord n')

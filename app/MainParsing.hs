@@ -98,47 +98,6 @@ invention =
 --     $   asNote
 --     <$> xmlNotesHeard txt
 
-slicesFromFile :: FilePath -> IO [[(SPitch, RightTied)]]
-slicesFromFile file = do
-  txt <- TL.readFile file
-  case parseWithoutIds txt of
-    Nothing  -> pure []
-    Just doc -> do
-      let (xmlNotes, _) = parseScore doc
-          notes         = asNoteHeard <$> xmlNotes
-          slices        = slicePiece tiedSlicer notes
-      pure $ mkSlice <$> filter (not . null) slices
- where
-  mkSlice notes = mkNote <$> notes
-  mkNote (note, tie) = (pitch note, rightTie tie)
-
-slicesToPath
-  :: (Interval i, Ord i, Eq i)
-  => [[(Pitch i, RightTied)]]
-  -> Path [Pitch i] [Edge (Pitch i)]
-slicesToPath = go
- where
-  -- normalizeTies (s : next : rest) = (fixTie <$> s)
-  --   : normalizeTies (next : rest)
-  --  where
-  --   nextNotes = fst <$> next
-  --   fixTie (p, t) = if p `L.elem` nextNotes then (p, t) else (p, Ends)
-  -- normalizeTies [s] = [map (fmap $ const Ends) s]
-  -- normalizeTies []  = []
-  mkSlice = fmap fst
-  mkEdges notes = catMaybes $ mkEdge <$> notes
-   where
-    mkEdge (p, Ends ) = Nothing
-    mkEdge (p, Holds) = let p' = p in Just (Inner p', Inner p')
-  go []             = error "cannot construct path from empty list"
-  go [notes       ] = PathEnd (mkSlice notes)
-  go (notes : rest) = Path (mkSlice notes) (mkEdges notes) $ go rest
-
-loadInput = fmap slicesToPath . slicesFromFile
-
-loadInput' fn from to =
-  slicesToPath . drop (from - 1) . take to <$> slicesFromFile fn
-
 testslices = loadInput' testfile
 
 -- manual inputs
@@ -282,6 +241,9 @@ mainGreedy file = do
     Right (Analysis deriv top) -> do
       print "done parsing."
       checkDeriv deriv input
+      case replayDerivation derivationPlayerPV deriv of
+        Left  err -> putStrLn err
+        Right g   -> viewGraph "greedy.tex" g
       -- case observeDerivation deriv top of
       --   Left  err   -> print err
       --   Right trace -> do
@@ -292,6 +254,15 @@ mainGreedy file = do
       --       <> " items."
       --     -- let res = traceTrace trace (sampleDerivation top)
       --     -- pure ()
+      forM_ deriv print
+
+
+
+mainCount fn = do
+  input <- loadInput fn
+  print input
+  count <- parseSize pvCount input
+  putStrLn $ show count <> " derivations"
 
 mainTest from to = do
   putStrLn $ "slices " <> show from <> " to " <> show to

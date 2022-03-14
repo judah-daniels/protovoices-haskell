@@ -321,14 +321,14 @@ debugPVAnalysis = debugAnalysis applySplit applyFreeze applyHori
 derivationPlayerPV
   :: (Eq n, Ord n, Notation n, Hashable n, Eq (MC.IntervalOf n), MC.HasPitch n)
   => DerivationPlayer (Split n) Freeze (Hori n) (Notes n) (Edges n)
-derivationPlayerPV = DerivationPlayer topEdges
+derivationPlayerPV = DerivationPlayer topTrans
                                       topNotes
                                       applySplit
                                       applyFreeze
                                       applyHori
  where
-  topEdges Start Stop = Edges (S.singleton (Start, Stop)) MS.empty
-  topEdges _     _    = Edges S.empty MS.empty
+  topTrans Start Stop = Edges (S.singleton (Start, Stop)) MS.empty
+  topTrans _     _    = Edges S.empty MS.empty
   topNotes = Notes MS.empty
 
 -- | Compares the output of a derivation

@@ -20,13 +20,6 @@ import           Common                         ( Analysis
                                                   ( anaDerivation
                                                   , anaTop
                                                   )
-                                                -- , LMFreezeLeft
-                                                -- , LMFreezeOnly
-                                                -- , LMHorizontalize
-                                                -- , LMSplitLeft
-                                                -- , LMSplitOnly
-                                                -- , LMSplitRight
-                                                -- , LMSplitOnly
                                                 , Leftmost(..)
                                                 , LeftmostDouble(..)
                                                 , LeftmostSingle(..)
@@ -35,14 +28,19 @@ import           Common                         ( Analysis
                                                 , getInner
                                                 )
 import           PVGrammar
-import           PVGrammar.Generate
+import           PVGrammar.Generate             ( applyHori
+                                                , applySplit
+                                                , freezable
+                                                )
 
 import           Control.Monad                  ( guard
                                                 , unless
                                                 , when
                                                 )
 import           Control.Monad.Trans.Class      ( lift )
-import           Control.Monad.Trans.Except
+import           Control.Monad.Trans.Except     ( except
+                                                , runExceptT
+                                                )
 import           Control.Monad.Trans.State      ( StateT
                                                 , execStateT
                                                 )
@@ -56,7 +54,7 @@ import qualified Data.Map.Strict               as M
 import           Data.Maybe                     ( catMaybes
                                                 , fromMaybe
                                                 )
--- import qualified Debug.Trace                   as DT
+import qualified Debug.Trace                   as DT
 import           GHC.Generics                   ( Generic )
 import           Inference.Conjugate
 -- import qualified Inference.Conjugate           as IC
@@ -132,6 +130,7 @@ data PVParamsInner f = PVParamsInner
   , _pRepeatAlterSemis              :: f Beta
   , _pConnect                       :: f Beta
   , _pConnectChromaticLeftOverRight :: f Beta
+  , _pPassUp                        :: f Beta
   , _pPassLeftOverRight             :: f Beta
   , _pNewPassingLeft                :: f Beta
   , _pNewPassingRight               :: f Beta
@@ -211,12 +210,10 @@ trainSinglePiece fn = do
           pure $ getPosterior prior trace (sampleDerivation $ anaTop ana)
 
 sampleDerivation' :: _ => m (Either String [PVLeftmost SPitch])
-sampleDerivation' =
-  sampleDerivation $ PathEnd (Edges (S.singleton (Start, Stop)) MS.empty)
+sampleDerivation' = sampleDerivation $ PathEnd topEdges
 
 observeDerivation' :: [PVLeftmost SPitch] -> Either String (Trace PVParams)
-observeDerivation' deriv =
-  observeDerivation deriv $ PathEnd (Edges (S.singleton (Start, Stop)) MS.empty)
+observeDerivation' deriv = observeDerivation deriv $ PathEnd topEdges
 
 sampleDerivation
   :: _
@@ -761,7 +758,10 @@ sampleNonMidPassing :: _ => SPitch -> SPitch -> m (SPitch, Passing)
 sampleNonMidPassing pl pr = do
   left <-
     sampleValue "passLeftOverRight" Bernoulli $ pInner . pPassLeftOverRight
-  let dirUp = direction (pc pl `pto` pc pr) == GT
+  -- TODO: sampling like this overgenerates, since it allows passing motions to change direction
+  -- the direction of a passing edge should be tracked explicitly!
+  dirUp <- sampleValue "passUp" Bernoulli $ pInner . pPassUp
+  -- let dirUp = direction (pc pl `pto` pc pr) == GT
   if left
     then do
       child <- sampleNeighbor dirUp pl
@@ -773,8 +773,11 @@ sampleNonMidPassing pl pr = do
 observeNonMidPassing :: SPitch -> SPitch -> SPitch -> Passing -> PVObs ()
 observeNonMidPassing pl pr child orn = do
   let left  = orn == PassingLeft
-      dirUp = direction (pc pl `pto` pc pr) == GT
+      dirUp = if left
+        then direction (pc pl `pto` pc child) == GT
+        else direction (pc pr `pto` pc child) == LT
   observeValue "passLeftOverRight" Bernoulli (pInner . pPassLeftOverRight) left
+  observeValue "passUp"            Bernoulli (pInner . pPassUp)            dirUp
   if left
     then observeNeighbor dirUp pl child
     else observeNeighbor (not dirUp) pr child
@@ -783,7 +786,9 @@ sampleNT
   :: _ => (InnerEdge SPitch, Int) -> m (InnerEdge SPitch, [(SPitch, Passing)])
 sampleNT ((pl, pr), n) = do
   -- DT.traceM $ "Elaborating edge (smp): " <> show ((pl, pr), n)
-  children <- permutationPlate n $ case degree $ iabs $ pc pl `pto` pc pr of
+  let dist = degree $ iabs $ pc pl `pto` pc pr
+  -- DT.traceM    $  "passing from "    <> showNotation pl    <> " to "    <> showNotation pr    <> ": "    <> show dist    <> " steps."
+  children <- permutationPlate n $ case dist of
     1 -> sampleChromPassing pl pr
     2 -> do
       connect <- sampleValue "passingConnect" Bernoulli $ pInner . pConnect

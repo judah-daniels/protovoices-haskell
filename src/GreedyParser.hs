@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE GADTs #-}
@@ -8,6 +9,7 @@ module GreedyParser
   ( parseGreedy
   , pickRandom
   , parseRandom
+  , parseRandom'
   ) where
 
 import           Common
@@ -378,6 +380,16 @@ parseRandom eval input = do
   gen  <- lift initStdGen
   mgen <- lift $ newIOGenM gen
   parseGreedy eval (pickRandom mgen) input
+
+parseRandom'
+  :: (Show e', Show a, Show e, Show s, Show f, Show h, StatefulGen g IO)
+  => g
+  -> Eval e e' a a' (Leftmost s f h)
+  -> Path a' e'
+  -> ExceptT String IO (Analysis s f h e a)
+parseRandom' mgen eval input = do
+  parseGreedy eval (pickRandom mgen) input
+
 
 -- data EitherTag = EitherTagLeft | EitherTagRight | EitherTagBoth
 
