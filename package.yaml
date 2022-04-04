@@ -50,6 +50,7 @@ dependencies:
 - filepattern
 - pretty-simple
 - statistics
+- log-domain
 
 library:
   source-dirs: src

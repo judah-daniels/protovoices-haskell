@@ -38,6 +38,7 @@ import           Inference.Conjugate            ( Hyper
                                                 , uniformPrior
                                                 )
 import           Musicology.Pitch               ( SPitch )
+import qualified Numeric.Log                   as Log
 import           PVGrammar                      ( Edge
                                                 , PVAnalysis
                                                 , loadAnalysis
@@ -65,6 +66,7 @@ import           Text.Pretty.Simple             ( CheckColorTty(..)
                                                 , defaultOutputOptionsNoColor
                                                 , pPrintOpt
                                                 )
+import           Text.Printf                    ( printf )
 
 prettyPrint :: (Show a) => a -> IO ()
 prettyPrint = pPrintOpt
@@ -115,21 +117,33 @@ main = do
   putStrLn $ "baseline logppn: " <> show logppnBaseline
   putStrLn $ "baseline perppn: " <> show (exp $ negate logppnBaseline)
   putStrLn $ "prior-posterior Δlogppn:" <> show (logppnPrior - logppnTrained)
+  putStrLn $ printf "logppn (nats) & %.3f & %.3f & %.3f\\\\"
+                    logppnPrior
+                    logppnTrained
+                    logppnBaseline
+  let natsbits = log 2
+  putStrLn $ printf "logppn (bits) & %.3f & %.3f & %.3f\\\\"
+                    (logppnPrior / natsbits)
+                    (logppnTrained / natsbits)
+                    (logppnBaseline / natsbits)
+  putStrLn $ printf "perppn & %.2f & %.2f & %.2f\\\\"
+                    (exp $ negate logppnPrior)
+                    (exp $ negate logppnTrained)
+                    (exp $ negate logppnBaseline)
   -- these numbers don't really make sense because they give too much weight to small test pieces:
   -- putStrLn $ "mean trained logppn: " <> show meanlogppn
   -- putStrLn $ "mean trained perppn: " <> show (exp $ negate meanlogppn)
 
-mainNaive dataset = do
-  let prior = uniformPrior @PVParams
-  posterior <- learn prior dataset
-  -- prettyPrint posterior
-  -- compare probabilities
-  putStrLn "name\t\tprior\t\t\tposterior\t\tdifference"
-  let diffs = predDiff prior posterior <$> dataset
-      total = sum diffs
-  putStrLn $ "total Δlogp: " <> show total
-  putStrLn $ "total Δp: " <> show (exp total)
-
+-- mainNaive dataset = do
+--   let prior = uniformPrior @PVParams
+--   posterior <- learn prior dataset
+--   -- prettyPrint posterior
+--   -- compare probabilities
+--   putStrLn "name\t\tprior\t\t\tposterior\t\tdifference"
+--   let diffs = predDiff prior posterior <$> dataset
+--       total = sum diffs
+--   putStrLn $ "total Δlogp: " <> show total
+--   putStrLn $ "total Δp: " <> show (exp total)
 
 -- loading data
 -- ------------
@@ -189,9 +203,10 @@ leaveOneOut dataset = go dataset [] []
   go []       _    splits = splits
   go (x : xs) done splits = go xs (x : done) ((x, xs <> done) : splits)
 
-derivationLogProb :: Hyper PVParams -> Trace PVParams -> Double
-derivationLogProb hyper trace = logp
-  where Just (_, logp) = evalTracePredLogP hyper trace sampleDerivation'
+-- this doesn't work, stay away from evalTracePredLogP!
+-- derivationLogProb :: Hyper PVParams -> Trace PVParams -> Double
+-- derivationLogProb hyper trace = logp
+--   where Just (_, logp) = evalTracePredLogP hyper trace sampleDerivation'
 
 derivationLogProb'
   :: MWC.GenIO -> Hyper PVParams -> Trace PVParams -> IO Double
@@ -199,30 +214,31 @@ derivationLogProb' gen hyper trace = do
   let n = 50
   probs <- replicateM n $ MWC.sample (sampleProbs @PVParams hyper) gen
   let estimates = mapMaybe
-        (\params -> snd <$> evalTraceLogP params trace sampleDerivation')
+        (\params ->
+          Log.Exp . snd <$> evalTraceLogP params trace sampleDerivation'
+        )
         probs
-  pure $ sum estimates / int2Double (length estimates)
-
+  pure $! Log.ln $! Log.sum estimates / fromIntegral (length estimates)
 
 countNotes :: Path [a] b -> Int
 countNotes (PathEnd notes       ) = length notes
 countNotes (Path notes edges rst) = length notes + countNotes rst
 
-predDiff :: Hyper PVParams -> Hyper PVParams -> Piece -> Double
-predDiff prior posterior (name, _, trace, _) = predPost - predPrior
- where
-  predPrior = derivationLogProb prior trace
-  predPost  = derivationLogProb posterior trace
+-- predDiff :: Hyper PVParams -> Hyper PVParams -> Piece -> Double
+-- predDiff prior posterior (name, _, trace, _) = predPost - predPrior
+--  where
+--   predPrior = derivationLogProb prior trace
+--   predPost  = derivationLogProb posterior trace
 
-comparePredProb :: Hyper PVParams -> ([Piece], [Piece]) -> IO Double
-comparePredProb prior (test, train) = do
-  putStrLn $ "testing on " <> show ((\(name, _, _, _) -> name) <$> test)
-  posterior <- learn prior train
-  let diffs = predDiff prior posterior <$> test
-      total = sum diffs
-  putStrLn $ "  total Δlogp: " <> show total
-  putStrLn $ "  total Δp: " <> show (exp total)
-  pure total
+-- comparePredProb :: Hyper PVParams -> ([Piece], [Piece]) -> IO Double
+-- comparePredProb prior (test, train) = do
+--   putStrLn $ "testing on " <> show ((\(name, _, _, _) -> name) <$> test)
+--   posterior <- learn prior train
+--   let diffs = predDiff prior posterior <$> test
+--       total = sum diffs
+--   putStrLn $ "  total Δlogp: " <> show total
+--   putStrLn $ "  total Δp: " <> show (exp total)
+--   pure total
 
 sampleBaselines
   :: (StatefulGen g IO)

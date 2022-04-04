@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 8f46da942f7c7eb40d027ba8be2cc827f4f03c43c2f8c536c481ff52ce6941cb
+-- hash: 8f1d35908a5c116bf9b432ffb4ed7150d627f63bbcc31d16e3babbdb15b575e6
 
 name:           proto-voice-model
 version:        0.1.0.0
@@ -59,6 +59,7 @@ library
     , fin
     , hashable
     , indexed
+    , log-domain
     , microlens
     , microlens-th
     , mtl
@@ -97,6 +98,7 @@ executable examples
     , fin
     , hashable
     , indexed
+    , log-domain
     , microlens
     , microlens-th
     , mtl
@@ -136,6 +138,7 @@ executable ismir2021
     , fin
     , hashable
     , indexed
+    , log-domain
     , microlens
     , microlens-th
     , mtl
@@ -175,6 +178,7 @@ executable learn
     , fin
     , hashable
     , indexed
+    , log-domain
     , microlens
     , microlens-th
     , mtl
@@ -214,6 +218,7 @@ executable parse
     , fin
     , hashable
     , indexed
+    , log-domain
     , microlens
     , microlens-th
     , mtl
@@ -256,6 +261,7 @@ test-suite proto-voice-model-test
     , fin
     , hashable
     , indexed
+    , log-domain
     , microlens
     , microlens-th
     , mtl
