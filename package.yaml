@@ -51,6 +51,7 @@ dependencies:
 - pretty-simple
 - statistics
 - log-domain
+- matplotlib
 
 library:
   source-dirs: src

@@ -1,5 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE OverloadedStrings #-}
+-- {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE LambdaCase #-}
 module Main where
@@ -23,6 +23,7 @@ import           Data.Maybe                     ( catMaybes
                                                 )
 import qualified Data.Vector                   as V
 import           GHC.Float                      ( int2Double )
+import qualified Graphics.Matplotlib           as Plt
 import qualified GreedyParser                  as Greedy
 import           Inference.Conjugate            ( Hyper
                                                 , HyperRep
@@ -76,12 +77,20 @@ prettyPrint = pPrintOpt
 dataDir :: FilePath
 dataDir = "data/"
 
-main :: IO ()
-main = do
+main = mainLearn
+
+nBaselines :: Int
+nBaselines = 100 -- default: 100
+
+nSamples :: Int
+nSamples = 250 -- default: 250
+
+mainLearn :: IO ()
+mainLearn = do
   -- initialize
   genPure <- initStdGen
   gen     <- newIOGenM genPure
-  genMWC  <- MWC.create -- fixed seed
+  genMWC  <- MWC.create -- uses a fixed seed
   let prior = uniformPrior @PVParams
   -- load data
   articleExamples <- loadDir
@@ -92,6 +101,7 @@ main = do
   Just bwv940 <- loadItem (dataDir </> "bach" </> "fünf-kleine-präludien")
                           "BWV_0940"
   let dataset = bwv939 : bwv940 : articleExamples
+  -- let dataset = take 3 articleExamples
   putStrLn "list of pieces:"
   forM_ dataset $ \(name, _ana, _trace, _surface) -> do
     putStrLn $ "  " <> name
@@ -101,15 +111,20 @@ main = do
   -- cross validation
   let splits = leaveOneOut dataset
   crossPerps <- forM splits (comparePerNote gen genMWC prior)
-  let (logpPriors, logpPosts, counts, basemeans) = unzip4 crossPerps
-      count          = sum counts
-      logppnPrior    = sum logpPriors / count
-      logppnTrained  = sum logpPosts / count
-      logppnBaseline = sum basemeans / count
-      -- normalized per split (this gives too much weight to small test pieces)
-      logppns        = fmap (\(_, logp, count, _) -> logp / count) crossPerps
-      nsplits        = int2Double $ length splits
-      meanlogppn     = sum logppns / nsplits
+  let (logpPriors, logpPosts, counts, basemeans, baselines) =
+        L.unzip5 crossPerps
+      count           = sum counts
+      logppnPrior     = sum logpPriors / count
+      logppnTrained   = sum logpPosts / count
+      logppnBaseline  = sum basemeans / count
+      -- look at each split
+      logppns         = zipWith (/) logpPosts counts -- fmap (\(_, logp, count, _, _) -> logp / count) crossPerps
+      baselinelogppns = zipWith (\bs n -> (/ n) <$> bs) baselines counts
+      testpieces      = fst <$> splits
+      testnames       = (\(name, _, _, _) -> name) <$> testpieces
+  showSplits logppns baselinelogppns counts testnames
+      -- nsplits         = int2Double $ length splits
+      -- meanlogppn      = sum logppns / nsplits
   putStrLn $ "prior logppn: " <> show logppnPrior
   putStrLn $ "prior perppn: " <> show (exp $ negate logppnPrior)
   putStrLn $ "overall trained logppn: " <> show logppnTrained
@@ -130,20 +145,25 @@ main = do
                     (exp $ negate logppnPrior)
                     (exp $ negate logppnTrained)
                     (exp $ negate logppnBaseline)
-  -- these numbers don't really make sense because they give too much weight to small test pieces:
-  -- putStrLn $ "mean trained logppn: " <> show meanlogppn
-  -- putStrLn $ "mean trained perppn: " <> show (exp $ negate meanlogppn)
 
--- mainNaive dataset = do
---   let prior = uniformPrior @PVParams
---   posterior <- learn prior dataset
---   -- prettyPrint posterior
---   -- compare probabilities
---   putStrLn "name\t\tprior\t\t\tposterior\t\tdifference"
---   let diffs = predDiff prior posterior <$> dataset
---       total = sum diffs
---   putStrLn $ "total Δlogp: " <> show total
---   putStrLn $ "total Δp: " <> show (exp total)
+testEstimator = do
+  (long, short)   <- loadExamples
+  articleExamples <- loadDir
+    (dataDir </> "theory-article")
+    ["05b_cello_prelude_1-4", "09a_hinunter", "03_bwv784_pattern"]
+  Just bwv939 <- loadItem (dataDir </> "bach" </> "fünf-kleine-präludien")
+                          "BWV_0939"
+  Just bwv940 <- loadItem (dataDir </> "bach" </> "fünf-kleine-präludien")
+                          "BWV_0940"
+  let dataset = bwv939 : bwv940 : articleExamples
+  genMWC <- MWC.createSystemRandom
+  let prior = uniformPrior @PVParams
+  posteriorTotal <- learn prior dataset
+  estimates      <- derivationLogProb genMWC posteriorTotal long
+  -- let means = meanOfLogs <$> tail (L.inits estimates)
+  -- -- print means
+  -- Plt.onscreen $ Plt.line [1 .. length means] means
+  print $ meanOfLogs estimates
 
 -- loading data
 -- ------------
@@ -179,6 +199,15 @@ loadDir dir exclude = do
   items <- mapM (loadItem dir) names
   pure $ catMaybes items
 
+loadExamples :: IO (Trace PVParams, Trace PVParams)
+loadExamples = do
+  Just (_, _, bwv940Trace, _) <- loadItem
+    (dataDir </> "bach" </> "fünf-kleine-präludien")
+    "BWV_0940"
+  Just (_, _, rareTrace, _) <- loadItem (dataDir </> "theory-article")
+                                        "10c_rare_int"
+  pure (bwv940Trace, rareTrace)
+
 -- learning
 -- --------
 
@@ -203,42 +232,28 @@ leaveOneOut dataset = go dataset [] []
   go []       _    splits = splits
   go (x : xs) done splits = go xs (x : done) ((x, xs <> done) : splits)
 
--- this doesn't work, stay away from evalTracePredLogP!
--- derivationLogProb :: Hyper PVParams -> Trace PVParams -> Double
--- derivationLogProb hyper trace = logp
---   where Just (_, logp) = evalTracePredLogP hyper trace sampleDerivation'
+derivationLogProb
+  :: MWC.GenIO -> Hyper PVParams -> Trace PVParams -> IO [Double]
+derivationLogProb gen hyper trace = do
+  probs <- replicateM nSamples $ MWC.sample (sampleProbs @PVParams hyper) gen
+  let estimates = mapMaybe
+        (\params -> snd <$> evalTraceLogP params trace sampleDerivation')
+        probs
+  pure $! estimates
 
 derivationLogProb'
   :: MWC.GenIO -> Hyper PVParams -> Trace PVParams -> IO Double
 derivationLogProb' gen hyper trace = do
-  let n = 50
-  probs <- replicateM n $ MWC.sample (sampleProbs @PVParams hyper) gen
-  let estimates = mapMaybe
-        (\params ->
-          Log.Exp . snd <$> evalTraceLogP params trace sampleDerivation'
-        )
-        probs
-  pure $! Log.ln $! Log.sum estimates / fromIntegral (length estimates)
+  estimates <- derivationLogProb gen hyper trace
+  pure $! meanOfLogs estimates
+
+meanOfLogs :: (RealFloat b, Foldable t, Functor t) => t b -> b
+meanOfLogs logs =
+  Log.ln $! Log.sum (Log.Exp <$> logs) / fromIntegral (length logs)
 
 countNotes :: Path [a] b -> Int
 countNotes (PathEnd notes       ) = length notes
 countNotes (Path notes edges rst) = length notes + countNotes rst
-
--- predDiff :: Hyper PVParams -> Hyper PVParams -> Piece -> Double
--- predDiff prior posterior (name, _, trace, _) = predPost - predPrior
---  where
---   predPrior = derivationLogProb prior trace
---   predPost  = derivationLogProb posterior trace
-
--- comparePredProb :: Hyper PVParams -> ([Piece], [Piece]) -> IO Double
--- comparePredProb prior (test, train) = do
---   putStrLn $ "testing on " <> show ((\(name, _, _, _) -> name) <$> test)
---   posterior <- learn prior train
---   let diffs = predDiff prior posterior <$> test
---       total = sum diffs
---   putStrLn $ "  total Δlogp: " <> show total
---   putStrLn $ "  total Δp: " <> show (exp total)
---   pure total
 
 sampleBaselines
   :: (StatefulGen g IO)
@@ -248,7 +263,7 @@ sampleBaselines
   -> Piece
   -> IO [Double]
 sampleBaselines gen genMWC posterior (name, _, _, surface) = do
-  derivsTry <- replicateM 100 $ runExceptT $ Greedy.parseRandom'
+  derivsTry <- replicateM nBaselines $ runExceptT $ Greedy.parseRandom'
     gen
     protoVoiceEvaluator
     surface
@@ -272,15 +287,13 @@ comparePerNote
   -> MWC.GenIO
   -> Hyper PVParams
   -> (Piece, [Piece])
-  -> IO (Double, Double, Double, Double)
+  -> IO (Double, Double, Double, Double, [Double])
 comparePerNote gen genMWC prior (test@(tstName, _, tstTrace, tstSurface), train)
   = do
     putStrLn $ "testing on " <> tstName
     posterior <- learn prior train
     -- compute normalized logprobs
     let nnotes = int2Double $ countNotes tstSurface
-        -- logpPrior   = derivationLogProb' genMWC prior tstTrace
-        -- logpPost    = derivationLogProb' genMWC posterior tstTrace
     logpPrior <- derivationLogProb' genMWC prior tstTrace
     logpPost  <- derivationLogProb' genMWC posterior tstTrace
     let logppnPrior = logpPrior / nnotes
@@ -300,10 +313,30 @@ comparePerNote gen genMWC prior (test@(tstName, _, tstTrace, tstSurface), train)
     putStrLn $ "  perplexity prior: " <> show (exp $ negate logppnPrior)
     putStrLn $ "  perplexity posterior: " <> show (exp $ negate logppnPost)
     putStrLn $ "  Δlogppn: " <> show (logppnPost - logppnPrior) <> " nats"
-    pure (logpPrior, logpPost, nnotes, basemean)
+    pure (logpPrior, logpPost, nnotes, basemean, baselines)
 
+-- plotting
+-- --------
 
--- logpPerNote hyper pieces = sum logs / int2Double (sum counts)
---  where
---   logs   = fmap (\(_, _, trace, _) -> derivationLogProb hyper trace) pieces
---   counts = fmap (\(_, _, _, surface) -> countNotes surface) pieces
+a % b = a Plt.% Plt.mp Plt.# b
+infixl 5 %
+
+showSplits
+  :: [Double] -> [[Double]] -> [Double] -> [String] -> IO (Either String String)
+showSplits logppns blogppns counts testpieces =
+  Plt.file "splits.svg"
+    $ Plt.readData (logppns, blogppns, counts, testpieces)
+    % "import numpy as np"
+    % "import pandas as pd"
+    % "import seaborn as sns"
+    % "(logppns, blogppns, counts, pieces) = tuple(map(np.array, data))"
+    % "baselines = pd.concat([pd.DataFrame({'logppn': bppns, 'piece': piece}) for bppns, piece in zip(blogppns, pieces)])"
+    % "testscores = pd.DataFrame({'logppn': logppns, 'piece': pieces})"
+    % "colors = sns.color_palette()"
+    % "fig, ax = plot.subplots(figsize=(10,5))"
+    % "sns.boxplot(ax=ax, y='piece', x='logppn', data=baselines, whis=(2,98), color=colors[0], fliersize=4)"
+    % "sns.scatterplot(ax=ax, y='piece', x='logppn', data=testscores, color=colors[1])"
+    % "ax.invert_yaxis()"
+    % "fig.tight_layout()"
+    % "fig.savefig('splits.pdf')"
+    % "fig.savefig('splits.png')"
