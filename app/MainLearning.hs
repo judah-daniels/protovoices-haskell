@@ -46,11 +46,14 @@ import           PVGrammar                      ( Edge
                                                 , loadInput
                                                 , topEdges
                                                 )
-import           PVGrammar.Parse                ( protoVoiceEvaluator )
+import           PVGrammar.Parse                ( protoVoiceEvaluator
+                                                , pvCountUnrestricted
+                                                )
 import           PVGrammar.Prob.Simple          ( PVParams(PVParams)
                                                 , observeDerivation'
                                                 , sampleDerivation'
                                                 )
+import qualified Parser
 import qualified Statistics.Sample             as Stats
 import           System.FilePath                ( (<.>)
                                                 , (</>)
@@ -164,6 +167,12 @@ testEstimator = do
   -- -- print means
   -- Plt.onscreen $ Plt.line [1 .. length means] means
   print $ meanOfLogs estimates
+
+countRareIntDerivs = do
+  Just (_, _, _, surface) <- loadItem (dataDir </> "theory-article")
+                                      "10c_rare_int"
+  count <- Parser.parseSize pvCountUnrestricted surface
+  print count
 
 -- loading data
 -- ------------
@@ -310,6 +319,8 @@ comparePerNote gen genMWC prior (test@(tstName, _, tstTrace, tstSurface), train)
       <> show basemeanpn
       <> ", std="
       <> show basestdpn
+    putStrLn $ "  baselines top 5: " <> show
+      (drop 95 $ (/ nnotes) <$> L.sort baselines)
     putStrLn $ "  perplexity prior: " <> show (exp $ negate logppnPrior)
     putStrLn $ "  perplexity posterior: " <> show (exp $ negate logppnPost)
     putStrLn $ "  Δlogppn: " <> show (logppnPost - logppnPrior) <> " nats"

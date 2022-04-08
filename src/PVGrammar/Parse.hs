@@ -11,6 +11,7 @@ module PVGrammar.Parse
   , pvCount''
   , pvCount'
   , pvCount
+  , pvCountUnrestricted
   , protoVoiceEvaluator
   , protoVoiceEvaluatorNoRepSplit
   ) where
@@ -446,6 +447,11 @@ pvDeriv
        (Derivations (PVLeftmost n))
 pvDeriv =
   splitFirst $ rightBranchHori $ mapEvalScore Do protoVoiceEvaluatorNoRepSplit
+
+pvCountUnrestricted
+  :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n)
+  => Eval (Edges n) (t (Edge n)) (Notes n) (t2 n) Int
+pvCountUnrestricted = mapEvalScore (const 1) protoVoiceEvaluator
 
 pvCount''
   :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n)

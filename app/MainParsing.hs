@@ -301,7 +301,7 @@ logFull tc vc n = do
   putStrLn $ "level " <> show n
   putStrLn "\ntransitions:"
   mapM_ print $ tcGetByLength tc n
-  putStrLn "\nslices:"
+  putStrLn "\nverticalizations:"
   mapM_ print $ vcGetByLength vc (n - 1)
 
 mainResult
@@ -326,4 +326,17 @@ mainHaydn = do
   print derivs
   putStrLn "done."
 
-main = mainHaydn
+mainRare = do
+  slices <- slicesFromFile "data/theory-article/10c_rare_int.musicxml"
+  derivs <- parse logFull pvDerivUnrestricted $ slicesToPath slices
+  pure ()
+  -- let ds = S.toList $ flattenDerivations derivs
+  -- pics <- forM ds $ \d -> case replayDerivation derivationPlayerPV d of
+  --   Left err -> do
+  --     putStrLn err
+  --     print d
+  --     return Nothing
+  --   Right g -> return $ Just g
+  -- viewGraphs "rare.tex" $ catMaybes pics
+
+main = mainRare
