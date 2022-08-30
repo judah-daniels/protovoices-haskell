@@ -52,7 +52,7 @@ extra-deps:
 #   - musicology-pitch
 #   - musicology-core
 #   - musicology-musicxml
-- ../inference/conjugate-programs/ # TODO: make this refer to a git repo
+- ../conjugate-haskell-programs/ # TODO: make this refer to a git repo
 
 # newer version of random
 - random-1.2.1@sha256:8bee24dc0c985a90ee78d94c61f8aed21c49633686f0f1c14c5078d818ee43a2,6598

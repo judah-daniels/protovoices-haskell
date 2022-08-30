@@ -327,7 +327,7 @@ mainHaydn = do
   putStrLn "done."
 
 mainRare = do
-  slices <- slicesFromFile "data/theory-article/10c_rare_int.musicxml"
+  slices <- slicesFromFile "testdata/allemande.musicxml"
   derivs <- parse logFull pvDerivUnrestricted $ slicesToPath slices
   pure ()
   -- let ds = S.toList $ flattenDerivations derivs
