@@ -327,4 +327,4 @@ mainRare = do
     Right g -> return $ Just g
   viewGraphs "rare.tex" $ catMaybes pics
 
-main = mainRare
+main = mainMozart

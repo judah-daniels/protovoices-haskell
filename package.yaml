@@ -55,6 +55,7 @@ dependencies:
 - statistics
 - log-domain
 - matplotlib
+- bytestring
 
 language: GHC2021
 
@@ -86,6 +87,16 @@ executables:
     
   examples:
     main:                app/MainExamples.hs
+    #source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - proto-voice-model
+  
+  judah:
+    main:                app/MainJudah.hs
     #source-dirs:         app
     ghc-options:
     - -threaded
