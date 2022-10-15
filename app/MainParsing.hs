@@ -338,5 +338,10 @@ mainRare = do
   --     return Nothing
   --   Right g -> return $ Just g
   -- viewGraphs "rare.tex" $ catMaybes pics
+  --
+mainMozart = do
+  slices <- slicesFromFile "testdata/simpletest.musicxml"
+  derivs <- parse logFull pvDerivUnrestricted $ slicesToPath slices
+  pure ()
 
-main = mainRare
+main = mainMozart
