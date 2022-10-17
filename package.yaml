@@ -16,7 +16,6 @@ extra-doc-files:
 # Metadata used when publishing your package
 # synopsis:            Short description of your package
 # category:            Web
-
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
 # common to point users to the README.md file.
@@ -56,6 +55,7 @@ dependencies:
 - log-domain
 - matplotlib
 - bytestring
+- cassava 
 
 language: GHC2021
 
@@ -97,6 +97,16 @@ executables:
   
   judah:
     main:                app/MainJudah.hs
+    #source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - proto-voice-model
+
+  csvtest:
+    main:                app/MainCSVTest.hs
     #source-dirs:         app
     ghc-options:
     - -threaded
