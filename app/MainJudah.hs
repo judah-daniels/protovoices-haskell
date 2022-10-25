@@ -38,6 +38,7 @@ import qualified Musicology.Core.Slicing as Music
 import Musicology.MusicXML
 import qualified Musicology.MusicXML as MusicXML
 import Musicology.Pitch.Spelled as MT
+
 import PVGrammar hiding
   ( slicesFromFile,
   )
@@ -71,7 +72,7 @@ mainParseStep = do
   print result
   case result of
     Left err -> print err
-    Right (Analysis a b) -> plotDeriv "321sus-parsed.tex" a
+    Right (Analysis a topslice) -> plotDeriv "321sus-parsed.tex" a 
 
 searchStep
   :: forall m e e' a a' s f h
