@@ -425,7 +425,6 @@ data ActionDouble a e s f h = ActionDouble ( StartStop a
   deriving Show
 
 
-
 plotDeriv fn deriv = do
   case replayDerivation derivationPlayerPV deriv of
     (Left  err) -> putStrLn err
