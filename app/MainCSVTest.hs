@@ -3,12 +3,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
--- CSV Imports
 import Control.Applicative
 import qualified Data.ByteString.Lazy as BL
 import Data.Csv
+import Data.List.Split
 -- Musicology imports
 import qualified Data.Map.Strict as DM
+import Data.Maybe
 import Data.Ratio
 import qualified Data.Vector as V
 import qualified Musicology.Core as Music
@@ -40,10 +41,9 @@ instance FromField Bool where
 
 -- | Data Structure for parsing individual notes
 data SalamiNote = SalamiNote
-  { _segment_id :: !Int,
-    _slice_id :: !Int,
-    _midi :: !Int,
-    _tpc :: !Int,
+  { _new_segment :: !Bool,
+    _new_slice :: !Bool,
+    _pitch :: !String,
     _tied :: !Music.RightTied
   }
 
@@ -58,10 +58,9 @@ data ChordLabel = ChordLabel
 instance FromNamedRecord SalamiNote where
   parseNamedRecord r =
     SalamiNote
-      <$> r .: "segment_id"
-      <*> r .: "slice_id"
-      <*> r .: "midi"
-      <*> r .: "tpc"
+      <$> r .: "new_segment"
+      <*> r .: "new_slice"
+      <*> r .: "pitch"
       <*> r .: "tied"
 
 instance FromNamedRecord ChordLabel where
@@ -77,26 +76,30 @@ main = do
   slices <- slicesFromFile "preprocessing/salamis.csv"
   chords <- chordsFromFile "preprocessing/chords.csv"
 
-  print $ DM.lookup 0 slices
-  print $ DM.lookup 1 slices
-  print $ DM.lookup 2 slices
-  print $ DM.lookup 3 slices
+  printSlicesWithLabels slices chords
 
-  -- print $ chords !! 1
-
-  mapM_ (putStrLn . printLine chords slices) [0 .. 10]
+-- | Prints out the chords and corresponding slices for debugging.
+printSlicesWithLabels :: [[Slice]] -> [Chord] -> IO ()
+printSlicesWithLabels slices chords = do
+  mapM_ (printLine chords slices) [0 .. 10]
   where
-    printLine chords slices i = chords !! i <> ": " <> show (DM.lookup i slices)
+    printSlice :: Slice -> IO ()
+    printSlice slice = do
+      print slice
 
--- putStrLn $ head chords
+    printSegment :: [Slice] -> IO ()
+    printSegment segment = do
+      mapM_ printSlice segment
+    -- mapM_ (show) [0 .. (DM.size segment)]
+    printLine :: [Chord] -> [[Slice]] -> Int -> IO ()
+    printLine chords slices i = do
+      putStrLn $ chords !! i <> ": "
+      printSegment (slices !! i)
 
--- chordData <- BL.readFile "preprocessing/chords.csv"
--- case decodeByName salamiData of
---   Left err -> putStrLn err
---   Right (_, v) -> print $ take 3 $ mkSlices (V.toList $ fmap noteFromSalami v)
-
+-- | Data type for a chord Label. TODO specialise this datatype.
 type Chord = String
 
+-- | Loads chord annotations from filepath
 chordsFromFile :: FilePath -> IO [Chord]
 chordsFromFile file = do
   txt <- BL.readFile file
@@ -110,66 +113,42 @@ chordsFromFile file = do
 -- | Datatype for a slice
 type Slice = [(SPitch, Music.RightTied)]
 
-slicesFromFile :: FilePath -> IO (DM.Map Int (DM.Map Int Slice))
--- slicesFromFile :: FilePath -> IO (DM.Map Int [(SPitch, Music.RightTied, Int)])
+-- [(SPitch, RightTied, SegmentID, sliceId)] -> []
+
+-- | Loads slices from filepath
+-- slicesFromFile :: FilePath -> IO (DM.Map Int (DM.Map Int Slice))
+slicesFromFile :: FilePath -> IO [[Slice]]
 slicesFromFile file = do
   txt <- BL.readFile file
   case decodeByName txt of
-    Left err -> pure DM.empty
+    Left err -> pure []
     Right (_, v) -> do
       let notes = fmap noteFromSalami (V.toList v)
-          segmentedNotesList = segmentNotes <$> notes
-          segmentedNotes = DM.fromAscListWith (++) segmentedNotesList
-          segmentedSlices = DM.map mapFromSlices segmentedNotes -- Combine slices within segments
+          segmentedNotes :: [[(SPitch, Music.RightTied, Bool, Bool)]]
+          segmentedNotes = splitWhen (\(_, _, newSeg, _) -> newSeg) notes
+          segmentedNotes' = (map . map) (\(s, t, _, n) -> (s, t, n)) segmentedNotes
+          segmentedSlices :: [[Slice]]
+          segmentedSlices = map (((map . map) (\(s, t, _) -> (s, t))) . splitWhen (\(_, _, newSlice) -> newSlice)) segmentedNotes'
       pure segmentedSlices
-  where
-    segmentNotes (sPitch, tied, segmentId, sliceId) = (segmentId, [(sPitch, tied, sliceId)])
-    mapFromSlices segment = DM.fromAscListWith (++) (segmentSlices <$> segment)
-    segmentSlices (sPitch, tied, sliceId) = (sliceId, [(sPitch, tied)])
 
-noteFromSalami :: SalamiNote -> (SPitch, Music.RightTied, Int, Int)
-noteFromSalami s = (sPitch, tied, segmentId, sliceId)
+-- where
+
+-- segmentNotes (sPitch, tied, segmentId, sliceId) = (segmentId, [(sPitch, tied, sliceId)])
+
+--         segmentedNotesList = segmentNotes <$> notes
+--         segmentedNotes = DM.fromAscListWith (++) segmentedNotesList
+--         segmentedSlices = DM.map mapFromSlices segmentedNotes -- Combine slices within segments
+--     pure segmentedSlices
+-- where
+--   segmentNotes (sPitch, tied, segmentId, sliceId) = (segmentId, [(sPitch, tied, sliceId)])
+--   mapFromSlices segment = DM.fromAscListWith (++) (segmentSlices <$> segment)
+--   segmentSlices (sPitch, tied, sliceId) = (sliceId, [(sPitch, tied)])
+
+-- Parse a salami note as output from the python salalmis package.
+noteFromSalami :: SalamiNote -> (SPitch, Music.RightTied, Bool, Bool)
+noteFromSalami s = (sPitch, tied, newSegment, newSlice)
   where
-    segmentId = _segment_id s
-    sliceId = _slice_id s
+    newSegment = _new_segment s
+    newSlice = _new_slice s
     tied = _tied s
-    oct = div (_midi s) 12
-    tpc = _tpc s
-    sPitch = spelledp tpc oct
-
--- mkSlices :: [Music.Note SInterval Float] -> [[(Music.Pitch , Music.RightTied)]]
--- mkSlices notes = slices
---   where
---     slices = Music.slicePiece Music.tiedSlicer notes
--- sliceFromSalami ::
---   [SalamiNote] ->
---   [[(Pitch MidiInterval, Music.RightTied)]]
--- sliceFromSalami salamiNotes =
---   mkSlice <$> filter (not . null) slices
---   where
---     notes = noteFromSalami <$> salamiNotes
---     slices = Music.slicePiece Music.tiedSlicer notes
---     mkSlice notes = mkNote <$> notes
---     mkNote (note, tie) = (Music.pitch note, Music.rightTie tie)
-
--- noteFromSalami :: SalamiNote -> (Music.Note (Music.IntervalOf SPitch) Float, Music.RightTied)
--- noteFromSalami s = (Music.Note sPitch onset offset, tied')
---   where
---     oct = div (midi s) 12
---     tpc' = tpc s
---     tied' = tied s
---     sPitch = spelledp tpc' oct
---     onset = onset_slice_start s
---     offset = onset_slice_end s
-
--- (onset, offset) = _onset_slice s
-
--- 0 0 = C0  = 0
--- 0 1 = C1  = 24
--- 0 2 = C2  = 36
--- 0 3 = C3  = 48
--- 2 4 = D4  = 62
--- 2 5 = D6  = 86
--- 2 6 = D7
--- 1 6 = G6
---
+    sPitch = Data.Maybe.fromMaybe undefined (readNotation $ _pitch s) -- Refactor to deal with maybe
