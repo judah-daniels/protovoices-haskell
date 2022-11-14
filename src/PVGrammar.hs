@@ -310,6 +310,7 @@ instance Semigroup HoriDirection where
 instance Monoid HoriDirection where
   mempty = ToBoth
 
+-- TODO: rename this
 -- | Represents a horzontalization operation.
 -- Records for every pitch how it is distributed (see 'HoriDirection').
 -- The resulting edges (repetitions and passing edges) are represented in a child transition.
@@ -483,12 +484,12 @@ leftmostTraversePitch
   -> Leftmost (Split n) Freeze (Hori n)
   -> f (Leftmost (Split n') Freeze (Hori n'))
 leftmostTraversePitch f lm = case lm of
-  LMSplitLeft     s  -> LMSplitLeft <$> splitTraversePitch f s
-  LMSplitRight    s  -> LMSplitRight <$> splitTraversePitch f s
-  LMSplitOnly     s  -> LMSplitOnly <$> splitTraversePitch f s
-  LMFreezeLeft    fr -> pure $ LMFreezeLeft fr
-  LMFreezeOnly    fr -> pure $ LMFreezeOnly fr
-  LMHorizontalize h  -> LMHorizontalize <$> horiTraversePitch f h
+  LMSplitLeft  s  -> LMSplitLeft <$> splitTraversePitch f s
+  LMSplitRight s  -> LMSplitRight <$> splitTraversePitch f s
+  LMSplitOnly  s  -> LMSplitOnly <$> splitTraversePitch f s
+  LMFreezeLeft fr -> pure $ LMFreezeLeft fr
+  LMFreezeOnly fr -> pure $ LMFreezeOnly fr
+  LMSpread     h  -> LMSpread <$> spreadTraversePitch f h
 
 splitTraversePitch
   :: forall f n n'
@@ -519,9 +520,9 @@ splitTraversePitch f (SplitOp ts nts ls rs kl kr pl pr) = do
       cs' <- traverse (\(n, o) -> (, o) <$> f n) cs
       pure (e', cs')
 
-horiTraversePitch
+spreadTraversePitch
   :: (Applicative f, Eq n', Hashable n') => (n -> f n') -> Hori n -> f (Hori n')
-horiTraversePitch f (HoriOp dist edges) = do
+spreadTraversePitch f (HoriOp dist edges) = do
   dist'  <- traverse (\(k, v) -> (, v) <$> f k) $ HM.toList dist
   edges' <- edgesTraversePitch f edges
   pure $ HoriOp (HM.fromListWith (<>) dist') edges'

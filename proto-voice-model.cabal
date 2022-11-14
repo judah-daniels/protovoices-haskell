@@ -1,10 +1,10 @@
-cabal-version: 1.12
+cabal-version: 1.18
 
--- This file has been generated from package.yaml by hpack version 0.34.4.
+-- This file has been generated from package.yaml by hpack version 0.35.0.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: b233b45ce9aaf22d12f9e32d68b2213eb41af2e00bc8e5b9e94211507eee4f03
+-- hash: 761b09bd4f4d021c7a5ff007faa03893909ba814d88e5413f97b32d0c6c966e1
 
 name:           proto-voice-model
 version:        0.1.0.0
@@ -20,6 +20,8 @@ build-type:     Simple
 extra-source-files:
     README.md
     ChangeLog.md
+extra-doc-files:
+    doc-images/monadic-deriv.svg
 
 source-repository head
   type: git

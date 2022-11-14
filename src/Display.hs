@@ -121,8 +121,8 @@ replayDerivationStep player = applyRule
     (pl, pt, pr) <- popSurface
     t            <- lift $ dpFreeze player f pt
     pushClosed (pl, t, pr)
-  applyRule (LMFreezeOnly    f) = applyRule $ LMFreezeLeft f
-  applyRule (LMHorizontalize h) = do
+  applyRule (LMFreezeOnly f) = applyRule $ LMFreezeLeft f
+  applyRule (LMSpread     h) = do
     (lpl, lpt, pm ) <- popSurface
     (_  , rpt, rpr) <- popSurface
     let (depthl, _, _      ) = lpl

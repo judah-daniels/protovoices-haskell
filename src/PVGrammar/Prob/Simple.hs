@@ -252,10 +252,10 @@ sampleDerivation top = runExceptT $ go Start top False
         (ctl, cs, ctr) <- except $ applySplit splitOp tr
         nextSteps      <- go sl (Path tl sm (Path ctl cs (mkrest ctr))) True
         pure $ LMSplitRight splitOp : nextSteps
-      LMDoubleHori horiOp -> do
+      LMDoubleSpread horiOp -> do
         (ctl, csl, ctm, csr, ctr) <- except $ applyHori horiOp tl sm tr
         nextSteps <- go sl (Path ctl csl (Path ctm csr (mkrest ctr))) False
-        pure $ LMHorizontalize horiOp : nextSteps
+        pure $ LMSpread horiOp : nextSteps
 
 observeDerivation
   :: [PVLeftmost SPitch]
@@ -301,7 +301,7 @@ observeDerivation deriv top = execStateT (go Start top False deriv)
         LMDoubleSplitRight splitOp -> do
           (ctl, cs, ctr) <- lift $ applySplit splitOp tr
           go sl (Path tl sm $ Path ctl cs $ mkRest ctr) True rest
-        LMDoubleHori horiOp -> do
+        LMDoubleSpread horiOp -> do
           (ctl, csl, ctm, csr, ctr) <- lift $ applyHori horiOp tl sm tr
           go sl (Path ctl csl $ Path ctm csr $ mkRest ctr) False rest
 
@@ -348,7 +348,7 @@ sampleDoubleStep parents@(sliceL, transL, sliceM, transR, sliceR) afterRightSpli
         sampleValue "shouldSplitRight" Bernoulli $ pOuter . pDoubleRightSplit
       if shouldSplitRight
         then LMDoubleSplitRight <$> sampleSplit (Inner sliceM, transR, sliceR)
-        else LMDoubleHori <$> sampleHori parents
+        else LMDoubleSpread <$> sampleHori parents
     else do
       continueLeft <-
         sampleValue "continueLeft" Bernoulli $ pOuter . pDoubleLeft
@@ -396,7 +396,7 @@ observeDoubleStep parents@(sliceL, transL, sliceM, transR, sliceR) afterRightSpl
                    (pOuter . pDoubleRightSplit)
                    True
       observeSplit (Inner sliceM, transR, sliceR) s
-    LMDoubleHori h -> do
+    LMDoubleSpread h -> do
       unless afterRightSplit
         $ observeValue "continueLeft" Bernoulli (pOuter . pDoubleLeft) False
       observeValue "shouldSplitRight"

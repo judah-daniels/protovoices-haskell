@@ -15,8 +15,16 @@
 {-# LANGUAGE ConstrainedClassMethods #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# OPTIONS_GHC -Wno-partial-type-signatures #-}
+
+-- | Common types and functionality that are used throughout the model.
 module Common
-  ( Path(..)
+  ( -- * Paths #paths#
+    --
+    -- | Paths encode sequences of alternating objects (such as nodes and edges).
+    -- They are often used to encode sequences of slices and transitions.
+    -- Note that dependending on context,
+    -- both slice-transition-slice and transition-slice-transition orders are used.
+    Path(..)
   , pathLen
   , pathHead
   , pathSetHead
@@ -25,6 +33,9 @@ module Common
   , mapEdges
   , reversePath
   , pathNodes
+  -- * StartStop #startstop#
+  --
+  -- | 'StartStop' is a wrapper that augments a type with special values for beginning and end.
   , StartStop(..)
   , onlyInner
   , getInner
@@ -33,48 +44,76 @@ module Common
   , isStart
   , isStop
   , distStartStop
+  -- * Evaluators #evals#
+  --
+  -- | Evaluators ('Eval') are the main parsing interface for a grammar.
+  -- They bundle a number of functions that compute local "completions"
+  -- (i.e., parent objects and generative operations)
+  -- from child objects.
+  -- Parsers use these evaluators to generically parse an input sequence
+  -- since all the grammar-specific parsing code is provided by the evaluator.
+  --
+  -- Evaluators can be transformed and combined using 'mapEvalScore' and 'productEval' respectively.
   , SplitType(..)
-  , VertMiddle
-  , VertLeft
-  , VertRight
-  , Merge
+  , UnspreadMiddle
+  , UnspreadLeft
+  , UnspreadRight
+  , Unsplit
   , Eval(..)
   , mapEvalScore
   , productEval
-  , RightBranchHori(..)
-  , evalRightBranchHori
-  , rightBranchHori
+  -- * Special Restricting Evaluators #special-evals#
+  --
+  -- | Some special evaluators that can be combined with grammar-specific evaluators
+  -- to restrict the possibile derivations.
+  , RightBranchSpread(..)
+  , evalRightBranchSpread
+  , rightBranchSpread
   , Merged(..)
-  , evalSplitBeforeHori
+  , evalSplitBeforeSpread
   , splitFirst
+  -- * Leftmost Derivations #leftmost#
+  --
+  -- | Derivations can be represented as lists of operations in leftmost-first order.
+  -- In this order, each operation (split, spread, or freeze)
+  -- is applied to the leftmost non-terminal transition(s).
+  --
+  -- $leftmostdoc
   , Leftmost
     ( LMDouble
     , LMFreezeLeft
     , LMFreezeOnly
-    , LMHorizontalize
     , LMSingle
     , LMSplitLeft
     , LMSplitOnly
     , LMSplitRight
+    , LMSpread
     )
   , LeftmostSingle(..)
   , LeftmostDouble(..)
   , Analysis(..)
   , debugAnalysis
   , mkLeftmostEval
-  , PartialDeriv(..)
+  -- * Monadic Interface for Constructing Derivations #monadicDeriv#
+  --
+  -- $monadicdoc
+  , PartialDerivation(..)
   , itell
   , buildDerivation
   , buildPartialDerivation
   , split
   , freeze
   , splitRight
-  , hori
+  , spread
+  -- * Derivations Semiring #derivSemiring#
+  --
+  -- | A generic semiring that represents a collection of derivations as prefix trees.
   , Derivations(..)
   , mapDerivations
   , flattenDerivations
   , flattenDerivationsRed
   , firstDerivation
+  -- * Utilities #utils#
   , traceLevel
   , traceIf
   , showTex
@@ -106,6 +145,7 @@ import           Data.Kind                      ( Type )
 import           Data.Semigroup                 ( stimesMonoid )
 import qualified Data.Semiring                 as R
 import qualified Data.Set                      as S
+import qualified Data.Text                     as T
 import           Data.Typeable                  ( Proxy(Proxy) )
 import           Debug.Trace                    ( trace )
 import           GHC.Generics                   ( Generic )
@@ -120,54 +160,67 @@ import           GHC.Unicode                    ( toLower )
 import           Musicology.Pitch               ( Notation(..) )
 import qualified Text.ParserCombinators.ReadP  as ReadP
 
--- Path: alternating slices and transitions
--- ========================================
+-- Path: sequences of alternating objects
+-- ======================================
 
-data Path a e = Path !a !e !(Path a e)
-              | PathEnd !a
+-- | A Path is a datastructure that represents a sequence of alternating objects,
+-- starting and ending with the same type.
+-- An example would be a path in a graph,
+-- starting and ending with a node with edges in-between.
+data Path around between = Path !around !between !(Path around between)
+              | PathEnd !around
   deriving (Eq, Ord , Generic)
 
 instance Bifunctor Path where
   bimap fa _  (PathEnd a   ) = PathEnd (fa a)
-  bimap fa fe (Path a e rst) = Path (fa a) (fe e) $ bimap fa fe rst
+  bimap fa fb (Path a b rst) = Path (fa a) (fb b) $ bimap fa fb rst
 
-instance (Show a, Show e) => Show (Path a e) where
-  show (Path a e rst) = show a <> "\n+-" <> show e <> "\n" <> show rst
+instance (Show a, Show b) => Show (Path a b) where
+  show (Path a b rst) = show a <> "\n+-" <> show b <> "\n" <> show rst
   show (PathEnd a   ) = show a
 
-pathLen :: Path a e -> Int
+-- | Returns the number of nodes in the path.
+pathLen :: Path a b -> Int
 pathLen (Path _ _ rest) = pathLen rest + 1
 pathLen (PathEnd _    ) = 1
 
-pathHead :: Path a e -> a
+-- | Returns the first node in the path.
+pathHead :: Path a b -> a
 pathHead (Path l _ _) = l
 pathHead (PathEnd l ) = l
 
-pathSetHead :: Path a e -> a -> Path a e
-pathSetHead (Path _ e rst) a' = Path a' e rst
+-- | Replaces the first node in the path.
+pathSetHead :: Path a b -> a -> Path a b
+pathSetHead (Path _ b rst) a' = Path a' b rst
 pathSetHead (PathEnd _   ) a' = PathEnd a'
 
-mapNodes :: (a -> b) -> Path a e -> Path b e
-mapNodes f (Path l m rest) = Path (f l) m $ mapNodes f rest
-mapNodes f (PathEnd r    ) = PathEnd (f r)
+-- | Maps a function over every node in the path.
+mapNodes :: (a -> a') -> Path a b -> Path a' b
+mapNodes f (Path a b rest) = Path (f a) b $ mapNodes f rest
+mapNodes f (PathEnd a    ) = PathEnd (f a)
 
-mapNodesWithIndex :: Int -> (Int -> a -> b) -> Path a e -> Path b e
-mapNodesWithIndex i f (Path l m rest) =
-  Path (f i l) m (mapNodesWithIndex (i + 1) f rest)
-mapNodesWithIndex i f (PathEnd n) = PathEnd (f i n)
+-- | Maps a function over every node in the path together with its index.
+mapNodesWithIndex :: Int -> (Int -> a -> a') -> Path a b -> Path a' b
+mapNodesWithIndex i f (Path a b rest) =
+  Path (f i a) b (mapNodesWithIndex (i + 1) f rest)
+mapNodesWithIndex i f (PathEnd a) = PathEnd (f i a)
 
-mapEdges :: (a -> e -> a -> b) -> Path a e -> [b]
-mapEdges f (Path l m rest) = f l m r : mapEdges f rest where r = pathHead rest
-mapEdges _ (PathEnd _    ) = []
+-- | Maps a function over each edge and its adjacent nodes in the path.
+mapEdges :: (a -> b -> a -> c) -> Path a b -> [c]
+mapEdges f (Path al b rest) = f al b ar : mapEdges f rest
+  where ar = pathHead rest
+mapEdges _ (PathEnd _) = []
 
-reversePath :: Path a e -> Path a e
+-- | Reverses the path.
+reversePath :: Path a b -> Path a b
 reversePath path = case path of
   PathEnd end   -> PathEnd end
-  Path l m rest -> go m rest (PathEnd l)
+  Path a b rest -> go b rest (PathEnd a)
  where
-  go m  (PathEnd end   ) acc = Path end m acc
-  go m1 (Path l m2 rest) acc = go m2 rest $ Path l m1 acc
+  go b  (PathEnd aEnd  ) acc = Path aEnd b acc
+  go b1 (Path a b2 rest) acc = go b2 rest $ Path a b1 acc
 
+-- | Returns the list of nodes in the path.
 pathNodes :: Path a b -> [a]
 pathNodes (Path a _ rst) = a : pathNodes rst
 pathNodes (PathEnd a   ) = [a]
@@ -176,7 +229,7 @@ pathNodes (PathEnd a   ) = [a]
 -- =========
 
 -- | A container type that augements the type @a@
--- with symbols for beginning (@:⋊@) and end (@:⋉@).
+-- with symbols for beginning ('Start', ⋊) and end ('Stop', ⋉).
 -- Every other value is wrapped in an @Inner@ constructor.
 data StartStop a = Start
                  | Inner !a
@@ -215,23 +268,28 @@ getInner :: StartStop a -> Maybe a
 getInner (Inner a) = Just a
 getInner _         = Nothing
 
+-- | Returns the content of an 'Inner', or a 'Left' with an error message.
 getInnerE :: StartStop a -> Either String a
 getInnerE (Inner a) = Right a
 getInnerE Start     = Left "expected inner but found ⋊"
 getInnerE Stop      = Left "expected inner but found ⋉"
 
+-- | Returns 'True' iff the argument is an 'Inner'.
 isInner :: StartStop a -> Bool
 isInner (Inner _) = True
 isInner _         = False
 
+-- | Returns 'True' iff the argument is 'Start'.
 isStart :: StartStop a -> Bool
 isStart Start = True
 isStart _     = False
 
+-- | Returns 'True' iff the argument is 'Stop'.
 isStop :: StartStop a -> Bool
 isStop Stop = True
 isStop _    = False
 
+-- | Turns a pair within a 'StartStop' into a pair of 'StartStop's
 distStartStop :: StartStop (a, b) -> (StartStop a, StartStop b)
 distStartStop Start          = (Start, Start)
 distStartStop Stop           = (Stop, Stop)
@@ -240,67 +298,84 @@ distStartStop (Inner (a, b)) = (Inner a, Inner b)
 -- evaluator interface
 -- ===================
 
+-- | A flag indicating whether an operation is performed on the last transition.
 type IsLast = Bool
 
+-- | A flag that indicates where a split has been performed,
+-- on the left transition, the right transition, or the only transition
 data SplitType = LeftOfTwo
-               | LeftOnly
                | RightOfTwo
+               | SingleOfOne
 
--- | An evaluator for verticalizations.
--- Returns the verticalization of a (middle) transition, if possible.
-type VertMiddle e a v = (a, e, a) -> Maybe (a, v)
+-- | An evaluator for unspreads.
+-- Takes the two child slices and the middle transition.
+-- Returns the parent slice and the spread operation, if possible.
+type UnspreadMiddle tr slc v = (slc, tr, slc) -> Maybe (slc, v)
 
--- | An evaluator returning the possible left parent edges of a verticalization.
-type VertLeft e a = (e, a) -> a -> [e]
+-- | An evaluator returning the possible left parent edges of an unspread.
+-- The first argument is a pair of left child transition and left child slice.
+-- The second argument is the parent slice.
+type UnspreadLeft tr slc = (tr, slc) -> slc -> [tr]
 
--- | An evaluator returning the possible right parent edges of a verticalization.
-type VertRight e a = (a, e) -> a -> [e]
+-- | An evaluator returning the possible right parent edges of an unspread.
+-- The first argument is a pair of right child slice and right child transition.
+-- The second argument is the parent slice.
+type UnspreadRight tr slc = (slc, tr) -> slc -> [tr]
 
--- | An evaluator for merges.
--- Returns possible merges of a given pair of transitions.
-type Merge e a v
-  = StartStop a -> e -> a -> e -> StartStop a -> SplitType -> [(e, v)]
+-- | An evaluator for unsplits.
+-- Returns possible unsplits of a given pair of transitions.
+type Unsplit tr slc v
+  = StartStop slc -> tr -> slc -> tr -> StartStop slc -> SplitType -> [(tr, v)]
 
--- | A combined evaluator for verticalizations, merges, and thaws.
--- Additionally, contains a function for mapping terminal slices to semiring values.
-data Eval e e' a a' v = Eval
-  { evalVertMiddle :: !(VertMiddle e a v)
-  , evalVertLeft   :: !(VertLeft e a)
-  , evalVertRight  :: !(VertRight e a)
-  , evalMerge      :: !(Merge e a v)
-  , evalThaw :: !(StartStop a -> Maybe e' -> StartStop a -> IsLast -> [(e, v)])
-  , evalSlice      :: !(a' -> a)
+-- | A combined evaluator for unsplits, unspreads, and unfreezes.
+-- Additionally, contains a function for mapping terminal slices to derivation slices.
+data Eval tr tr' slc slc' v = Eval
+  { evalUnspreadMiddle :: !(UnspreadMiddle tr slc v)
+  , evalUnspreadLeft   :: !(UnspreadLeft tr slc)
+  , evalUnspreadRight  :: !(UnspreadRight tr slc)
+  , evalUnsplit        :: !(Unsplit tr slc v)
+  , evalUnfreeze
+      :: !(StartStop slc -> Maybe tr' -> StartStop slc -> IsLast -> [(tr, v)])
+  , evalSlice :: !(slc' -> slc)
   }
 
 -- | Maps a function over all scores produced by the evaluator.
-mapEvalScore :: (v -> w) -> Eval e e' a a' v -> Eval e e' a a' w
-mapEvalScore f (Eval vm vl vr m t s) = Eval vm' vl vr m' t' s
+mapEvalScore :: (v -> w) -> Eval tr tr' slc slc' v -> Eval tr tr' slc slc' w
+mapEvalScore f (Eval unspreadm unspreadl unspreadr unsplit uf s) = Eval
+  unspreadm'
+  unspreadl
+  unspreadr
+  unsplit'
+  uf'
+  s
  where
-  vm' = fmap (fmap f) . vm
-  m' sl l sm r sr typ = fmap f <$> m sl l sm r sr typ
-  t' l e r isLast = fmap f <$> t l e r isLast
+  unspreadm' = fmap (fmap f) . unspreadm
+  unsplit' sl tl sm tr sr typ = fmap f <$> unsplit sl tl sm tr sr typ
+  uf' l e r isLast = fmap f <$> uf l e r isLast
 
 -- product evaluators
 -- ------------------
 
+-- | Combine two evaluators into a product evaluator.
+-- Each evaluation function returns the product of the two component evaluators' results.
 productEval
-  :: Eval e1 e' a1 a' v1
-  -> Eval e2 e' a2 a' v2
-  -> Eval (e1, e2) e' (a1, a2) a' (v1, v2)
-productEval (Eval vertm1 vertl1 vertr1 merge1 thaw1 slice1) (Eval vertm2 vertl2 vertr2 merge2 thaw2 slice2)
-  = Eval vertm vertl vertr merge thaw slice
+  :: Eval tr1 tr' slc1 slc' v1
+  -> Eval tr2 tr' slc2 slc' v2
+  -> Eval (tr1, tr2) tr' (slc1, slc2) slc' (v1, v2)
+productEval (Eval unspreadm1 unspreadl1 unspreadr1 merge1 thaw1 slice1) (Eval unspreadm2 unspreadl2 unspreadr2 merge2 thaw2 slice2)
+  = Eval unspreadm unspreadl unspreadr merge thaw slice
  where
-  vertm ((l1, l2), (m1, m2), (r1, r2)) = do
-    (a, va) <- vertm1 (l1, m1, r1)
-    (b, vb) <- vertm2 (l2, m2, r2)
+  unspreadm ((l1, l2), (m1, m2), (r1, r2)) = do
+    (a, va) <- unspreadm1 (l1, m1, r1)
+    (b, vb) <- unspreadm2 (l2, m2, r2)
     pure ((a, b), (va, vb))
-  vertl ((l1, l2), (c1, c2)) (t1, t2) = do
-    a <- vertl1 (l1, c1) t1
-    b <- vertl2 (l2, c2) t2
+  unspreadl ((l1, l2), (c1, c2)) (t1, t2) = do
+    a <- unspreadl1 (l1, c1) t1
+    b <- unspreadl2 (l2, c2) t2
     pure (a, b)
-  vertr ((c1, c2), (r1, r2)) (t1, t2) = do
-    a <- vertr1 (c1, r1) t1
-    b <- vertr2 (c2, r2) t2
+  unspreadr ((c1, c2), (r1, r2)) (t1, t2) = do
+    a <- unspreadr1 (c1, r1) t1
+    b <- unspreadr2 (c2, r2) t2
     pure (a, b)
   merge sl (tl1, tl2) (sm1, sm2) (tr1, tr2) sr typ = do
     (a, va) <- merge1 sl1 tl1 sm1 tr1 sr1 typ
@@ -321,58 +396,112 @@ productEval (Eval vertm1 vertl1 vertr1 merge1 thaw1 slice1) (Eval vertm2 vertl2 
 -- restricting branching
 -- ---------------------
 
-data RightBranchHori = RBBranches
-                     | RBClear
+-- | A flag that is used to restrict spread operations to right branching.
+data RightBranchSpread = RBBranches
+                       | RBClear
   deriving (Eq, Ord, Show, Generic, NFData, Hashable)
 
-evalRightBranchHori :: Eval RightBranchHori e' () a' ()
-evalRightBranchHori = Eval vertm vertl vertr merge thaw slice
+-- | An evaluator that doesn't parse the input but restricts spread operations to right branching.
+-- Legal combinations will just return a singleton `()` while illegal combinations return nothing.
+-- Combine this with any evaluator as a product (using 'productEval' or 'rightBranchSpread')
+-- to make the evaluator right-branching.
+evalRightBranchSpread :: Eval RightBranchSpread tr' () slc' ()
+evalRightBranchSpread = Eval unspreadm unspreadl unspreadr merge thaw slice
  where
-  vertm (_, RBBranches, _) = Nothing
-  vertm (_, RBClear   , _) = Just ((), ())
-  vertl _ _ = [RBClear]
-  vertr _ _ = [RBBranches]
+  unspreadm (_, RBBranches, _) = Nothing
+  unspreadm (_, RBClear   , _) = Just ((), ())
+  unspreadl _ _ = [RBClear]
+  unspreadr _ _ = [RBBranches]
   merge _ _ _ _ _ _ = [(RBClear, ())]
   thaw _ _ _ _ = [(RBClear, ())]
   slice _ = ()
 
-rightBranchHori
-  :: Eval e2 e' a2 a' w -> Eval (RightBranchHori, e2) e' ((), a2) a' w
-rightBranchHori = mapEvalScore snd . productEval evalRightBranchHori
+-- | Restrict any evaluator to right-branching spreads.
+rightBranchSpread
+  :: Eval tr tr' slc slc' w -> Eval (RightBranchSpread, tr) tr' ((), slc) slc' w
+rightBranchSpread = mapEvalScore snd . productEval evalRightBranchSpread
 
 -- restricting derivation order
 -- ----------------------------
 
+-- | A flag for indicating whether a transition is the result of a split or not.
+-- This is used for restricting the order of splits and spreads.
 data Merged = Merged
             | NotMerged
   deriving (Eq, Ord, Show, Generic, NFData, Hashable)
 
-evalSplitBeforeHori :: (Eval Merged e' () a' ())
-evalSplitBeforeHori = Eval vertm vertl vertr merge thaw slice
+-- | An evaluator that doesn't parse the input but restricts the order of operations
+-- to always have splits before spreads on the left and right transitions at a spread.
+-- Legal combinations will just return a singleton `()` while illegal combinations return nothing.
+-- Combine this with any evaluator as a product (using 'productEval' or 'splitFirst')
+-- to make the evaluator order-restricted.
+evalSplitBeforeSpread :: (Eval Merged tr' () slc' ())
+evalSplitBeforeSpread = Eval unspreadm unspreadl unspreadr merge thaw slice
  where
-  vertm _ = Just ((), ())
-  vertl (Merged   , _) _ = []
-  vertl (NotMerged, _) _ = [NotMerged]
-  vertr (_, Merged   ) _ = []
-  vertr (_, NotMerged) _ = [NotMerged]
+  unspreadm _ = Just ((), ())
+  unspreadl (Merged   , _) _ = []
+  unspreadl (NotMerged, _) _ = [NotMerged]
+  unspreadr (_, Merged   ) _ = []
+  unspreadr (_, NotMerged) _ = [NotMerged]
   merge _ _ _ _ _ _ = [(Merged, ())]
   thaw _ _ _ _ = [(NotMerged, ())]
   slice _ = ()
 
-splitFirst :: Eval e2 e' a2 a' w -> Eval (Merged, e2) e' ((), a2) a' w
-splitFirst = mapEvalScore snd . productEval evalSplitBeforeHori
+-- | Restrict any evaluator to split-before-spread order.
+splitFirst :: Eval tr tr' slc slc' w -> Eval (Merged, tr) tr' ((), slc) slc' w
+splitFirst = mapEvalScore snd . productEval evalSplitBeforeSpread
 
 -- left-most derivation outer operations
 -- =====================================
 
--- data Leftmost s f h = LMSplitLeft !s
---                     | LMFreezeLeft !f
---                     | LMSplitRight !s
---                     | LMHorizontalize !h
---                     | LMSplitOnly !s
---                     | LMFreezeOnly !f
---   deriving (Eq, Ord, Show, Generic, NFData)
+-- $leftmostdoc
+--
+-- More specifically, if there is only one open transition left, only two actions are possible,
+-- freezing or splitting that transition:
+--
+-- > freeze only:
+-- > ==[]——⋉
+-- > ==[]==⋉
+-- >
+-- > split only:
+-- > ==[]——⋉
+-- >    \  /
+-- >     []
+--
+-- These options are encoded in 'LeftmostSingle'.
+--
+-- If two or more transitions are still open, four actions are possible:
+--
+-- > freeze left:
+-- > ==[]——[]——[]...
+-- > ==[]==[]——[]...
+-- >
+-- > split left:
+-- > ==[]——[]——[]...
+-- >    \  /
+-- >     []
+-- >
+-- > split right:
+-- > ==[]——[]——[]...
+-- >        \  /
+-- >         []
+-- >
+-- > spread:
+-- > ==[]——[]——[]...
+-- >    \  /\  /
+-- >     []——[]
+--
+-- These options are encoded in 'LeftmostDouble'.
+-- Note that the order of operations is restricted so that after a right split only
+-- only another right split or a spread are allowed.
+-- See [below](#monadicDeriv) for a way to construct leftmost derivations in a type-safe way,
+-- checking operation order and open transitions at compile time.
+--
+-- Both single and double operations are combined in 'Leftmost'.
+-- All three operation containers are parameterized over the specific operations types for
+-- splits (@s@), spreads (@h@ for "horizontalization"), freezes (@f@).
 
+-- | Generative operations on a single transition (split or freeze).
 data LeftmostSingle s f = LMSingleSplit !s
                         | LMSingleFreeze !f
   deriving (Eq, Ord, Show, Generic, NFData, Functor, Foldable, Traversable)
@@ -383,10 +512,11 @@ instance (ToJSON s, ToJSON f) => ToJSON (LeftmostSingle s f) where
   toEncoding = Aeson.genericToEncoding
     $ variantDefaults ((<> "Only") . firstToLower . drop 8)
 
+-- | Generative operations on two transitions (split left, freeze left, split right, or spread)
 data LeftmostDouble s f h = LMDoubleSplitLeft !s
                           | LMDoubleFreezeLeft !f
                           | LMDoubleSplitRight !s
-                          | LMDoubleHori !h
+                          | LMDoubleSpread !h
   deriving (Eq, Ord, Show, Generic, NFData)
 
 instance (ToJSON s, ToJSON f, ToJSON h) => ToJSON (LeftmostDouble s f h) where
@@ -394,6 +524,7 @@ instance (ToJSON s, ToJSON f, ToJSON h) => ToJSON (LeftmostDouble s f h) where
   toEncoding =
     Aeson.genericToEncoding $ variantDefaults (firstToLower . drop 8)
 
+-- | A combined datatype for all leftmost-derivation operations.
 data Leftmost s f h = LMSingle (LeftmostSingle s f)
                     | LMDouble (LeftmostDouble s f h)
   deriving (Eq, Ord, Show, Generic, NFData)
@@ -408,7 +539,7 @@ instance (FromJSON s, FromJSON f, FromJSON h) => FromJSON (Leftmost s f h) where
       "splitLeft"  -> LMSplitLeft <$> parseJSON val
       "splitRight" -> LMSplitRight <$> parseJSON val
       "splitOnly"  -> LMSplitOnly <$> parseJSON val
-      "hori"       -> LMHorizontalize <$> parseJSON val
+      "spread"     -> LMSpread <$> parseJSON val
       other        -> unexpected other
 
 instance (ToJSON s, ToJSON f, ToJSON h) => ToJSON (Leftmost s f h) where
@@ -426,8 +557,8 @@ pattern LMFreezeLeft f = LMDouble (LMDoubleFreezeLeft f)
 pattern LMSplitRight :: s -> Leftmost s f h
 pattern LMSplitRight s = LMDouble (LMDoubleSplitRight s)
 
-pattern LMHorizontalize :: h -> Leftmost s f h
-pattern LMHorizontalize h = LMDouble (LMDoubleHori h)
+pattern LMSpread :: h -> Leftmost s f h
+pattern LMSpread h = LMDouble (LMDoubleSpread h)
 
 pattern LMSplitOnly :: s -> Leftmost s f h
 pattern LMSplitOnly s = LMSingle (LMSingleSplit s)
@@ -435,19 +566,25 @@ pattern LMSplitOnly s = LMSingle (LMSingleSplit s)
 pattern LMFreezeOnly :: f -> Leftmost s f h
 pattern LMFreezeOnly f = LMSingle (LMSingleFreeze f)
 
-{-# COMPLETE LMSplitLeft, LMFreezeLeft, LMSplitRight, LMHorizontalize, LMSplitOnly, LMFreezeOnly #-}
+{-# COMPLETE LMSplitLeft, LMFreezeLeft, LMSplitRight, LMSpread, LMSplitOnly, LMFreezeOnly #-}
 
 -- representing full analyses
 -- ==========================
 
-data Analysis s f h e a = Analysis
-  { anaDerivation :: [Leftmost s f h]
-  , anaTop        :: Path e a
-  -- TODO: better: Path e a, and check that first and last slice are start/stop?
+-- | Encodes an analysis of a piece,
+-- consisting of a "top" (the starting point of the derivation,
+-- i.e., the smallest reduction in the analysis)
+-- and a derivation of the piece's surface from the top.
+-- 
+-- Use this type's 'FromJSON' instance to load an analysis exported by the protovoice annotation tool.
+data Analysis s f h tr slc = Analysis
+  { anaDerivation :: [Leftmost s f h] -- ^ The derivation steps.
+  , anaTop        :: Path tr slc -- ^ The starting configuration of the derivation.
+    -- Starts with the first transition, 'Start' and 'Stop' are implied.
   }
   deriving (Eq, Ord, Show, Generic)
 
-instance (FromJSON s, FromJSON f, FromJSON h, FromJSON e, FromJSON a) => FromJSON (Analysis s f h e a) where
+instance (FromJSON s, FromJSON f, FromJSON h, FromJSON tr, FromJSON slc) => FromJSON (Analysis s f h tr slc) where
   parseJSON = Aeson.withObject "Analysis" $ \v -> do
     deriv <- v .: "derivation"
     start <- v .: "start" >>= parseSlice
@@ -458,7 +595,7 @@ instance (FromJSON s, FromJSON f, FromJSON h, FromJSON e, FromJSON a) => FromJSO
     top      <- parseTop segments
     pure $ Analysis { anaDerivation = deriv, anaTop = top }
    where
-    parseTop :: [Aeson.Value] -> Aeson.Parser (Path e a)
+    parseTop :: [Aeson.Value] -> Aeson.Parser (Path tr slc)
     parseTop segs = do
       segments <- mapM parseSegment segs
       mkPath segments
@@ -474,20 +611,21 @@ instance (FromJSON s, FromJSON f, FromJSON h, FromJSON e, FromJSON a) => FromJSO
       rslice <- v .: "rslice" >>= parseSlice
       pure (trans, rslice)
 
+-- | Prints the steps and intermediate configurations of a derivation.
 debugAnalysis
-  :: forall e a s f h
-   . (Show e, Show a, Show s, Show h)
-  => (s -> e -> Either String (e, a, e))
-  -> (f -> e -> Either String e)
-  -> (h -> e -> a -> e -> Either String (e, a, e, a, e))
-  -> Analysis s f h e a
+  :: forall tr slc s f h
+   . (Show tr, Show slc, Show s, Show h)
+  => (s -> tr -> Either String (tr, slc, tr))
+  -> (f -> tr -> Either String tr)
+  -> (h -> tr -> slc -> tr -> Either String (tr, slc, tr, slc, tr))
+  -> Analysis s f h tr slc
   -> IO (Either String ())
-debugAnalysis doSplit doFreeze doHori (Analysis deriv top) = runExceptT
+debugAnalysis doSplit doFreeze doSpread (Analysis deriv top) = runExceptT
   $ go Start top False deriv
  where
   go
-    :: StartStop a
-    -> Path e a
+    :: StartStop slc
+    -> Path tr slc
     -> Bool
     -> [Leftmost s f h]
     -> ExceptT String IO ()
@@ -535,40 +673,81 @@ debugAnalysis doSplit doFreeze doHori (Analysis deriv top) = runExceptT
           lift $ putStrLn $ "splitting right: " <> show splitOp
           (ctl, cs, ctr) <- except $ doSplit splitOp tr
           go sl (Path tl sm $ Path ctl cs $ mkRest ctr) True rest
-        LMDoubleHori horiOp -> do
-          lift $ putStrLn $ "horizontalizing: " <> show horiOp
-          (ctl, csl, ctm, csr, ctr) <- except $ doHori horiOp tl sm tr
+        LMDoubleSpread spreadOp -> do
+          lift $ putStrLn $ "spreading: " <> show spreadOp
+          (ctl, csl, ctm, csr, ctr) <- except $ doSpread spreadOp tl sm tr
           go sl (Path ctl csl $ Path ctm csr $ mkRest ctr) False rest
 
 -- evaluators
 -- ==========
 
+-- | Create a leftmost evaluator from position-independent evaluation functions
+-- that just return spread, split, and freeze operations
+-- by wrapping those into the appropriate 'Leftmost' constructors.
 mkLeftmostEval
-  :: VertMiddle e a h
-  -> VertLeft e a
-  -> VertRight e a
-  -> (StartStop a -> e -> a -> e -> StartStop a -> [(e, s)])
-  -> (StartStop a -> Maybe e' -> StartStop a -> [(e, f)])
-  -> (a' -> a)
-  -> Eval e e' a a' (Leftmost s f h)
-mkLeftmostEval vm vl vr m t = Eval vm' vl vr m' t'
+  :: UnspreadMiddle tr slc h
+  -> UnspreadLeft tr slc
+  -> UnspreadRight tr slc
+  -> (StartStop slc -> tr -> slc -> tr -> StartStop slc -> [(tr, s)])
+  -> (StartStop slc -> Maybe tr' -> StartStop slc -> [(tr, f)])
+  -> (slc' -> slc)
+  -> Eval tr tr' slc slc' (Leftmost s f h)
+mkLeftmostEval unspreadm unspreadl unspreadr unsplit uf = Eval unspreadm'
+                                                               unspreadl
+                                                               unspreadr
+                                                               unsplit'
+                                                               uf'
  where
   smap f = fmap (second f)
-  -- vm' :: VertMiddle e a (Leftmost s f h)
-  vm' vert = smap LMHorizontalize $ vm vert
-  m' sl tl sm tr sr typ = smap splitop res
+  -- vm' :: UnspreadMiddle e a (Leftmost s f h)
+  unspreadm' vert = smap LMSpread $ unspreadm vert
+  unsplit' sl tl sm tr sr typ = smap splitop res
    where
-    res     = m sl tl sm tr sr
+    res     = unsplit sl tl sm tr sr
     splitop = case typ of
-      LeftOfTwo  -> LMSplitLeft
-      LeftOnly   -> LMSplitOnly
-      RightOfTwo -> LMSplitRight
-  t' sl e sr isLast | isLast    = smap LMFreezeOnly res
-                    | otherwise = smap LMFreezeLeft res
-    where res = t sl e sr
+      LeftOfTwo   -> LMSplitLeft
+      SingleOfOne -> LMSplitOnly
+      RightOfTwo  -> LMSplitRight
+  uf' sl e sr isLast | isLast    = smap LMFreezeOnly res
+                     | otherwise = smap LMFreezeLeft res
+    where res = uf sl e sr
 
-newtype PartialDeriv s f h (n :: Nat) (snd :: Bool) = PD { runPD :: [Leftmost s f h]}
+-- manually constructing derivations
+-- =================================
 
+-- $monadicdoc
+--
+-- Use these functions to manually build a derivation,
+-- checking leftmost-correctness in the type.
+-- A good way to do this is to start a derivation using `buildDerivation` or `buildPartialDerivation`
+-- and follow up with a @do@ block that contains a sequence of `split`, `freeze`, `splitRight` and `spread` actions:
+--
+-- > deriv :: [Leftmost () () ()] -- using unit for each operation type
+-- > deriv = buildDerivation $ do -- start with 1 transition
+-- >   split ()      -- (2 open transitions)
+-- >   splitRight () -- (3 open)
+-- >   spread ()     -- (4 open)
+-- >   freeze ()     -- (3 open)
+-- >   freeze ()     -- (2 open)
+-- >   split ()      -- (3 open)
+-- >   freeze ()     -- (2 open)
+-- >   freeze ()     -- (1 open)
+-- >   freeze ()     -- (0 open, end of derivation)
+--
+-- The above example results in the following derivation graph:
+--
+-- ![derivation of the above example](doc-images/monadic-deriv.svg)
+
+-- | A wrapper around leftmost derivations
+-- that tracks information about the derivation state in the type.
+-- Number of open transitions: @openTrans@.
+-- Whether a right split has been performed at the current point: @afterRightSplit@.
+newtype PartialDerivation s f h (openTrans :: Nat) (afterRightSplit :: Bool) =
+  PD { runPD :: [Leftmost s f h]}
+
+-- | An "indexed" version of a writer monad, i.e. one where the monad type between two steps can change.
+-- This can be used for tracking the number of open transitions in a derivation on the type level
+-- while still providing an monadic interface for constructing a derivation.
 newtype IndexedWriter w i j a = IW { runIW :: MW.Writer w a }
 
 instance MI.IxFunctor (IndexedWriter w) where
@@ -583,60 +762,80 @@ instance (Monoid w) => MI.IxApplicative (IndexedWriter w) where
 instance (Monoid w) => MI.IxMonad (IndexedWriter w) where
   ibind f (IW wa) = IW $ (runIW . f) =<< wa
 
+-- | 'MW.tell' for 'IndexedWriter'.
 itell :: Monoid w => w -> IndexedWriter w i j ()
 itell = IW . MW.tell
 
-type Prod :: Nat -> Bool -> Type
-data Prod a b
+-- | A type-level wrapper for partial derivation info.
+type DerivationInfo :: Nat -> Bool -> Type
+data DerivationInfo a b
 
-type DerivAction s f h n n' snd snd'
-  = IndexedWriter [Leftmost s f h] (Prod n snd) (Prod n' snd') ()
+-- | The type of a monadic derivation action that modifies the derivation state
+-- (number of open transitions, after right split).
+type DerivationAction s f h n n' afterRight afterRight'
+  = IndexedWriter
+      [Leftmost s f h]
+      (DerivationInfo n afterRight)
+      (DerivationInfo n' afterRight')
+      ()
 
+-- | Turn a monadically constructed derivation into a proper left-most derivation.
+-- This function assumes the derivation to start with a single transition.
 buildDerivation
   -- :: (PartialDeriv s f h 1 False -> PartialDeriv s f h n snd)
-  :: DerivAction s f h 1 n 'False snd -> [Leftmost s f h]
+  :: DerivationAction s f h 1 n 'False snd -> [Leftmost s f h]
 buildDerivation build = MW.execWriter $ runIW build
 
+-- | Turn a monadically constructed partial derivation into a left-most derivation.
+-- This function does not restrict the number of transitions in the starting configuration.
 buildPartialDerivation
   :: forall n n' snd s f h
-   . DerivAction s f h n n' 'False snd
+   . DerivationAction s f h n n' 'False snd
   -> [Leftmost s f h]
 buildPartialDerivation build = MW.execWriter $ runIW build
 
+-- | Turn a split operation into a monadic (left or single) split action.
 split
   :: forall n s f h
    . (KnownNat n, 1 <= n)
   => s
-  -> DerivAction s f h n (n+1) 'False 'False
+  -> DerivationAction s f h n (n+1) 'False 'False
 split s | natVal (Proxy :: Proxy n) == 1 = itell [LMSplitOnly s]
         | otherwise                      = itell [LMSplitLeft s]
 
+-- | Turn a freeze operation into a monadic (left or single) freeze action.
 freeze
   :: forall n s h f
    . (KnownNat n, 1 <= n)
   => f
-  -> DerivAction s f h n (n-1) 'False 'False
+  -> DerivationAction s f h n (n-1) 'False 'False
 freeze f | natVal (Proxy :: Proxy n) == 1 = itell [LMFreezeOnly f]
          | otherwise                      = itell [LMFreezeLeft f]
 
-splitRight :: (2 <= n) => s -> DerivAction s f h n (n+1) snd 'True
+-- | Turn a split operation into a monadic right-split action.
+splitRight :: (2 <= n) => s -> DerivationAction s f h n (n+1) snd 'True
 splitRight s = itell [LMSplitRight s]
 
-hori :: (2 <= n) => h -> DerivAction s f h n (n+1) snd 'False
-hori h = itell [LMHorizontalize h]
+-- | Turn a spread operation into a monadic spread action.
+spread :: (2 <= n) => h -> DerivationAction s f h n (n+1) snd 'False
+spread h = itell [LMSpread h]
 
 -- useful semirings
 -- ================
 
-data Derivations a = Do !a
-                   | Or !(Derivations a) !(Derivations a)
-                   | Then !(Derivations a) !(Derivations a)
-                   | NoOp
-                   | Cannot
+-- | The derivations semiring.
+-- Similar to a free semiring, encodes sequences, alternatives, and neutral values directly.
+-- However, semiring equivalences are not idendified by default.
+data Derivations a = Do !a -- ^ a single operation
+                   | Or !(Derivations a) !(Derivations a) -- ^ combines alternative derivations
+                   | Then !(Derivations a) !(Derivations a) -- ^ combines sequential derivations
+                   | NoOp -- ^ the neutral element to 'Then'
+                   | Cannot -- ^ the neutral element to 'Or'
   deriving (Eq, Ord, Generic)
 
 instance NFData a => NFData (Derivations a)
 
+-- | A helper tag for pretty-printing derivations.
 data DerivOp = OpNone
              | OpOr
              | OpThen
@@ -656,7 +855,6 @@ instance Show a => Show (Derivations a) where
     go n _ (Then a b) =
       indent n <> "Then\n" <> go (n + 1) OpThen a <> "\n" <> go (n + 1) OpThen b
 
-
 instance R.Semiring (Derivations a) where
   zero = Cannot
   one  = NoOp
@@ -669,6 +867,7 @@ instance R.Semiring (Derivations a) where
   times a      NoOp   = a
   times a      b      = Then a b
 
+-- | Map the 'Derivations' semiring to another semiring.
 mapDerivations :: (R.Semiring r) => (a -> r) -> Derivations a -> r
 mapDerivations f (Do a)     = f a
 mapDerivations _ NoOp       = R.one
@@ -676,9 +875,12 @@ mapDerivations _ Cannot     = R.zero
 mapDerivations f (Or   a b) = mapDerivations f a R.+ mapDerivations f b
 mapDerivations f (Then a b) = mapDerivations f a R.* mapDerivations f b
 
+-- | Flatten the prefix-tree structure of 'Derivations' into a simple set of derivations.
 flattenDerivations :: Ord a => Derivations a -> S.Set [a]
 flattenDerivations = mapDerivations (\a -> S.singleton [a])
 
+-- | Flatten the prefix-tree structure of 'Derivations'
+-- into a simple list of (potentially redundant) derivations.
 flattenDerivationsRed :: Ord a => Derivations a -> [[a]]
 flattenDerivationsRed (Do a) = pure [a]
 flattenDerivationsRed NoOp   = pure []
@@ -690,6 +892,7 @@ flattenDerivationsRed (Then a b) = do
   bs <- flattenDerivationsRed b
   pure (as <> bs)
 
+-- | Obtain the first derivation from a 'Derivations' tree.
 firstDerivation :: Ord a => Derivations a -> Maybe [a]
 firstDerivation Cannot     = Nothing
 firstDerivation NoOp       = Just []
@@ -703,9 +906,11 @@ firstDerivation (Then a b) = do
 -- utilities
 -- =========
 
+-- | The global trace level. Only trace messages >= this level are shown.
 traceLevel :: Int
 traceLevel = 0
 
+-- | A helper for conditionally tracing a message.
 traceIf :: Int -> [Char] -> Bool -> Bool
 traceIf l msg value =
   if traceLevel >= l && value then trace msg value else value
@@ -716,16 +921,19 @@ traceIf l msg value =
 -- toVariantEnc :: (ToJSON a) => T.Text -> a -> Aeson.Encoding
 -- toVariantEnc typ val = Aeson.pairs ("type" .= typ <> "value" .= val)
 
+-- | Lowercase the first character in a string.
 firstToLower :: String -> String
 firstToLower ""         = ""
 firstToLower (h : rest) = toLower h : rest
 
+-- | Aeson options for parsing "variant" types (generated in PureScript)
 variantDefaults :: (String -> String) -> Aeson.Options
 variantDefaults rename = Aeson.defaultOptions
   { Aeson.constructorTagModifier = rename
   , Aeson.sumEncoding            = Aeson.TaggedObject "type" "value"
   }
 
+-- | Convert special characters to TeX commands.
 showTex :: Show a => a -> String
 showTex x = concatMap escapeTex $ show x
  where
@@ -737,5 +945,6 @@ showTex x = concatMap escapeTex $ show x
   escapeTex '⋊' = "$\\rtimes$"
   escapeTex c   = [c]
 
+-- | Convert special characters to TeX commands (using 'T.Text')
 showTexT :: Show a => a -> T.Text
 showTexT = T.pack . showTex

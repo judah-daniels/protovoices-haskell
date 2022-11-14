@@ -182,15 +182,19 @@ findLeftOrnament m r | pm == pr             = Just LeftRepeat
 protoVoiceEvaluator
   :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n)
   => Eval (Edges n) (t (Edge n)) (Notes n) (t2 n) (PVLeftmost n)
-protoVoiceEvaluator =
-  mkLeftmostEval pvVertMiddle pvVertLeft pvVertRight pvMerge pvThaw pvSlice
+protoVoiceEvaluator = mkLeftmostEval pvUnspreadMiddle
+                                     pvUnspreadLeft
+                                     pvUnspreadRight
+                                     pvUnsplit
+                                     pvThaw
+                                     pvSlice
 
 -- | Computes the verticalization of a middle transition.
 -- If the verticalization is admitted, returns the corresponding operation.
-pvVertMiddle
+pvUnspreadMiddle
   :: (Eq n, Ord n, Hashable n, IsNote n)
-  => VertMiddle (Edges n) (Notes n) (Hori n)
-pvVertMiddle (Notes nl, edges, Notes nr)
+  => UnspreadMiddle (Edges n) (Notes n) (Hori n)
+pvUnspreadMiddle (Notes nl, edges, Notes nr)
   | any notARepetition (edgesT edges) = Nothing
   | otherwise                         = Just (Notes top, op)
  where
@@ -209,20 +213,20 @@ pvVertMiddle (Notes nl, edges, Notes nr)
 -- | Computes all left parent transitions for a verticalization and a left child transition.
 -- Here, this operation is always admitted and unique,
 -- so the edges from the child transition are just passed through.
-pvVertLeft :: VertLeft (Edges n) (Notes n)
-pvVertLeft (el, _) _ = [el]
+pvUnspreadLeft :: UnspreadLeft (Edges n) (Notes n)
+pvUnspreadLeft (el, _) _ = [el]
 
 -- | Computes all right parent transition for a verticalization and a right child transition.
 -- Here, this operation is always admitted and unique,
 -- so the edges from the child transition are just passed through.
-pvVertRight :: VertRight (Edges n) (Notes n)
-pvVertRight (_, er) _ = [er]
+pvUnspreadRight :: UnspreadRight (Edges n) (Notes n)
+pvUnspreadRight (_, er) _ = [er]
 
 -- | Computes all possible merges of two child transitions.
 -- Since transitions here only represent the certain edges,
--- 'pvMerge' must also take into account unelaborated edges,
+-- 'pvUnsplit' must also take into account unelaborated edges,
 -- which are not present in the child transitions.
-pvMerge
+pvUnsplit
   :: (IsNote n, Notation n, Ord n, Hashable n)
   => StartStop (Notes n)
   -> Edges n
@@ -230,7 +234,7 @@ pvMerge
   -> Edges n
   -> StartStop (Notes n)
   -> [(Edges n, Split n)]
-pvMerge notesl (Edges leftTs leftNTs) (Notes notesm) (Edges rightTs rightNTs) notesr
+pvUnsplit notesl (Edges leftTs leftNTs) (Notes notesm) (Edges rightTs rightNTs) notesr
   = map mkTop combinations
  where
   -- preprocessing of the notes left and right of the merge
@@ -440,13 +444,13 @@ pvDerivUnrestricted = mapEvalScore Do protoVoiceEvaluator
 pvDeriv
   :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n)
   => Eval
-       (Merged, (RightBranchHori, Edges n))
+       (Merged, (RightBranchSpread, Edges n))
        (t (Edge n))
        ((), ((), Notes n))
        (t2 n)
        (Derivations (PVLeftmost n))
 pvDeriv =
-  splitFirst $ rightBranchHori $ mapEvalScore Do protoVoiceEvaluatorNoRepSplit
+  splitFirst $ rightBranchSpread $ mapEvalScore Do protoVoiceEvaluatorNoRepSplit
 
 pvCountUnrestricted
   :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n)
@@ -460,13 +464,13 @@ pvCount'' = mapEvalScore (const 1) protoVoiceEvaluatorNoRepSplit
 
 pvCount'
   :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n)
-  => Eval (RightBranchHori, Edges n) (t (Edge n)) ((), Notes n) (t2 n) Int
-pvCount' = rightBranchHori pvCount''
+  => Eval (RightBranchSpread, Edges n) (t (Edge n)) ((), Notes n) (t2 n) Int
+pvCount' = rightBranchSpread pvCount''
 
 pvCount
   :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n)
   => Eval
-       (Merged, (RightBranchHori, Edges n))
+       (Merged, (RightBranchSpread, Edges n))
        (t (Edge n))
        ((), ((), Notes n))
        (t2 n)

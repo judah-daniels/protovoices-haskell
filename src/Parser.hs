@@ -267,7 +267,7 @@ tcGetByRight = tcGetAny tcByRight HM.findWithDefault
 
 -- | Verticalizes the two slices of a (middle) transition, if possible.
 vertMiddle
-  :: VertMiddle e a v                    -- ^ the VertMiddle evaluator
+  :: UnspreadMiddle e a v                    -- ^ the UnspreadMiddle evaluator
   -> TItem e a v                         -- ^ the middle transition
   -> Maybe (a, v, TItem e a v) -- ^ the top slice, vert operation,
                                          -- and middle transition
@@ -280,7 +280,7 @@ vertMiddle vertm im@((Transition l m r _) := _) = do
 -- | Infers the possible left parent transitions of a verticalization.
 vertLeft
   :: (Show a, Show e, R.Semiring v, Show v)
-  => VertLeft e a   -- ^ the VertLeft evaluator
+  => UnspreadLeft e a   -- ^ the UnspreadLeft evaluator
   -> TItem e a v    -- ^ the left child transition
   -> (Slice a, Int) -- ^ the Vert's top slice and ID
   -> [TItem e a v]  -- ^ all possible left parent transitions
@@ -299,7 +299,7 @@ vertLeft vertl (tleft@(Transition ll lt lr is2nd) := vleft) (top, newId)
 -- | Infers the possible right parent transitions of a verticalization.
 vertRight
   :: (R.Semiring v, NFData a, NFData e, NFData v, Show e, Show a, Show v)
-  => VertRight e a   -- ^ the VertRight evaluator
+  => UnspreadRight e a   -- ^ the UnspreadRight evaluator
   -> Vert e a v      -- ^ the center 'Vert'
   -> TItem e a v     -- ^ the right child transition
   -> [TItem e a v]   -- ^ all possible right parent transitions
@@ -320,7 +320,7 @@ vertRight vertr vert@(Vert top op (_ := vm)) tright@((Transition rl rt rr _) := 
 -- | Infers the possible parent transitions of a split.
 merge
   :: (R.Semiring v, NFData a, NFData e, NFData v, Show v)
-  => Merge e a v   -- ^ the Merge evaluator
+  => Unsplit e a v   -- ^ the Unsplit evaluator
   -> TItem e a v   -- ^ the left child transition
   -> TItem e a v   -- ^ the right child transition
   -> [TItem e a v] -- ^ all possible parent transitions
@@ -331,7 +331,7 @@ merge mg ((Transition ll lt lr l2nd) := vl) ((Transition _ !rt !rr _) := vr) =
     Nothing -> error "trying to merge at a non-content slice"
  where
   splitType | l2nd                 = RightOfTwo
-            | isStop (sContent rr) = LeftOnly
+            | isStop (sContent rr) = SingleOfOne
             | otherwise            = LeftOfTwo
   mkItem (!top, !op) = Transition ll top rr l2nd := S.mergeScores op vl vr
 
@@ -355,16 +355,16 @@ parseStep
   => (TChart e a v -> VChart e a v -> Int -> IO ())
   -> Eval e e' a a' v
   -> ParseOp IO e a v
-parseStep logCharts (Eval eMid eLeft eRight eMerge _ _) n charts = do
+parseStep logCharts (Eval eMid eLeft eRight eUnsplit _ _) n charts = do
   uncurry logCharts charts n
   vertAllMiddles eMid n charts
     >>= vertAllLefts eLeft n
     >>= vertAllRights eRight n
-    >>= mergeAll eMerge n
+    >>= mergeAll eUnsplit n
 
 -- | Verticalizes all edges of length @n@.
 vertAllMiddles
-  :: (Monad m, Parsable e a v) => VertMiddle e a v -> ParseOp m e a v
+  :: (Monad m, Parsable e a v) => UnspreadMiddle e a v -> ParseOp m e a v
 vertAllMiddles evalMid n (!tchart, !vchart) = do
   let ts        = tcGetByLength tchart n
       !newVerts = catMaybes $ pmap (vertMiddle evalMid) $!! ts
@@ -372,7 +372,8 @@ vertAllMiddles evalMid n (!tchart, !vchart) = do
   return (tchart, vchart')
 
 -- | Perform all left verts where either @l@ or @m@ have length @n@
-vertAllLefts :: (Monad m, Parsable e a v) => VertLeft e a -> ParseOp m e a v
+vertAllLefts
+  :: (Monad m, Parsable e a v) => UnspreadLeft e a -> ParseOp m e a v
 vertAllLefts evalLeft n (!tchart, !vchart) = do
   let -- left = n (and middle <= n)
       leftn = pmap (uncurry $ vertLeft evalLeft) $!! do -- in list monad
@@ -392,7 +393,8 @@ vertAllLefts evalLeft n (!tchart, !vchart) = do
   return (tchart', vchart)
 
 -- | Perform all right verts where either @r@ or @m@ have length @n@
-vertAllRights :: (Monad m, Parsable e a v) => VertRight e a -> ParseOp m e a v
+vertAllRights
+  :: (Monad m, Parsable e a v) => UnspreadRight e a -> ParseOp m e a v
 vertAllRights evalRight n (!tchart, !vchart) = do
   let -- right = n (and middle <= n)
       !rightn = force $ pmap (uncurry $ vertRight evalRight) $!! do -- in list monad
@@ -415,7 +417,7 @@ vertAllRights evalRight n (!tchart, !vchart) = do
 mergeAll
   :: forall e a v m
    . (Monad m, Parsable e a v)
-  => Merge e a v
+  => Unsplit e a v
   -> ParseOp m e a v
 mergeAll mrg n (!tchart, !vchart) = do
   let !byLen = force $ tcGetByLength tchart n
@@ -469,8 +471,11 @@ parse logCharts eval path = do
     0
     (\i notes -> Slice i (evalSlice eval <$> notes) i i)
     path'
-  mkTrans l esurf r = mk
-    <$> evalThaw eval (sContent l) esurf (sContent r) (isStop $ sContent r)
+  mkTrans l esurf r = mk <$> evalUnfreeze eval
+                                          (sContent l)
+                                          esurf
+                                          (sContent r)
+                                          (isStop $ sContent r)
     where mk (e, v) = Transition l e r False := S.val v
   trans0 = mapEdges mkTrans slicePath
   tinit  = tcMerge tcEmpty $ concat trans0

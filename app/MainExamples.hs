@@ -34,6 +34,7 @@ import qualified Data.Text                     as T
 import qualified Data.Text.IO                  as T
 import           Data.Typeable                  ( Proxy(Proxy) )
 
+import           Data.String                    ( fromString )
 -- better do syntax
 import           Language.Haskell.DoNotation
 import           Prelude                 hiding ( Monad(..)
@@ -58,34 +59,41 @@ plotDeriv fn deriv = do
 
 example1 = buildDerivation $ do
   split ()
+  splitRight ()
+  spread ()
+  freeze ()
   split ()
   freeze ()
-  hori ()
-  freeze ()
   freeze ()
   freeze ()
 
-horiSplitLeft = buildPartialDerivation @2 $ hori () >> split ()
-splitLeftHori = buildPartialDerivation @2 $ split () >> freeze () >> hori ()
+example1Main :: IO ()
+example1Main = do
+  let Right g = replayDerivation derivationPlayerNull example1
+  writeGraph "doc-images/monadic-deriv.tex" g
 
-splitRightHori = buildPartialDerivation @2 $ do
+spreadSplitLeft = buildPartialDerivation @2 $ spread () >> split ()
+splitLeftSpread =
+  buildPartialDerivation @2 $ split () >> freeze () >> spread ()
+
+splitRightSpread = buildPartialDerivation @2 $ do
   splitRight ()
-  hori ()
+  spread ()
 
 exampleBoth = buildPartialDerivation @3 $ do
   splitRight ()
-  hori ()
+  spread ()
   freeze ()
   freeze ()
   freeze ()
-  hori ()
+  spread ()
 
 examplePartials = buildDerivation $ do
   split ()
-  hori ()
+  spread ()
   split ()
   freeze ()
-  hori ()
+  spread ()
 
 derivBach :: [PVLeftmost (Pitch MT.SIC)]
 derivBach = buildDerivation $ do
@@ -95,7 +103,7 @@ derivBach = buildDerivation $ do
     splitT Start Stop (f' nat) RootNote False False
     splitT Start Stop (a' nat) RootNote False False
     splitT Start Stop (a' nat) RootNote False False
-  hori $ mkHori $ do
+  spread $ mkHori $ do
     horiNote (d' nat) ToBoth      True
     horiNote (f' nat) ToBoth      True
     horiNote (a' nat) (ToRight 1) True
@@ -127,18 +135,18 @@ derivBach = buildDerivation $ do
            LeftRepeatOfRight
            False
            True
-  hori $ mkHori $ do
+  spread $ mkHori $ do
     horiNote (d' nat) ToBoth      True
     horiNote (f' nat) (ToRight 1) False
     horiNote (a' nat) (ToRight 1) False
   split $ mkSplit $ addToRight (d' nat) (d' nat) LeftRepeat False
   freeze FreezeOp
   freeze FreezeOp
-  hori $ mkHori $ do
+  spread $ mkHori $ do
     horiNote (d' nat) (ToRight 1) True
     horiNote (f' nat) (ToRight 1) False
     horiNote (a' nat) (ToLeft 1)  False
-  hori $ mkHori $ do
+  spread $ mkHori $ do
     horiNote (d' nat) ToBoth True
     horiNote (a' nat) ToBoth True
   freeze FreezeOp
@@ -146,14 +154,14 @@ derivBach = buildDerivation $ do
     splitT (Inner $ a' nat) (Inner $ a' nat) (b' flt) FullNeighbor False False
     splitT (Inner $ a' nat) (Inner $ a' nat) (g' nat) FullNeighbor False False
     splitT (Inner $ d' nat) (Inner $ d' nat) (d' nat) FullRepeat   True  True
-  hori $ mkHori $ do
+  spread $ mkHori $ do
     horiNote (d' nat) ToBoth      True
     horiNote (b' flt) (ToLeft 1)  False
     horiNote (g' nat) (ToRight 1) False
   freeze FreezeOp
   freeze FreezeOp
   freeze FreezeOp
-  hori $ mkHori $ do
+  spread $ mkHori $ do
     horiNote (d' nat) (ToRight 1) True
     horiNote (f' nat) (ToLeft 1)  False
     addPassing (f' nat) (d' nat)
@@ -163,21 +171,21 @@ derivBach = buildDerivation $ do
     splitT (Inner $ d' nat) (Inner $ d' nat) (d' nat) FullRepeat True True
   freeze FreezeOp
   freeze FreezeOp
-  hori $ mkHori $ do
+  spread $ mkHori $ do
     horiNote (d' nat) ToBoth      True
     horiNote (c' shp) ToBoth      True
     horiNote (b' flt) (ToRight 1) False
     horiNote (e' nat) (ToRight 1) False
     horiNote (g' nat) (ToRight 1) False
   freeze FreezeOp
-  hori $ mkHori $ do
+  spread $ mkHori $ do
     horiNote (d' nat) ToBoth      True
     horiNote (c' shp) ToBoth      True
     horiNote (b' flt) ToBoth      True
     horiNote (e' nat) (ToRight 1) False
     horiNote (g' nat) (ToRight 1) False
   freeze FreezeOp
-  hori $ mkHori $ do
+  spread $ mkHori $ do
     horiNote (d' nat) ToBoth      True
     horiNote (c' shp) ToBoth      True
     horiNote (b' flt) ToBoth      True
@@ -200,14 +208,14 @@ derivBach = buildDerivation $ do
            LeftRepeatOfRight
            False
            True
-  hori $ mkHori $ do
+  spread $ mkHori $ do
     horiNote (d' nat) ToBoth      True
     horiNote (c' shp) ToBoth      True
     horiNote (a' nat) ToBoth      True
     horiNote (g' nat) ToBoth      False
     horiNote (e' nat) (ToRight 1) False
   freeze FreezeOp
-  hori $ mkHori $ do
+  spread $ mkHori $ do
     horiNote (d' nat) ToBoth      True
     horiNote (c' shp) ToBoth      True
     horiNote (a' nat) ToBoth      True
@@ -223,11 +231,11 @@ derivBach = buildDerivation $ do
   freeze FreezeOp
   freeze FreezeOp
   freeze FreezeOp
-  hori $ mkHori $ do
+  spread $ mkHori $ do
     horiNote (d' nat) (ToLeft 1) False
     horiNote (f' nat) ToBoth     False
     horiNote (a' nat) (ToLeft 2) False
-  hori $ mkHori $ do
+  spread $ mkHori $ do
     horiNote (d' nat) (ToLeft 1)  False
     horiNote (f' nat) (ToLeft 1)  False
     horiNote (a' nat) (ToRight 1) True

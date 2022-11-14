@@ -17,9 +17,9 @@ import           PVGrammar.Prob.Simple          ( observeDerivation
                                                 )
 import           Parser
 import           ScoresCommon                   ( FreezeScore(FreezeScore)
-                                                , HoriScore(HoriScore)
                                                 , LeftmostScore
                                                 , SplitScore(SplitScore)
+                                                , SpreadScore(SpreadScore)
                                                 )
 
 import           Musicology.Core
@@ -182,14 +182,14 @@ derivBrahms = buildDerivation $ do
   split $ mkSplit $ do
     splitT Start Stop (c' shp) RootNote False False
     splitT Start Stop (a' nat) RootNote False False
-  hori $ mkHori $ do
+  spread $ mkHori $ do
     horiNote (a' nat) ToBoth     True
     horiNote (c' shp) (ToLeft 1) False
     addPassing (c' shp) (a' nat)
   splitRight $ mkSplit $ do
     splitNT (c' shp) (a' nat) (b' nat) PassingMid False False
     splitT (Inner $ a' nat) (Inner $ a' nat) (g' shp) FullNeighbor False False
-  hori $ mkHori $ do
+  spread $ mkHori $ do
     horiNote (a' nat) (ToRight 1) False
     horiNote (c' shp) (ToLeft 1)  False
     addPassing (c' shp) (a' nat)
@@ -198,7 +198,7 @@ derivBrahms = buildDerivation $ do
     splitNT (c' shp) (a' nat) (b' nat) PassingMid False False
   freeze FreezeOp
   freeze FreezeOp
-  hori $ mkHori $ do
+  spread $ mkHori $ do
     horiNote (b' nat) (ToRight 1) False
     horiNote (g' shp) (ToLeft 1)  False
   split $ mkSplit $ do
@@ -218,10 +218,10 @@ derivBrahms = buildDerivation $ do
 derivScore :: [LeftmostScore (Derivations String)]
 derivScore = buildDerivation $ do
   split $ SplitScore $ Do "top"
-  hori $ HoriScore $ Do "h2"
+  spread $ SpreadScore $ Do "h2"
   split $ SplitScore $ Do "s"
   freeze $ FreezeScore $ Do "L1"
-  hori $ HoriScore $ Do "h1"
+  spread $ SpreadScore $ Do "h1"
   freeze $ FreezeScore $ Do "L2"
   freeze $ FreezeScore $ Do "M"
   freeze $ FreezeScore $ Do "C"

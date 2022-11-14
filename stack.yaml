@@ -42,17 +42,20 @@ packages:
 
 extra-deps:
 # local packages
-- ../haskell-musicology/musicology-pitch
-- ../haskell-musicology/musicology-time
-- ../haskell-musicology/musicology-core
-- ../haskell-musicology/musicology-musicxml
-# - git: https://github.com/DCMLab/haskell-musicology.git
-#   commit: de3babd16d7b8cd5a62b2f95303ac89e150cfcdb
-#   subdirs:
-#   - musicology-pitch
-#   - musicology-core
-#   - musicology-musicxml
-- ../inference/conjugate-programs/ # TODO: make this refer to a git repo
+# - ../haskell-musicology/musicology-pitch
+# - ../haskell-musicology/musicology-time
+# - ../haskell-musicology/musicology-core
+# - ../haskell-musicology/musicology-musicxml
+# - ../inference/conjugate-programs/
+- git: https://github.com/DCMLab/haskell-musicology.git
+  commit: cccbf4e248e8a25d9a99816366bed2d65d789e57
+  subdirs:
+  - musicology-pitch
+  - musicology-time
+  - musicology-core
+  - musicology-musicxml
+- git: https://github.com/DCMLab/conjugate-haskell-programs.git
+  commit: f2f48f7942605722494b2cd58be573b85dadc106
 
 # newer version of random
 - random-1.2.1@sha256:8bee24dc0c985a90ee78d94c61f8aed21c49633686f0f1c14c5078d818ee43a2,6598

@@ -1,9 +1,9 @@
 module ScoresCommon where
 
 import           Common
-import           Scoring.FunTyped
-import qualified Data.Semiring                 as R
 import           Data.Maybe                     ( listToMaybe )
+import qualified Data.Semiring                 as R
+import           Scoring.FunTyped
 
 -- creating scores from derivations
 -- --------------------------------
@@ -14,10 +14,9 @@ newtype FreezeScore s = FreezeScore s
 newtype SplitScore s = SplitScore s
   deriving (Eq, Ord, Show)
 
-newtype HoriScore s = HoriScore s
+newtype SpreadScore s = SpreadScore s
   deriving (Eq, Ord, Show)
-
-type LeftmostScore s = Leftmost (SplitScore s) (FreezeScore s) (HoriScore s)
+type LeftmostScore s = Leftmost (SplitScore s) (FreezeScore s) (SpreadScore s)
 
 leftmostScores
   :: (R.Semiring s, Show s) => [LeftmostScore s] -> Maybe [Score s ()]
@@ -30,7 +29,7 @@ leftmostScores = foldr applyOp (Just [])
   applyOp (LMSplitOnly s) stack = applyOp (LMSplitLeft s) stack
   applyOp (LMSplitRight (SplitScore s)) (Just (x : l : r : stack)) =
     Just $ x : mergeScores s l r : stack
-  applyOp (LMHorizontalize (HoriScore s)) (Just (l : m : r : stack)) =
+  applyOp (LMSpread (SpreadScore s)) (Just (l : m : r : stack)) =
     Just $ vertScoresLeft () l : vertScoresRight () s m r : stack
   applyOp _ _ = Nothing
 

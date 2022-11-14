@@ -255,7 +255,8 @@ parseGreedy eval pick input = do
 
   collectThawSingle
     :: (StartStop a -> Maybe e' -> StartStop a -> [ActionSingle a e s f])
-  collectThawSingle sl t sr = mapMaybe getAction (evalThaw eval sl t sr True)
+  collectThawSingle sl t sr = mapMaybe getAction
+                                       (evalUnfreeze eval sl t sr True)
    where
     getAction (t', op) = case op of
       LMSingle sop -> Just $ ActionSingle (sl, Trans t' False, sr) sop
@@ -271,7 +272,7 @@ parseGreedy eval pick input = do
        )
   collectThawLeft sl tl sm (Trans tr _) sr = mapMaybe
     getAction
-    (evalThaw eval sl tl (Inner sm) False)
+    (evalUnfreeze eval sl tl (Inner sm) False)
    where
     getAction (thawed, op) = case op of
       LMDouble dop ->
@@ -287,7 +288,7 @@ parseGreedy eval pick input = do
        -> [ActionSingle a e s f]
        )
   collectMergeSingle sl (Trans tl _) sm (Trans tr _) sr =
-    mapMaybe getAction $ evalMerge eval sl tl sm tr sr LeftOnly
+    mapMaybe getAction $ evalUnsplit eval sl tl sm tr sr SingleOfOne
    where
     getAction (ttop, op) = case op of
       LMSingle sop -> Just $ ActionSingle (sl, Trans ttop False, sr) sop
@@ -304,7 +305,7 @@ parseGreedy eval pick input = do
        -> [ActionDouble a e s f h]
        )
   collectMergeLeft sstart (Trans tl _) sl (Trans tm _) sr (Trans tr _) send =
-    mapMaybe getAction $ evalMerge eval sstart tl sl tm (Inner sr) LeftOfTwo
+    mapMaybe getAction $ evalUnsplit eval sstart tl sl tm (Inner sr) LeftOfTwo
    where
     getAction (ttop, op) = case op of
       LMSingle _   -> Nothing
@@ -325,7 +326,7 @@ parseGreedy eval pick input = do
   collectMergeRight sstart tl sl (Trans tm m2nd) sr (Trans tr _) send
     | not m2nd = []
     | otherwise = mapMaybe getAction
-    $ evalMerge eval (Inner sl) tm sr tr send RightOfTwo
+    $ evalUnsplit eval (Inner sl) tm sr tr send RightOfTwo
    where
     getAction (ttop, op) = case op of
       LMSingle _ -> Nothing
@@ -344,9 +345,9 @@ parseGreedy eval pick input = do
        )
   collectVerts sstart (Trans tl _) sl (Trans tm _) sr (Trans tr _) send =
     catMaybes $ do -- List
-      (sTop, op) <- maybeToList $ evalVertMiddle eval (sl, tm, sr)
-      lTop       <- evalVertLeft eval (tl, sl) sTop
-      rTop       <- evalVertRight eval (sr, tr) sTop
+      (sTop, op) <- maybeToList $ evalUnspreadMiddle eval (sl, tm, sr)
+      lTop       <- evalUnspreadLeft eval (tl, sl) sTop
+      rTop       <- evalUnspreadRight eval (sr, tr) sTop
       pure $ getAction lTop sTop rTop op
       -- pure $ getAction $ evalMerge eval (Inner sl) tm sr tr send RightOfTwo
    where
