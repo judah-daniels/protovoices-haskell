@@ -1,49 +1,54 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE RebindableSyntax #-}
+{-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -Wno-all #-}
+
 module Main where
 
-import           Common
-import           Display
-import           PVGrammar
-import           PVGrammar.Generate
-import           PVGrammar.Parse
-import           Parser
+import Common
+import Display
+import PVGrammar
+import PVGrammar.Generate
+import PVGrammar.Parse
+import Parser
 
-import           Musicology.Core
-import           Musicology.Core.Slicing
---import Musicology.Internal.Helpers
-import           Musicology.MusicXML
-import           Musicology.Pitch.Spelled      as MT
+import Musicology.Core
+import Musicology.Core.Slicing
 
-import           Data.Either                    ( partitionEithers )
-import           Data.Maybe                     ( catMaybes )
-import           Data.Ratio                     ( Ratio(..) )
-import           Lens.Micro                     ( over )
+-- import Musicology.Internal.Helpers
+import Musicology.MusicXML
+import Musicology.Pitch.Spelled as MT
 
-import           Control.Monad                  ( forM
-                                                , forM_
-                                                )
-import qualified Data.List                     as L
-import qualified Data.Semiring                 as R
-import qualified Data.Set                      as S
-import qualified Data.Text                     as T
-import qualified Data.Text.IO                  as T
-import           Data.Typeable                  ( Proxy(Proxy) )
+import Data.Either (partitionEithers)
+import Data.Maybe (catMaybes)
+import Data.Ratio (Ratio (..))
+import Lens.Micro (over)
 
-import           Data.String                    ( fromString )
+import Control.Monad
+  ( forM
+  , forM_
+  )
+import qualified Data.List as L
+import qualified Data.Semiring as R
+import qualified Data.Set as S
+import qualified Data.Text as T
+import qualified Data.Text.IO as T
+import Data.Typeable (Proxy (Proxy))
+
+import Data.String (fromString)
+
 -- better do syntax
-import           Language.Haskell.DoNotation
-import           Prelude                 hiding ( Monad(..)
-                                                , pure
-                                                )
+import Language.Haskell.DoNotation
+import Prelude hiding
+  ( Monad (..)
+  , pure
+  )
 
 plotSteps :: FilePath -> [Leftmost s f h] -> IO ()
 plotSteps fn deriv = do
-  let graphs          = unfoldDerivation derivationPlayerNull deriv
+  let graphs = unfoldDerivation derivationPlayerNull deriv
       (errors, steps) = partitionEithers graphs
   mapM_ putStrLn errors
   writeGraphs fn $ reverse steps
@@ -54,8 +59,8 @@ putGraph n deriv = case replayDerivation' n derivationPlayerNull deriv of
 
 plotDeriv fn deriv = do
   case replayDerivation derivationPlayerPV deriv of
-    (Left  err) -> putStrLn err
-    (Right g  ) -> viewGraph fn g
+    (Left err) -> putStrLn err
+    (Right g) -> viewGraph fn g
 
 example1 = buildDerivation $ do
   split ()
@@ -104,39 +109,42 @@ derivBach = buildDerivation $ do
     splitT Start Stop (a' nat) RootNote False False
     splitT Start Stop (a' nat) RootNote False False
   spread $ mkSpread $ do
-    spreadNote (d' nat) ToBoth      True
-    spreadNote (f' nat) ToBoth      True
+    spreadNote (d' nat) ToBoth True
+    spreadNote (f' nat) ToBoth True
     spreadNote (a' nat) (ToRight 1) True
     addPassing (d' nat) (f' nat)
   splitRight $ mkSplit $ do
     splitNT (d' nat) (f' nat) (e' nat) PassingMid True False
     splitT (Inner $ d' nat) (Inner $ d' nat) (c' shp) FullNeighbor True True
-    splitT (Inner $ d' nat) (Inner $ d' nat) (d' nat) FullRepeat   True True
-    splitT (Inner $ a' nat) (Inner $ a' nat) (a' nat) FullRepeat   True True
+    splitT (Inner $ d' nat) (Inner $ d' nat) (d' nat) FullRepeat True True
+    splitT (Inner $ a' nat) (Inner $ a' nat) (a' nat) FullRepeat True True
     splitT (Inner $ f' nat) (Inner $ f' nat) (g' nat) FullNeighbor True True
   splitRight $ mkSplit $ do
-    splitT (Inner $ d' nat) (Inner $ d' nat) (d' nat) FullRepeat   True  True
+    splitT (Inner $ d' nat) (Inner $ d' nat) (d' nat) FullRepeat True True
     splitT (Inner $ a' nat) (Inner $ a' nat) (b' flt) FullNeighbor False False
-    splitT (Inner $ d' nat)
-           (Inner $ c' shp)
-           (c' shp)
-           LeftRepeatOfRight
-           False
-           True
-    splitT (Inner $ d' nat)
-           (Inner $ e' nat)
-           (e' nat)
-           LeftRepeatOfRight
-           False
-           False
-    splitT (Inner $ f' nat)
-           (Inner $ g' nat)
-           (g' nat)
-           LeftRepeatOfRight
-           False
-           True
+    splitT
+      (Inner $ d' nat)
+      (Inner $ c' shp)
+      (c' shp)
+      LeftRepeatOfRight
+      False
+      True
+    splitT
+      (Inner $ d' nat)
+      (Inner $ e' nat)
+      (e' nat)
+      LeftRepeatOfRight
+      False
+      False
+    splitT
+      (Inner $ f' nat)
+      (Inner $ g' nat)
+      (g' nat)
+      LeftRepeatOfRight
+      False
+      True
   spread $ mkSpread $ do
-    spreadNote (d' nat) ToBoth      True
+    spreadNote (d' nat) ToBoth True
     spreadNote (f' nat) (ToRight 1) False
     spreadNote (a' nat) (ToRight 1) False
   split $ mkSplit $ addToRight (d' nat) (d' nat) LeftRepeat False
@@ -145,7 +153,7 @@ derivBach = buildDerivation $ do
   spread $ mkSpread $ do
     spreadNote (d' nat) (ToRight 1) True
     spreadNote (f' nat) (ToRight 1) False
-    spreadNote (a' nat) (ToLeft 1)  False
+    spreadNote (a' nat) (ToLeft 1) False
   spread $ mkSpread $ do
     spreadNote (d' nat) ToBoth True
     spreadNote (a' nat) ToBoth True
@@ -153,17 +161,17 @@ derivBach = buildDerivation $ do
   split $ mkSplit $ do
     splitT (Inner $ a' nat) (Inner $ a' nat) (b' flt) FullNeighbor False False
     splitT (Inner $ a' nat) (Inner $ a' nat) (g' nat) FullNeighbor False False
-    splitT (Inner $ d' nat) (Inner $ d' nat) (d' nat) FullRepeat   True  True
+    splitT (Inner $ d' nat) (Inner $ d' nat) (d' nat) FullRepeat True True
   spread $ mkSpread $ do
-    spreadNote (d' nat) ToBoth      True
-    spreadNote (b' flt) (ToLeft 1)  False
+    spreadNote (d' nat) ToBoth True
+    spreadNote (b' flt) (ToLeft 1) False
     spreadNote (g' nat) (ToRight 1) False
   freeze FreezeOp
   freeze FreezeOp
   freeze FreezeOp
   spread $ mkSpread $ do
     spreadNote (d' nat) (ToRight 1) True
-    spreadNote (f' nat) (ToLeft 1)  False
+    spreadNote (f' nat) (ToLeft 1) False
     addPassing (f' nat) (d' nat)
   freeze FreezeOp
   split $ mkSplit $ do
@@ -172,54 +180,56 @@ derivBach = buildDerivation $ do
   freeze FreezeOp
   freeze FreezeOp
   spread $ mkSpread $ do
-    spreadNote (d' nat) ToBoth      True
-    spreadNote (c' shp) ToBoth      True
+    spreadNote (d' nat) ToBoth True
+    spreadNote (c' shp) ToBoth True
     spreadNote (b' flt) (ToRight 1) False
     spreadNote (e' nat) (ToRight 1) False
     spreadNote (g' nat) (ToRight 1) False
   freeze FreezeOp
   spread $ mkSpread $ do
-    spreadNote (d' nat) ToBoth      True
-    spreadNote (c' shp) ToBoth      True
-    spreadNote (b' flt) ToBoth      True
+    spreadNote (d' nat) ToBoth True
+    spreadNote (c' shp) ToBoth True
+    spreadNote (b' flt) ToBoth True
     spreadNote (e' nat) (ToRight 1) False
     spreadNote (g' nat) (ToRight 1) False
   freeze FreezeOp
   spread $ mkSpread $ do
-    spreadNote (d' nat) ToBoth      True
-    spreadNote (c' shp) ToBoth      True
-    spreadNote (b' flt) ToBoth      True
-    spreadNote (e' nat) (ToLeft 1)  False
+    spreadNote (d' nat) ToBoth True
+    spreadNote (c' shp) ToBoth True
+    spreadNote (b' flt) ToBoth True
+    spreadNote (e' nat) (ToLeft 1) False
     spreadNote (g' nat) (ToRight 1) False
   freeze FreezeOp
   freeze FreezeOp
   splitRight $ mkSplit $ do
-    splitT (Inner $ g' nat)
-           (Inner $ f' nat)
-           (g' nat)
-           RightRepeatOfLeft
-           False
-           False
+    splitT
+      (Inner $ g' nat)
+      (Inner $ f' nat)
+      (g' nat)
+      RightRepeatOfLeft
+      False
+      False
     splitT (Inner $ a' nat) (Inner $ a' nat) (a' nat) FullRepeat True True
     splitT (Inner $ d' nat) (Inner $ d' nat) (d' nat) FullRepeat True True
-    splitT (Inner $ c' shp)
-           (Inner $ d' nat)
-           (d' nat)
-           LeftRepeatOfRight
-           False
-           True
+    splitT
+      (Inner $ c' shp)
+      (Inner $ d' nat)
+      (d' nat)
+      LeftRepeatOfRight
+      False
+      True
   spread $ mkSpread $ do
-    spreadNote (d' nat) ToBoth      True
-    spreadNote (c' shp) ToBoth      True
-    spreadNote (a' nat) ToBoth      True
-    spreadNote (g' nat) ToBoth      False
+    spreadNote (d' nat) ToBoth True
+    spreadNote (c' shp) ToBoth True
+    spreadNote (a' nat) ToBoth True
+    spreadNote (g' nat) ToBoth False
     spreadNote (e' nat) (ToRight 1) False
   freeze FreezeOp
   spread $ mkSpread $ do
-    spreadNote (d' nat) ToBoth      True
-    spreadNote (c' shp) ToBoth      True
-    spreadNote (a' nat) ToBoth      True
-    spreadNote (g' nat) (ToLeft 1)  False
+    spreadNote (d' nat) ToBoth True
+    spreadNote (c' shp) ToBoth True
+    spreadNote (a' nat) ToBoth True
+    spreadNote (g' nat) (ToLeft 1) False
     spreadNote (e' nat) (ToRight 1) False
     addPassing (g' nat) (e' nat)
   freeze FreezeOp
@@ -233,11 +243,11 @@ derivBach = buildDerivation $ do
   freeze FreezeOp
   spread $ mkSpread $ do
     spreadNote (d' nat) (ToLeft 1) False
-    spreadNote (f' nat) ToBoth     False
+    spreadNote (f' nat) ToBoth False
     spreadNote (a' nat) (ToLeft 2) False
   spread $ mkSpread $ do
-    spreadNote (d' nat) (ToLeft 1)  False
-    spreadNote (f' nat) (ToLeft 1)  False
+    spreadNote (d' nat) (ToLeft 1) False
+    spreadNote (f' nat) (ToLeft 1) False
     spreadNote (a' nat) (ToRight 1) True
     addPassing (f' nat) (d' nat)
   freeze FreezeOp

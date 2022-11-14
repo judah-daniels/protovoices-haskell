@@ -1,68 +1,75 @@
-{-# LANGUAGE MonoLocalBinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE MonoLocalBinds #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RebindableSyntax #-}
 {-# LANGUAGE PartialTypeSignatures #-}
+{-# LANGUAGE RebindableSyntax #-}
 {-# OPTIONS_GHC -Wno-all #-}
+
 module Main where
 
-import           Common
-import           Display
-import           GreedyParser                  as Greedy
-import           PVGrammar
-import           PVGrammar.Generate
-import           PVGrammar.Parse
-import           PVGrammar.Prob.Simple          ( observeDerivation
-                                                , sampleDerivation
-                                                )
-import           Parser
+import Common
+import Display
+import GreedyParser as Greedy
+import PVGrammar
+import PVGrammar.Generate
+import PVGrammar.Parse
+import PVGrammar.Prob.Simple
+  ( observeDerivation
+  , sampleDerivation
+  )
+import Parser
 
-import           Musicology.Core
-import           Musicology.Core.Slicing
---import Musicology.Internal.Helpers
-import           Musicology.MusicXML
-import           Musicology.Pitch.Spelled      as MT
+import Musicology.Core
+import Musicology.Core.Slicing
 
-import           Data.Either                    ( partitionEithers )
-import           Data.Maybe                     ( catMaybes )
-import           Data.Ratio                     ( Ratio(..) )
-import           Lens.Micro                     ( over )
+-- import Musicology.Internal.Helpers
+import Musicology.MusicXML
+import Musicology.Pitch.Spelled as MT
 
-import           Control.Monad                  ( foldM
-                                                , forM
-                                                , forM_
-                                                )
-import           Control.Monad.Except           ( runExceptT )
-import qualified Data.HashSet                  as HS
-import qualified Data.List                     as L
-import qualified Data.Semiring                 as R
-import qualified Data.Sequence                 as Seq
-import qualified Data.Set                      as S
-import qualified Data.Text                     as T
-import qualified Data.Text.IO                  as T
-import qualified Data.Text.Lazy                as TL
-import qualified Data.Text.Lazy.IO             as TL
-import qualified Internal.MultiSet             as MS
+import Data.Either (partitionEithers)
+import Data.Maybe (catMaybes)
+import Data.Ratio (Ratio (..))
+import Lens.Micro (over)
 
+import Control.Monad
+  ( foldM
+  , forM
+  , forM_
+  )
+import Control.Monad.Except (runExceptT)
+import qualified Data.HashSet as HS
+import qualified Data.List as L
+import qualified Data.Semiring as R
+import qualified Data.Sequence as Seq
+import qualified Data.Set as S
+import qualified Data.Text as T
+import qualified Data.Text.IO as T
+import qualified Data.Text.Lazy as TL
+import qualified Data.Text.Lazy.IO as TL
+import qualified Internal.MultiSet as MS
 
-import           Control.DeepSeq                ( deepseq
-                                                , force
-                                                )
-import           Control.Monad.Trans.Maybe      ( MaybeT(MaybeT) )
-import           Data.Bifunctor                 ( Bifunctor(bimap) )
-import           Data.String                    ( fromString )
-import           Inference.Conjugate            ( runTrace
-                                                , showTrace
-                                                , traceTrace
-                                                )
+import Control.DeepSeq
+  ( deepseq
+  , force
+  )
+import Control.Monad.Trans.Maybe (MaybeT (MaybeT))
+import Data.Bifunctor (Bifunctor (bimap))
+import Data.String (fromString)
+import Inference.Conjugate
+  ( runTrace
+  , showTrace
+  , traceTrace
+  )
+
 -- better do syntax
-import qualified Language.Haskell.DoNotation   as Do
+import qualified Language.Haskell.DoNotation as Do
+
 -- import           Prelude                 hiding ( Monad(..)
 --                                                 , pure
 --                                                 )
-import           Prelude
+import Prelude
 
-ifThenElse True  t e = t
+ifThenElse True t e = t
 ifThenElse False t e = e
 
 -- utilities
@@ -102,8 +109,8 @@ monopath :: [a] -> Path [a] [b]
 monopath = path . fmap (: [])
 
 path :: [a] -> Path a [b]
-path []       = error "cannot construct empty path"
-path [a     ] = PathEnd a
+path [] = error "cannot construct empty path"
+path [a] = PathEnd a
 path (a : as) = Path a [] $ path as
 
 -- actions
@@ -116,8 +123,8 @@ printDerivs path = do
     forM_ d $ \step -> do
       putStrLn $ "- " <> show step
     case replayDerivation derivationPlayerPV d of
-      Left  error -> putStrLn $ "Error: " <> error
-      Right _     -> putStrLn "Ok."
+      Left error -> putStrLn $ "Error: " <> error
+      Right _ -> putStrLn "Ok."
 
 plotDerivs fn derivs = do
   pics <- forM derivs $ \d -> case replayDerivation derivationPlayerPV d of
@@ -130,44 +137,45 @@ plotDerivs fn derivs = do
 
 plotDeriv fn deriv = do
   case replayDerivation derivationPlayerPV deriv of
-    (Left  err) -> putStrLn err
-    (Right g  ) -> viewGraph fn g
+    (Left err) -> putStrLn err
+    (Right g) -> viewGraph fn g
 
 plotSteps fn deriv = do
-  let graphs          = unfoldDerivation derivationPlayerPV deriv
+  let graphs = unfoldDerivation derivationPlayerPV deriv
       (errors, steps) = partitionEithers graphs
   mapM_ putStrLn errors
   viewGraphs fn $ reverse steps
 
 checkDeriv deriv original = do
   case replayDerivation derivationPlayerPV deriv of
-    (Left  err) -> putStrLn err
-    (Right g  ) -> do
+    (Left err) -> putStrLn err
+    (Right g) -> do
       let path' = case dgFoot g of
             (_ : (_, tlast, slast) : rst) -> do
               s <- getSlice slast
               foldM foldPath (PathEnd s, tlast) rst
             _ -> Nothing
-          orig' = bimap (Notes . MS.fromList)
-                        (\e -> Edges (HS.fromList e) MS.empty)
-                        original
+          orig' =
+            bimap
+              (Notes . MS.fromList)
+              (\e -> Edges (HS.fromList e) MS.empty)
+              original
       case path' of
-        Nothing          -> putStrLn "failed to check result path"
-        Just (result, _) -> if result == orig'
-          then putStrLn "roundtrip ok"
-          else do
-            putStrLn "roundtrip not ok, surfaces are not equal:"
-            putStrLn "original:"
-            print original
-            putStrLn "recreated:"
-            print result
-
+        Nothing -> putStrLn "failed to check result path"
+        Just (result, _) ->
+          if result == orig'
+            then putStrLn "roundtrip ok"
+            else do
+              putStrLn "roundtrip not ok, surfaces are not equal:"
+              putStrLn "original:"
+              print original
+              putStrLn "recreated:"
+              print result
  where
   foldPath (pacc, tacc) (_, tnew, snew) = do
     s <- getSlice snew
     pure (Path s tacc pacc, tnew)
   getSlice (_, _, s) = getInner s
-
 
 -- example derivations
 -- ===================
@@ -178,7 +186,7 @@ derivBrahms = buildDerivation $ do
     splitT Start Stop (c' shp) RootNote False False
     splitT Start Stop (a' nat) RootNote False False
   spread $ mkSpread $ do
-    spreadNote (a' nat) ToBoth     True
+    spreadNote (a' nat) ToBoth True
     spreadNote (c' shp) (ToLeft 1) False
     addPassing (c' shp) (a' nat)
   splitRight $ mkSplit $ do
@@ -186,7 +194,7 @@ derivBrahms = buildDerivation $ do
     splitT (Inner $ a' nat) (Inner $ a' nat) (g' shp) FullNeighbor False False
   spread $ mkSpread $ do
     spreadNote (a' nat) (ToRight 1) False
-    spreadNote (c' shp) (ToLeft 1)  False
+    spreadNote (c' shp) (ToLeft 1) False
     addPassing (c' shp) (a' nat)
   freeze FreezeOp
   split $ mkSplit $ do
@@ -195,7 +203,7 @@ derivBrahms = buildDerivation $ do
   freeze FreezeOp
   spread $ mkSpread $ do
     spreadNote (b' nat) (ToRight 1) False
-    spreadNote (g' shp) (ToLeft 1)  False
+    spreadNote (g' shp) (ToLeft 1) False
   split $ mkSplit $ do
     addToRight (g' shp) (a' nat) LeftNeighbor False
   freeze FreezeOp
@@ -218,14 +226,14 @@ mainGreedy file = do
   print input
   result <- runExceptT $ Greedy.parseRandom protoVoiceEvaluator input
   case result of
-    Left  err                  -> print err
+    Left err -> print err
     -- Right _   -> putStrLn "Ok."
     Right (Analysis deriv top) -> do
       print "done parsing."
       checkDeriv deriv input
       case replayDerivation derivationPlayerPV deriv of
-        Left  err -> putStrLn err
-        Right g   -> viewGraph "greedy.tex" g
+        Left err -> putStrLn err
+        Right g -> viewGraph "greedy.tex" g
       -- case observeDerivation deriv top of
       --   Left  err   -> print err
       --   Right trace -> do
@@ -237,8 +245,6 @@ mainGreedy file = do
       --     -- let res = traceTrace trace (sampleDerivation top)
       --     -- pure ()
       forM_ deriv print
-
-
 
 mainCount fn = do
   input <- loadInput fn
@@ -266,7 +272,7 @@ mainBrahms = do
   print count
 
 mainGraph = do
-  input  <- slicesToPath <$> slicesFromFile brahms1
+  input <- slicesToPath <$> slicesFromFile brahms1
   derivs <- parseSize pvDeriv input
   let ds = S.toList $ flattenDerivations derivs
   pics <- forM ds $ \d -> case replayDerivation derivationPlayerPV d of

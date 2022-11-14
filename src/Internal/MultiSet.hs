@@ -1,20 +1,22 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TupleSections #-}
+
 module Internal.MultiSet where
 
-import           Control.DeepSeq                ( NFData )
-import           Control.Monad                 as M
-import           Data.Foldable                  ( all
-                                                , foldl'
-                                                )
-import qualified Data.HashMap.Strict           as HM
-import           Data.HashSet                   ( HashSet )
-import           Data.Hashable                  ( Hashable )
-import           GHC.Generics                   ( Generic )
-import           Prelude                 hiding ( lookup )
+import Control.DeepSeq (NFData)
+import Control.Monad as M
+import Data.Foldable
+  ( all
+  , foldl'
+  )
+import qualified Data.HashMap.Strict as HM
+import Data.HashSet (HashSet)
+import Data.Hashable (Hashable)
+import GHC.Generics (Generic)
+import Prelude hiding (lookup)
 
-newtype MultiSet a = MS { unMS :: HM.HashMap a Int }
+newtype MultiSet a = MS {unMS :: HM.HashMap a Int}
   deriving (Eq, Ord, Show, Generic, Hashable, NFData)
 
 instance (Eq a, Hashable a) => Semigroup (MultiSet a) where
@@ -43,8 +45,9 @@ maxUnion :: (Eq a, Hashable a) => MultiSet a -> MultiSet a -> MultiSet a
 maxUnion (MS a) (MS b) = MS $ HM.unionWith max a b
 
 deleteN :: Int -> Int -> Maybe Int
-deleteN n m | m <= n    = Nothing
-            | otherwise = Just (m - n)
+deleteN n m
+  | m <= n = Nothing
+  | otherwise = Just (m - n)
 
 (\\) :: (Eq a, Hashable a) => MultiSet a -> MultiSet a -> MultiSet a
 (MS a) \\ (MS b) = MS $ HM.differenceWith (flip deleteN) a b
@@ -64,9 +67,11 @@ traverse
   => (a -> f b)
   -> MultiSet a
   -> f (MultiSet b)
-traverse f (MS m) = MS . HM.fromListWith (+) <$> Prelude.traverse
-  (\(k, v) -> (, v) <$> f k)
-  (HM.toList m)
+traverse f (MS m) =
+  MS . HM.fromListWith (+)
+    <$> Prelude.traverse
+      (\(k, v) -> (,v) <$> f k)
+      (HM.toList m)
 
 filter :: (a -> Bool) -> MultiSet a -> MultiSet a
 filter f (MS a) = MS $ HM.filterWithKey (\k _ -> f k) a
@@ -94,8 +99,9 @@ foldM f b (MS as) = HM.foldlWithKey' doFold (pure b) as
     M.foldM f b' (replicate i a)
 
 insertMany :: (Eq a, Hashable a) => a -> Int -> MultiSet a -> MultiSet a
-insertMany a n (MS as) | n <= 0    = MS as
-                       | otherwise = MS $ HM.insertWith (+) a n as
+insertMany a n (MS as)
+  | n <= 0 = MS as
+  | otherwise = MS $ HM.insertWith (+) a n as
 
 insert :: (Eq a, Hashable a) => a -> MultiSet a -> MultiSet a
 insert a = insertMany a 1
