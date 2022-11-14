@@ -28,8 +28,8 @@ import           Common                         ( Analysis
                                                 , getInner
                                                 )
 import           PVGrammar
-import           PVGrammar.Generate             ( applyHori
-                                                , applySplit
+import           PVGrammar.Generate             ( applySplit
+                                                , applySpread
                                                 , freezable
                                                 )
 
@@ -134,11 +134,11 @@ data PVParamsInner f = PVParamsInner
   , _pPassLeftOverRight             :: f Beta
   , _pNewPassingLeft                :: f Beta
   , _pNewPassingRight               :: f Beta
-  -- hori
+  -- spread
   , _pNewPassingMid                 :: f Beta
-  , _pNoteHoriDirection             :: f (Dirichlet 3)
+  , _pNoteSpreadDirection           :: f (Dirichlet 3)
   , _pNotesOnOtherSide              :: f Beta
-  , _pHoriRepetitionEdge            :: f Beta
+  , _pSpreadRepetitionEdge          :: f Beta
   }
   deriving Generic
 
@@ -252,10 +252,10 @@ sampleDerivation top = runExceptT $ go Start top False
         (ctl, cs, ctr) <- except $ applySplit splitOp tr
         nextSteps      <- go sl (Path tl sm (Path ctl cs (mkrest ctr))) True
         pure $ LMSplitRight splitOp : nextSteps
-      LMDoubleSpread horiOp -> do
-        (ctl, csl, ctm, csr, ctr) <- except $ applyHori horiOp tl sm tr
+      LMDoubleSpread spreadOp -> do
+        (ctl, csl, ctm, csr, ctr) <- except $ applySpread spreadOp tl sm tr
         nextSteps <- go sl (Path ctl csl (Path ctm csr (mkrest ctr))) False
-        pure $ LMSpread horiOp : nextSteps
+        pure $ LMSpread spreadOp : nextSteps
 
 observeDerivation
   :: [PVLeftmost SPitch]
@@ -301,8 +301,8 @@ observeDerivation deriv top = execStateT (go Start top False deriv)
         LMDoubleSplitRight splitOp -> do
           (ctl, cs, ctr) <- lift $ applySplit splitOp tr
           go sl (Path tl sm $ Path ctl cs $ mkRest ctr) True rest
-        LMDoubleSpread horiOp -> do
-          (ctl, csl, ctm, csr, ctr) <- lift $ applyHori horiOp tl sm tr
+        LMDoubleSpread spreadOp -> do
+          (ctl, csl, ctm, csr, ctr) <- lift $ applySpread spreadOp tl sm tr
           go sl (Path ctl csl $ Path ctm csr $ mkRest ctr) False rest
 
 sampleSingleStep
@@ -340,7 +340,7 @@ sampleDoubleStep
   :: _
   => ContextDouble SPitch
   -> Bool
-  -> m (LeftmostDouble (Split SPitch) Freeze (Hori SPitch))
+  -> m (LeftmostDouble (Split SPitch) Freeze (Spread SPitch))
 sampleDoubleStep parents@(sliceL, transL, sliceM, transR, sliceR) afterRightSplit
   = if afterRightSplit
     then do
@@ -348,7 +348,7 @@ sampleDoubleStep parents@(sliceL, transL, sliceM, transR, sliceR) afterRightSpli
         sampleValue "shouldSplitRight" Bernoulli $ pOuter . pDoubleRightSplit
       if shouldSplitRight
         then LMDoubleSplitRight <$> sampleSplit (Inner sliceM, transR, sliceR)
-        else LMDoubleSpread <$> sampleHori parents
+        else LMDoubleSpread <$> sampleSpread parents
     else do
       continueLeft <-
         sampleValue "continueLeft" Bernoulli $ pOuter . pDoubleLeft
@@ -370,7 +370,7 @@ sampleDoubleStep parents@(sliceL, transL, sliceM, transR, sliceR) afterRightSpli
 observeDoubleStep
   :: ContextDouble SPitch
   -> Bool
-  -> LeftmostDouble (Split SPitch) Freeze (Hori SPitch)
+  -> LeftmostDouble (Split SPitch) Freeze (Spread SPitch)
   -> PVObs ()
 observeDoubleStep parents@(sliceL, transL, sliceM, transR, sliceR) afterRightSplit doubleOp
   = case doubleOp of
@@ -403,7 +403,7 @@ observeDoubleStep parents@(sliceL, transL, sliceM, transR, sliceR) afterRightSpl
                    Bernoulli
                    (pOuter . pDoubleRightSplit)
                    False
-      observeHori parents h
+      observeSpread parents h
 
 sampleFreeze :: RandomInterpreter m PVParams => ContextSingle n -> m Freeze
 sampleFreeze _parents = pure FreezeOp
@@ -908,8 +908,8 @@ observeKeepEdges pKeep candidates kept = mapM_ oKeep
   oKeep edge =
     observeValue "keep" Bernoulli (pInner . pKeep) (S.member edge kept)
 
-sampleHori :: _ => ContextDouble SPitch -> m (Hori SPitch)
-sampleHori (_sliceL, _transL, Notes sliceM, _transR, _sliceR) = do
+sampleSpread :: _ => ContextDouble SPitch -> m (Spread SPitch)
+sampleSpread (_sliceL, _transL, Notes sliceM, _transR, _sliceR) = do
   -- distribute notes
   dists <- mapM distNote $ MS.toOccurList sliceM
   let notesLeft = catMaybes $ flip fmap dists $ \((note, n), to) -> case to of
@@ -925,7 +925,9 @@ sampleHori (_sliceL, _transL, Notes sliceM, _transR, _sliceR) = do
     guard $ pc l == pc r
     pure $ do -- m
       rep <-
-        sampleValue "horiRepeatEdge" Bernoulli $ pInner . pHoriRepetitionEdge
+        sampleValue "spreadRepeatEdge" Bernoulli
+        $ pInner
+        . pSpreadRepetitionEdge
       pure $ if rep then Just (Inner l, Inner r) else Nothing
   let repEdges = S.fromList $ catMaybes repeats
   -- generate passing edges
@@ -933,14 +935,14 @@ sampleHori (_sliceL, _transL, Notes sliceM, _transR, _sliceR) = do
   -- construct result
   let distMap = HM.fromList (Bi.first fst <$> dists)
       edges   = Edges repEdges passEdges
-  pure $ HoriOp distMap edges
+  pure $ SpreadOp distMap edges
  where
   -- distribute a note to the two child slices
   distNote (note, n) = do
     dir <-
-      sampleValue "noteHoriDirection" (Categorical @3)
+      sampleValue "noteSpreadDirection" (Categorical @3)
       $ pInner
-      . pNoteHoriDirection
+      . pNoteSpreadDirection
     to <- case dir of
       0 -> pure ToBoth
       1 -> do
@@ -957,8 +959,8 @@ sampleHori (_sliceL, _transL, Notes sliceM, _transR, _sliceR) = do
         pure $ ToRight $ n - nother
     pure ((note, n), to)
 
-observeHori :: ContextDouble SPitch -> Hori SPitch -> PVObs ()
-observeHori (_sliceL, _transL, Notes sliceM, _transR, _sliceR) (HoriOp obsDists (Edges repEdges passEdges))
+observeSpread :: ContextDouble SPitch -> Spread SPitch -> PVObs ()
+observeSpread (_sliceL, _transL, Notes sliceM, _transR, _sliceR) (SpreadOp obsDists (Edges repEdges passEdges))
   = do
     -- observe note distribution
     dists <- mapM (observeNoteDist obsDists) $ MS.toOccurList sliceM
@@ -975,9 +977,9 @@ observeHori (_sliceL, _transL, Notes sliceM, _transR, _sliceR) (HoriOp obsDists 
       l <- notesLeft
       r <- notesRight
       guard $ pc l == pc r
-      pure $ observeValue "horiRepeatEdge"
+      pure $ observeValue "spreadRepeatEdge"
                           Bernoulli
-                          (pInner . pHoriRepetitionEdge)
+                          (pInner . pSpreadRepetitionEdge)
                           (S.member (Inner l, Inner r) repEdges)
     -- observe passing edges
     observePassing notesLeft notesRight pNewPassingMid passEdges
@@ -988,23 +990,23 @@ observeHori (_sliceL, _transL, Notes sliceM, _transR, _sliceR) (HoriOp obsDists 
     Just dir -> do
       case dir of
         ToBoth -> do
-          observeValue "noteHoriDirection"
+          observeValue "noteSpreadDirection"
                        (Categorical @3)
-                       (pInner . pNoteHoriDirection)
+                       (pInner . pNoteSpreadDirection)
                        0
         ToLeft ndiff -> do
-          observeValue "noteHoriDirection"
+          observeValue "noteSpreadDirection"
                        (Categorical @3)
-                       (pInner . pNoteHoriDirection)
+                       (pInner . pNoteSpreadDirection)
                        1
           observeValue "notesOnOtherSide"
                        (Binomial $ n - 1)
                        (pInner . pNotesOnOtherSide)
                        (n - ndiff)
         ToRight ndiff -> do
-          observeValue "noteHoriDirection"
+          observeValue "noteSpreadDirection"
                        (Categorical @3)
-                       (pInner . pNoteHoriDirection)
+                       (pInner . pNoteSpreadDirection)
                        2
           observeValue "notesOnOtherSide"
                        (Binomial $ n - 1)

@@ -103,10 +103,10 @@ derivBach = buildDerivation $ do
     splitT Start Stop (f' nat) RootNote False False
     splitT Start Stop (a' nat) RootNote False False
     splitT Start Stop (a' nat) RootNote False False
-  spread $ mkHori $ do
-    horiNote (d' nat) ToBoth      True
-    horiNote (f' nat) ToBoth      True
-    horiNote (a' nat) (ToRight 1) True
+  spread $ mkSpread $ do
+    spreadNote (d' nat) ToBoth      True
+    spreadNote (f' nat) ToBoth      True
+    spreadNote (a' nat) (ToRight 1) True
     addPassing (d' nat) (f' nat)
   splitRight $ mkSplit $ do
     splitNT (d' nat) (f' nat) (e' nat) PassingMid True False
@@ -135,35 +135,35 @@ derivBach = buildDerivation $ do
            LeftRepeatOfRight
            False
            True
-  spread $ mkHori $ do
-    horiNote (d' nat) ToBoth      True
-    horiNote (f' nat) (ToRight 1) False
-    horiNote (a' nat) (ToRight 1) False
+  spread $ mkSpread $ do
+    spreadNote (d' nat) ToBoth      True
+    spreadNote (f' nat) (ToRight 1) False
+    spreadNote (a' nat) (ToRight 1) False
   split $ mkSplit $ addToRight (d' nat) (d' nat) LeftRepeat False
   freeze FreezeOp
   freeze FreezeOp
-  spread $ mkHori $ do
-    horiNote (d' nat) (ToRight 1) True
-    horiNote (f' nat) (ToRight 1) False
-    horiNote (a' nat) (ToLeft 1)  False
-  spread $ mkHori $ do
-    horiNote (d' nat) ToBoth True
-    horiNote (a' nat) ToBoth True
+  spread $ mkSpread $ do
+    spreadNote (d' nat) (ToRight 1) True
+    spreadNote (f' nat) (ToRight 1) False
+    spreadNote (a' nat) (ToLeft 1)  False
+  spread $ mkSpread $ do
+    spreadNote (d' nat) ToBoth True
+    spreadNote (a' nat) ToBoth True
   freeze FreezeOp
   split $ mkSplit $ do
     splitT (Inner $ a' nat) (Inner $ a' nat) (b' flt) FullNeighbor False False
     splitT (Inner $ a' nat) (Inner $ a' nat) (g' nat) FullNeighbor False False
     splitT (Inner $ d' nat) (Inner $ d' nat) (d' nat) FullRepeat   True  True
-  spread $ mkHori $ do
-    horiNote (d' nat) ToBoth      True
-    horiNote (b' flt) (ToLeft 1)  False
-    horiNote (g' nat) (ToRight 1) False
+  spread $ mkSpread $ do
+    spreadNote (d' nat) ToBoth      True
+    spreadNote (b' flt) (ToLeft 1)  False
+    spreadNote (g' nat) (ToRight 1) False
   freeze FreezeOp
   freeze FreezeOp
   freeze FreezeOp
-  spread $ mkHori $ do
-    horiNote (d' nat) (ToRight 1) True
-    horiNote (f' nat) (ToLeft 1)  False
+  spread $ mkSpread $ do
+    spreadNote (d' nat) (ToRight 1) True
+    spreadNote (f' nat) (ToLeft 1)  False
     addPassing (f' nat) (d' nat)
   freeze FreezeOp
   split $ mkSplit $ do
@@ -171,26 +171,26 @@ derivBach = buildDerivation $ do
     splitT (Inner $ d' nat) (Inner $ d' nat) (d' nat) FullRepeat True True
   freeze FreezeOp
   freeze FreezeOp
-  spread $ mkHori $ do
-    horiNote (d' nat) ToBoth      True
-    horiNote (c' shp) ToBoth      True
-    horiNote (b' flt) (ToRight 1) False
-    horiNote (e' nat) (ToRight 1) False
-    horiNote (g' nat) (ToRight 1) False
+  spread $ mkSpread $ do
+    spreadNote (d' nat) ToBoth      True
+    spreadNote (c' shp) ToBoth      True
+    spreadNote (b' flt) (ToRight 1) False
+    spreadNote (e' nat) (ToRight 1) False
+    spreadNote (g' nat) (ToRight 1) False
   freeze FreezeOp
-  spread $ mkHori $ do
-    horiNote (d' nat) ToBoth      True
-    horiNote (c' shp) ToBoth      True
-    horiNote (b' flt) ToBoth      True
-    horiNote (e' nat) (ToRight 1) False
-    horiNote (g' nat) (ToRight 1) False
+  spread $ mkSpread $ do
+    spreadNote (d' nat) ToBoth      True
+    spreadNote (c' shp) ToBoth      True
+    spreadNote (b' flt) ToBoth      True
+    spreadNote (e' nat) (ToRight 1) False
+    spreadNote (g' nat) (ToRight 1) False
   freeze FreezeOp
-  spread $ mkHori $ do
-    horiNote (d' nat) ToBoth      True
-    horiNote (c' shp) ToBoth      True
-    horiNote (b' flt) ToBoth      True
-    horiNote (e' nat) (ToLeft 1)  False
-    horiNote (g' nat) (ToRight 1) False
+  spread $ mkSpread $ do
+    spreadNote (d' nat) ToBoth      True
+    spreadNote (c' shp) ToBoth      True
+    spreadNote (b' flt) ToBoth      True
+    spreadNote (e' nat) (ToLeft 1)  False
+    spreadNote (g' nat) (ToRight 1) False
   freeze FreezeOp
   freeze FreezeOp
   splitRight $ mkSplit $ do
@@ -208,19 +208,19 @@ derivBach = buildDerivation $ do
            LeftRepeatOfRight
            False
            True
-  spread $ mkHori $ do
-    horiNote (d' nat) ToBoth      True
-    horiNote (c' shp) ToBoth      True
-    horiNote (a' nat) ToBoth      True
-    horiNote (g' nat) ToBoth      False
-    horiNote (e' nat) (ToRight 1) False
+  spread $ mkSpread $ do
+    spreadNote (d' nat) ToBoth      True
+    spreadNote (c' shp) ToBoth      True
+    spreadNote (a' nat) ToBoth      True
+    spreadNote (g' nat) ToBoth      False
+    spreadNote (e' nat) (ToRight 1) False
   freeze FreezeOp
-  spread $ mkHori $ do
-    horiNote (d' nat) ToBoth      True
-    horiNote (c' shp) ToBoth      True
-    horiNote (a' nat) ToBoth      True
-    horiNote (g' nat) (ToLeft 1)  False
-    horiNote (e' nat) (ToRight 1) False
+  spread $ mkSpread $ do
+    spreadNote (d' nat) ToBoth      True
+    spreadNote (c' shp) ToBoth      True
+    spreadNote (a' nat) ToBoth      True
+    spreadNote (g' nat) (ToLeft 1)  False
+    spreadNote (e' nat) (ToRight 1) False
     addPassing (g' nat) (e' nat)
   freeze FreezeOp
   split $ mkSplit $ do
@@ -231,14 +231,14 @@ derivBach = buildDerivation $ do
   freeze FreezeOp
   freeze FreezeOp
   freeze FreezeOp
-  spread $ mkHori $ do
-    horiNote (d' nat) (ToLeft 1) False
-    horiNote (f' nat) ToBoth     False
-    horiNote (a' nat) (ToLeft 2) False
-  spread $ mkHori $ do
-    horiNote (d' nat) (ToLeft 1)  False
-    horiNote (f' nat) (ToLeft 1)  False
-    horiNote (a' nat) (ToRight 1) True
+  spread $ mkSpread $ do
+    spreadNote (d' nat) (ToLeft 1) False
+    spreadNote (f' nat) ToBoth     False
+    spreadNote (a' nat) (ToLeft 2) False
+  spread $ mkSpread $ do
+    spreadNote (d' nat) (ToLeft 1)  False
+    spreadNote (f' nat) (ToLeft 1)  False
+    spreadNote (a' nat) (ToRight 1) True
     addPassing (f' nat) (d' nat)
   freeze FreezeOp
   split $ mkSplit $ do

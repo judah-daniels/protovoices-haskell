@@ -193,7 +193,7 @@ protoVoiceEvaluator = mkLeftmostEval pvUnspreadMiddle
 -- If the verticalization is admitted, returns the corresponding operation.
 pvUnspreadMiddle
   :: (Eq n, Ord n, Hashable n, IsNote n)
-  => UnspreadMiddle (Edges n) (Notes n) (Hori n)
+  => UnspreadMiddle (Edges n) (Notes n) (Spread n)
 pvUnspreadMiddle (Notes nl, edges, Notes nr)
   | any notARepetition (edgesT edges) = Nothing
   | otherwise                         = Just (Notes top, op)
@@ -208,7 +208,7 @@ pvUnspreadMiddle (Notes nl, edges, Notes nr)
     S.intersection (MS.toSet nl) (MS.toSet nr)
       `S.difference` (MS.toSet leftMS `S.union` MS.toSet rightMS)
   both = S.foldl' (\m k -> HM.insert k ToBoth m) HM.empty bothSet
-  op   = HoriOp (left <> right <> both) edges
+  op   = SpreadOp (left <> right <> both) edges
 
 -- | Computes all left parent transitions for a verticalization and a left child transition.
 -- Here, this operation is always admitted and unique,

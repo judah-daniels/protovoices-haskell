@@ -286,19 +286,19 @@ instance Show Freeze where
 instance FromJSON Freeze where
   parseJSON _ = pure FreezeOp
 
--- | Encodes the distribution of a pitch in a horizontalization.
+-- | Encodes the distribution of a pitch in a spread.
 -- 
 -- All instances of a pitch must be either moved completely to the left or the right (or both).
 -- In addition, some instances may be repeated on the other side.
 -- The difference is indicated by the field of the 'ToLeft' and 'ToRight' constructors.
 -- For example, @ToLeft 3@ indicates that out of @n@ instances,
 -- all @n@ are moved to the left and @n-3@ are replicated on the right.
-data HoriDirection = ToLeft !Int  -- ^ all to the left, n fewer to the right
-                   | ToRight !Int -- ^ all to the right, n fewer to the left
-                   | ToBoth      -- ^ all to both
+data SpreadDirection = ToLeft !Int  -- ^ all to the left, n fewer to the right
+                     | ToRight !Int -- ^ all to the right, n fewer to the left
+                     | ToBoth      -- ^ all to both
   deriving (Eq, Ord, Show, Generic, NFData)
 
-instance Semigroup HoriDirection where
+instance Semigroup SpreadDirection where
   ToLeft  l1 <> ToLeft  l2 = ToLeft (l1 + l2)
   ToRight l1 <> ToRight l2 = ToLeft (l1 + l2)
   ToLeft l <> ToRight r | l == r    = ToBoth
@@ -307,33 +307,32 @@ instance Semigroup HoriDirection where
   ToBoth <> other = other
   a      <> b     = b <> a
 
-instance Monoid HoriDirection where
+instance Monoid SpreadDirection where
   mempty = ToBoth
 
--- TODO: rename this
--- | Represents a horzontalization operation.
--- Records for every pitch how it is distributed (see 'HoriDirection').
+-- | Represents a spread operation.
+-- Records for every pitch how it is distributed (see 'SpreadDirection').
 -- The resulting edges (repetitions and passing edges) are represented in a child transition.
-data Hori n = HoriOp !(HM.HashMap n HoriDirection) !(Edges n)
+data Spread n = SpreadOp !(HM.HashMap n SpreadDirection) !(Edges n)
   deriving (Eq, Ord, Generic, NFData)
 
-instance (Notation n) => Show (Hori n) where
-  show (HoriOp dist m) = "{" <> L.intercalate "," dists <> "} => " <> show m
+instance (Notation n) => Show (Spread n) where
+  show (SpreadOp dist m) = "{" <> L.intercalate "," dists <> "} => " <> show m
    where
     dists = showDist <$> HM.toList dist
     showDist (p, to) = showNotation p <> "=>" <> show to
 
-instance (Notation n, Eq n, Hashable n) => FromJSON (Hori n) where
-  parseJSON = Aeson.withObject "Hori" $ \v -> do
+instance (Notation n, Eq n, Hashable n) => FromJSON (Spread n) where
+  parseJSON = Aeson.withObject "Spread" $ \v -> do
     dists <- v .: "children" >>= mapM parseDist
     edges <- v .: "midEdges"
-    pure $ HoriOp (HM.fromListWith (<>) dists) edges
+    pure $ SpreadOp (HM.fromListWith (<>) dists) edges
    where
-    parseDist = Aeson.withObject "HoriDist" $ \dst -> do
+    parseDist = Aeson.withObject "SpreadDist" $ \dst -> do
       parent <- dst .: "parent" >>= parseJSONNote
       child  <- dst .: "child" >>= parseChild
       pure (parent, child)
-    parseChild = Aeson.withObject "HoriChild" $ \cld -> do
+    parseChild = Aeson.withObject "SpreadChild" $ \cld -> do
       typ <- cld .: "type"
       case typ of
         "leftChild"    -> pure $ ToLeft 1
@@ -341,8 +340,8 @@ instance (Notation n, Eq n, Hashable n) => FromJSON (Hori n) where
         "bothChildren" -> pure ToBoth
         _              -> Aeson.unexpected typ
 
--- | 'Leftmost' specialized to the split, freeze, and horizontalize operations of the grammar.
-type PVLeftmost n = Leftmost (Split n) Freeze (Hori n)
+-- | 'Leftmost' specialized to the split, freeze, and spread operations of the grammar.
+type PVLeftmost n = Leftmost (Split n) Freeze (Spread n)
 
 -- helpers
 -- =======
@@ -372,7 +371,7 @@ parseInnerEdge = Aeson.withObject "InnerEdge" $ \v -> do
       pure (pl, pr)
     _ -> fail "Edge is not an inner edge"
 
-type PVAnalysis n = Analysis (Split n) Freeze (Hori n) (Edges n) (Notes n)
+type PVAnalysis n = Analysis (Split n) Freeze (Spread n) (Edges n) (Notes n)
 
 loadAnalysis :: FilePath -> IO (Either String (PVAnalysis SPitch))
 loadAnalysis = Aeson.eitherDecodeFileStrict
@@ -481,8 +480,8 @@ edgesTraversePitch f (Edges reg pass) = do
 leftmostTraversePitch
   :: (Applicative f, Eq n', Hashable n', Ord n')
   => (n -> f n')
-  -> Leftmost (Split n) Freeze (Hori n)
-  -> f (Leftmost (Split n') Freeze (Hori n'))
+  -> Leftmost (Split n) Freeze (Spread n)
+  -> f (Leftmost (Split n') Freeze (Spread n'))
 leftmostTraversePitch f lm = case lm of
   LMSplitLeft  s  -> LMSplitLeft <$> splitTraversePitch f s
   LMSplitRight s  -> LMSplitRight <$> splitTraversePitch f s
@@ -521,8 +520,11 @@ splitTraversePitch f (SplitOp ts nts ls rs kl kr pl pr) = do
       pure (e', cs')
 
 spreadTraversePitch
-  :: (Applicative f, Eq n', Hashable n') => (n -> f n') -> Hori n -> f (Hori n')
-spreadTraversePitch f (HoriOp dist edges) = do
+  :: (Applicative f, Eq n', Hashable n')
+  => (n -> f n')
+  -> Spread n
+  -> f (Spread n')
+spreadTraversePitch f (SpreadOp dist edges) = do
   dist'  <- traverse (\(k, v) -> (, v) <$> f k) $ HM.toList dist
   edges' <- edgesTraversePitch f edges
-  pure $ HoriOp (HM.fromListWith (<>) dist') edges'
+  pure $ SpreadOp (HM.fromListWith (<>) dist') edges'

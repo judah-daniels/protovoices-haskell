@@ -7,7 +7,7 @@
 --
 -- Semiring scores with "holes".
 -- Holes are used to express "partially applied" scores that occur
--- when the score of a verticalization is distributed to two parent edges.
+-- when the score of a verticalization (unspread) is distributed to two parent edges.
 -- The full score of the operation is restored when the two parent edges are eventually combined again.
 --
 -- This module implements partial scores using lists,
@@ -32,11 +32,11 @@ module Scoring.Deprecated.Flat
   , plus
   , -- * grammatical combinators
     --
-    -- The following combinators correspond to the merge and vert operations
+    -- The following combinators correspond to the unsplit and unspread operations
     -- of the path-graph grammar.
-    mergeScores
-  , vertScoresLeft
-  , vertScoresRight
+    unsplitScores
+  , unspreadScoresLeft
+  , unspreadScoresRight
   , addScores
   , getScoreVal
   ) where
@@ -261,19 +261,19 @@ addScores a b = fromMaybe (error "illegal times") $ plus a b
 -- and will throw an error otherwise to indicate parser bugs.
 --
 -- > a-b   b-c
--- > --------- merge
+-- > --------- unsplit
 -- >    a-c
-mergeScores
+unsplitScores
   :: (R.Semiring s, Eq i, Show i, Show s)
   => s         -- ^ The score of the split operation.
   -> Score s i -- ^ The 'Score' of the left child edge.
   -> Score s i -- ^ The 'Score' of the right child edge.
   -> Score s i -- ^ The 'Score' of the parent edge, if it exists.
-mergeScores op left right = fromMaybe err $ times left' right
+unsplitScores op left right = fromMaybe err $ times left' right
  where
   err =
     error
-      $  "Attempting illegal merge: left="
+      $  "Attempting illegal unsplit: left="
       <> show left
       <> ", right="
       <> show right
@@ -283,37 +283,41 @@ mergeScores op left right = fromMaybe err $ times left' right
     SRight i  rs   -> SRight i (prependLeft op <$> rs)
     SBoth il bs ir -> SBoth il (first (prependLeft op) <$> bs) ir
 
--- | Creates the 'Score' of a left parent edge from a left child edge of a @vert@.
+-- | Creates the 'Score' of a left parent edge from a left child edge of an @unspread@.
 -- Will throw an error if called on invalid input to indicate parser bugs.
-vertScoresLeft
+unspreadScoresLeft
   :: (Eq i, Show i, R.Semiring s, Show s)
   => i         -- ^ The new ID that marks both parent edges
   -> Score s i -- ^ The 'Score' of the left child edge.
   -> Score s i -- ^ The 'Score' of the left parent edge, if it exists.
-vertScoresLeft newid = wrap
+unspreadScoresLeft newid = wrap
  where
   newir = RightId newid
   -- wrap the left input score into a new layer with a new ID
-  wrap (SVal v    ) = SLeft [[R.one, v]] newir
+  wrap (SVal v) = SLeft [[R.one, v]] newir
   wrap (SLeft ls _) = SLeft (addHoleLeft R.one <$> ls) newir
-  wrap other        = error $ "Attempting illegal left-vert on " <> show other
+  wrap other = error $ "Attempting illegal left-unspread on " <> show other
 
 -- | Creates the 'Score' of a right parent edge
--- from the middle and right child edges of a @vert@
--- and a @horizontalize@ operation.
-vertScoresRight
+-- from the middle and right child edges of an @unspread@
+-- and a @spread@ operation.
+unspreadScoresRight
   :: (Eq i, R.Semiring s, Show i, Show s)
   => i                 -- ^ The new ID that marks both parent edges.
-  -> s                 -- ^ The score of the @horizontalize@ operation.
+  -> s                 -- ^ The score of the @spread@ operation.
   -> Score s i         -- ^ The 'Score' of the middle child edge.
   -> Score s i         -- ^ The 'Score' of the right child edge.
   -> Score s i -- ^ The 'Score' of the right parent edge, if it exists.
-vertScoresRight newid op m r = fromMaybe err $ do
+unspreadScoresRight newid op m r = fromMaybe err $ do
   mr <- times m r
   pure $ unwrap mr
  where
   err =
-    error $ "Attempting illegal right-vert: m=" <> show m <> ", r=" <> show r
+    error
+      $  "Attempting illegal right-unspread: m="
+      <> show m
+      <> ", r="
+      <> show r
   -- generate a value on the right
   -- that consumes the left parent edge's value when supplied
   -- and combines with m on the right

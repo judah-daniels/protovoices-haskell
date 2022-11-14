@@ -177,25 +177,25 @@ derivBrahms = buildDerivation $ do
   split $ mkSplit $ do
     splitT Start Stop (c' shp) RootNote False False
     splitT Start Stop (a' nat) RootNote False False
-  spread $ mkHori $ do
-    horiNote (a' nat) ToBoth     True
-    horiNote (c' shp) (ToLeft 1) False
+  spread $ mkSpread $ do
+    spreadNote (a' nat) ToBoth     True
+    spreadNote (c' shp) (ToLeft 1) False
     addPassing (c' shp) (a' nat)
   splitRight $ mkSplit $ do
     splitNT (c' shp) (a' nat) (b' nat) PassingMid False False
     splitT (Inner $ a' nat) (Inner $ a' nat) (g' shp) FullNeighbor False False
-  spread $ mkHori $ do
-    horiNote (a' nat) (ToRight 1) False
-    horiNote (c' shp) (ToLeft 1)  False
+  spread $ mkSpread $ do
+    spreadNote (a' nat) (ToRight 1) False
+    spreadNote (c' shp) (ToLeft 1)  False
     addPassing (c' shp) (a' nat)
   freeze FreezeOp
   split $ mkSplit $ do
     splitNT (c' shp) (a' nat) (b' nat) PassingMid False False
   freeze FreezeOp
   freeze FreezeOp
-  spread $ mkHori $ do
-    horiNote (b' nat) (ToRight 1) False
-    horiNote (g' shp) (ToLeft 1)  False
+  spread $ mkSpread $ do
+    spreadNote (b' nat) (ToRight 1) False
+    spreadNote (g' shp) (ToLeft 1)  False
   split $ mkSplit $ do
     addToRight (g' shp) (a' nat) LeftNeighbor False
   freeze FreezeOp

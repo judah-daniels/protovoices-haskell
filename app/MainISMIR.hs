@@ -32,9 +32,9 @@ deriv321sus = buildDerivation $ do
   split $ mkSplit $ do
     splitT Start Stop (c' nat) RootNote False False
     splitT Start Stop (e' nat) RootNote False False
-  spread $ mkHori $ do
-    horiNote (c' nat) ToBoth     True
-    horiNote (e' nat) (ToLeft 1) False
+  spread $ mkSpread $ do
+    spreadNote (c' nat) ToBoth     True
+    spreadNote (e' nat) (ToLeft 1) False
     addPassing (e' nat) (c' nat)
   freeze FreezeOp
   split $ mkSplit $ do

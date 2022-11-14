@@ -8,8 +8,8 @@ module PVGrammar.Generate
   , splitNT
   , addToLeft
   , addToRight
-  , mkHori
-  , horiNote
+  , mkSpread
+  , spreadNote
   , addPassing
   , addOctaveRepetition
   , addPassingLeft
@@ -19,7 +19,7 @@ module PVGrammar.Generate
   , applySplit
   , applySplitAllEdges
   , applyFreeze
-  , applyHori
+  , applySpread
   , freezable
   , debugPVAnalysis
   , checkDerivation
@@ -139,35 +139,35 @@ addPassingLeft l m = MW.tell $ mempty { passLeft = MS.singleton (l, m) }
 addPassingRight :: (Ord n, Hashable n) => n -> n -> MW.Writer (Split n) ()
 addPassingRight m r = MW.tell $ mempty { passRight = MS.singleton (m, r) }
 
-mkHori :: MW.Writer (Endo (Hori n)) () -> Hori n
-mkHori actions = appEndo (MW.execWriter actions) emptyHori
-  where emptyHori = HoriOp HM.empty $ Edges S.empty MS.empty
+mkSpread :: MW.Writer (Endo (Spread n)) () -> Spread n
+mkSpread actions = appEndo (MW.execWriter actions) emptySpread
+  where emptySpread = SpreadOp HM.empty $ Edges S.empty MS.empty
 
-horiNote
+spreadNote
   :: (Ord n, Hashable n)
   => n
-  -> HoriDirection
+  -> SpreadDirection
   -> Bool
-  -> MW.Writer (Endo (Hori n)) ()
-horiNote pitch dir edge = MW.tell $ Endo h
+  -> MW.Writer (Endo (Spread n)) ()
+spreadNote pitch dir edge = MW.tell $ Endo h
  where
-  h (HoriOp dist (Edges mTs mNTs)) = HoriOp dist' (Edges mTs' mNTs)
+  h (SpreadOp dist (Edges mTs mNTs)) = SpreadOp dist' (Edges mTs' mNTs)
    where
     dist' = HM.insert pitch dir dist
     mTs'  = S.union mTs
       $ if edge then S.singleton (Inner pitch, Inner pitch) else S.empty
 
-addPassing :: (Ord n, Hashable n) => n -> n -> MW.Writer (Endo (Hori n)) ()
+addPassing :: (Ord n, Hashable n) => n -> n -> MW.Writer (Endo (Spread n)) ()
 addPassing l r = MW.tell $ Endo h
  where
-  h (HoriOp dist (Edges mTs mNTs)) = HoriOp dist (Edges mTs mNTs')
+  h (SpreadOp dist (Edges mTs mNTs)) = SpreadOp dist (Edges mTs mNTs')
     where mNTs' = MS.insert (l, r) mNTs
 
 addOctaveRepetition
-  :: (Ord n, Hashable n) => n -> n -> MW.Writer (Endo (Hori n)) ()
+  :: (Ord n, Hashable n) => n -> n -> MW.Writer (Endo (Spread n)) ()
 addOctaveRepetition l r = MW.tell $ Endo h
  where
-  h (HoriOp dist (Edges mTs mNTs)) = HoriOp dist (Edges mTs' mNTs)
+  h (SpreadOp dist (Edges mTs mNTs)) = SpreadOp dist (Edges mTs' mNTs)
     where mTs' = S.insert (Inner l, Inner r) mTs
 
 -- applying operations
@@ -266,15 +266,15 @@ applyFreeze FreezeOp e@(Edges ts nts)
   | otherwise          = Right e
   where isRep (a, b) = fmap MC.pitch a == fmap MC.pitch b
 
-applyHori
+applySpread
   :: forall n
    . (Ord n, Notation n, Hashable n)
-  => Hori n
+  => Spread n
   -> Edges n
   -> Notes n
   -> Edges n
   -> Either String (Edges n, Notes n, Edges n, Notes n, Edges n)
-applyHori (HoriOp dist childm) pl (Notes notesm) pr = do
+applySpread (SpreadOp dist childm) pl (Notes notesm) pr = do
   (notesl, notesr) <- foldM applyDist (MS.empty, MS.empty)
     $ MS.toOccurList notesm
   childl <- fixEdges snd pl notesl
@@ -302,7 +302,7 @@ applyHori (HoriOp dist childm) pl (Notes notesm) pr = do
     -> Either String (Edges n)
   fixEdges accessor (Edges ts nts) notesms
     | not $ MS.all ((`S.member` notes) . accessor) nts = Left
-      "dropping non-terminal edge in hori"
+      "dropping non-terminal edge in spread"
     | otherwise = pure $ Edges ts' nts
    where
     notes  = MS.toSet notesms
@@ -420,19 +420,19 @@ debugPVAnalysis
   :: (Notation n, Ord n, Hashable n, MC.HasPitch n, Eq (MC.IntervalOf n))
   => PVAnalysis n
   -> IO (Either String ())
-debugPVAnalysis = debugAnalysis applySplit applyFreeze applyHori
+debugPVAnalysis = debugAnalysis applySplit applyFreeze applySpread
 
 -- derivation player
 -- =================
 
 derivationPlayerPV
   :: (Eq n, Ord n, Notation n, Hashable n, Eq (MC.IntervalOf n), MC.HasPitch n)
-  => DerivationPlayer (Split n) Freeze (Hori n) (Notes n) (Edges n)
+  => DerivationPlayer (Split n) Freeze (Spread n) (Notes n) (Edges n)
 derivationPlayerPV = DerivationPlayer topTrans
                                       topNotes
                                       applySplit
                                       applyFreeze
-                                      applyHori
+                                      applySpread
  where
   topTrans Start Stop = Edges (S.singleton (Start, Stop)) MS.empty
   topTrans _     _    = Edges S.empty MS.empty
@@ -440,12 +440,12 @@ derivationPlayerPV = DerivationPlayer topTrans
 
 derivationPlayerPVAllEdges
   :: (Eq n, Ord n, Notation n, Hashable n, Eq (MC.IntervalOf n), MC.HasPitch n)
-  => DerivationPlayer (Split n) Freeze (Hori n) (Notes n) (Edges n)
+  => DerivationPlayer (Split n) Freeze (Spread n) (Notes n) (Edges n)
 derivationPlayerPVAllEdges = DerivationPlayer topTrans
                                               topNotes
                                               applySplitAllEdges
                                               applyFreezeAllEdges
-                                              applyHori
+                                              applySpread
  where
   topTrans Start Stop = Edges (S.singleton (Start, Stop)) MS.empty
   topTrans _     _    = Edges S.empty MS.empty
@@ -464,7 +464,7 @@ checkDerivation
      , MC.HasPitch n
      , Show n
      )
-  => [Leftmost (Split n) Freeze (Hori n)]
+  => [Leftmost (Split n) Freeze (Spread n)]
   -> Path [n] [Edge n]
   -> Bool
 checkDerivation deriv original =
