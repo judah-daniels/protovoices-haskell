@@ -2,9 +2,10 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE TupleSections #-}
+-- {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE LambdaCase #-}
 module Parser
   ( Parsable
   , Normal
@@ -14,6 +15,7 @@ module Parser
   , parse
   , parseSize
   , parseSilent
+  , logTikz
   ) where
 
 import           Common
@@ -29,6 +31,7 @@ import           Control.DeepSeq
 import qualified Control.Parallel.Strategies   as P
 import           Data.Foldable                  ( foldl' )
 import           Data.Hashable                  ( Hashable
+                                                , hash
                                                 , hashWithSalt
                                                 )
 import           Data.Maybe                     ( catMaybes
@@ -444,14 +447,17 @@ mergeAll mrg n (!tchart, !vchart) = do
 -- Returns the combined semiring value of all full derivations.
 parse
   :: Parsable e a v
-  => (TChart e a v -> VChart e a v -> Int -> IO ())
+  => (TChart e a v -> Either (VChart e a v) [Slice a] -> Int -> IO ())
   -> Eval e e' a a' v
   -> Path a' e'
   -> IO v
 parse logCharts eval path = do
-  (tfinal, _) <- foldM (flip $ parseStep logCharts eval)
-                       (tinit, vcEmpty len)
-                       [2 .. len - 1]
+  logCharts tinit (Right $ pathNodes slicePath) 1
+  (tfinal, vfinal) <- foldM
+    (flip $ parseStep (\t v i -> logCharts t (Left v) i) eval)
+    (tinit, vcEmpty len)
+    [2 .. len - 1]
+  logCharts tfinal (Left vfinal) len
   let goals = tcGetByLength tfinal len
   return $ R.sum $ S.getScoreVal . iValue <$> goals
  where
@@ -469,11 +475,15 @@ parse logCharts eval path = do
   trans0 = mapEdges mkTrans slicePath
   tinit  = tcMerge tcEmpty $ concat trans0
 
-logSize :: TChart e1 a1 v1 -> VChart e2 a2 v2 -> Int -> IO ()
+logSize
+  :: TChart e1 a1 v1 -> Either (VChart e2 a2 v2) [Slice a2] -> Int -> IO ()
 logSize tc vc n = do
   putStrLn $ "parsing level " <> show n
   putStrLn $ "transitions: " <> show (length $ tcGetByLength tc n)
-  putStrLn $ "verts: " <> show (length $ vcGetByLength vc (n - 1))
+  let nverts = case vc of
+        Left  chart -> length $ vcGetByLength chart (n - 1)
+        Right lst   -> length lst
+  putStrLn $ "verts: " <> show nverts
 
 parseSize :: Parsable e a v => Eval e e' a a' v -> Path a' e' -> IO v
 parseSize = parse logSize
@@ -483,3 +493,103 @@ logNone _ _ _ = pure ()
 
 parseSilent :: Parsable e a v => Eval e e' a a' v -> Path a' e' -> IO v
 parseSilent = parse logNone
+
+-- fancier logging
+-- ---------------
+
+printTikzSlice :: Show a => Slice a -> IO ()
+printTikzSlice (Slice f sc sid l) = do
+  putStrLn
+    $  "    \\node[slice,align=center] (slice"
+    <> show sid
+    <> ") at ("
+    <> show (fromIntegral (f + l) / 2.0)
+    <> ",0) {"
+    <> showTex sc
+    <> "\\\\ "
+    <> show sid
+    <> "};"
+
+printTikzVert neighbors (Vert top@(Slice f c i l) _ middle) = do
+  let index      = f + l
+      xpos       = fromIntegral (f + l) / 2.0
+      ypos       = IM.findWithDefault 0 index neighbors
+      neighbors' = IM.alter
+        (\case
+          Just n  -> Just (n + 1)
+          Nothing -> Just 1
+        )
+        index
+        neighbors
+  putStrLn
+    $  "    \\node[slice,align=center] (slice"
+    <> show i
+    <> ") at ("
+    <> show xpos
+    <> ","
+    <> show ypos
+    <> ") {"
+    <> showTex c
+    <> "\\\\ ("
+    <> show (sID $ tLeftSlice $ iItem middle)
+    <> ") - "
+    <> show i
+    <> " - ("
+    <> show (sID $ tRightSlice $ iItem middle)
+    <> ")};"
+  pure neighbors'
+
+printTikzTrans neighbors t@(Transition sl tc sr _) = do
+  let tid        = "t" <> show (hash t)
+      index      = sFirst sl + sLast sr
+      xpos       = fromIntegral index / 2.0
+      ypos       = IM.findWithDefault 0 index neighbors
+      neighbors' = IM.alter
+        (\case
+          Just n  -> Just (n + 1)
+          Nothing -> Just 1
+        )
+        index
+        neighbors
+  putStrLn
+    $  "  \\begin{scope}[xshift="
+    <> show xpos
+    <> "cm,yshift="
+    <> show ypos
+    <> "cm]"
+  putStrLn
+    $  "    \\node[slice] ("
+    <> tid
+    <> "left) at (-0.1,0) {"
+    <> show (sID sl)
+    <> "};"
+  putStrLn
+    $  "    \\node[slice] ("
+    <> tid
+    <> "right) at (0.1,0) {"
+    <> show (sID sr)
+    <> "};"
+  -- printTikzSlice sl (tid <> "left")  "(-0.2,0)"
+  -- printTikzSlice sr (tid <> "right") "(0.2,0)"
+  putStrLn
+    $  "    \\draw[transition] ("
+    <> tid
+    <> "left) -- ("
+    <> tid
+    <> "right);"
+  putStrLn "  \\end{scope}"
+  pure neighbors'
+
+logTikz tc vc n = do
+  putStrLn $ "\n% level " <> show n
+  let rel = if n <= 2
+        then ""
+        else ",shift={($(0,0 |- scope" <> show (n - 1) <> ".north)+(0,1cm)$)}"
+  putStrLn $ "\\begin{scope}[local bounding box=scope" <> show n <> rel <> "]"
+  putStrLn "  % verticalizations:"
+  case vc of
+    Left  chart -> foldM_ printTikzVert IM.empty $ vcGetByLength chart (n - 1)
+    Right lst   -> mapM_ printTikzSlice lst
+  putStrLn "\n  % transitions:"
+  foldM_ printTikzTrans IM.empty $ iItem <$> tcGetByLength tc n
+  putStrLn "\\end{scope}"

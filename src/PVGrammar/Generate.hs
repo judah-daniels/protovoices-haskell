@@ -15,7 +15,9 @@ module PVGrammar.Generate
   , addPassingLeft
   , addPassingRight
   , derivationPlayerPV
+  , derivationPlayerPVAllEdges
   , applySplit
+  , applySplitAllEdges
   , applyFreeze
   , applyHori
   , freezable
@@ -307,6 +309,111 @@ applyHori (HoriOp dist childm) pl (Notes notesm) pr = do
     notesi = S.map Inner notes
     ts'    = S.filter ((`S.member` notesi) . accessor) ts
 
+applySplitAllEdges
+  :: forall n
+   . (Ord n, Notation n, Hashable n)
+  => Split n
+  -> Edges n
+  -> Either String (Edges n, Notes n, Edges n)
+applySplitAllEdges inSplit@(SplitOp splitTs splitNTs ls rs _ _ passl passr) inTop@(Edges topTs topNTs)
+  = do
+    (notesT, leftTsReg, rightTsReg) <- applyTs topTs splitTs
+    (notesNT, leftNTs, rightNTs, leftTsPass, rightTsPass) <- applyNTs topNTs
+                                                                      splitNTs
+    let notesL           = collectNotes ls
+        notesR           = collectNotes rs
+        notes            = MS.unions [notesT, notesNT, notesL, notesR]
+        leftSingleEdges  = (\(p, (c, _)) -> (Inner p, Inner c)) <$> allOps ls
+        rightSingleEdges = (\(p, (c, _)) -> (Inner c, Inner p)) <$> allOps rs
+        edgesl           = leftTsReg <> leftTsPass <> S.fromList leftSingleEdges
+        edgesr = rightTsReg <> rightTsPass <> S.fromList rightSingleEdges
+    pure
+      ( Edges edgesl (MS.union leftNTs passl)
+      , Notes notes
+      , Edges edgesr (MS.union rightNTs passr)
+      )
+ where
+
+  allOps opset = do
+    (parent, children) <- M.toList opset
+    child              <- children
+    pure (parent, child)
+
+  showEdge (p1, p2) = showNotation p1 <> "-" <> showNotation p2
+  showEdges ts = "{" <> L.intercalate "," (showEdge <$> toList ts) <> "}"
+
+  applyTs top ops = do
+    (notes, edgesl, edgesr) <- foldM (applyT top) (MS.empty, S.empty, S.empty)
+      $ allOps ops
+    pure (notes, edgesl, edgesr)
+
+  applyT topAll (notes, edgesl, edgesr) (parent, (note, _))
+    | parent `S.member` topAll
+    = Right (notes', edgesl', edgesr')
+    | otherwise
+    = Left
+      $  "used non-existing terminal edge\n  top="
+      <> show inTop
+      <> "\n  split="
+      <> show inSplit
+   where
+    notes'  = MS.insert note notes
+    edgesl' = S.insert (fst parent, Inner note) edgesl
+    edgesr' = S.insert (Inner note, snd parent) edgesr
+
+  applyNTs top ops = do
+    (top', notes, lNTs, rNTs, lTs, rTs) <-
+      foldM applyNT (top, MS.empty, MS.empty, MS.empty, S.empty, S.empty)
+        $ allOps ops
+    if MS.null top'
+      then Right (notes, lNTs, rNTs, lTs, rTs)
+      else Left $ "did not use all non-terminal edges, remaining: " <> showEdges
+        (MS.toList top')
+
+  applyNT (top, notes, lNTs, rNTs, lTs, rTs) (parent@(pl, pr), (note, pass))
+    | parent `MS.member` top
+    = Right (top', notes', lNTs', rNTs', lTs', rTs')
+    | otherwise
+    = Left
+      $  "used non-existing non-terminal edge\n  top="
+      <> show inTop
+      <> "\n  split="
+      <> show inSplit
+   where
+    top'                           = MS.delete parent top
+    notes'                         = MS.insert note notes
+    (newlNT, newrNT, newlT, newrT) = case pass of
+      PassingMid ->
+        ( MS.empty
+        , MS.empty
+        , S.singleton (Inner pl, Inner note)
+        , S.singleton (Inner note, Inner pr)
+        )
+      PassingLeft ->
+        ( MS.empty
+        , MS.singleton (note, pr)
+        , S.singleton (Inner pl, Inner note)
+        , S.empty
+        )
+      PassingRight ->
+        ( MS.singleton (pl, note)
+        , MS.empty
+        , S.empty
+        , S.singleton (Inner note, Inner pr)
+        )
+    lNTs' = MS.union newlNT lNTs
+    rNTs' = MS.union newrNT rNTs
+    lTs'  = S.union newlT lTs
+    rTs'  = S.union newrT rTs
+
+  singleChild (_, (note, _)) = note
+  collectNotes ops = MS.fromList $ singleChild <$> allOps ops
+
+
+applyFreezeAllEdges FreezeOp e@(Edges ts nts)
+  | not $ MS.null nts = Left "cannot freeze non-terminal edges"
+  | otherwise         = Right e
+
 -- debugging analyses
 
 debugPVAnalysis
@@ -330,6 +437,20 @@ derivationPlayerPV = DerivationPlayer topTrans
   topTrans Start Stop = Edges (S.singleton (Start, Stop)) MS.empty
   topTrans _     _    = Edges S.empty MS.empty
   topNotes = Notes MS.empty
+
+derivationPlayerPVAllEdges
+  :: (Eq n, Ord n, Notation n, Hashable n, Eq (MC.IntervalOf n), MC.HasPitch n)
+  => DerivationPlayer (Split n) Freeze (Hori n) (Notes n) (Edges n)
+derivationPlayerPVAllEdges = DerivationPlayer topTrans
+                                              topNotes
+                                              applySplitAllEdges
+                                              applyFreezeAllEdges
+                                              applyHori
+ where
+  topTrans Start Stop = Edges (S.singleton (Start, Stop)) MS.empty
+  topTrans _     _    = Edges S.empty MS.empty
+  topNotes = Notes MS.empty
+
 
 -- | Compares the output of a derivation
 -- with the original piece (as provided to the parser).

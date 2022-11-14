@@ -24,6 +24,7 @@ module Common
   , mapNodesWithIndex
   , mapEdges
   , reversePath
+  , pathNodes
   , StartStop(..)
   , onlyInner
   , getInner
@@ -76,6 +77,8 @@ module Common
   , firstDerivation
   , traceLevel
   , traceIf
+  , showTex
+  , showTexT
   ) where
 
 import           Control.DeepSeq                ( NFData )
@@ -164,6 +167,10 @@ reversePath path = case path of
  where
   go m  (PathEnd end   ) acc = Path end m acc
   go m1 (Path l m2 rest) acc = go m2 rest $ Path l m1 acc
+
+pathNodes :: Path a b -> [a]
+pathNodes (Path a _ rst) = a : pathNodes rst
+pathNodes (PathEnd a   ) = [a]
 
 -- StartStop
 -- =========
@@ -718,3 +725,17 @@ variantDefaults rename = Aeson.defaultOptions
   { Aeson.constructorTagModifier = rename
   , Aeson.sumEncoding            = Aeson.TaggedObject "type" "value"
   }
+
+showTex :: Show a => a -> String
+showTex x = concatMap escapeTex $ show x
+ where
+  escapeTex '♭' = "$\\flat$"
+  escapeTex '♯' = "$\\sharp$"
+  escapeTex '{' = "\\{"
+  escapeTex '}' = "\\}"
+  escapeTex '⋉' = "$\\ltimes$"
+  escapeTex '⋊' = "$\\rtimes$"
+  escapeTex c   = [c]
+
+showTexT :: Show a => a -> T.Text
+showTexT = T.pack . showTex

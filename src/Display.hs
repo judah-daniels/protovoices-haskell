@@ -304,17 +304,6 @@ tikzDerivationGraph showS showT (DGraph _ slices trans horis openTrans foot _)
   tikzNodes = mkNode <$> S.toList slices
     where mkNode (depth, i, content) = (xloc M.! i, depth, i, content)
 
-showTex :: Show a => a -> T.Text
-showTex x = T.pack $ concatMap escapeTex $ show x
- where
-  escapeTex '♭' = "$\\flat$"
-  escapeTex '♯' = "$\\sharp$"
-  escapeTex '{' = "\\{"
-  escapeTex '}' = "\\}"
-  escapeTex '⋉' = "$\\ltimes$"
-  escapeTex '⋊' = "$\\rtimes$"
-  escapeTex c   = [c]
-
 mkTikzPic :: (Semigroup a, IsString a) => a -> a
 mkTikzPic content =
   "\\begin{tikzpicture}\n" <> content <> "\n\\end{tikzpicture}"
@@ -339,8 +328,8 @@ writeGraph
   :: (Show a, Eq a, Eq e, Show e) => FilePath -> DerivationGraph a e -> IO ()
 writeGraph fn g =
   T.writeFile fn $ tikzStandalone False $ mkTikzPic $ tikzDerivationGraph
-    showTex
-    showTex
+    showTexT
+    showTexT
     g
 
 viewGraph
@@ -356,7 +345,7 @@ writeGraphs fn gs =
     $   tikzStandalone True
     $   T.intercalate "\n\n"
     $   mkTikzPic
-    .   tikzDerivationGraph showTex showTex
+    .   tikzDerivationGraph showTexT showTexT
     <$> gs
 
 viewGraphs

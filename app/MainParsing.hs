@@ -328,15 +328,23 @@ mainHaydn = do
 
 mainRare = do
   slices <- slicesFromFile "data/theory-article/10c_rare_int.musicxml"
-  derivs <- parse logFull pvDerivUnrestricted $ slicesToPath slices
-  pure ()
-  -- let ds = S.toList $ flattenDerivations derivs
-  -- pics <- forM ds $ \d -> case replayDerivation derivationPlayerPV d of
-  --   Left err -> do
-  --     putStrLn err
-  --     print d
-  --     return Nothing
-  --   Right g -> return $ Just g
-  -- viewGraphs "rare.tex" $ catMaybes pics
+  putStrLn "\\documentclass[tikz]{standalone}"
+  putStrLn "\\usetikzlibrary{calc,positioning}"
+  putStrLn "\\tikzstyle{slice} = []"
+  putStrLn "\\tikzstyle{transition} = []"
+  putStrLn "\\begin{document}"
+  putStrLn "\\begin{tikzpicture}[xscale=4,yscale=1]"
+  derivs <- parse logTikz pvDerivUnrestricted $ slicesToPath slices
+  putStrLn "\\end{tikzpicture}"
+  putStrLn "\\end{document}"
+  -- pure ()
+  let ds = S.toList $ flattenDerivations derivs
+  pics <- forM ds $ \d -> case replayDerivation derivationPlayerPVAllEdges d of
+    Left err -> do
+      putStrLn err
+      print d
+      return Nothing
+    Right g -> return $ Just g
+  viewGraphs "rare.tex" $ catMaybes pics
 
 main = mainRare
