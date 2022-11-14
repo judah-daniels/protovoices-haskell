@@ -459,37 +459,19 @@ splitFirst = mapEvalScore snd . productEval evalSplitBeforeSpread
 -- More specifically, if there is only one open transition left, only two actions are possible,
 -- freezing or splitting that transition:
 --
--- > freeze only:
--- > ==[]——⋉
--- > ==[]==⋉
--- >
--- > split only:
--- > ==[]——⋉
--- >    \  /
--- >     []
+-- > freeze only:   split only:
+-- > ...=[]——⋉      ==[]——⋉
+-- > ...=[]==⋉         \  /
+-- >                     []
 --
 -- These options are encoded in 'LeftmostSingle'.
 --
 -- If two or more transitions are still open, four actions are possible:
 --
--- > freeze left:
--- > ==[]——[]——[]...
--- > ==[]==[]——[]...
--- >
--- > split left:
--- > ==[]——[]——[]...
--- >    \  /
--- >     []
--- >
--- > split right:
--- > ==[]——[]——[]...
--- >        \  /
--- >         []
--- >
--- > spread:
--- > ==[]——[]——[]...
--- >    \  /\  /
--- >     []——[]
+-- > freeze left:         split left:          split right:         spread:
+-- > ...=[]——[]——[]—...   ...=[]——[]——[]—...   ...=[]——[]——[]—...   ...=[]——[]——[]—...
+-- > ...=[]==[]——[]—...        \  /                     \  /             \  /\  /
+-- >                            []                       []               []——[]
 --
 -- These options are encoded in 'LeftmostDouble'.
 -- Note that the order of operations is restricted so that after a right split only
