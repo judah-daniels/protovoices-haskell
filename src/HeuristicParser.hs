@@ -12,7 +12,10 @@ import Data.Maybe
 -- a is the content of a transition
 
 -- |
-newtype Slice ns = Slice {sContent :: ns}
+newtype Slice ns = Slice 
+  {sContent :: ns} 
+  deriving (Show)
+
 
 data Trans es = Trans
   { tContent :: !es,
@@ -27,7 +30,8 @@ data Trans es = Trans
 --   }
 
 -- | The state of the search between steps
--- e' : Unparsed/frozen transitions
+-- es' : Unparsed/frozen transitions
+-- es  : Unfrozen transitions
 data SearchState es es' ns o
   = SSFrozen !(Path (Maybe es', Bool) (Slice ns)) -- Beginning of search - all frozen edges and slices
   | SSSemiOpen -- Point between beginning and end of the path
@@ -41,16 +45,14 @@ data SearchState es es' ns o
         _ssDeriv :: ![o]
       }
   | SSOpen !(Path (Trans es) (Slice ns)) ![o] -- Single path with unfrozen transition,slices and history
+  deriving (Show)
   --
 
 --Mainloop with an agenda
 --
 
--- Main loop
-search :: Int
-search = undefined
 
-exploreStates :: forall es es' ns o. SearchState es es' ns o -> Eval es es' ns ns o -> [SearchState es es' ns o]
+exploreStates :: forall es es' ns ns' o. SearchState es es' ns o -> Eval es es' ns ns' o -> [SearchState es es' ns o]
 exploreStates state eval = case state of
   SSFrozen path -> case path of
     PathEnd (t, boundary) -> map genState thawed
@@ -97,65 +99,35 @@ exploreStates state eval = case state of
             genState (parent, op) = SSSemiOpen frozen midSlice (PathEnd (Trans parent tl2nd trBoundary)) (op : ops)
 
         -- Three open transitions: mergeleft mergeRight or verticalise
-        Path (Trans tl tl2nd tlBoundary) (Slice sl) (Path (Trans tm tm2nd tmBoundary) (Slice sr) (PathEnd (Trans tr tr2nd trBoundary))) -> leftMergeStates <> rightMergeStates -- <> vertStates
+        Path (Trans tl tl2nd tlBoundary) (Slice sl) (Path (Trans tm tm2nd tmBoundary) (Slice sr) (PathEnd (Trans tr tr2nd trBoundary))) -> leftMergeStates <> rightMergeStates <> vertStates
           where
-
             -- TODO consider 2nd and boundary
-            leftMergeStates = map genState leftMerges 
-              where 
+            leftMergeStates = map genState leftMerges
+              where
                 leftMerges = evalMerge eval (Inner $ sContent midSlice) tl sl tm (Inner sr) LeftOnly
                 genState (parent, op) = SSSemiOpen frozen midSlice (Path (Trans parent tl2nd tlBoundary) (Slice sr) (PathEnd (Trans tr tr2nd trBoundary))) (op : ops)
 
             -- TODO consider 2nd and boundary
-            rightMergeStates = if not tm2nd || tmBoundary then [] else map genState rightMerges 
-              where 
+            rightMergeStates = if not tm2nd || tmBoundary then [] else map genState rightMerges
+              where
                 rightMerges = evalMerge eval (Inner sl) tl sl tm (Inner sr) LeftOnly
                 genState (parent, op) = SSSemiOpen frozen midSlice (Path (Trans tl tl2nd tlBoundary) (Slice sl) (PathEnd (Trans parent True trBoundary))) (op : ops)
 
-
-  -- { evalVertMiddle :: !(VertMiddle e a v)
-  -- , evalVertLeft   :: !(VertLeft e a)
-  -- , evalVertRight  :: !(VertRight e a)
-            vertStates = if tl2nd then [] else
-              do -- List
-                (sTop, op) <- maybeToList $ evalVertMiddle eval (sl, tm, sr)
-                lTop       <- evalVertLeft eval (tl, sl) sTop -- Check boundaries TODO
-                rTop       <- evalVertRight eval (sr, tr) sTop -- TODO boundaris
-                pure $ getState lTop sTop rTop op
-
-                where
-                      getState lTop sTop rTop op = Just $ SSSemiOpen frozen midSlice (Path (Trans lTop False False) (Slice sTop) (PathEnd (Trans rTop False False))) (op : ops)
-                          -- (sstart, Trans lTop False, sTop, Trans rTop True, send)
-                          -- dop
--- data ActionDouble a e s f h = ActionDouble ( StartStop a
---                                            , Trans e
---                                            , a
---                                            , Trans e
---                                            , StartStop a
---                                            )
---                                            (LeftmostDouble s f h)
---   deriving Show
---
-                -- leftVerts = evalVertLeft (tl, (Inner $ sContent midSlice) )
-                -- verts = evalMerge eval (Inner $ sContent midSlice) tl sl tm (Inner sr) LeftOnly
-                --
-            genState (parent, op) = SSSemiOpen frozen midSlice (PathEnd (Trans parent tl2nd trBoundary)) (op : ops)
-
+            vertStates =
+              if tl2nd
+                then []
+                else do
+                  -- List
+                  (sTop, op) <- maybeToList $ evalVertMiddle eval (sl, tm, sr)
+                  lTop <- evalVertLeft eval (tl, sl) sTop -- Check boundaries TODO
+                  rTop <- evalVertRight eval (sr, tr) sTop -- TODO boundaris
+                  pure $ getState lTop sTop rTop op
+              where
+                getState lTop sTop rTop op = SSSemiOpen frozen midSlice (Path (Trans lTop False False) (Slice sTop) (PathEnd (Trans rTop False False))) (op : ops)
 
         Path (Trans tl tl2nd tlBoundary) (Slice sl) (Path (Trans tm tm2nd tmBoundary) (Slice sm) (Path (Trans tr tr2nd trBoundary) sr rst)) -> []
-  -- type Merge e a v
-  --   = StartStop a -> e -> a -> e -> StartStop a -> SplitType -> [(e, v)]
-  --   split type determines if its a left right or single split.
-  -- --
-  --         Path (Trans t1 tl2nd tlBoundary ) (Slice slice) (PathEnd (Trans t2 _ trBoundary)) -> if tlBoundary then [] else map genState merged -- unsplit here
-  --           where
-  --             merged = evalMerge eval (Inner $ sContent midSlice) t1 slice t2 Stop LeftOnly
-  --             -- genState (es, o) = SSSemiOpen rest frozenSlice (Path (Trans es False boundary) midSlice open) (o:ops)
-  --             genState (parent, o) = SSSemiOpen frozen midSlice (PathEnd (Trans parent tl2nd trBoundary)) (o:ops)
-  --
-  --         Path t1 s1 (Path t2 s2 p) -> undefined -- unsplit or unspread here
 
-  SSOpen path ops -> undefined
+  SSOpen path ops -> []
 
 -- where
 --   collectMergeSingle
