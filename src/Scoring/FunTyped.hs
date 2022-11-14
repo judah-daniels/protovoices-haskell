@@ -1,22 +1,17 @@
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE RankNTypes #-}
 
 -- | Semiring scores with "holes".
 -- Holes are used to express "partially applied" scores that occur
--- when the score of a verticalization is distributed to two parent edges.
+-- when the score of a verticalization (unspread) is distributed to the two parent edges.
 -- The full score of the operation is restored when the two parent edges are eventually combined again.
 --
 -- This module implements partial scores as typesafe functions with phantom types
@@ -45,11 +40,11 @@ module Scoring.FunTyped
   , plus
   -- * grammatical combinators
     --
-    -- The following combinators correspond to the merge and vert operations
+    -- The following combinators correspond to the unsplit and unspread operations
     -- of the path-graph grammar.
-  , mergeScores
-  , vertScoresLeft
-  , vertScoresRight
+  , unsplitScores
+  , unspreadScoresLeft
+  , unspreadScoresRight
   , addScores
   , getScoreVal)
 where
@@ -309,21 +304,21 @@ addScores (MkScore nla nra a) (MkScore nlb nrb b) = MkScore nla nra res
 -- and will throw an error otherwise to indicate parser bugs.
 --
 -- > a-b   b-c
--- > --------- merge
+-- > --------- unsplit
 -- >    a-c
-mergeScores
+unsplitScores
   :: forall s i. (R.Semiring s, Eq i, Show i, Show s)
   => s         -- ^ The score of the split operation.
   -> Score s i -- ^ The 'Score' of the left child edge.
   -> Score s i -- ^ The 'Score' of the right child edge.
   -> Score s i -- ^ The 'Score' of the parent edge, if it exists.
-mergeScores op (MkScore nll nrl left) (MkScore nlr nrr right) = MkScore nll nrr $ fromMaybe err $ do
+unsplitScores op (MkScore nll nrl left) (MkScore nlr nrr right) = MkScore nll nrr $ fromMaybe err $ do
   Refl <- testEquality nrl nlr
   times (prep left) right
  where
   err =
     error
-      $  "Attempting illegal merge: left="
+      $  "Attempting illegal unsplit: left="
       <> show left
       <> ", right="
       <> show right
@@ -336,38 +331,38 @@ mergeScores op (MkScore nll nrl left) (MkScore nlr nrr right) = MkScore nll nrr 
 
 -- | Creates the 'Score' of a left parent edge from a left child edge of a @vert@.
 -- Will throw an error if called on invalid input to indicate parser bugs.
-vertScoresLeft
+unspreadScoresLeft
   :: forall s i. (Eq i, Show i, R.Semiring s, Show s)
   => i         -- ^ The new ID that marks both parent edges
   -> Score s i -- ^ The 'Score' of the left child edge.
   -> Score s i -- ^ The 'Score' of the left parent edge, if it exists.
-vertScoresLeft newid (MkScore SZ nr s) = canAddHole nr $ MkScore SZ (addHole nr) $ wrap s
+unspreadScoresLeft newid (MkScore SZ nr s) = canAddHole nr $ MkScore SZ (addHole nr) $ wrap s
  where
   newir = RightId newid
   -- wrap the left input score into a new layer with a new ID
   wrap :: TypedScore 'Z nr s i -> TypedScore 'Z (CreateHole nr) s i
   wrap (SVal v  ) = SLeft (addHoleLeft R.one $ mkLeftHole v) newir
   wrap (SLeft fl _) = SLeft (addHoleLeft R.one fl) newir
-vertScoresLeft _ (MkScore _ _ s) = error $ "Attempting illegal left-vert on " <> show s
+unspreadScoresLeft _ (MkScore _ _ s) = error $ "Attempting illegal left-unspread on " <> show s
 
 -- | Creates the 'Score' of a right parent edge
 -- from the middle and right child edges of a @vert@
--- and a @horizontalize@ operation.
-vertScoresRight
+-- and a @spread@ operation.
+unspreadScoresRight
   :: forall i s. (Eq i, R.Semiring s, Show i, Show s)
   => i                 -- ^ The new ID that marks both parent edges.
-  -> s                 -- ^ The score of the @horizontalize@ operation.
+  -> s                 -- ^ The score of the @spread@ operation.
   -> Score s i         -- ^ The 'Score' of the middle child edge.
   -> Score s i         -- ^ The 'Score' of the right child edge.
   -> Score s i -- ^ The 'Score' of the right parent edge, if it exists.
-vertScoresRight newid op (MkScore nlm nrm m) (MkScore nlr nrr r) =
+unspreadScoresRight newid op (MkScore nlm nrm m) (MkScore nlr nrr r) =
   canAddHole nlm $ MkScore (addHole nlm) nrr $ fromMaybe err $ do
     Refl <- testEquality nrm nlr
     mr <- times m r
     pure $ unwrap mr
  where
   err =
-    error $ "Attempting illegal right-vert: m=" <> show m <> ", r=" <> show r
+    error $ "Attempting illegal right-unspread: m=" <> show m <> ", r=" <> show r
   -- generate a value on the right
   -- that consumes the left parent edge's value when supplied
   -- and combines with m on the right

@@ -2,7 +2,6 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE DeriveGeneric #-}
--- {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE LambdaCase #-}
@@ -293,7 +292,7 @@ vertLeft vertl (tleft@(Transition ll lt lr is2nd) := vleft) (top, newId)
  where
   err = error $ "Illegal left-vert: left=" <> show tleft <> ", vert=" <> show
     (top, newId)
-  v' = S.vertScoresLeft newId vleft
+  v' = S.unspreadScoresLeft newId vleft
   mkParent v t = Transition ll t top False := v
 
 -- | Infers the possible right parent transitions of a verticalization.
@@ -314,7 +313,7 @@ vertRight vertr vert@(Vert top op (_ := vm)) tright@((Transition rl rt rr _) := 
       <> show vert
       <> ", right="
       <> show tright
-  v' = S.vertScoresRight (sID top) op vm vr
+  v' = S.unspreadScoresRight (sID top) op vm vr
   mkParent v t = Transition top t rr True := v
 
 -- | Infers the possible parent transitions of a split.
@@ -333,7 +332,7 @@ merge mg ((Transition ll lt lr l2nd) := vl) ((Transition _ !rt !rr _) := vr) =
   splitType | l2nd                 = RightOfTwo
             | isStop (sContent rr) = SingleOfOne
             | otherwise            = LeftOfTwo
-  mkItem (!top, !op) = Transition ll top rr l2nd := S.mergeScores op vl vr
+  mkItem (!top, !op) = Transition ll top rr l2nd := S.unsplitScores op vl vr
 
 -- the parsing main loop
 ------------------------

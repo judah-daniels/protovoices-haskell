@@ -16,11 +16,6 @@ import           PVGrammar.Prob.Simple          ( observeDerivation
                                                 , sampleDerivation
                                                 )
 import           Parser
-import           ScoresCommon                   ( FreezeScore(FreezeScore)
-                                                , LeftmostScore
-                                                , SplitScore(SplitScore)
-                                                , SpreadScore(SpreadScore)
-                                                )
 
 import           Musicology.Core
 import           Musicology.Core.Slicing
@@ -214,19 +209,6 @@ derivBrahms = buildDerivation $ do
  where
   (>>) :: Do.BindSyntax x y z => x a -> y b -> z b
   (>>) = (Do.>>)
-
-derivScore :: [LeftmostScore (Derivations String)]
-derivScore = buildDerivation $ do
-  split $ SplitScore $ Do "top"
-  spread $ SpreadScore $ Do "h2"
-  split $ SplitScore $ Do "s"
-  freeze $ FreezeScore $ Do "L1"
-  spread $ SpreadScore $ Do "h1"
-  freeze $ FreezeScore $ Do "L2"
-  freeze $ FreezeScore $ Do "M"
-  freeze $ FreezeScore $ Do "C"
-  freeze $ FreezeScore $ Do "R"
-  where (>>) = (Do.>>)
 
 -- mains
 -- =====
