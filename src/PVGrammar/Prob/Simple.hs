@@ -646,7 +646,7 @@ sampleNeighbor stepUp ref = do
 observeNeighbor :: Bool -> SPitch -> SPitch -> PVObs ()
 observeNeighbor goesUp ref nb = do
   let interval = ic $ ref `pto` nb
-      isChromatic = direction interval == EQ
+      isChromatic = diasteps interval == 0
   observeValue "nbChromatic" Bernoulli (pInner . pNBChromatic) isChromatic
   observeOctaveShift "nbOctShift" (ref `pto` nb)
   if isChromatic
@@ -706,8 +706,7 @@ observeDoubleChild pl pr child
           observeOctaveShift "doubleChildOctave" (pl `pto` child)
         else do
           let dir = direction (pc pl `pto` pc child)
-          let goesUp =
-                dir == GT || (dir == EQ && alteration child > alteration pl)
+          let goesUp = dir == GT
           observeConst "stepUp" Bernoulli 0.5 goesUp
           observeNeighbor goesUp pl child
   | otherwise = do
@@ -910,8 +909,7 @@ observeSingleOrn table parent pElaborate = do
         observeOctaveShift "singleChildOctave" (parent `pto` child)
       else do
         let dir = direction (pc parent `pto` pc child)
-            up =
-              dir == GT || (dir == EQ && alteration child > alteration parent)
+            up = dir == GT
         observeConst "singleUp" Bernoulli 0.5 up
         observeNeighbor up parent child
   pure (parent, children)
