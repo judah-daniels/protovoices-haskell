@@ -515,23 +515,35 @@ unsplit mg ((Transition ll lt lr l2nd) := vl) ((Transition _ !rt !rr _) := vr) =
 -- the parsing main loop
 ------------------------
 
+-- | parallelized map
 pmap :: NFData b => (a -> b) -> [a] -> [b]
 pmap f = P.withStrategy (P.parList P.rdeepseq) . map f
 
 -- pmap = map
 
--- pforceList :: NFData a => [a] -> [a]
--- pforceList = P.withStrategy (P.parList P.rdeepseq)
--- --pforceList = id
-
+{- | A type alias for  pair of transition chart ('TChart')
+ and verticalization chart ('VChart').
+-}
 type ParseState tr slc v = (TChart tr slc v, VChart tr slc v)
+
+{- | Type alias for a monadic parsing operation.
+ A function that takes a level and a 'ParseState'
+ and produces a monadic parsing action yielding a new state.
+
+ Used to express the main parsing loop
+ as well as all substeps that transform the charts on a specific level.
+-}
 type ParseOp m tr slc v = Int -> ParseState tr slc v -> m (ParseState tr slc v)
 
+-- | A single level iteration of the chart parser.
 parseStep
   :: (Parsable tr slc v)
   => (TChart tr slc v -> VChart tr slc v -> Int -> IO ())
+  -- ^ a logging function that takes charts and level number.
   -> Eval tr tr' slc slc' v
+  -- ^ the grammar's evaluator
   -> ParseOp IO tr slc v
+  -- ^ the parsing operation (from level number and charts to new charts).
 parseStep logCharts (Eval eMid eLeft eRight eUnsplit _ _) n charts = do
   uncurry logCharts charts n
   unspreadAllMiddles eMid n charts
@@ -548,7 +560,7 @@ unspreadAllMiddles evalMid n (!tchart, !vchart) = do
       vchart' = vcMerge vchart newVerts
   return (tchart, vchart')
 
--- | Perform all left unspreads where either @l@ or @m@ have length @n@
+-- | Perform all left unspreads where either @l@ or @m@ have length @n@.
 unspreadAllLefts
   :: (Monad m, Parsable tr slc v) => UnspreadLeft tr slc -> ParseOp m tr slc v
 unspreadAllLefts evalLeft n (!tchart, !vchart) = do
@@ -644,9 +656,13 @@ unsplitAll unsplitter n (!tchart, !vchart) = do
 parse
   :: Parsable tr slc v
   => (TChart tr slc v -> Either (VChart tr slc v) [Slice slc] -> Int -> IO ())
+  -- ^ logging function
   -> Eval tr tr' slc slc' v
+  -- ^ the grammar's evaluator
   -> Path slc' tr'
+  -- ^ the input path (from first to last slice, excluding 'Start' and 'Stop')
   -> IO v
+  -- ^ the semiring value at the top
 parse logCharts eval path = do
   logCharts tinit (Right $ pathNodes slicePath) 1
   (tfinal, vfinal) <-
@@ -680,6 +696,7 @@ parse logCharts eval path = do
   trans0 = mapEdges mkTrans slicePath
   tinit = tcMerge tcEmpty $ concat trans0
 
+-- | A logging function that logs the sice of the charts at each level.
 logSize
   :: TChart tr1 slc1 v1 -> Either (VChart tr2 slc2 v2) [Slice slc2] -> Int -> IO ()
 logSize tc vc n = do
@@ -690,18 +707,22 @@ logSize tc vc n = do
         Right lst -> length lst
   putStrLn $ "verts: " <> show nverts
 
+-- | Parse a piece using the 'logSize' logging function.
 parseSize :: Parsable tr slc v => Eval tr tr' slc slc' v -> Path slc' tr' -> IO v
 parseSize = parse logSize
 
+-- | A logging function that does nothing.
 logNone :: Applicative f => p1 -> p2 -> p3 -> f ()
 logNone _ _ _ = pure ()
 
+-- | Parse a piece without logging.
 parseSilent :: Parsable tr slc v => Eval tr tr' slc slc' v -> Path slc' tr' -> IO v
 parseSilent = parse logNone
 
 -- fancier logging
 -- ---------------
 
+-- | Generate TikZ code for a slice.
 printTikzSlice :: Show slc => Slice slc -> IO ()
 printTikzSlice (Slice f sc sid l) = do
   putStrLn $
@@ -715,6 +736,7 @@ printTikzSlice (Slice f sc sid l) = do
       <> show sid
       <> "};"
 
+-- | Generate TikZ code for a verticalization.
 printTikzVert neighbors (Vert top@(Slice f c i l) _ middle) = do
   let index = f + l
       xpos = fromIntegral (f + l) / 2.0
@@ -745,6 +767,7 @@ printTikzVert neighbors (Vert top@(Slice f c i l) _ middle) = do
       <> ")};"
   pure neighbors'
 
+-- | Generate TikZ code for a transition.
 printTikzTrans neighbors t@(Transition sl tc sr _) = do
   let tid = "t" <> show (hash t)
       index = sFirst sl + sLast sr
@@ -787,6 +810,7 @@ printTikzTrans neighbors t@(Transition sl tc sr _) = do
   putStrLn "  \\end{scope}"
   pure neighbors'
 
+-- | A logging function that emits the state of the chart in TikZ code at every level.
 logTikz tc vc n = do
   putStrLn $ "\n% level " <> show n
   let rel =
