@@ -20,7 +20,7 @@ as well as the contents of slices (path nodes) and transitions (path edges).
 The grammar to parse is definend in an "evaluator" ('Common.Eval')
 which provides completions for parsing the splits, spreads and freezes.
 -}
-module Parser
+module ChartParser
   ( Parsable
   , Normal
   , Normal'

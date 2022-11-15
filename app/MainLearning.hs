@@ -5,6 +5,7 @@
 
 module Main where
 
+import qualified ChartParser
 import Common
   ( Analysis (..)
   , Path (..)
@@ -61,7 +62,6 @@ import PVGrammar.Prob.Simple
   , observeDerivation'
   , sampleDerivation'
   )
-import qualified Parser
 import qualified Statistics.Sample as Stats
 import System.FilePath
   ( (<.>)
@@ -201,7 +201,7 @@ countRareIntDerivs = do
     loadItem
       (dataDir </> "theory-article")
       "10c_rare_int"
-  count <- Parser.parseSize pvCountUnrestricted surface
+  count <- ChartParser.parseSize pvCountUnrestricted surface
   print count
 
 -- loading data

@@ -3,6 +3,7 @@
 
 module Main where
 
+import ChartParser
 import Common
 import Display
 import PVGrammar hiding
@@ -11,7 +12,6 @@ import PVGrammar hiding
   )
 import PVGrammar.Generate
 import PVGrammar.Parse
-import Parser
 
 import Musicology.Core
 import Musicology.Core.Slicing

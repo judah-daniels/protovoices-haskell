@@ -7,6 +7,7 @@
 
 module Main where
 
+import ChartParser
 import Common
 import Display
 import GreedyParser as Greedy
@@ -17,7 +18,6 @@ import PVGrammar.Prob.Simple
   ( observeDerivation
   , sampleDerivation
   )
-import Parser
 
 import Musicology.Core
 import Musicology.Core.Slicing
