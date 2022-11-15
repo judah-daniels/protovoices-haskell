@@ -2,6 +2,9 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TupleSections #-}
 
+{- | A simple implementation of multisets as hash maps to counts.
+ Supports just what is needed for protovoice slices.
+-}
 module Internal.MultiSet where
 
 import Control.DeepSeq (NFData)
@@ -16,6 +19,9 @@ import Data.Hashable (Hashable)
 import GHC.Generics (Generic)
 import Prelude hiding (lookup)
 
+{- | A hash multiset.
+ A unordered collection of items that can occur several times.
+-}
 newtype MultiSet a = MS {unMS :: HM.HashMap a Int}
   deriving (Eq, Ord, Show, Generic, Hashable, NFData)
 

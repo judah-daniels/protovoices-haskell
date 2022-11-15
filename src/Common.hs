@@ -534,10 +534,14 @@ data LeftmostDouble s f h
   | LMDoubleSpread !h
   deriving (Eq, Ord, Show, Generic, NFData)
 
+-- | Helper function for 'LeftmostDouble''s 'ToJSON' instance.
+lmDoubleToJSONName "LMDoubleSpread" = "hori"
+lmDoubleToJSONName str = firstToLower $ drop 8 str
+
 instance (ToJSON s, ToJSON f, ToJSON h) => ToJSON (LeftmostDouble s f h) where
-  toJSON = Aeson.genericToJSON $ variantDefaults (firstToLower . drop 8)
+  toJSON = Aeson.genericToJSON $ variantDefaults lmDoubleToJSONName
   toEncoding =
-    Aeson.genericToEncoding $ variantDefaults (firstToLower . drop 8)
+    Aeson.genericToEncoding $ variantDefaults lmDoubleToJSONName
 
 -- | A combined datatype for all leftmost-derivation operations.
 data Leftmost s f h
@@ -555,7 +559,7 @@ instance (FromJSON s, FromJSON f, FromJSON h) => FromJSON (Leftmost s f h) where
       "splitLeft" -> LMSplitLeft <$> parseJSON val
       "splitRight" -> LMSplitRight <$> parseJSON val
       "splitOnly" -> LMSplitOnly <$> parseJSON val
-      "spread" -> LMSpread <$> parseJSON val
+      "hori" -> LMSpread <$> parseJSON val -- the JSON encoding uses "hori" instead of "spread"
       other -> unexpected other
 
 instance (ToJSON s, ToJSON f, ToJSON h) => ToJSON (Leftmost s f h) where
