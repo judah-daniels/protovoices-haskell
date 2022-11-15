@@ -5,7 +5,13 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -Wno-incomplete-patterns #-}
+{-# OPTIONS_HADDOCK ignore-exports #-}
 
+{- | This module contains a simple greedy parser for path grammars.
+ The grammar is provided by an evaluator ('Eval').
+ In addition, the parser takes a policy function
+ that picks a reduction option in each step.
+-}
 module GreedyParser
   ( parseGreedy
   , pickRandom
@@ -21,7 +27,6 @@ import Control.Monad.Except
   )
 import Control.Monad.IO.Class
   ( MonadIO
-  -- , liftIO
   )
 import Control.Monad.Trans.Class (lift)
 import Data.Maybe
@@ -36,84 +41,160 @@ import System.Random.Stateful
   , uniformRM
   )
 
-data Trans e = Trans
-  { _tContent :: e
-  , _t2nd :: Bool
+-- * Parsing State
+
+{- | A transition during greedy parsing.
+ Augments transition data with a flag
+ that indicates whether the transition is a transitive right (2nd) parent of a spread.
+-}
+data Trans tr = Trans
+  { _tContent :: !tr
+  -- ^ content of the transition
+  , _t2nd :: !Bool
+  -- ^ flag that indicates (transitive) right parents of spreads
   }
   deriving (Show)
 
--- | The state of the greedy parse between steps
-data GreedyState e e' a o
-  = GSFrozen (Path (Maybe e') a)
+{- | The state of the greedy parse between steps.
+ Generally, the current reduction consists of frozen transitions
+ between the ⋊ and the current location
+ and open transitions between the current location and ⋉.
+
+ > ⋊==[1]==[2]==[3]——[4]——[5]——⋉
+ >   └ frozen  ┘  | └   open  ┘
+ >             midSlice (current position)
+ >
+ > frozen:   ==[2]==[1]==
+ > midSlice: [3]
+ > open:     ——[4]——[5]——
+
+ This is the 'GSSemiOpen' case:
+ The slice at the current pointer (@[3]@)
+ is represented as an individual slice (@midSlice@).
+ The frozen part is represented by a 'Path' of frozen transitions (@tr'@) and slices (@slc@).
+ __in reverse direction__, i.e. from @midslice@ back to ⋊ (excluding ⋊).
+ The open part is a 'Path' of open transitions (@tr@) and slices (@slc@)
+ in forward direction from @midSlice@ up to ⋉.
+
+ There are two special cases.
+ All transitions can be frozen ('GSFrozen'),
+ in which case state only contains the backward 'Path' of frozen transitions
+ (excluding ⋊ and ⋉):
+
+ > ⋊==[1]==[2]==[3]==⋉
+ >                    └ current position
+ > represented as: ==[3]==[2]==[1]==
+
+ Or all transitions can be open ('GSOpen'),
+ in which case the state is just the forward path of open transitions:
+
+ > ⋊——[1]——[2]——[3]——⋉
+ > └ current position
+ > represented as: ——[1]——[2]——[3]——
+
+ The open and semiopen case additionally have a list of operations in generative order.
+-}
+data GreedyState tr tr' slc op
+  = GSFrozen !(Path (Maybe tr') slc)
   | GSSemiOpen
-      { _gsFrozen :: Path (Maybe e') a
+      { _gsFrozen :: !(Path (Maybe tr') slc)
       -- ^ frozen transitions and slices from current point leftward
-      , _gsMidSlice :: a
+      , _gsMidSlice :: !slc
       -- ^ the slice at the current posision between gsFrozen and gsOpen
-      , _gsOpen :: Path (Trans e) a
+      , _gsOpen :: !(Path (Trans tr) slc)
       -- ^ non-frozen transitions and slices from current point rightward
-      , _gsDeriv :: [o]
+      , _gsDeriv :: ![op]
       -- ^ derivation from current reduction to original surface
       }
-  | GSOpen (Path (Trans e) a) [o]
+  | GSOpen !(Path (Trans tr) slc) ![op]
 
-instance (Show a, Show o) => Show (GreedyState e e' a o) where
+instance (Show slc, Show o) => Show (GreedyState tr tr' slc o) where
   show (GSFrozen frozen) = showFrozen frozen <> "⋉"
   show (GSOpen open _ops) = "⋊" <> showOpen open -- <> " " <> show ops
   show (GSSemiOpen frozen mid open _ops) =
     showFrozen frozen <> show mid <> showOpen open -- <> " " <> show ops
 
-showFrozen :: Show a => Path e a -> [Char]
+-- | Helper function for showing the frozen part of a piece.
+showFrozen :: Show slc => Path tr' slc -> String
 showFrozen path = "⋊" <> go path
  where
   go (PathEnd _) = "="
   go (Path _ a rst) = go rst <> show a <> "="
 
-showOpen :: Show a => Path e a -> [Char]
+-- | Helper function for showing the open part of a piece.
+showOpen :: Show slc => Path tr slc -> String
 showOpen path = go path <> "⋉"
  where
   go (PathEnd _) = "-"
   go (Path _ a rst) = "-" <> show a <> go rst
 
-data ActionSingle a e s f
-  = ActionSingle
-      (StartStop a, Trans e, StartStop a)
-      (LeftmostSingle s f)
-  deriving (Show)
-data ActionDouble a e s f h
-  = ActionDouble
-      ( StartStop a
-      , Trans e
-      , a
-      , Trans e
-      , StartStop a
-      )
-      (LeftmostDouble s f h)
-  deriving (Show)
-type Action a e s f h = Either (ActionSingle a e s f) (ActionDouble a e s f h)
+-- * Parsing Actions
 
+{- | A parsing action (reduction step) with a single parent transition.
+ Combines the parent elements with a single-transition derivation operation.
+-}
+data ActionSingle slc tr s f
+  = ActionSingle
+      (StartStop slc, Trans tr, StartStop slc)
+      -- ^ parent transition (and adjacent slices)
+      (LeftmostSingle s f)
+      -- ^ single-transition operation
+  deriving (Show)
+
+{- | A parsing action (reduction step) with two parent transitions.
+ Combines the parent elements with a double-transition derivation operation.
+-}
+data ActionDouble slc tr s f h
+  = ActionDouble
+      ( StartStop slc
+      , Trans tr
+      , slc
+      , Trans tr
+      , StartStop slc
+      )
+      -- ^ parent transitions and slice
+      (LeftmostDouble s f h)
+      -- ^ double-transition operation
+  deriving (Show)
+
+-- | An alias that combines 'ActionSingle' and 'ActionDouble', representing all possible reduction steps.
+type Action slc tr s f h = Either (ActionSingle slc tr s f) (ActionDouble slc tr s f h)
+
+-- * Parsing Algorithm
+
+{- | Parse a piece in a greedy fashion.
+ At each step, a policy chooses from the possible reduction actions,
+ the reduction is applied, and parsing continues
+ until the piece is fully reduced or no more reduction operations are available.
+ Returns the full derivation from the top (@⋊——⋉@) or an error message.
+-}
 parseGreedy
-  :: forall m e e' a a' s f h
-   . (Monad m, MonadIO m, Show e', Show a, Show e, Show s, Show f, Show h)
-  => Eval e e' a a' (Leftmost s f h)
-  -> ([Action a e s f h] -> ExceptT String m (Action a e s f h))
-  -> Path a' e'
-  -> ExceptT String m (Analysis s f h e a) -- (e, [Leftmost s f h])
+  :: forall m tr tr' slc slc' s f h
+   . (Monad m, MonadIO m, Show tr', Show slc, Show tr, Show s, Show f, Show h)
+  => Eval tr tr' slc slc' (Leftmost s f h)
+  -- ^ the evaluator of the grammar to be used
+  -> ([Action slc tr s f h] -> ExceptT String m (Action slc tr s f h))
+  -- ^ the policy: picks a parsing action from a list of options
+  -- (determines the 'Monad' @m@, e.g., for randomness).
+  -> Path slc' tr'
+  -- ^ the input piece
+  -> ExceptT String m (Analysis s f h tr slc)
+  -- ^ the full parse or an error message
 parseGreedy eval pick input = do
   (top, deriv) <- parse initState
   pure $ Analysis deriv $ PathEnd top
  where
   initState = GSFrozen $ wrapPath Nothing (reversePath input)
   -- prepare the input: eval slices, wrap in Inner, add Start/Stop
-  wrapPath :: Maybe e' -> Path a' e' -> Path (Maybe e') a
+  wrapPath :: Maybe tr' -> Path slc' tr' -> Path (Maybe tr') slc
   wrapPath eleft (PathEnd a) = Path eleft (evalSlice eval a) $ PathEnd Nothing
   wrapPath eleft (Path a e rst) =
     Path eleft (evalSlice eval a) $ wrapPath (Just e) rst
 
   -- parsing loop
   parse
-    :: GreedyState e e' a (Leftmost s f h)
-    -> ExceptT String m (e, [Leftmost s f h])
+    :: GreedyState tr tr' slc (Leftmost s f h)
+    -> ExceptT String m (tr, [Leftmost s f h])
 
   -- case 1: everything frozen
   parse state = do
@@ -135,11 +216,11 @@ parseGreedy eval pick input = do
       GSOpen open ops -> case open of
         -- only one transition: terminate
         PathEnd (Trans t _) -> pure (t, ops)
-        -- two transitions: merge single and terminate
+        -- two transitions: unsplit single and terminate
         Path tl slice (PathEnd tr) -> do
           (Trans ttop _, optop) <-
             pickSingle $
-              collectMergeSingle Start tl slice tr Stop
+              collectUnsplitSingle Start tl slice tr Stop
           pure (ttop, LMSingle optop : ops)
         -- more than two transitions: pick double operation and continue
         Path tl sl (Path tm sr rst) -> do
@@ -169,26 +250,26 @@ parseGreedy eval pick input = do
                 sfrozen
                 (Path thawed mid open)
                 (LMDouble op : ops)
-        -- two open transitions: thaw or merge single
+        -- two open transitions: thaw or unsplit single
         Path topenl sopen (PathEnd topenr) -> do
           let
-            merges =
-              Left <$> collectMergeSingle (Inner mid) topenl sopen topenr Stop
+            unsplits =
+              Left <$> collectUnsplitSingle (Inner mid) topenl sopen topenr Stop
           case frozen of
             PathEnd tfrozen -> do
               let
                 thaws =
                   Right
                     <$> collectThawLeft Start tfrozen mid topenl (Inner sopen)
-              action <- pick $ thaws <> merges
+              action <- pick $ thaws <> unsplits
               case action of
-                -- picked merge
-                Left (ActionSingle (_, merged, _) op) ->
+                -- picked unsplit
+                Left (ActionSingle (_, parent, _) op) ->
                   parse $
                     GSSemiOpen
                       frozen
                       mid
-                      (PathEnd merged)
+                      (PathEnd parent)
                       (LMSingle op : ops)
                 -- picked thaw
                 Right (ActionDouble (_, thawed, _, _, _) op) ->
@@ -202,15 +283,15 @@ parseGreedy eval pick input = do
                         mid
                         topenl
                         (Inner sopen)
-              action <- pick $ thaws <> merges
+              action <- pick $ thaws <> unsplits
               case action of
-                -- picked merge
-                Left (ActionSingle (_, merged, _) op) ->
+                -- picked unsplit
+                Left (ActionSingle (_, parent, _) op) ->
                   parse $
                     GSSemiOpen
                       frozen
                       mid
-                      (PathEnd merged)
+                      (PathEnd parent)
                       (LMSingle op : ops)
                 -- picked thaw
                 Right (ActionDouble (_, thawed, _, _, _) op) ->
@@ -270,7 +351,7 @@ parseGreedy eval pick input = do
                       (LMDouble op : ops)
 
   pickSingle
-    :: [ActionSingle a e s f] -> ExceptT String m (Trans e, LeftmostSingle s f)
+    :: [ActionSingle slc tr s f] -> ExceptT String m (Trans tr, LeftmostSingle s f)
   pickSingle actions = do
     -- liftIO $ putStrLn $ "pickSingle " <> show actions
     action <- pick $ Left <$> actions
@@ -279,8 +360,8 @@ parseGreedy eval pick input = do
       Right _ -> throwError "pickSingle returned a double action"
 
   pickDouble
-    :: [ActionDouble a e s f h]
-    -> ExceptT String m ((Trans e, a, Trans e), LeftmostDouble s f h)
+    :: [ActionDouble slc tr s f h]
+    -> ExceptT String m ((Trans tr, slc, Trans tr), LeftmostDouble s f h)
   pickDouble actions = do
     -- liftIO $ putStrLn $ "pickDouble " <> show actions
     action <- pick $ Right <$> actions
@@ -290,7 +371,7 @@ parseGreedy eval pick input = do
         pure ((topl, tops, topr), op)
 
   collectThawSingle
-    :: (StartStop a -> Maybe e' -> StartStop a -> [ActionSingle a e s f])
+    :: (StartStop slc -> Maybe tr' -> StartStop slc -> [ActionSingle slc tr s f])
   collectThawSingle sl t sr =
     mapMaybe
       getAction
@@ -301,12 +382,12 @@ parseGreedy eval pick input = do
       LMDouble _ -> Nothing
 
   collectThawLeft
-    :: ( StartStop a
-         -> Maybe e'
-         -> a
-         -> Trans e
-         -> StartStop a
-         -> [ActionDouble a e s f h]
+    :: ( StartStop slc
+         -> Maybe tr'
+         -> slc
+         -> Trans tr
+         -> StartStop slc
+         -> [ActionDouble slc tr s f h]
        )
   collectThawLeft sl tl sm (Trans tr _) sr =
     mapMaybe
@@ -318,32 +399,32 @@ parseGreedy eval pick input = do
         Just $ ActionDouble (sl, Trans thawed False, sm, Trans tr False, sr) dop
       LMSingle _ -> Nothing
 
-  collectMergeSingle
-    :: ( StartStop a
-         -> Trans e
-         -> a
-         -> Trans e
-         -> StartStop a
-         -> [ActionSingle a e s f]
+  collectUnsplitSingle
+    :: ( StartStop slc
+         -> Trans tr
+         -> slc
+         -> Trans tr
+         -> StartStop slc
+         -> [ActionSingle slc tr s f]
        )
-  collectMergeSingle sl (Trans tl _) sm (Trans tr _) sr =
+  collectUnsplitSingle sl (Trans tl _) sm (Trans tr _) sr =
     mapMaybe getAction $ evalUnsplit eval sl tl sm tr sr SingleOfOne
    where
     getAction (ttop, op) = case op of
       LMSingle sop -> Just $ ActionSingle (sl, Trans ttop False, sr) sop
       LMDouble _ -> Nothing
 
-  collectMergeLeft
-    :: ( StartStop a
-         -> Trans e
-         -> a
-         -> Trans e
-         -> a
-         -> Trans e
-         -> StartStop a
-         -> [ActionDouble a e s f h]
+  collectUnsplitLeft
+    :: ( StartStop slc
+         -> Trans tr
+         -> slc
+         -> Trans tr
+         -> slc
+         -> Trans tr
+         -> StartStop slc
+         -> [ActionDouble slc tr s f h]
        )
-  collectMergeLeft sstart (Trans tl _) sl (Trans tm _) sr (Trans tr _) send =
+  collectUnsplitLeft sstart (Trans tl _) sl (Trans tm _) sr (Trans tr _) send =
     mapMaybe getAction $ evalUnsplit eval sstart tl sl tm (Inner sr) LeftOfTwo
    where
     getAction (ttop, op) = case op of
@@ -354,17 +435,17 @@ parseGreedy eval pick input = do
             (sstart, Trans ttop False, sr, Trans tr False, send)
             dop
 
-  collectMergeRight
-    :: ( StartStop a
-         -> Trans e
-         -> a
-         -> Trans e
-         -> a
-         -> Trans e
-         -> StartStop a
-         -> [ActionDouble a e s f h]
+  collectUnsplitRight
+    :: ( StartStop slc
+         -> Trans tr
+         -> slc
+         -> Trans tr
+         -> slc
+         -> Trans tr
+         -> StartStop slc
+         -> [ActionDouble slc tr s f h]
        )
-  collectMergeRight sstart tl sl (Trans tm m2nd) sr (Trans tr _) send
+  collectUnsplitRight sstart tl sl (Trans tm m2nd) sr (Trans tr _) send
     | not m2nd = []
     | otherwise =
         mapMaybe getAction $
@@ -375,17 +456,17 @@ parseGreedy eval pick input = do
       LMDouble dop ->
         Just $ ActionDouble (sstart, tl, sl, Trans ttop True, send) dop
 
-  collectVerts
-    :: ( StartStop a
-         -> Trans e
-         -> a
-         -> Trans e
-         -> a
-         -> Trans e
-         -> StartStop a
-         -> [ActionDouble a e s f h]
+  collectUnspreads
+    :: ( StartStop slc
+         -> Trans tr
+         -> slc
+         -> Trans tr
+         -> slc
+         -> Trans tr
+         -> StartStop slc
+         -> [ActionDouble slc tr s f h]
        )
-  collectVerts sstart (Trans tl _) sl (Trans tm _) sr (Trans tr _) send =
+  collectUnspreads sstart (Trans tl _) sl (Trans tm _) sr (Trans tr _) send =
     catMaybes $ do
       -- List
       (sTop, op) <- maybeToList $ evalUnspreadMiddle eval (sl, tm, sr)
@@ -393,7 +474,7 @@ parseGreedy eval pick input = do
       rTop <- evalUnspreadRight eval (sr, tr) sTop
       pure $ getAction lTop sTop rTop op
    where
-    -- pure $ getAction $ evalMerge eval (Inner sl) tm sr tr send RightOfTwo
+    -- pure $ getAction $ evalUnsplit eval (Inner sl) tm sr tr send RightOfTwo
 
     getAction lTop sTop rTop op = case op of
       LMSingle _ -> Nothing
@@ -403,62 +484,50 @@ parseGreedy eval pick input = do
             (sstart, Trans lTop False, sTop, Trans rTop True, send)
             dop
 
-  collectDoubles sstart tl sl tm sr rst = leftMerges <> rightMerges <> verts
+  collectDoubles sstart tl sl tm sr rst = leftUnsplits <> rightUnsplits <> unspreads
    where
     (tr, send) = case rst of
       PathEnd t -> (t, Stop)
       Path t s _ -> (t, Inner s)
-    leftMerges = collectMergeLeft sstart tl sl tm sr tr send
-    rightMerges = collectMergeRight sstart tl sl tm sr tr send
-    verts = collectVerts sstart tl sl tm sr tr send
+    leftUnsplits = collectUnsplitLeft sstart tl sl tm sr tr send
+    rightUnsplits = collectUnsplitRight sstart tl sl tm sr tr send
+    unspreads = collectUnspreads sstart tl sl tm sr tr send
 
-pickRandom :: StatefulGen g m => g -> [a] -> ExceptT String m a
+{- | A policy that picks the next action at random.
+ Must be partially applied with a random generator before passing to 'parseGreedy'.
+-}
+pickRandom :: StatefulGen g m => g -> [slc] -> ExceptT String m slc
 pickRandom _ [] = throwError "No candidates for pickRandom!"
 pickRandom gen xs = do
   i <- lift $ uniformRM (0, length xs - 1) gen
   pure $ xs !! i
 
+-- * Entry Points
+
+-- | Parse a piece randomly using a fresh random number generator.
 parseRandom
-  :: (Show e', Show a, Show e, Show s, Show f, Show h)
-  => Eval e e' a a' (Leftmost s f h)
-  -> Path a' e'
-  -> ExceptT String IO (Analysis s f h e a)
+  :: (Show tr', Show slc, Show tr, Show s, Show f, Show h)
+  => Eval tr tr' slc slc' (Leftmost s f h)
+  -- ^ the grammar's evaluator
+  -> Path slc' tr'
+  -- ^ the input piece
+  -> ExceptT String IO (Analysis s f h tr slc)
+  -- ^ a random reduction of the piece (or an error message)
 parseRandom eval input = do
   gen <- lift initStdGen
   mgen <- lift $ newIOGenM gen
   parseGreedy eval (pickRandom mgen) input
 
+-- | Parse a piece randomly using an existing random number generator.
 parseRandom'
-  :: (Show e', Show a, Show e, Show s, Show f, Show h, StatefulGen g IO)
+  :: (Show tr', Show slc, Show tr, Show s, Show f, Show h, StatefulGen g IO)
   => g
-  -> Eval e e' a a' (Leftmost s f h)
-  -> Path a' e'
-  -> ExceptT String IO (Analysis s f h e a)
+  -- ^ a random number generator
+  -> Eval tr tr' slc slc' (Leftmost s f h)
+  -- ^ the grammar's evaluator
+  -> Path slc' tr'
+  -- ^ the input piece
+  -> ExceptT String IO (Analysis s f h tr slc)
+  -- ^ a random reduction of the piece (or an error message)
 parseRandom' mgen eval input = do
   parseGreedy eval (pickRandom mgen) input
-
--- data EitherTag = EitherTagLeft | EitherTagRight | EitherTagBoth
-
--- type family EitherTagPlus (t1 :: EitherTag) (t2 :: EitherTag) where
---   EitherTagPlus 'EitherTagLeft 'EitherTagLeft = 'EitherTagLeft
---   EitherTagPlus 'EitherTagRight 'EitherTagRight = 'EitherTagRight
---   EitherTagPlus a b = 'EitherTagBoth
-
--- data EitherList (t :: EitherTag) a b where
---   ELNil ::EitherList t a b
---   ELLeft ::a -> EitherList t a b -> EitherList (EitherTagPlus t 'EitherTagLeft) a b
---   ELRight ::b -> EitherList t a b -> EitherList (EitherTagPlus t 'EitherTagRight) a b
-
--- listToLefts :: [a] -> EitherList 'EitherTagLeft a b
--- listToLefts = foldr ELLeft ELNil
-
--- listToRights :: [b] -> EitherList 'EitherTagRight a b
--- listToRights = foldr ELRight ELNil
-
--- listToEithers :: [Either a b] -> EitherList 'EitherTagBoth a b
--- listToEithers = foldr
---   (\case
---     Left  a -> ELLeft a
---     Right b -> ELRight b
---   )
---   ELNil
