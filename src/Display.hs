@@ -215,7 +215,7 @@ initialGraph topPath =
   topContents = Start : (Inner <$> pathBetweens topPath) <> [Stop]
   -- assign depth=0 and running IDs to initial slices
   topSlices = zipWith (DerivSlice 0) [0 ..] topContents
-  top = zip3 topSlices (pathNodes topPath) (tail topSlices)
+  top = zip3 topSlices (pathArounds topPath) (tail topSlices)
 
 -- | Replay a derivation from @n@ top-level transitions.
 replayDerivation'

@@ -664,7 +664,7 @@ parse
   -> IO v
   -- ^ the semiring value at the top
 parse logCharts eval path = do
-  logCharts tinit (Right $ pathNodes slicePath) 1
+  logCharts tinit (Right $ pathArounds slicePath) 1
   (tfinal, vfinal) <-
     foldM
       (flip $ parseStep (\t v i -> logCharts t (Left v) i) eval)
@@ -679,7 +679,7 @@ parse logCharts eval path = do
   path' = Path Start Nothing $ wrapPath path
   len = pathLen path'
   slicePath =
-    mapNodesWithIndex
+    mapAroundsWithIndex
       0
       (\i notes -> Slice i (evalSlice eval <$> notes) i i)
       path'
@@ -693,7 +693,7 @@ parse logCharts eval path = do
         (isStop $ sContent r)
    where
     mk (e, v) = Transition l e r False := S.val v
-  trans0 = mapEdges mkTrans slicePath
+  trans0 = mapBetweens mkTrans slicePath
   tinit = tcMerge tcEmpty $ concat trans0
 
 -- | A logging function that logs the sice of the charts at each level.

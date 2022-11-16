@@ -28,11 +28,11 @@ module Common
   , pathLen
   , pathHead
   , pathSetHead
-  , mapNodes
-  , mapNodesWithIndex
-  , mapEdges
+  , mapArounds
+  , mapAroundsWithIndex
+  , mapBetweens
   , reversePath
-  , pathNodes
+  , pathArounds
   , pathBetweens
 
     -- * StartStop #startstop#
@@ -174,6 +174,7 @@ import qualified Text.ParserCombinators.ReadP as ReadP
 -- ======================================
 
 {- | A Path is a datastructure that represents a sequence of alternating objects,
+ /arounds/ and /betweens/,
  starting and ending with the same type.
  An example would be a path in a graph,
  starting and ending with a node with edges in-between.
@@ -191,38 +192,38 @@ instance (Show a, Show b) => Show (Path a b) where
   show (Path a b rst) = show a <> "\n+-" <> show b <> "\n" <> show rst
   show (PathEnd a) = show a
 
--- | Returns the number of nodes in the path.
+-- | Returns the number of /arounds/ in the path.
 pathLen :: Path a b -> Int
 pathLen (Path _ _ rest) = pathLen rest + 1
 pathLen (PathEnd _) = 1
 
--- | Returns the first node in the path.
+-- | Returns the first /around/ in the path.
 pathHead :: Path a b -> a
 pathHead (Path l _ _) = l
 pathHead (PathEnd l) = l
 
--- | Replaces the first node in the path.
+-- | Replaces the first /around/ in the path.
 pathSetHead :: Path a b -> a -> Path a b
 pathSetHead (Path _ b rst) a' = Path a' b rst
 pathSetHead (PathEnd _) a' = PathEnd a'
 
--- | Maps a function over every node in the path.
-mapNodes :: (a -> a') -> Path a b -> Path a' b
-mapNodes f (Path a b rest) = Path (f a) b $ mapNodes f rest
-mapNodes f (PathEnd a) = PathEnd (f a)
+-- | Maps a function over every /around/ in the path.
+mapArounds :: (a -> a') -> Path a b -> Path a' b
+mapArounds f (Path a b rest) = Path (f a) b $ mapArounds f rest
+mapArounds f (PathEnd a) = PathEnd (f a)
 
--- | Maps a function over every node in the path together with its index.
-mapNodesWithIndex :: Int -> (Int -> a -> a') -> Path a b -> Path a' b
-mapNodesWithIndex i f (Path a b rest) =
-  Path (f i a) b (mapNodesWithIndex (i + 1) f rest)
-mapNodesWithIndex i f (PathEnd a) = PathEnd (f i a)
+-- | Maps a function over every /around/ in the path together with its index.
+mapAroundsWithIndex :: Int -> (Int -> a -> a') -> Path a b -> Path a' b
+mapAroundsWithIndex i f (Path a b rest) =
+  Path (f i a) b (mapAroundsWithIndex (i + 1) f rest)
+mapAroundsWithIndex i f (PathEnd a) = PathEnd (f i a)
 
--- | Maps a function over each edge and its adjacent nodes in the path.
-mapEdges :: (a -> b -> a -> c) -> Path a b -> [c]
-mapEdges f (Path al b rest) = f al b ar : mapEdges f rest
+-- | Maps a function over every /between/ and its adjacent /arounds/ in the path.
+mapBetweens :: (a -> b -> a -> c) -> Path a b -> [c]
+mapBetweens f (Path al b rest) = f al b ar : mapBetweens f rest
  where
   ar = pathHead rest
-mapEdges _ (PathEnd _) = []
+mapBetweens _ (PathEnd _) = []
 
 -- | Reverses the path.
 reversePath :: Path a b -> Path a b
@@ -233,11 +234,12 @@ reversePath path = case path of
   go b (PathEnd aEnd) acc = Path aEnd b acc
   go b1 (Path a b2 rest) acc = go b2 rest $ Path a b1 acc
 
--- | Returns the list of nodes in the path.
-pathNodes :: Path a b -> [a]
-pathNodes (Path a _ rst) = a : pathNodes rst
-pathNodes (PathEnd a) = [a]
+-- | Returns the list of /arounds/  in the path.
+pathArounds :: Path a b -> [a]
+pathArounds (Path a _ rst) = a : pathArounds rst
+pathArounds (PathEnd a) = [a]
 
+-- | Returns the list of /betweens/ in the path).
 pathBetweens :: Path a b -> [b]
 pathBetweens (Path _ b rst) = b : pathBetweens rst
 pathBetweens _ = []
