@@ -4,8 +4,11 @@
 
 module Main where
 
+
+import System.Random
 import Common
 import HeuristicParser
+import HeuristicSearch
 import PVGrammar hiding
   ( slicesFromFile,
   )
@@ -28,6 +31,10 @@ import Prelude hiding
     pure,
   )
 
+seed::Int
+seed = 37
+generator = mkStdGen seed
+
 -- | The musical surface from Figure 4 as a sequence of slices and transitions.
 -- Can be used as an input for parsing.
 path321sus =
@@ -44,29 +51,18 @@ testInput =
   ]
 
 
--- We have slices
---  S S S S 
--- First add transitions -
---   Edge when there is a right tie. 
---   First (And last ) transition is Nothing. 
---   transition boundary where segments are.
--- -S-S-S-S-
--- Then reverse for parsing
--- -S-S-S-S-
--- Evaluate slices
--- -s-s-s-s-
 pathFromSlices 
   :: Eval (Edges SPC) [Edge SPC] (Notes SPC) [SPC] (PVLeftmost SPC)
   -> [ ([(SPC, Bool)], Bool)] 
   -> Path (Maybe [Edge SPC], Bool) (Slice (Notes SPC)) 
-pathFromSlices eval = reversePath . mkPath (Nothing, False) 
+pathFromSlices eval = reversePath . mkPath Nothing 
   where
     mkPath 
-      :: (Maybe [Edge SPC], Bool) 
+      :: Maybe [Edge SPC] 
       -> [([(SPC, Bool)], Bool)] 
       -> Path (Maybe [Edge SPC], Bool) (Slice (Notes SPC)) 
 
-    mkPath eLeft ((slice,boundary):rst) = Path eLeft (Slice $ evalSlice' (map fst slice)) $ mkPath (Just $ getTiedEdges slice, boundary) rst
+    mkPath eLeft ((slice,boundary):rst) = Path (eLeft, boundary) (Slice $ evalSlice' (map fst slice)) $ mkPath (Just $ getTiedEdges slice) rst
     mkPath eLeft [] = PathEnd (Nothing, False)
     
     evalSlice' :: [SPC] -> Notes SPC 
@@ -78,13 +74,6 @@ pathFromSlices eval = reversePath . mkPath (Nothing, False)
         mkTiedEdge :: (SPC, Bool) -> Maybe (Edge SPC)
         mkTiedEdge (_, False) = Nothing
         mkTiedEdge (pitch, True) = Just (Inner pitch, Inner pitch)
-    
-    
-
-  -- I   I  - 
-  -- e - e  e
-  -- c
-
 
 -- path321 :: Path
 -- t -- s -- t
@@ -96,53 +85,73 @@ path321 =
     eval :: Eval (Edges SPC) [Edge SPC] (Notes SPC) [SPC] (PVLeftmost SPC)
     eval = protoVoiceEvaluator
 
--- Path (Nothing, False) Start $
---   Path (Just [(e' nat, c' nat)], False) (Inner [c' nat]) $
---     Path (Just [(e' nat, c' nat)], False) Stop $ PathEnd (Nothing, False)
-
 main :: IO ()
 -- main = print $ pathFromSlices protoVoiceEvaluator testInput
 main = mainParseStep
 
 mainParseStep :: IO ()
 mainParseStep = do
-  putStrLn "Input:"
-  print path321
-  putStrLn "Attempting to perform a single parse step\n"
-  print $ states
-  state <- search' 4 eval s
-  print state
-  print "done"
-  where
-    -- print path321
-    -- let s = initialState protoVoiceEvaluator  in
+  (state, ops) <- search' 9 eval s
+  -- print state
+  putStrLn "\nAttempting to plot derivation: "
+  -- mapM_ print ops
+  plotDeriv "testDeriv.tex" ops
 
-    -- s = undefined
-    -- s = SSFrozen path321
-    s = SSFrozen $ pathFromSlices protoVoiceEvaluator testInput
+  putStrLn "done."
+  -- print statee
+  where
+    s = SSFrozen $ pathFromSlices protoVoiceEvaluator slices321sus
 
     eval :: Eval (Edges SPC) [Edge SPC] (Notes SPC) [SPC] (PVLeftmost SPC)
     eval = protoVoiceEvaluator
-    states = exploreStates s eval
 
-search' :: forall es es' ns ns' o . Int -> Eval es es' ns ns' o -> SearchState es es' ns o-> IO (SearchState es es' ns o)
-search' 0 eval state = pure state
+    states = exploreStates eval s 
+
+    state' = heuristicSearch s (exploreStates eval) isGoalState heuristic
+      where
+        isGoalState x = True 
+        heuristic x = 1
+
+slices321sus :: [ ([(SPC, Bool)], Bool) ]
+slices321sus = 
+  [ ([(e' nat, False), (c' nat, True)], True)
+  , ([(d' nat, True), (c' nat, False)], False)
+  , ([(d' nat, False), (b' nat, False)], False)
+  , ([(c' nat, False)], False) 
+  ]
+
+
+search' 
+  :: forall es es' ns ns' o 
+  .  (Show es, Show es', Show ns, Show ns', Show o) 
+  => Int 
+  -> Eval es es' ns ns' o 
+  -> SearchState es es' ns o
+  -> IO (SearchState es es' ns o, [o])
+search' 0 eval state = pure (state, getOps state)
+  where
+    getOps s = case s of 
+      SSOpen p d -> d
+      SSSemiOpen p m f d -> d 
+      SSFrozen p -> []
+
 search' i eval state = do 
-  -- print nextState
+  -- print state
   search' (i-1) eval nextState
   where
-    nextState = head $ exploreStates state eval
+    nextStates = (exploreStates eval state) 
+    n = length nextStates
+    (rand, _) =randomR (0, (n-1)) generator
+    nextState = case n of 
+      0 -> state 
+      _ -> nextStates !! rand
 
-testState =
-  SSFrozen $
-    Path (Nothing, False) (Slice [c' nat]) $
-      PathEnd (Just [(c' nat, c' nat)], False)
-
--- = SSFrozen !(Path (Maybe es', Bool) (Slice ns)) -- Beginning of search - all frozen edges and slices
--- initialState :: forall es es' ns ns' o. Eval es es' ns ns' o -> Path es' ns' -> SearchState es es' ns o
--- initialState eval path = SSFrozen $ PathEnd (Just undefined, False)
-
-plotDeriv fn deriv = do
-  case replayDerivation derivationPlayerPV deriv of
-    (Left err) -> putStrLn err
-    (Right g) -> viewGraph fn g
+plotDeriv fn deriv = mapM_ printStep derivs
+  where
+    derivs = unfoldDerivation derivationPlayerPV deriv
+    printStep el = do 
+      case el of
+        Left err -> do
+          putStrLn err
+        Right g -> do 
+          viewGraph fn g
