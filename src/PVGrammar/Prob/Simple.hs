@@ -440,11 +440,11 @@ observeFreeze _parents FreezeOp = pure ()
 -- helper for sampleSplit and observeSplit
 collectElabos
   :: [(Edge SPitch, [(SPitch, o1)])]
-  -> [(InnerEdge SPitch, [(SPitch, Passing)])]
+  -> [(InnerEdge SPitch, [(SPitch, PassingOrnament)])]
   -> [(SPitch, [(SPitch, o2)])]
   -> [(SPitch, [(SPitch, o3)])]
   -> ( M.Map (StartStop SPitch, StartStop SPitch) [(SPitch, o1)]
-     , M.Map (SPitch, SPitch) [(SPitch, Passing)]
+     , M.Map (SPitch, SPitch) [(SPitch, PassingOrnament)]
      , M.Map SPitch [(SPitch, o2)]
      , M.Map SPitch [(SPitch, o3)]
      , S.HashSet (Edge SPitch)
@@ -485,7 +485,7 @@ collectElabos childrenT childrenNT childrenL childrenR =
 -- helper for sampleSplit and observeSplit
 collectNotes
   :: [(Edge SPitch, [(SPitch, o1)])]
-  -> [(InnerEdge SPitch, [(SPitch, Passing)])]
+  -> [(InnerEdge SPitch, [(SPitch, PassingOrnament)])]
   -> [(SPitch, [(SPitch, o2)])]
   -> [(SPitch, [(SPitch, o3)])]
   -> [SPitch]
@@ -525,7 +525,7 @@ sampleSplit (sliceL, _edges@(Edges ts nts), sliceR) = do
     Nothing -> pure MS.empty
     Just (Notes notesr) ->
       samplePassing notes (L.sort $ MS.toList notesr) pNewPassingRight
-  let (splitTs, splitNTs, fromLeft, fromRight, leftEdges, rightEdges) =
+  let (splitReg, splitPass, fromLeft, fromRight, leftEdges, rightEdges) =
         collectElabos childrenT childrenNT childrenL childrenR
   -- decide which edges to keep
   keepLeft <- sampleKeepEdges pKeepL leftEdges
@@ -533,8 +533,8 @@ sampleSplit (sliceL, _edges@(Edges ts nts), sliceR) = do
   -- combine all sampling results into split operation
   let splitOp =
         SplitOp
-          { splitTs
-          , splitNTs
+          { splitReg
+          , splitPass
           , fromLeft
           , fromRight
           , keepLeft
@@ -763,7 +763,7 @@ observeT splitTs parents = do
   pure (parents, children)
 
 -- requires distance >= M2
-sampleChromPassing :: _ => SPitch -> SPitch -> m (SPitch, Passing)
+sampleChromPassing :: _ => SPitch -> SPitch -> m (SPitch, PassingOrnament)
 sampleChromPassing pl pr = do
   atLeft <-
     sampleValue "connectChromaticLeftOverRight" Bernoulli $
@@ -789,7 +789,7 @@ observeChromPassing pl pr child = do
     "connectChromaticOctave"
     ((if isLeft then pl else pr) `pto` child)
 
-sampleMidPassing :: _ => SPitch -> SPitch -> m (SPitch, Passing)
+sampleMidPassing :: _ => SPitch -> SPitch -> m (SPitch, PassingOrnament)
 sampleMidPassing pl pr = do
   child <- sampleNeighbor (direction (pc pl `pto` pc pr) == GT) pl
   pure (child, PassingMid)
@@ -798,7 +798,7 @@ observeMidPassing :: SPitch -> SPitch -> SPitch -> PVObs ()
 observeMidPassing pl pr =
   observeNeighbor (direction (pc pl `pto` pc pr) == GT) pl
 
-sampleNonMidPassing :: _ => SPitch -> SPitch -> m (SPitch, Passing)
+sampleNonMidPassing :: _ => SPitch -> SPitch -> m (SPitch, PassingOrnament)
 sampleNonMidPassing pl pr = do
   left <-
     sampleValue "passLeftOverRight" Bernoulli $ pInner . pPassLeftOverRight
@@ -814,7 +814,7 @@ sampleNonMidPassing pl pr = do
       child <- sampleNeighbor (not dirUp) pr
       pure (child, PassingRight)
 
-observeNonMidPassing :: SPitch -> SPitch -> SPitch -> Passing -> PVObs ()
+observeNonMidPassing :: SPitch -> SPitch -> SPitch -> PassingOrnament -> PVObs ()
 observeNonMidPassing pl pr child orn = do
   let left = orn == PassingLeft
       dirUp =
@@ -828,7 +828,7 @@ observeNonMidPassing pl pr child orn = do
     else observeNeighbor (not dirUp) pr child
 
 sampleNT
-  :: _ => (InnerEdge SPitch, Int) -> m (InnerEdge SPitch, [(SPitch, Passing)])
+  :: _ => (InnerEdge SPitch, Int) -> m (InnerEdge SPitch, [(SPitch, PassingOrnament)])
 sampleNT ((pl, pr), n) = do
   -- DT.traceM $ "Elaborating edge (smp): " <> show ((pl, pr), n)
   let dist = degree $ iabs $ pc pl `pto` pc pr
@@ -843,9 +843,9 @@ sampleNT ((pl, pr), n) = do
 
 observeNT
   :: _
-  => M.Map (InnerEdge SPitch) [(SPitch, Passing)]
+  => M.Map (InnerEdge SPitch) [(SPitch, PassingOrnament)]
   -> (InnerEdge SPitch, Int)
-  -> PVObs (InnerEdge SPitch, [(SPitch, Passing)])
+  -> PVObs (InnerEdge SPitch, [(SPitch, PassingOrnament)])
 observeNT splitNTs ((pl, pr), _n) = do
   -- DT.traceM $ "Elaborating edge (obs): " <> show ((pl, pr), n)
   let children = fromMaybe [] $ M.lookup (pl, pr) splitNTs

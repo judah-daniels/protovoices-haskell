@@ -86,7 +86,7 @@ splitNT
   => n
   -> n
   -> n
-  -> Passing
+  -> PassingOrnament
   -> Bool
   -> Bool
   -> MW.Writer (Split n) ()

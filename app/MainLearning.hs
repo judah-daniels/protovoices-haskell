@@ -50,7 +50,7 @@ import PVGrammar
   ( Edge
   , PVAnalysis
   , loadAnalysis
-  , loadInput
+  , loadSurface
   , topEdges
   )
 import PVGrammar.Parse
@@ -218,7 +218,7 @@ loadItem dir name = do
     Right a ->
       if anaTop a == PathEnd topEdges
         then do
-          surface <- loadInput (dir </> name <.> "musicxml")
+          surface <- loadSurface (dir </> name <.> "musicxml")
           case observeDerivation' (anaDerivation a) of
             Left _err -> do
               putStrLn $ "could not observe trace for " <> name <> ", skipping."

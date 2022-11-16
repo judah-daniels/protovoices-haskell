@@ -9,7 +9,57 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module PVGrammar where
+{- | This module contains common datatypes and functions specific to the protovoice grammar.
+ In a protovoice derivations, slices are multisets of notes
+ while transitions contain connections between these notes.
+-}
+module PVGrammar
+  ( -- * Inner Structure Types
+
+    -- ** Slices: Notes
+    Notes (..)
+  , innerNotes
+
+    -- ** Transitions: Sets of Obligatory Edges
+
+    -- | Transitions contain two kinds of edges, regular edges and passing edges.
+  , Edges (..)
+  , topEdges
+  , Edge
+  , InnerEdge
+
+    -- * Generative Operations
+
+    -- ** Freeze
+  , Freeze (..)
+
+    -- ** Split
+  , Split (..)
+  , DoubleOrnament (..)
+  , isRepetitionOnLeft
+  , isRepetitionOnRight
+  , PassingOrnament (..)
+  , LeftOrnament (..)
+  , RightOrnament (..)
+
+    -- ** Spread
+  , Spread (..)
+  , SpreadDirection (..)
+
+    -- * Derivations
+  , PVLeftmost
+  , PVAnalysis
+  , analysisTraversePitch
+  , analysisMapPitch
+
+    -- * Loading Files
+  , loadAnalysis
+  , loadAnalysis'
+  , slicesFromFile
+  , slicesToPath
+  , loadSurface
+  , loadSurface'
+  ) where
 
 import Common
 
@@ -46,11 +96,11 @@ import qualified Musicology.Core as Music
 import qualified Musicology.Core.Slicing as Music
 import qualified Musicology.MusicXML as MusicXML
 
--- element types
--- =============
+-- * Inner Structure Types
 
--- slice type: sets of notes
-----------------------------
+-- ** Slice Type: Sets of Notes
+
+-- Slices contain a multiset of notes.
 
 {- | The content type of 'Slice's.
  Contains a multiset of pitches, representing the notes in a slice.
@@ -79,9 +129,6 @@ innerNotes (Inner (Notes n)) = Inner <$> MS.distinctElems n
 innerNotes Start = [Start]
 innerNotes Stop = [Stop]
 
--- transition type: sets of obligatory edges
---------------------------------------------
-
 -- TODO: could this be improved to forbid start/stop symbols on the wrong side?
 
 -- | A proto-voice edge between two nodes (i.e. notes or start/stop symbols).
@@ -91,32 +138,32 @@ type Edge n = (StartStop n, StartStop n)
 type InnerEdge n = (n, n)
 
 {- | The content type of 'Transition's.
- Contains a multiset of normal (terminal) edges and a multiset of (non-terminal) passing edges.
+ Contains a multiset of regular edges and a multiset of passing edges.
  The represented edges are those that are definitely used later on.
  Edges that are not used are dropped before creating a child transition.
  A transition that contains passing edges cannot be frozen.
 -}
 data Edges n = Edges
-  { edgesT :: !(S.HashSet (Edge n))
-  -- ^ the terminal edges
-  , edgesNT :: !(MS.MultiSet (InnerEdge n))
-  -- ^ the non-terminal edges
+  { edgesReg :: !(S.HashSet (Edge n))
+  -- ^ regular edges
+  , edgesPass :: !(MS.MultiSet (InnerEdge n))
+  -- ^ passing edges
   }
   deriving (Eq, Ord, Generic, NFData, Hashable)
 
 instance (Hashable n, Eq n) => Semigroup (Edges n) where
-  (Edges aT aNT) <> (Edges bT bNT) = Edges (aT <> bT) (aNT <> bNT)
+  (Edges aT aPass) <> (Edges bT bPass) = Edges (aT <> bT) (aPass <> bPass)
 
 instance (Hashable n, Eq n) => Monoid (Edges n) where
   mempty = Edges mempty MS.empty
 
 instance (Notation n) => Show (Edges n) where
-  show (Edges ts nts) = "{" <> L.intercalate "," (tts <> tnts) <> "}"
+  show (Edges reg pass) = "{" <> L.intercalate "," (tReg <> tPass) <> "}"
    where
-    tts = showT <$> S.toList ts
-    tnts = showNT <$> MS.toOccurList nts
-    showT (p1, p2) = showNotation p1 <> "-" <> showNotation p2
-    showNT ((p1, p2), n) =
+    tReg = showReg <$> S.toList reg
+    tPass = showPass <$> MS.toOccurList pass
+    showReg (p1, p2) = showNotation p1 <> "-" <> showNotation p2
+    showPass ((p1, p2), n) =
       showNotation p1 <> ">" <> showNotation p2 <> "×" <> show n
 
 instance (Eq n, Hashable n, Notation n) => FromJSON (Edges n) where
@@ -128,42 +175,69 @@ instance (Eq n, Hashable n, Notation n) => FromJSON (Edges n) where
         (S.fromList (regular :: [Edge n]))
         (MS.fromList (passing :: [InnerEdge n]))
 
+-- | The starting transition of a derivation (@⋊——⋉@).
 topEdges :: (Hashable n) => Edges n
 topEdges = Edges (S.singleton (Start, Stop)) MS.empty
 
--- operations
--- ==========
+-- * Derivation Operations
 
--- | Marks different types of ornaments in the derivation.
+-- | Two-sided ornament types (two parents).
 data DoubleOrnament
-  = FullNeighbor
-  | FullRepeat
-  | LeftRepeatOfRight
-  | RightRepeatOfLeft
-  | RootNote
+  = -- | a full neighbor note
+    FullNeighbor
+  | -- | a repetition of both parents (which have the same pitch)
+    FullRepeat
+  | -- | a repetition of the right parent
+    LeftRepeatOfRight
+  | -- | a repetitions of the left parent
+    RightRepeatOfLeft
+  | -- | a note inserted at the top of the piece (between ⋊ and ⋉)
+    RootNote
   deriving (Eq, Ord, Show, Generic, ToJSON, FromJSON, NFData)
 
-data Passing
-  = PassingMid
-  | PassingLeft
-  | PassingRight
+-- | Types of passing notes (two parents).
+data PassingOrnament
+  = -- | a connecting passing note (step to both parents)
+    PassingMid
+  | -- | a step from the left parent
+    PassingLeft
+  | -- | a step from the right parent
+    PassingRight
   deriving (Eq, Ord, Show, Generic, ToJSON, FromJSON, NFData)
 
+{- | Types of single-sided ornaments left of the parent (@child-parent@)
+
+ > [ ] [p]
+ >     /
+ >   [c]
+-}
 data LeftOrnament
-  = LeftNeighbor
-  | LeftRepeat
+  = -- | an incomplete left neighbor
+    LeftNeighbor
+  | -- | an incomplete left repetition
+    LeftRepeat
   deriving (Eq, Ord, Show, Generic, ToJSON, FromJSON, NFData)
 
+{- | Types of single-sided ornaments right of the parent (@parent--child@).
+
+ > [p] [ ]
+ >   \
+ >   [c]
+-}
 data RightOrnament
-  = RightNeighbor
-  | RightRepeat
+  = -- | an incomplete right neighbor
+    RightNeighbor
+  | -- | an incomplete right repetition
+    RightRepeat
   deriving (Eq, Ord, Show, Generic, ToJSON, FromJSON, NFData)
 
+-- | Returns 'True' if the child repeats the left parent
 isRepetitionOnLeft :: DoubleOrnament -> Bool
 isRepetitionOnLeft FullRepeat = True
 isRepetitionOnLeft RightRepeatOfLeft = True
 isRepetitionOnLeft _ = False
 
+-- | Returns 'True' if the child repeats the right parent
 isRepetitionOnRight :: DoubleOrnament -> Bool
 isRepetitionOnRight FullRepeat = True
 isRepetitionOnRight LeftRepeatOfRight = True
@@ -175,9 +249,9 @@ isRepetitionOnRight _ = False
  For every produced edge, a decisions is made whether to keep it or not.
 -}
 data Split n = SplitOp
-  { splitTs :: !(M.Map (Edge n) [(n, DoubleOrnament)])
+  { splitReg :: !(M.Map (Edge n) [(n, DoubleOrnament)])
   -- ^ Maps every regular edge to a list of ornamentations.
-  , splitNTs :: !(M.Map (InnerEdge n) [(n, Passing)])
+  , splitPass :: !(M.Map (InnerEdge n) [(n, PassingOrnament)])
   -- ^ Maps every passing edge to a passing tone.
   -- Since every passing edge is elaborated exactly once
   -- but there can be several instances of the same edge in a transition,
@@ -201,11 +275,11 @@ data Split n = SplitOp
   deriving (Eq, Ord, Generic, NFData)
 
 instance (Notation n) => Show (Split n) where
-  show (SplitOp ts nts ls rs kl kr pl pr) =
-    "ts:"
-      <> showOps opTs
-      <> ", nts:"
-      <> showOps opNTs
+  show (SplitOp reg pass ls rs kl kr pl pr) =
+    "regular:"
+      <> showOps opReg
+      <> ", passing:"
+      <> showOps opPass
       <> ", ls:"
       <> showOps opLs
       <> ", rs:"
@@ -228,8 +302,8 @@ instance (Notation n) => Show (Split n) where
     showL (p, lchilds) = showNotation p <> "=>" <> showChildren lchilds
     showR (p, rchilds) = showChildren rchilds <> "<=" <> showNotation p
 
-    opTs = showSplit <$> M.toList ts
-    opNTs = showSplit <$> M.toList nts
+    opReg = showSplit <$> M.toList reg
+    opPass = showSplit <$> M.toList pass
     opLs = showL <$> M.toList ls
     opRs = showR <$> M.toList rs
     keepLs = showEdge <$> S.toList kl
@@ -238,10 +312,10 @@ instance (Notation n) => Show (Split n) where
     passRs = showEdge <$> MS.toList pr
 
 instance (Ord n, Hashable n) => Semigroup (Split n) where
-  (SplitOp ta nta la ra kla kra pla pra) <> (SplitOp tb ntb lb rb klb krb plb prb) =
+  (SplitOp rega passa la ra kla kra pla pra) <> (SplitOp regb passb lb rb klb krb plb prb) =
     SplitOp
-      (ta <+> tb)
-      (nta <+> ntb)
+      (rega <+> regb)
+      (passa <+> passb)
       (la <+> lb)
       (ra <+> rb)
       (S.union kla klb)
@@ -374,6 +448,7 @@ type PVLeftmost n = Leftmost (Split n) Freeze (Spread n)
 -- helpers
 -- =======
 
+-- | Helper: parses a note's pitch from JSON.
 parseJSONNote :: Notation n => Aeson.Value -> Aeson.Parser n
 parseJSONNote = Aeson.withObject "Note" $ \v -> do
   pitch <- v .: "pitch"
@@ -381,6 +456,7 @@ parseJSONNote = Aeson.withObject "Note" $ \v -> do
     Just p -> pure p
     Nothing -> fail $ "Could not parse pitch " <> pitch
 
+-- | Helper: parses an edge from JSON.
 parseEdge
   :: Notation n => Aeson.Value -> Aeson.Parser (StartStop n, StartStop n)
 parseEdge = Aeson.withObject "Edge" $ \v -> do
@@ -388,6 +464,7 @@ parseEdge = Aeson.withObject "Edge" $ \v -> do
   r <- v .: "right" >>= mapM parseJSONNote
   pure (l, r)
 
+-- | Helper: parses an inner edge from JSON
 parseInnerEdge :: Notation n => Aeson.Value -> Aeson.Parser (n, n)
 parseInnerEdge = Aeson.withObject "InnerEdge" $ \v -> do
   l <- v .: "left"
@@ -399,14 +476,26 @@ parseInnerEdge = Aeson.withObject "InnerEdge" $ \v -> do
       pure (pl, pr)
     _ -> fail "Edge is not an inner edge"
 
+-- | An 'Analysis' specialized to PV types.
 type PVAnalysis n = Analysis (Split n) Freeze (Spread n) (Edges n) (Notes n)
 
+{- | Loads an analysis from a JSON file
+ (as exported by the annotation tool).
+-}
 loadAnalysis :: FilePath -> IO (Either String (PVAnalysis SPitch))
 loadAnalysis = Aeson.eitherDecodeFileStrict
 
+{- | Loads an analysis from a JSON file
+ (as exported by the annotation tool).
+ Converts all pitches to pitch classes.
+-}
 loadAnalysis' :: FilePath -> IO (Either String (PVAnalysis SPC))
 loadAnalysis' fn = fmap (analysisMapPitch (pc @SInterval)) <$> loadAnalysis fn
 
+{- | Loads a MusicXML file and returns a list of salami slices.
+ Each note is expressed as a pitch and a flag that indicates
+ whether the note continues in the next slice.
+-}
 slicesFromFile :: FilePath -> IO [[(SPitch, Music.RightTied)]]
 slicesFromFile file = do
   txt <- TL.readFile file
@@ -421,6 +510,7 @@ slicesFromFile file = do
   mkSlice notes = mkNote <$> notes
   mkNote (note, tie) = (Music.pitch note, Music.rightTie tie)
 
+-- | Converts salami slices (as returned by 'slicesFromFile') to a path as expected by parsers.
 slicesToPath
   :: (Interval i, Ord i, Eq i)
   => [[(Pitch i, Music.RightTied)]]
@@ -443,30 +533,41 @@ slicesToPath = go
   go [notes] = PathEnd (mkSlice notes)
   go (notes : rest) = Path (mkSlice notes) (mkEdges notes) $ go rest
 
-loadInput :: FilePath -> IO (Path [Pitch SInterval] [Edge (Pitch SInterval)])
-loadInput = fmap slicesToPath . slicesFromFile
+{- | Loads a MusicXML File and returns a surface path
+ as input to parsers.
+-}
+loadSurface :: FilePath -> IO (Path [Pitch SInterval] [Edge (Pitch SInterval)])
+loadSurface = fmap slicesToPath . slicesFromFile
 
-loadInput'
+{- | Loads a MusicXML File
+ and returns a surface path of the given range of slices.
+-}
+loadSurface'
   :: FilePath
+  -- ^ path to a MusicXML file
   -> Int
+  -- ^ the first slice to include (starting at 0)
   -> Int
+  -- ^ the last slice to include
   -> IO (Path [Pitch SInterval] [Edge (Pitch SInterval)])
-loadInput' fn from to =
-  slicesToPath . drop (from - 1) . take to <$> slicesFromFile fn
+loadSurface' fn from to =
+  slicesToPath . drop from . take (to - from + 1) <$> slicesFromFile fn
 
-analysisTraversePitches
+-- | Apply an applicative action to all pitches in an analysis.
+analysisTraversePitch
   :: (Applicative f, Eq n', Hashable n', Ord n')
   => (n -> f n')
   -> PVAnalysis n
   -> f (PVAnalysis n')
-analysisTraversePitches f (Analysis deriv top) = do
+analysisTraversePitch f (Analysis deriv top) = do
   deriv' <- traverse (leftmostTraversePitch f) deriv
   top' <- pathTraversePitch f top
   pure $ Analysis deriv' top'
 
+-- | Map a function over all pitches in an analysis.
 analysisMapPitch
   :: (Eq n', Hashable n', Ord n') => (n -> n') -> PVAnalysis n -> PVAnalysis n'
-analysisMapPitch f = runIdentity . analysisTraversePitches (pure . f)
+analysisMapPitch f = runIdentity . analysisTraversePitch (pure . f)
 
 pathTraversePitch
   :: (Applicative f, Eq n', Hashable n')
@@ -523,16 +624,16 @@ splitTraversePitch
   => (n -> f n')
   -> Split n
   -> f (Split n')
-splitTraversePitch f (SplitOp ts nts ls rs kl kr pl pr) = do
-  ts' <- traverseElabo (traverseEdge (traverse f)) ts
-  nts' <- traverseElabo (traverseEdge f) nts
+splitTraversePitch f (SplitOp reg pass ls rs kl kr pl pr) = do
+  reg' <- traverseElabo (traverseEdge (traverse f)) reg
+  pass' <- traverseElabo (traverseEdge f) pass
   ls' <- traverseElabo f ls
   rs' <- traverseElabo f rs
   kl' <- traverseSet (traverseEdge (traverse f)) kl
   kr' <- traverseSet (traverseEdge (traverse f)) kr
   pl' <- MS.traverse (traverseEdge f) pl
   pr' <- MS.traverse (traverseEdge f) pr
-  pure $ SplitOp ts' nts' ls' rs' kl' kr' pl' pr'
+  pure $ SplitOp reg' pass' ls' rs' kl' kr' pl' pr'
  where
   traverseElabo
     :: forall p p' o

@@ -100,7 +100,7 @@ invention =
 --     $   asNote
 --     <$> xmlNotesHeard txt
 
-testslices = loadInput' testfile
+testslices = loadSurface' testfile
 
 -- manual inputs
 -- -------------
@@ -221,7 +221,7 @@ derivBrahms = buildDerivation $ do
 -- =====
 
 mainGreedy file = do
-  input <- loadInput file
+  input <- loadSurface file
   print input
   result <- runExceptT $ Greedy.parseRandom protoVoiceEvaluator input
   case result of
@@ -246,14 +246,14 @@ mainGreedy file = do
       forM_ deriv print
 
 mainCount fn = do
-  input <- loadInput fn
+  input <- loadSurface fn
   print input
   count <- parseSize pvCount input
   putStrLn $ show count <> " derivations"
 
 mainTest from to = do
   putStrLn $ "slices " <> show from <> " to " <> show to
-  input <- testslices from (to + 1)
+  input <- testslices from to
   print input
   count <- parseSize pvCount input
   putStrLn $ show count <> " derivations"
@@ -299,7 +299,7 @@ mainResult
   -> IO v
 mainResult evaluator from to = do
   putStrLn $ "slices " <> show from <> " to " <> show to
-  input <- testslices from (to + 1)
+  input <- testslices from to
   parseSize evaluator input
 
 parseHaydn :: _ => _ -> IO r

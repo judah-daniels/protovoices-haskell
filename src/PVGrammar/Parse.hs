@@ -121,7 +121,7 @@ findOrnament
   -> Maybe
       ( EdgeEither
           (DoubleOrnament, Edge n)
-          (Passing, InnerEdge n)
+          (PassingOrnament, InnerEdge n)
       )
 findOrnament (Inner l) (Inner m) (Inner r) True True
   | pl == pm && pm == pr = Just $ T (FullRepeat, (Inner l, Inner r))
@@ -158,7 +158,7 @@ findPassing
   => EdgeEither (StartStop n) n
   -> n
   -> EdgeEither (StartStop n) n
-  -> Maybe (InnerEdge n, Passing)
+  -> Maybe (InnerEdge n, PassingOrnament)
 findPassing (T (Inner l)) m (NT r)
   | isStep (pl `pto` pm) && between pl pm pr =
       Just ((l, r), PassingLeft)
@@ -220,7 +220,7 @@ pvUnspreadMiddle
   :: (Eq n, Ord n, Hashable n, IsNote n)
   => UnspreadMiddle (Edges n) (Notes n) (Spread n)
 pvUnspreadMiddle (Notes nl, edges, Notes nr)
-  | any notARepetition (edgesT edges) = Nothing
+  | any notARepetition (edgesReg edges) = Nothing
   | otherwise = Just (Notes top, op)
  where
   notARepetition (p1, p2) = fmap (pc . pitch) p1 /= fmap (pc . pitch) p2

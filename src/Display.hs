@@ -3,9 +3,10 @@
 {- | This module contains functions for visualizing derivations using LaTeX and TikZ.
  These functions are generic over slice and transition contents and are thus somewhat limited.
  For protovoice derivations,
- an alternative to plotting a derivation is to export an 'Analysis' to JSON
+ an alternative to plotting a derivation would be to export an 'Analysis' to JSON
  and view it interactively in the
- [protovoice annotation tool](https://dcmlab.github.io/protovoice-annotation-tool/).
+ [protovoice annotation tool](https://dcmlab.github.io/protovoice-annotation-tool/)
+ (not implemented yet).
 
  Plotting happens in two steps.
  First, a the derivation is "replayed" using a (generic or grammar-specific) "player"
