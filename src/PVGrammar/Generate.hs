@@ -460,14 +460,11 @@ derivationPlayerPV
 derivationPlayerPV =
   DerivationPlayer
     topTrans
-    topNotes
     applySplit
     applyFreeze
     applySpread
  where
-  topTrans Start Stop = Edges (S.singleton (Start, Stop)) MS.empty
-  topTrans _ _ = Edges S.empty MS.empty
-  topNotes = Notes MS.empty
+  topTrans = Edges (S.singleton (Start, Stop)) MS.empty
 
 derivationPlayerPVAllEdges
   :: (Eq n, Ord n, Notation n, Hashable n, Eq (MC.IntervalOf n), MC.HasPitch n)
@@ -475,14 +472,11 @@ derivationPlayerPVAllEdges
 derivationPlayerPVAllEdges =
   DerivationPlayer
     topTrans
-    topNotes
     applySplitAllEdges
     applyFreezeAllEdges
     applySpread
  where
-  topTrans Start Stop = Edges (S.singleton (Start, Stop)) MS.empty
-  topTrans _ _ = Edges S.empty MS.empty
-  topNotes = Notes MS.empty
+  topTrans = Edges (S.singleton (Start, Stop)) MS.empty
 
 {- | Compares the output of a derivation
  with the original piece (as provided to the parser).
@@ -504,9 +498,9 @@ checkDerivation deriv original =
   case replayDerivation derivationPlayerPV deriv of
     (Left _) -> False
     (Right g) -> do
-      let path' = case dgFoot g of
+      let path' = case dgFrozen g of
             (_ : (_, tlast, slast) : rst) -> do
-              s <- getSlice slast
+              s <- getInner $ dslContent slast
               foldM foldPath (PathEnd s, tlast) rst
             _ -> Nothing
           orig' =
@@ -519,6 +513,5 @@ checkDerivation deriv original =
         Just (result, _) -> result == orig'
  where
   foldPath (pacc, tacc) (_, tnew, snew) = do
-    s <- getSlice snew
+    s <- getInner $ dslContent snew
     pure (Path s tacc pacc, tnew)
-  getSlice (_, _, s) = getInner s

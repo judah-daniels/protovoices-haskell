@@ -48,14 +48,14 @@ import Prelude hiding
 
 plotSteps :: FilePath -> [Leftmost s f h] -> IO ()
 plotSteps fn deriv = do
-  let graphs = unfoldDerivation derivationPlayerNull deriv
+  let graphs = unfoldDerivation derivationPlayerEmpty deriv
       (errors, steps) = partitionEithers graphs
   mapM_ putStrLn errors
   writeGraphs fn $ reverse steps
 
-putGraph n deriv = case replayDerivation' n derivationPlayerNull deriv of
+putGraph n deriv = case replayDerivation' n derivationPlayerEmpty deriv of
   (Left error) -> putStrLn error
-  (Right g) -> T.putStrLn $ mkTikzPic $ tikzDerivationGraph showTexT showTexT g
+  (Right g) -> T.putStrLn $ tikzPic $ tikzDerivationGraph showTexT showTexT g
 
 plotDeriv fn deriv = do
   case replayDerivation derivationPlayerPV deriv of
@@ -71,10 +71,11 @@ example1 = buildDerivation $ do
   freeze ()
   freeze ()
   freeze ()
+  freeze ()
 
 example1Main :: IO ()
 example1Main = do
-  let Right g = replayDerivation derivationPlayerNull example1
+  let Right g = replayDerivation derivationPlayerEmpty example1
   writeGraph "doc-images/monadic-deriv.tex" g
 
 spreadSplitLeft = buildPartialDerivation @2 $ spread () >> split ()

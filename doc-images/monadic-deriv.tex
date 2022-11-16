@@ -1,37 +1,33 @@
 \documentclass{standalone}
+\usepackage[svgnames]{xcolor}
 \usepackage{tikz}
 \usepackage{amssymb}
-\usepackage{adjustbox}
-
 \begin{document}
-\tikzstyle{slice} = [draw,rectangle,inner sep=0,minimum size=10pt]
-\tikzstyle{transition} = []
+\tikzstyle{slice} = [rectangle,draw,fill=WhiteSmoke,semithick,minimum size=0.4cm,inner xsep=0,inner ysep=3pt,align=center]
+\tikzstyle{transition} = [line width=2pt,draw=lightgray]
 \tikzstyle{non-terminal} = []
 \tikzstyle{terminal} = [double]
-\tikzstyle{hori} = [gray,dashed]
+\tikzstyle{hori} = [lightgray,dashed,line width=2pt]
 
-\begin{adjustbox}{scale=2}
-  \begin{tikzpicture}[]
-  \node[slice] (slice0) at (0.0,0) {$\rtimes$};
-  \node[slice] (slice1) at (5.0,0) {$\ltimes$};
-  \node[slice] (slice2) at (2.0,-1) {};
-  \node[slice] (slice3) at (4.0,-2) {};
-  \node[slice] (slice4) at (1.0,-3) {};
-  \node[slice] (slice5) at (3.0,-3) {};
-  \node[slice] (slice6) at (2.0,-4) {};
-  \draw[transition,non-terminal] (slice0) -- (slice1) node[midway,below,sloped] {};
-  \draw[transition,non-terminal] (slice0) -- (slice2) node[midway,below,sloped] {};
-  \draw[transition,terminal] (slice0) -- (slice4) node[midway,below,sloped] {};
-  \draw[transition,non-terminal] (slice2) -- (slice1) node[midway,below,sloped] {};
-  \draw[transition,non-terminal] (slice2) -- (slice3) node[midway,below,sloped] {};
-  \draw[transition,non-terminal] (slice3) -- (slice1) node[midway,below,sloped] {};
-  \draw[transition,non-terminal] (slice4) -- (slice5) node[midway,below,sloped] {};
-  \draw[transition,terminal] (slice4) -- (slice6) node[midway,below,sloped] {};
-  \draw[transition,terminal] (slice5) -- (slice3) node[midway,below,sloped] {};
-  \draw[transition,terminal] (slice6) -- (slice5) node[midway,below,sloped] {};
-  \draw[hori] (slice2) -- (slice4);
-  \draw[hori] (slice2) -- (slice5);
-  \end{tikzpicture}
-\end{adjustbox}
-
+\begin{tikzpicture}
+\node[slice] (slice0) at (0.0,0) {$\rtimes$};
+\node[slice] (slice1) at (5.0,0) {$\ltimes$};
+\node[slice] (slice2) at (2.0,-1) {};
+\node[slice] (slice3) at (4.0,-2) {};
+\node[slice] (slice4) at (1.0,-3) {};
+\node[slice] (slice5) at (3.0,-3) {};
+\node[slice] (slice6) at (2.0,-4) {};
+\draw[transition,non-terminal] (slice0) -- (slice1) node[midway,below,sloped] {};
+\draw[transition,non-terminal] (slice0) -- (slice2) node[midway,below,sloped] {};
+\draw[transition,terminal] (slice0) -- (slice4) node[midway,below,sloped] {};
+\draw[transition,non-terminal] (slice2) -- (slice1) node[midway,below,sloped] {};
+\draw[transition,non-terminal] (slice2) -- (slice3) node[midway,below,sloped] {};
+\draw[transition,terminal] (slice3) -- (slice1) node[midway,below,sloped] {};
+\draw[transition,non-terminal] (slice4) -- (slice5) node[midway,below,sloped] {};
+\draw[transition,terminal] (slice4) -- (slice6) node[midway,below,sloped] {};
+\draw[transition,terminal] (slice5) -- (slice3) node[midway,below,sloped] {};
+\draw[transition,terminal] (slice6) -- (slice5) node[midway,below,sloped] {};
+\draw[hori] (slice2) -- (slice4);
+\draw[hori] (slice2) -- (slice5);
+\end{tikzpicture}
 \end{document}

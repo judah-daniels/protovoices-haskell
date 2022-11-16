@@ -33,6 +33,7 @@ module Common
   , mapEdges
   , reversePath
   , pathNodes
+  , pathBetweens
 
     -- * StartStop #startstop#
 
@@ -236,6 +237,10 @@ reversePath path = case path of
 pathNodes :: Path a b -> [a]
 pathNodes (Path a _ rst) = a : pathNodes rst
 pathNodes (PathEnd a) = [a]
+
+pathBetweens :: Path a b -> [b]
+pathBetweens (Path _ b rst) = b : pathBetweens rst
+pathBetweens _ = []
 
 -- StartStop
 -- =========
@@ -757,8 +762,8 @@ mkLeftmostEval unspreadm unspreadl unspreadr unsplit uf =
  >   splitRight () -- (3 open)
  >   spread ()     -- (4 open)
  >   freeze ()     -- (3 open)
- >   freeze ()     -- (2 open)
- >   split ()      -- (3 open)
+ >   split ()      -- (4 open)
+ >   freeze ()     -- (3 open)
  >   freeze ()     -- (2 open)
  >   freeze ()     -- (1 open)
  >   freeze ()     -- (0 open, end of derivation)

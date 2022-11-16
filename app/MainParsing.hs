@@ -150,9 +150,9 @@ checkDeriv deriv original = do
   case replayDerivation derivationPlayerPV deriv of
     (Left err) -> putStrLn err
     (Right g) -> do
-      let path' = case dgFoot g of
+      let path' = case dgFrozen g of
             (_ : (_, tlast, slast) : rst) -> do
-              s <- getSlice slast
+              s <- getInner $ dslContent slast
               foldM foldPath (PathEnd s, tlast) rst
             _ -> Nothing
           orig' =
@@ -173,9 +173,8 @@ checkDeriv deriv original = do
               print result
  where
   foldPath (pacc, tacc) (_, tnew, snew) = do
-    s <- getSlice snew
+    s <- getInner $ dslContent snew
     pure (Path s tacc pacc, tnew)
-  getSlice (_, _, s) = getInner s
 
 -- example derivations
 -- ===================
