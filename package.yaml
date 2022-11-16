@@ -57,6 +57,7 @@ dependencies:
 - bytestring
 - cassava 
 - split
+- hspec
 
 language: GHC2021
 
@@ -66,36 +67,36 @@ library:
   #- -Wall
 
 executables:
-  # parse:
-  #   main:                app/MainParsing.hs
-  #   #source-dirs:         app
-  #   ghc-options:
-  #   - -threaded
-  #   - -rtsopts
-  #   - -with-rtsopts=-N
-  #   dependencies:
-  #   - proto-voice-model
-  #
-  # learn:
-  #   main:                app/MainLearning.hs
-  #   #source-dirs:         app
-  #   ghc-options:
-  #   - -threaded
-  #   - -rtsopts
-  #   - -with-rtsopts=-N
-  #   dependencies:
-  #   - proto-voice-model
-  #   
-  # examples:
-  #   main:                app/MainExamples.hs
-  #   #source-dirs:         app
-  #   ghc-options:
-  #   - -threaded
-  #   - -rtsopts
-  #   - -with-rtsopts=-N
-  #   dependencies:
-  #   - proto-voice-model
-  # 
+  parse:
+    main:                app/MainParsing.hs
+    #source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - proto-voice-model
+
+  learn:
+    main:                app/MainLearning.hs
+    #source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - proto-voice-model
+    
+  examples:
+    main:                app/MainExamples.hs
+    #source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - proto-voice-model
+
   judah:
     main:                app/MainJudah.hs
     #source-dirs:         app
@@ -116,18 +117,28 @@ executables:
     dependencies:
     - proto-voice-model
 
-  # ismir2021:
-  #   main: app/MainISMIR.hs
+  ismir2021:
+    main: app/MainISMIR.hs
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - proto-voice-model
+
+tests:
+  # proto-voice-model-test:
+  #   main:                Spec.hs
+  #   source-dirs:         test
   #   ghc-options:
   #   - -threaded
   #   - -rtsopts
   #   - -with-rtsopts=-N
   #   dependencies:
   #   - proto-voice-model
-  #
-tests:
-  proto-voice-model-test:
-    main:                Spec.hs
+  #     
+  heuristic-search-test:
+    main:                HeuristicSearchSpec.hs
     source-dirs:         test
     ghc-options:
     - -threaded

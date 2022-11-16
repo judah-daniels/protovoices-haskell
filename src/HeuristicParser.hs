@@ -2,68 +2,68 @@
 
 module HeuristicParser where
 
-import Common
-import Data.Maybe
+import           Common
+import           Data.Maybe
 
---
---data Path a e = Path !a !e !(Path a e)
---              | PathEnd !a
--- e is the content of a slice
--- a is the content of a transition
+newtype Slice ns = Slice
+  { sContent :: ns
+  }
+  deriving (Eq)
 
--- |
-newtype Slice ns = Slice 
-  {sContent :: ns} 
-  deriving (Show)
-
+instance Show ns => Show (Slice ns) where
+  show (Slice ns) = show ns
 
 data Trans es = Trans
-  { tContent :: !es,
-    t2nd :: !Bool,
+  { tContent  :: !es,
+    t2nd      :: !Bool,
     tBoundary :: !Bool
   }
-  deriving (Show)
-
--- data SearchState ns es o = SearchState {
---     ssSurface :: Path (Trans es) (Slice ns),
---     ssOperations :: [o]
---   }
+  deriving (Eq, Show)
 
 -- | The state of the search between steps
 -- es' : Unparsed/frozen transitions
 -- es  : Unfrozen transitions
+-- ns  : Evaluated slice content
+-- o   : Operation type
 data SearchState es es' ns o
   = SSFrozen !(Path (Maybe es', Bool) (Slice ns)) -- Beginning of search - all frozen edges and slices
   | SSSemiOpen -- Point between beginning and end of the path
       { -- | frozen transitions and slices from current point leftward
-        _ssFrozen :: !(Path (Maybe es', Bool) (Slice ns)),
+        _ssFrozen   :: !(Path (Maybe es', Bool) (Slice ns)),
         -- | the slice at the current posision between gsFrozen and gsOpen
         _ssMidSlice :: !(Slice ns),
         -- | non-frozen transitions and slices from current point rightward
-        _ssOpen :: !(Path (Trans es) (Slice ns)),
+        _ssOpen     :: !(Path (Trans es) (Slice ns)),
         -- | derivation from current reduction to original surface
-        _ssDeriv :: ![o]
+        _ssDeriv    :: ![o]
       }
   | SSOpen !(Path (Trans es) (Slice ns)) ![o] -- Single path with unfrozen transition,slices and history
-  deriving (Show)
-  --
 
---Mainloop with an agenda
---
+instance (Show es, Show es', Show ns, Show o) => Show (SearchState es es' ns o) where
+  show state = case state of
+    SSFrozen path -> "\n" ++ "Frozen: " ++ show path
+    SSSemiOpen frozen midSlice open deriv 
+      -> "\n" 
+      ++ "SemiOpen: \n" 
+      ++ "Frozen: " ++ show frozen 
+      ++ "\nMid: " ++ show midSlice 
+      ++ "\nOpen : " ++ show open
+    SSOpen path deriv-> "\n" ++ "Open: " ++ "\nPath: " ++ show path ++ "\nSteps: " ++ show deriv
 
 
-exploreStates :: forall es es' ns ns' o. SearchState es es' ns o -> Eval es es' ns ns' o -> [SearchState es es' ns o]
-exploreStates state eval = case state of
+-- | Returns a list of possible next states given the current state.
+exploreStates :: forall es es' ns ns' o. Eval es es' ns ns' o -> SearchState es es' ns o -> [SearchState es es' ns o]
+exploreStates eval state = case state of
   SSFrozen path -> case path of
     PathEnd (t, boundary) -> map genState thawed
       where
         thawed = evalThaw eval Start t Stop True
-        -- genState :: (es, o) -> SearchState es es' ns o
         genState (t, o) = SSOpen (PathEnd (Trans t False boundary)) [o]
     Path (t, boundary) slice rest -> map genState thawed
       where
         thawed = evalThaw eval Start t (Inner $ sContent slice) False
         genState (t, o) = SSSemiOpen rest slice (PathEnd (Trans t False boundary)) [o]
+
   SSSemiOpen frozen midSlice open ops -> thawOps <> reductions -- we can either unfreeze, or apply an operation to the open part
     where
       thawOps = case frozen of
@@ -76,18 +76,6 @@ exploreStates state eval = case state of
             thawed = evalThaw eval Start t Stop False
             genState (t, op) = SSSemiOpen rest frozenSlice (Path (Trans t False boundary) midSlice open) (op : ops)
 
-      -- data Eval e e' a a' v = Eval
-      --   { evalVertMiddle :: !(VertMiddle e a v)
-      --   , evalVertLeft   :: !(VertLeft e a)
-      --   , evalVertRight  :: !(VertRight e a)
-      --   , evalMerge      :: !(Merge e a v)
-      --   , evalThaw :: !(StartStop a -> Maybe e' -> StartStop a -> IsLast -> [(e, v)])
-      --   , evalSlice      :: !(a' -> a)
-      --   }
-      -- unspread 3 trans
-      -- unsplit 2 trans
-      -- unfreeze 1 single frozen trans
-
       reductions :: [SearchState es es' ns o]
       reductions = case open of
         -- A single transition - No operations
@@ -99,50 +87,124 @@ exploreStates state eval = case state of
             genState (parent, op) = SSSemiOpen frozen midSlice (PathEnd (Trans parent tl2nd trBoundary)) (op : ops)
 
         -- Three open transitions: mergeleft mergeRight or verticalise
-        Path (Trans tl tl2nd tlBoundary) (Slice sl) (Path (Trans tm tm2nd tmBoundary) (Slice sr) (PathEnd (Trans tr tr2nd trBoundary))) -> leftMergeStates <> rightMergeStates <> vertStates
+        Path (Trans tl tl2nd tlBoundary) (Slice sl) (Path (Trans tm tm2nd tmBoundary) (Slice sm) (PathEnd (Trans tr tr2nd trBoundary))) -> leftMergeStates <> rightMergeStates <> vertStates
           where
             -- TODO consider 2nd and boundary
             leftMergeStates = map genState leftMerges
               where
-                leftMerges = evalMerge eval (Inner $ sContent midSlice) tl sl tm (Inner sr) LeftOnly
-                genState (parent, op) = SSSemiOpen frozen midSlice (Path (Trans parent tl2nd tlBoundary) (Slice sr) (PathEnd (Trans tr tr2nd trBoundary))) (op : ops)
+                leftMerges = evalMerge eval (Inner $ sContent midSlice) tl sl tm (Inner sm) LeftOnly
+                genState (parent, op) = SSSemiOpen frozen midSlice (Path (Trans parent tl2nd tlBoundary) (Slice sm) (PathEnd (Trans tr tr2nd trBoundary))) (op : ops)
 
             -- TODO consider 2nd and boundary
             rightMergeStates = if not tm2nd || tmBoundary then [] else map genState rightMerges
               where
-                rightMerges = evalMerge eval (Inner sl) tl sl tm (Inner sr) LeftOnly
+                rightMerges = evalMerge eval (Inner sl) tl sl tm (Inner sm) LeftOnly
                 genState (parent, op) = SSSemiOpen frozen midSlice (Path (Trans tl tl2nd tlBoundary) (Slice sl) (PathEnd (Trans parent True trBoundary))) (op : ops)
 
             vertStates =
-              if tl2nd
+              if tl2nd || tmBoundary
                 then []
                 else do
                   -- List
-                  (sTop, op) <- maybeToList $ evalVertMiddle eval (sl, tm, sr)
+                  (sTop, op) <- maybeToList $ evalVertMiddle eval (sl, tm, sm)
                   lTop <- evalVertLeft eval (tl, sl) sTop -- Check boundaries TODO
-                  rTop <- evalVertRight eval (sr, tr) sTop -- TODO boundaris
+                  rTop <- evalVertRight eval (sm, tr) sTop -- TODO boundaris
                   pure $ getState lTop sTop rTop op
               where
                 getState lTop sTop rTop op = SSSemiOpen frozen midSlice (Path (Trans lTop False False) (Slice sTop) (PathEnd (Trans rTop False False))) (op : ops)
 
-        Path (Trans tl tl2nd tlBoundary) (Slice sl) (Path (Trans tm tm2nd tmBoundary) (Slice sm) (Path (Trans tr tr2nd trBoundary) sr rst)) -> []
+        Path (Trans tl tl2nd tlBoundary) (Slice sl) (Path (Trans tm tm2nd tmBoundary) (Slice sm) (Path (Trans tr tr2nd trBoundary) sr rst)) -> leftMergeStates <> rightMergeStates <> vertStates
+          where
+            -- TODO consider 2nd and boundary
+            leftMergeStates = map genState leftMerges
+              where
+                leftMerges = evalMerge eval (Inner $ sContent midSlice) tl sl tm (Inner sm) LeftOnly
+                genState (parent, op) = SSSemiOpen frozen midSlice (Path (Trans parent tl2nd tlBoundary) (Slice sm) (PathEnd (Trans tr tr2nd trBoundary))) (op : ops)
 
-  SSOpen path ops -> []
+            -- TODO consider 2nd and boundary
+            rightMergeStates = if not tm2nd || tmBoundary then [] else map genState rightMerges
+              where
+                rightMerges = evalMerge eval (Inner sl) tl sl tm (Inner sm) LeftOnly
+                genState (parent, op) = SSSemiOpen frozen midSlice (Path (Trans tl tl2nd tlBoundary) (Slice sl) (PathEnd (Trans parent True trBoundary))) (op : ops)
 
--- where
---   collectMergeSingle
---     :: (  StartStop ns
---        -> Trans es
---        -> ns
---        -> Trans es
---        -> StartStop ns
---        -> [SearchState es es' ns o]
---        )
---   collectMergeSingle sl (Trans tl tl2nd tlBoundary) sm (Trans tr tr2nd trBoundary) sr =
---     map genState merged
---    where
---      merged = evalMerge eval sl tl sm tr sr LeftOnly
---      genState (parent, o) = SSSemiOpen frozen
+            vertStates =
+              if tl2nd || tmBoundary
+                then []
+                else do
+                  -- List
+                  (sTop, op) <- maybeToList $ evalVertMiddle eval (sl, tm, sm)
+                  lTop <- evalVertLeft eval (tl, sl) sTop -- Check boundaries TODO
+                  rTop <- evalVertRight eval (sm, tr) sTop -- TODO boundaris
+                  pure $ getState lTop sTop rTop op
+              where
+                getState lTop sTop rTop op = SSSemiOpen frozen midSlice (Path (Trans lTop False False) (Slice sTop) (Path (Trans rTop tr2nd trBoundary) sr rst)) (op : ops)
+
+
+
+  SSOpen open ops -> reductions -- we can either unfreeze, or apply an operation to the open part
+    where
+      reductions :: [SearchState es es' ns o]
+      reductions = case open of
+        -- A single transition - No operations
+        PathEnd _ -> []
+        -- Two open transitions: merge
+        Path (Trans tl tl2nd tlBoundary) (Slice slice) (PathEnd (Trans tr _ trBoundary)) -> if tlBoundary then [] else map genState merged
+          where
+            merged = evalMerge eval Start tl slice tr Stop LeftOnly -- Start as left slice correct?
+            genState (parent, op) = SSOpen (PathEnd (Trans parent tl2nd trBoundary)) (op : ops)
+
+        -- Three open transitions: mergeleft mergeRight or verticalise
+        Path (Trans tl tl2nd tlBoundary) (Slice sl) (Path (Trans tm tm2nd tmBoundary) (Slice sm) (PathEnd (Trans tr tr2nd trBoundary))) -> leftMergeStates <> rightMergeStates <> vertStates
+          where
+            -- TODO consider 2nd and boundary
+            leftMergeStates = map genState leftMerges
+              where
+                leftMerges = evalMerge eval Start tl sl tm (Inner sm) LeftOnly
+                genState (parent, op) = SSOpen (Path (Trans parent tl2nd tlBoundary) (Slice sm) (PathEnd (Trans tr tr2nd trBoundary))) (op : ops)
+
+            -- TODO consider 2nd and boundary
+            rightMergeStates = if not tm2nd || tmBoundary then [] else map genState rightMerges
+              where
+                rightMerges = evalMerge eval (Inner sl) tl sl tm (Inner sm) LeftOnly
+                genState (parent, op) = SSOpen (Path (Trans tl tl2nd tlBoundary) (Slice sl) (PathEnd (Trans parent True trBoundary))) (op : ops)
+
+            vertStates =
+              if tl2nd || tmBoundary
+                then []
+                else do
+                  -- List
+                  (sTop, op) <- maybeToList $ evalVertMiddle eval (sl, tm, sm)
+                  lTop <- evalVertLeft eval (tl, sl) sTop -- Check boundaries TODO
+                  rTop <- evalVertRight eval (sm, tr) sTop -- TODO boundaris
+                  pure $ getState lTop sTop rTop op
+              where
+                getState lTop sTop rTop op = SSOpen (Path (Trans lTop False False) (Slice sTop) (PathEnd (Trans rTop False False))) (op : ops)
+
+        Path (Trans tl tl2nd tlBoundary) (Slice sl) (Path (Trans tm tm2nd tmBoundary) (Slice sm) (Path (Trans tr tr2nd trBoundary) sr rst)) -> leftMergeStates <> rightMergeStates <> vertStates
+          where
+            -- TODO consider 2nd and boundary
+            leftMergeStates = map genState leftMerges
+              where
+                leftMerges = evalMerge eval Start tl sl tm (Inner sm) LeftOnly
+                genState (parent, op) = SSOpen (Path (Trans parent tl2nd tlBoundary) (Slice sm) (PathEnd (Trans tr tr2nd trBoundary))) (op : ops)
+
+            -- TODO consider 2nd and boundary
+            rightMergeStates = if not tm2nd || tmBoundary then [] else map genState rightMerges
+              where
+                rightMerges = evalMerge eval (Inner sl) tl sl tm (Inner sm) LeftOnly
+                genState (parent, op) = SSOpen (Path (Trans tl tl2nd tlBoundary) (Slice sl) (PathEnd (Trans parent True trBoundary))) (op : ops)
+
+            vertStates =
+              if tl2nd || tmBoundary
+                then []
+                else do
+                  -- List
+                  (sTop, op) <- maybeToList $ evalVertMiddle eval (sl, tm, sm)
+                  lTop <- evalVertLeft eval (tl, sl) sTop -- Check boundaries TODO
+                  rTop <- evalVertRight eval (sm, tr) sTop -- TODO boundaris
+                  pure $ getState lTop sTop rTop op
+              where
+                getState lTop sTop rTop op = SSOpen (Path (Trans lTop False tlBoundary) (Slice sTop) (Path (Trans rTop tr2nd trBoundary) sr rst)) (op : ops)
 
 -- Keep in mind we start at the very end of the piece to parse.
 -- Everytime we thaw a transition we send it the evaluator. Set t2nd upon an unspread, for use later for splits.
