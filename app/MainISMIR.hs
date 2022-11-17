@@ -33,25 +33,25 @@ import Prelude hiding
 deriv321sus :: [PVLeftmost (Pitch MT.SIC)]
 deriv321sus = buildDerivation $ do
   split $ mkSplit $ do
-    splitT Start Stop (c' nat) RootNote False False
-    splitT Start Stop (e' nat) RootNote False False
+    splitRegular Start Stop (c' nat) RootNote False False
+    splitRegular Start Stop (e' nat) RootNote False False
   spread $ mkSpread $ do
     spreadNote (c' nat) ToBoth True
     spreadNote (e' nat) (ToLeft 1) False
     addPassing (e' nat) (c' nat)
   freeze FreezeOp
   split $ mkSplit $ do
-    splitT (Inner $ c' nat) (Inner $ c' nat) (b' nat) FullNeighbor True False
-    splitNT (e' nat) (c' nat) (d' nat) PassingMid True False
+    splitRegular (Inner $ c' nat) (Inner $ c' nat) (b' nat) FullNeighbor True False
+    splitPassing (e' nat) (c' nat) (d' nat) PassingMid True False
   split $ mkSplit $ do
-    splitT
+    splitRegular
       (Inner $ e' nat)
       (Inner $ d' nat)
       (d' nat)
       LeftRepeatOfRight
       False
       True
-    splitT
+    splitRegular
       (Inner $ c' nat)
       (Inner $ b' nat)
       (c' nat)

@@ -183,22 +183,22 @@ checkDeriv deriv original = do
 derivBrahms :: [PVLeftmost (Pitch MT.SIC)]
 derivBrahms = buildDerivation $ do
   split $ mkSplit $ do
-    splitT Start Stop (c' shp) RootNote False False
-    splitT Start Stop (a' nat) RootNote False False
+    splitRegular Start Stop (c' shp) RootNote False False
+    splitRegular Start Stop (a' nat) RootNote False False
   spread $ mkSpread $ do
     spreadNote (a' nat) ToBoth True
     spreadNote (c' shp) (ToLeft 1) False
     addPassing (c' shp) (a' nat)
   splitRight $ mkSplit $ do
-    splitNT (c' shp) (a' nat) (b' nat) PassingMid False False
-    splitT (Inner $ a' nat) (Inner $ a' nat) (g' shp) FullNeighbor False False
+    splitPassing (c' shp) (a' nat) (b' nat) PassingMid False False
+    splitRegular (Inner $ a' nat) (Inner $ a' nat) (g' shp) FullNeighbor False False
   spread $ mkSpread $ do
     spreadNote (a' nat) (ToRight 1) False
     spreadNote (c' shp) (ToLeft 1) False
     addPassing (c' shp) (a' nat)
   freeze FreezeOp
   split $ mkSplit $ do
-    splitNT (c' shp) (a' nat) (b' nat) PassingMid False False
+    splitPassing (c' shp) (a' nat) (b' nat) PassingMid False False
   freeze FreezeOp
   freeze FreezeOp
   spread $ mkSpread $ do

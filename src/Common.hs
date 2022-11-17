@@ -756,7 +756,8 @@ mkLeftmostEval unspreadm unspreadl unspreadr unsplit uf =
  Use these functions to manually build a derivation,
  checking leftmost-correctness in the type.
  A good way to do this is to start a derivation using `buildDerivation` or `buildPartialDerivation`
- and follow up with a @do@ block that contains a sequence of `split`, `freeze`, `splitRight` and `spread` actions:
+ and follow up with a @do@ block that contains a sequence of `split`,
+ `freeze`, `splitRight` and `spread` actions..
 
  > deriv :: [Leftmost () () ()] -- using unit for each operation type
  > deriv = buildDerivation $ do -- start with 1 transition
@@ -773,6 +774,23 @@ mkLeftmostEval unspreadm unspreadl unspreadr unsplit uf =
  The above example results in the following derivation graph:
 
  ![derivation of the above example](doc-images/monadic-deriv.svg)
+
+ Since 'PartialDerivation' is an indexed monad
+ (it's exact type changes between actions),
+ using do-notation requires you to rebind its syntax to use indexed versions of '>>=' and '>>'
+ using the @RebindableSyntax@ extension.
+ The easiest way to do use the generic operators from "Language.Haskell.DoNotation"
+ by either hiding the monadic operators (and 'pure' / 'return') from "Prelude"
+ and importing them from "Language.Haskell.DoNotation",
+ or by locally shadowing them with the generic operators like this:
+
+ > import qualified Language.Haskell.DoNotation as Do
+ >
+ > deriv = buildDerivation $ do
+ >   ...
+ >  where
+ >   (>>) :: Do.BindSyntax x y z => x a -> y b -> z b
+ >   (>>) = (Do.>>) -- usually sufficient since the operations here return ()
 -}
 
 {- | A wrapper around leftmost derivations

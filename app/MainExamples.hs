@@ -104,40 +104,40 @@ examplePartials = buildDerivation $ do
 derivBach :: [PVLeftmost (Pitch MT.SIC)]
 derivBach = buildDerivation $ do
   split $ mkSplit $ do
-    splitT Start Stop (d' nat) RootNote False False
-    splitT Start Stop (d' nat) RootNote False False
-    splitT Start Stop (f' nat) RootNote False False
-    splitT Start Stop (a' nat) RootNote False False
-    splitT Start Stop (a' nat) RootNote False False
+    splitRegular Start Stop (d' nat) RootNote False False
+    splitRegular Start Stop (d' nat) RootNote False False
+    splitRegular Start Stop (f' nat) RootNote False False
+    splitRegular Start Stop (a' nat) RootNote False False
+    splitRegular Start Stop (a' nat) RootNote False False
   spread $ mkSpread $ do
     spreadNote (d' nat) ToBoth True
     spreadNote (f' nat) ToBoth True
     spreadNote (a' nat) (ToRight 1) True
     addPassing (d' nat) (f' nat)
   splitRight $ mkSplit $ do
-    splitNT (d' nat) (f' nat) (e' nat) PassingMid True False
-    splitT (Inner $ d' nat) (Inner $ d' nat) (c' shp) FullNeighbor True True
-    splitT (Inner $ d' nat) (Inner $ d' nat) (d' nat) FullRepeat True True
-    splitT (Inner $ a' nat) (Inner $ a' nat) (a' nat) FullRepeat True True
-    splitT (Inner $ f' nat) (Inner $ f' nat) (g' nat) FullNeighbor True True
+    splitPassing (d' nat) (f' nat) (e' nat) PassingMid True False
+    splitRegular (Inner $ d' nat) (Inner $ d' nat) (c' shp) FullNeighbor True True
+    splitRegular (Inner $ d' nat) (Inner $ d' nat) (d' nat) FullRepeat True True
+    splitRegular (Inner $ a' nat) (Inner $ a' nat) (a' nat) FullRepeat True True
+    splitRegular (Inner $ f' nat) (Inner $ f' nat) (g' nat) FullNeighbor True True
   splitRight $ mkSplit $ do
-    splitT (Inner $ d' nat) (Inner $ d' nat) (d' nat) FullRepeat True True
-    splitT (Inner $ a' nat) (Inner $ a' nat) (b' flt) FullNeighbor False False
-    splitT
+    splitRegular (Inner $ d' nat) (Inner $ d' nat) (d' nat) FullRepeat True True
+    splitRegular (Inner $ a' nat) (Inner $ a' nat) (b' flt) FullNeighbor False False
+    splitRegular
       (Inner $ d' nat)
       (Inner $ c' shp)
       (c' shp)
       LeftRepeatOfRight
       False
       True
-    splitT
+    splitRegular
       (Inner $ d' nat)
       (Inner $ e' nat)
       (e' nat)
       LeftRepeatOfRight
       False
       False
-    splitT
+    splitRegular
       (Inner $ f' nat)
       (Inner $ g' nat)
       (g' nat)
@@ -160,9 +160,9 @@ derivBach = buildDerivation $ do
     spreadNote (a' nat) ToBoth True
   freeze FreezeOp
   split $ mkSplit $ do
-    splitT (Inner $ a' nat) (Inner $ a' nat) (b' flt) FullNeighbor False False
-    splitT (Inner $ a' nat) (Inner $ a' nat) (g' nat) FullNeighbor False False
-    splitT (Inner $ d' nat) (Inner $ d' nat) (d' nat) FullRepeat True True
+    splitRegular (Inner $ a' nat) (Inner $ a' nat) (b' flt) FullNeighbor False False
+    splitRegular (Inner $ a' nat) (Inner $ a' nat) (g' nat) FullNeighbor False False
+    splitRegular (Inner $ d' nat) (Inner $ d' nat) (d' nat) FullRepeat True True
   spread $ mkSpread $ do
     spreadNote (d' nat) ToBoth True
     spreadNote (b' flt) (ToLeft 1) False
@@ -176,8 +176,8 @@ derivBach = buildDerivation $ do
     addPassing (f' nat) (d' nat)
   freeze FreezeOp
   split $ mkSplit $ do
-    splitNT (f' nat) (d' nat) (e' nat) PassingMid False False
-    splitT (Inner $ d' nat) (Inner $ d' nat) (d' nat) FullRepeat True True
+    splitPassing (f' nat) (d' nat) (e' nat) PassingMid False False
+    splitRegular (Inner $ d' nat) (Inner $ d' nat) (d' nat) FullRepeat True True
   freeze FreezeOp
   freeze FreezeOp
   spread $ mkSpread $ do
@@ -203,16 +203,16 @@ derivBach = buildDerivation $ do
   freeze FreezeOp
   freeze FreezeOp
   splitRight $ mkSplit $ do
-    splitT
+    splitRegular
       (Inner $ g' nat)
       (Inner $ f' nat)
       (g' nat)
       RightRepeatOfLeft
       False
       False
-    splitT (Inner $ a' nat) (Inner $ a' nat) (a' nat) FullRepeat True True
-    splitT (Inner $ d' nat) (Inner $ d' nat) (d' nat) FullRepeat True True
-    splitT
+    splitRegular (Inner $ a' nat) (Inner $ a' nat) (a' nat) FullRepeat True True
+    splitRegular (Inner $ d' nat) (Inner $ d' nat) (d' nat) FullRepeat True True
+    splitRegular
       (Inner $ c' shp)
       (Inner $ d' nat)
       (d' nat)
@@ -235,10 +235,10 @@ derivBach = buildDerivation $ do
     addPassing (g' nat) (e' nat)
   freeze FreezeOp
   split $ mkSplit $ do
-    splitT (Inner $ d' nat) (Inner $ d' nat) (d' nat) FullRepeat True True
-    splitT (Inner $ a' nat) (Inner $ a' nat) (a' nat) FullRepeat True True
-    splitT (Inner $ c' shp) (Inner $ c' shp) (c' shp) FullRepeat True True
-    splitNT (g' nat) (e' nat) (f' nat) PassingMid False False
+    splitRegular (Inner $ d' nat) (Inner $ d' nat) (d' nat) FullRepeat True True
+    splitRegular (Inner $ a' nat) (Inner $ a' nat) (a' nat) FullRepeat True True
+    splitRegular (Inner $ c' shp) (Inner $ c' shp) (c' shp) FullRepeat True True
+    splitPassing (g' nat) (e' nat) (f' nat) PassingMid False False
   freeze FreezeOp
   freeze FreezeOp
   freeze FreezeOp
@@ -253,8 +253,8 @@ derivBach = buildDerivation $ do
     addPassing (f' nat) (d' nat)
   freeze FreezeOp
   split $ mkSplit $ do
-    splitNT (f' nat) (d' nat) (e' nat) PassingMid False False
-    splitT (Inner $ a' nat) (Inner $ a' nat) (a' nat) FullRepeat True True
+    splitPassing (f' nat) (d' nat) (e' nat) PassingMid False False
+    splitRegular (Inner $ a' nat) (Inner $ a' nat) (a' nat) FullRepeat True True
     addToRight (a' nat) (a' nat) LeftRepeat True
   freeze FreezeOp
   freeze FreezeOp
