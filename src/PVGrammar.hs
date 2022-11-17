@@ -12,6 +12,9 @@
 {- | This module contains common datatypes and functions specific to the protovoice grammar.
  In a protovoice derivations, slices are multisets of notes
  while transitions contain connections between these notes.
+
+ Code that is specific to parsing can be found in "PVGrammar.Parse",
+ while generative code is located in "PVGrammar.Generate".
 -}
 module PVGrammar
   ( -- * Inner Structure Types

@@ -3,18 +3,30 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE StandaloneKindSignatures #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 
+{- | This module contains code that is specific to parsing the protovoice grammar.
+ It implements a number of evaluators ('Eval') that can be used with the various parsers.
+-}
 module PVGrammar.Parse
-  ( pvDerivUnrestricted
-  , pvDeriv
-  , pvCount''
-  , pvCount'
-  , pvCount
-  , pvCountUnrestricted
-  , protoVoiceEvaluator
+  ( -- * Generic Parsing
+
+    -- | Evaluators that directly return protovoice operations.
+    -- They can be embedded into a semiring using 'evalMapScores'.
+    protoVoiceEvaluator
   , protoVoiceEvaluatorNoRepSplit
+
+    -- * Parsing Derivations
+  , pvDerivUnrestricted
+  , pvDerivRightBranch
+
+    -- * Counting Parses
+  , pvCountUnrestricted
+  , pvCountNoRepSplit
+  , pvCountNoRepSplitRightBranch
+  , pvCountNoRepSplitRightBranchSplitFirst
   ) where
 
 import Common
@@ -37,6 +49,7 @@ import Data.Foldable
 import qualified Data.HashMap.Strict as HM
 import qualified Data.HashSet as S
 import Data.Hashable (Hashable)
+import Data.Kind (Constraint, Type)
 import qualified Data.List as L
 import qualified Data.Map.Strict as M
 import Data.Maybe
@@ -60,40 +73,45 @@ import Musicology.Core
 -}
 data EdgeEither a b
   = -- | marks an terminal edge (or some related object)
-    T !a
+    Reg !a
   | -- | marks a non-terminal edge (or some related object)
-    NT !b
+    Pass !b
   deriving (Eq, Ord, Show, Generic, Hashable, NFData)
 
 -- helper type: enum for possible operations
 -- -----------------------------------------
 
 {- | A tag that distinguishes four different types of operations:
-  terminal split, non-termal split, left ornament, and right ornament
+  regular split, passing split, left ornament, and right ornament
 -}
 data Elaboration a b c d
   = -- | marks a terminal split
-    ET !a
+    EReg !a
   | -- | marks a non-terminal split
-    EN !b
+    EPass !b
   | -- | marks a right ornament
     ER !c
   | -- | marks a left ornament
     EL !d
   deriving (Eq, Ord, Show, Generic, Hashable, NFData)
 
+{- | Takes a collection of 'Elaboration'
+ and splits it into lists for each elaboration type.
+-}
 partitionElaborations
   :: Foldable t => t (Elaboration a b c d) -> ([a], [b], [c], [d])
 partitionElaborations = foldl' select ([], [], [], [])
  where
-  select (a, b, c, d) (ET t) = (t : a, b, c, d)
-  select (a, b, c, d) (EN n) = (a, n : b, c, d)
+  select (a, b, c, d) (EReg t) = (t : a, b, c, d)
+  select (a, b, c, d) (EPass n) = (a, n : b, c, d)
   select (a, b, c, d) (ER l) = (a, b, l : c, d)
   select (a, b, c, d) (EL r) = (a, b, c, r : d)
 
 -- parsing Ornamentations
 -- ======================
 
+-- | A constraint alias for note types.
+type IsNote :: Type -> Constraint
 type IsNote n =
   (HasPitch n, Diatonic (ICOf (IntervalOf n)), Eq (ICOf (IntervalOf n)))
 
@@ -124,24 +142,24 @@ findOrnament
           (PassingOrnament, InnerEdge n)
       )
 findOrnament (Inner l) (Inner m) (Inner r) True True
-  | pl == pm && pm == pr = Just $ T (FullRepeat, (Inner l, Inner r))
-  | pl == pm && so = Just $ T (RightRepeatOfLeft, (Inner l, Inner r))
-  | pm == pr && so = Just $ T (LeftRepeatOfRight, (Inner l, Inner r))
+  | pl == pm && pm == pr = Just $ Reg (FullRepeat, (Inner l, Inner r))
+  | pl == pm && so = Just $ Reg (RightRepeatOfLeft, (Inner l, Inner r))
+  | pm == pr && so = Just $ Reg (LeftRepeatOfRight, (Inner l, Inner r))
  where
   pl = pc $ pitch l
   pm = pc $ pitch m
   pr = pc $ pitch r
   so = isStep $ pl `pto` pr
 findOrnament (Inner l) (Inner m) (Inner r) _ _
-  | pl == pr && s1 = Just $ T (FullNeighbor, (Inner l, Inner r))
-  | s1 && s2 && between pl pm pr = Just $ NT (PassingMid, (l, r))
+  | pl == pr && s1 = Just $ Reg (FullNeighbor, (Inner l, Inner r))
+  | s1 && s2 && between pl pm pr = Just $ Pass (PassingMid, (l, r))
  where
   pl = pc $ pitch l
   pm = pc $ pitch m
   pr = pc $ pitch r
   s1 = isStep $ pl `pto` pm
   s2 = isStep $ pm `pto` pr
-findOrnament Start (Inner _) Stop _ _ = Just $ T (RootNote, (Start, Stop))
+findOrnament Start (Inner _) Stop _ _ = Just $ Reg (RootNote, (Start, Stop))
 findOrnament _ _ _ _ _ = Nothing
 
 {- | Attempts to reduce three notes as a passing motion
@@ -149,9 +167,9 @@ findOrnament _ _ _ _ _ = Nothing
 
  Since one of the edges is a terminal edge,
  the corresponding outer note could be start/stop symbol, in which case the reduction fails.
- The side with the terminal edge is thus a @StartStop Pitch i@ within a 'T',
- while the non-terminal side is a @Pitch i@ within an 'NT'.
- Exactly one side must be a 'T' and the other an 'NT', otherwise the reduction fails.
+ The side with the terminal edge is thus a @StartStop Pitch i@ within a 'Reg',
+ while the non-terminal side is a @Pitch i@ within an 'Pass'.
+ Exactly one side must be a 'Reg' and the other an 'Pass', otherwise the reduction fails.
 -}
 findPassing
   :: (IsNote n)
@@ -159,14 +177,14 @@ findPassing
   -> n
   -> EdgeEither (StartStop n) n
   -> Maybe (InnerEdge n, PassingOrnament)
-findPassing (T (Inner l)) m (NT r)
+findPassing (Reg (Inner l)) m (Pass r)
   | isStep (pl `pto` pm) && between pl pm pr =
       Just ((l, r), PassingLeft)
  where
   pl = pc $ pitch l
   pm = pc $ pitch m
   pr = pc $ pitch r
-findPassing (NT l) m (T (Inner r))
+findPassing (Pass l) m (Reg (Inner r))
   | isStep (pm `pto` pr) && between pl pm pr =
       Just ((l, r), PassingRight)
  where
@@ -213,7 +231,7 @@ protoVoiceEvaluator =
     pvThaw
     pvSlice
 
-{- | Computes the verticalization of a middle transition.
+{- | Computes the verticalization (unspread) of a middle transition.
  If the verticalization is admitted, returns the corresponding operation.
 -}
 pvUnspreadMiddle
@@ -249,7 +267,7 @@ pvUnspreadLeft (el, _) _ = [el]
 pvUnspreadRight :: UnspreadRight (Edges n) (Notes n)
 pvUnspreadRight (_, er) _ = [er]
 
-{- | Computes all possible merges of two child transitions.
+{- | Computes all possible unsplits of two child transitions.
  Since transitions here only represent the certain edges,
  'pvUnsplit' must also take into account unelaborated edges,
  which are not present in the child transitions.
@@ -262,12 +280,12 @@ pvUnsplit
   -> Edges n
   -> StartStop (Notes n)
   -> [(Edges n, Split n)]
-pvUnsplit notesl (Edges leftTs leftNTs) (Notes notesm) (Edges rightTs rightNTs) notesr =
+pvUnsplit notesl (Edges leftRegs leftPass) (Notes notesm) (Edges rightRegs rightPass) notesr =
   map mkTop combinations
  where
-  -- preprocessing of the notes left and right of the merge
-  !innerL = T <$> innerNotes notesl
-  !innerR = T <$> innerNotes notesr
+  -- preprocessing of the notes left and right of the unsplit
+  !innerL = Reg <$> innerNotes notesl
+  !innerR = Reg <$> innerNotes notesr
 
   -- find all reduction options for every pitch
   !options = noteOptions <$> MS.toOccurList notesm
@@ -279,12 +297,12 @@ pvUnsplit notesl (Edges leftTs leftNTs) (Notes notesm) (Edges rightTs rightNTs) 
           <$> enumerateOptions mandatoryLeft mandatoryRight nocc
    where
     -- compute the mandatory edges for the current pitch:
-    mleftTs = S.map (T . fst) $ S.filter ((== Inner note) . snd) leftTs
-    mleftNTs = MS.map (NT . fst) $ MS.filter ((== note) . snd) leftNTs
-    mrightTs = S.map (T . snd) $ S.filter ((== Inner note) . fst) rightTs
-    mrightNTs = MS.map (NT . snd) $ MS.filter ((== note) . fst) rightNTs
-    mandatoryLeft = MS.fromSet mleftTs <> mleftNTs
-    mandatoryRight = MS.fromSet mrightTs <> mrightNTs
+    mleftRegs = S.map (Reg . fst) $ S.filter ((== Inner note) . snd) leftRegs
+    mleftPass = MS.map (Pass . fst) $ MS.filter ((== note) . snd) leftPass
+    mrightRegs = S.map (Reg . snd) $ S.filter ((== Inner note) . fst) rightRegs
+    mrightPass = MS.map (Pass . snd) $ MS.filter ((== note) . fst) rightPass
+    mandatoryLeft = MS.fromSet mleftRegs <> mleftPass
+    mandatoryRight = MS.fromSet mrightRegs <> mrightPass
 
     -- the possible reductions of a (multiple) pitch are enumerated in three stages:
 
@@ -307,7 +325,7 @@ pvUnsplit notesl (Edges leftTs leftNTs) (Notes notesm) (Edges rightTs rightNTs) 
         red <- maybeToList $ tryReduction True True l note r
         pure (red, MS.delete r mr)
       -- TODO: remove mr options here?
-      tryOpt r = tryReduction True (r `S.member` mrightTs) l note r
+      tryOpt r = tryReduction True (r `S.member` mrightRegs) l note r
       opt = fmap (,mr) $ catMaybes $ tryOpt <$> innerR
       single = fmap (,mr) $ maybeToList $ tryLeftReduction note l
 
@@ -319,7 +337,7 @@ pvUnsplit notesl (Edges leftTs leftNTs) (Notes notesm) (Edges rightTs rightNTs) 
     -- combine mandatory right with free left edge
     pickRight r = opt <> single
      where
-      tryOpt l = tryReduction (l `S.member` mleftTs) True l note r
+      tryOpt l = tryReduction (l `S.member` mleftRegs) True l note r
       opt = catMaybes $ tryOpt <$> innerL
       single = maybeToList $ tryRightReduction note r
 
@@ -337,7 +355,7 @@ pvUnsplit notesl (Edges leftTs leftNTs) (Notes notesm) (Edges rightTs rightNTs) 
       l <- innerL
       r <- innerR
       maybeToList $
-        tryReduction (l `S.member` mleftTs) (r `S.member` mrightTs) l note r
+        tryReduction (l `S.member` mleftRegs) (r `S.member` mrightRegs) l note r
     -- reduce to left using free edge
     pickFreeLeft = catMaybes $ tryLeftReduction note <$> innerL
     -- reduce to right using free edge
@@ -346,30 +364,30 @@ pvUnsplit notesl (Edges leftTs leftNTs) (Notes notesm) (Edges rightTs rightNTs) 
   -- at all stages: try out potential reductions:
 
   -- two terminal edges: any ornament
-  tryReduction lIsUsed rIsUsed (T notel) notem (T noter) = do
+  tryReduction lIsUsed rIsUsed (Reg notel) notem (Reg noter) = do
     reduction <- findOrnament notel (Inner notem) noter lIsUsed rIsUsed
     pure $ case reduction of
-      (T (orn, parent)) -> ET (parent, (notem, orn))
-      (NT (pass, parent)) -> EN (parent, (notem, pass))
+      (Reg (orn, parent)) -> EReg (parent, (notem, orn))
+      (Pass (pass, parent)) -> EPass (parent, (notem, pass))
   -- a non-terminal edge left and a terminal edge right: passing note
-  tryReduction _ _ notel@(NT _) notem noter@(T _) = do
+  tryReduction _ _ notel@(Pass _) notem noter@(Reg _) = do
     (parent, pass) <- findPassing notel notem noter
-    pure $ EN (parent, (notem, pass))
+    pure $ EPass (parent, (notem, pass))
   -- a terminal edge left and a non-terminal edge right: passing note
-  tryReduction _ _ notel@(T _) notem noter@(NT _) = do
+  tryReduction _ _ notel@(Reg _) notem noter@(Pass _) = do
     (parent, pass) <- findPassing notel notem noter
-    pure $ EN (parent, (notem, pass))
+    pure $ EPass (parent, (notem, pass))
   -- all other combinations are forbidden
   tryReduction _ _ _ _ _ = Nothing
 
   -- single reduction to a left parent
-  tryLeftReduction notem (T (Inner notel)) = do
+  tryLeftReduction notem (Reg (Inner notel)) = do
     orn <- findRightOrnament notel notem
     pure $ ER (notel, (notem, orn))
   tryLeftReduction _ _ = Nothing
 
   -- single reduction to a right parent
-  tryRightReduction notem (T (Inner noter)) = do
+  tryRightReduction notem (Reg (Inner noter)) = do
     orn <- findLeftOrnament notem noter
     pure $ EL (noter, (notem, orn))
   tryRightReduction _ _ = Nothing
@@ -380,27 +398,27 @@ pvUnsplit notesl (Edges leftTs leftNTs) (Notes notesm) (Edges rightTs rightNTs) 
       then [] -- if yes, then no reduction is possible at all
       else foldM pickOption ([], [], [], []) options -- otherwise, compute all combinations
       -- picks all different options for a single note in the list monad
-  pickOption (accT, accNT, accL, accR) opts = do
+  pickOption (accReg, accPass, accL, accR) opts = do
     (ts, nts, ls, rs) <- opts
-    pure (ts <> accT, nts <> accNT, ls <> accL, rs <> accR)
+    pure (ts <> accReg, nts <> accPass, ls <> accL, rs <> accR)
 
   -- convert a combination into a derivation operation:
   -- turn the accumulated information into the format expected from the evaluator
   mkTop (ts, nts, rs, ls) =
     if True -- validate
-      then (top, SplitOp tmap ntmap rmap lmap leftTs rightTs passL passR)
+      then (top, SplitOp tmap ntmap rmap lmap leftRegs rightRegs passL passR)
       else
         error $
-          "invalid merge:\n  notesl="
+          "invalid unsplit:\n  notesl="
             <> show notesl
             <> "\n  notesr="
             <> show notesr
             <> "\n  notesm="
             <> show (Notes notesm)
             <> "\n  left="
-            <> show (Edges leftTs leftNTs)
+            <> show (Edges leftRegs leftPass)
             <> "\n  right="
-            <> show (Edges rightTs rightNTs)
+            <> show (Edges rightRegs rightPass)
             <> "\n  top="
             <> show top
    where
@@ -417,8 +435,8 @@ pvUnsplit notesl (Edges leftTs leftNTs) (Notes notesm) (Edges rightTs rightNTs) 
     lmap = mapify ls
     rmap = mapify rs
     top = Edges (S.fromList (fst <$> ts)) (MS.fromList (fst <$> nts))
-    passL = foldr MS.delete leftNTs $ catMaybes $ leftPassingChild <$> nts
-    passR = foldr MS.delete rightNTs $ catMaybes $ rightPassingChild <$> nts
+    passL = foldr MS.delete leftPass $ catMaybes $ leftPassingChild <$> nts
+    passR = foldr MS.delete rightPass $ catMaybes $ rightPassingChild <$> nts
     leftPassingChild ((l, _r), (m, orn)) =
       if orn == PassingRight then Just (l, m) else Nothing
     rightPassingChild ((_l, r), (m, orn)) =
@@ -441,6 +459,9 @@ pvSlice = Notes . MS.fromList . toList
 -- evaluators in specific semirings
 -- ================================
 
+{- | A restricted version of the PV evaluator
+ that prohibits split operations in which one of the parent slices is repeated entirely.
+-}
 protoVoiceEvaluatorNoRepSplit
   :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n)
   => Eval (Edges n) (t (Edge n)) (Notes n) (t2 n) (PVLeftmost n)
@@ -464,6 +485,7 @@ protoVoiceEvaluatorNoRepSplit = Eval vm vl vr filterSplit t s
       all (check isRepetitionOnRight) (M.toList ts) && allSinglesRepeat
   check fpred (_, os) = all (fpred . snd) os
 
+-- | An evaluator for protovoices that produces values in the 'Derivations' semiring.
 pvDerivUnrestricted
   :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n)
   => Eval
@@ -474,7 +496,11 @@ pvDerivUnrestricted
       (Derivations (PVLeftmost n))
 pvDerivUnrestricted = mapEvalScore Do protoVoiceEvaluator
 
-pvDeriv
+{- | An evaluator for protovoices that produces values in the 'Derivations' semiring.
+
+ - Enforces right-branching spreads (see 'rightBranchSpread').
+-}
+pvDerivRightBranch
   :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n)
   => Eval
       (Merged, (RightBranchSpread, Edges n))
@@ -482,25 +508,41 @@ pvDeriv
       ((), ((), Notes n))
       (t2 n)
       (Derivations (PVLeftmost n))
-pvDeriv =
+pvDerivRightBranch =
   splitFirst $ rightBranchSpread $ mapEvalScore Do protoVoiceEvaluatorNoRepSplit
 
+-- | An evaluator for protovoices that produces values in the counting semiring.
 pvCountUnrestricted
   :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n)
   => Eval (Edges n) (t (Edge n)) (Notes n) (t2 n) Int
 pvCountUnrestricted = mapEvalScore (const 1) protoVoiceEvaluator
 
-pvCount''
+{- | An evaluator for protovoices that produces values in the counting semiring.
+
+ - Prohibits split operations in which one of the parent slices is repeated entirely (see 'protoVoiceEvaluatorNoRepSplit').
+-}
+pvCountNoRepSplit
   :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n)
   => Eval (Edges n) (t (Edge n)) (Notes n) (t2 n) Int
-pvCount'' = mapEvalScore (const 1) protoVoiceEvaluatorNoRepSplit
+pvCountNoRepSplit = mapEvalScore (const 1) protoVoiceEvaluatorNoRepSplit
 
-pvCount'
+{- | An evaluator for protovoices that produces values in the counting semiring.
+
+ - Prohibits split operations in which one of the parent slices is repeated entirely (see 'protoVoiceEvaluatorNoRepSplit').
+ - Enforces right-branching spreads (see 'rightBranchSpread').
+-}
+pvCountNoRepSplitRightBranch
   :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n)
   => Eval (RightBranchSpread, Edges n) (t (Edge n)) ((), Notes n) (t2 n) Int
-pvCount' = rightBranchSpread pvCount''
+pvCountNoRepSplitRightBranch = rightBranchSpread pvCountNoRepSplit
 
-pvCount
+{- | An evaluator for protovoices that produces values in the counting semiring.
+
+ - Prohibits split operations in which one of the parent slices is repeated entirely (see 'protoVoiceEvaluatorNoRepSplit').
+ - Enforces right-branching spreads (see 'rightBranchSpread').
+ - Normalizes the order of adjacent split and spread operations to split-before-spread (see 'splitFirst').
+-}
+pvCountNoRepSplitRightBranchSplitFirst
   :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n)
   => Eval
       (Merged, (RightBranchSpread, Edges n))
@@ -508,4 +550,4 @@ pvCount
       ((), ((), Notes n))
       (t2 n)
       Int
-pvCount = splitFirst pvCount'
+pvCountNoRepSplitRightBranchSplitFirst = splitFirst pvCountNoRepSplitRightBranch

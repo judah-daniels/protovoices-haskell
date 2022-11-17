@@ -67,6 +67,7 @@ import qualified Language.Haskell.DoNotation as Do
 -- import           Prelude                 hiding ( Monad(..)
 --                                                 , pure
 --                                                 )
+
 import Prelude
 
 ifThenElse True t e = t
@@ -117,7 +118,7 @@ path (a : as) = Path a [] $ path as
 -- -------
 
 printDerivs path = do
-  ds <- parseSilent pvDeriv path
+  ds <- parseSilent pvDerivRightBranch path
   forM_ (flattenDerivations ds) $ \d -> do
     putStrLn "\nDerivation:"
     forM_ d $ \step -> do
@@ -248,31 +249,31 @@ mainGreedy file = do
 mainCount fn = do
   input <- loadSurface fn
   print input
-  count <- parseSize pvCount input
+  count <- parseSize pvCountNoRepSplitRightBranchSplitFirst input
   putStrLn $ show count <> " derivations"
 
 mainTest from to = do
   putStrLn $ "slices " <> show from <> " to " <> show to
   input <- testslices from to
   print input
-  count <- parseSize pvCount input
+  count <- parseSize pvCountNoRepSplitRightBranchSplitFirst input
   putStrLn $ show count <> " derivations"
 
 mainBB = do
   input <- slicesToPath <$> slicesFromFile bb
   print input
-  count <- parseSize pvCount input
+  count <- parseSize pvCountNoRepSplitRightBranchSplitFirst input
   print count
 
 mainBrahms = do
   input <- slicesToPath <$> slicesFromFile brahms1
   print input
-  count <- parseSize pvCount input
+  count <- parseSize pvCountNoRepSplitRightBranchSplitFirst input
   print count
 
 mainGraph = do
   input <- slicesToPath <$> slicesFromFile brahms1
-  derivs <- parseSize pvDeriv input
+  derivs <- parseSize pvDerivRightBranch input
   let ds = S.toList $ flattenDerivations derivs
   pics <- forM ds $ \d -> case replayDerivation derivationPlayerPV d of
     Left err -> do
@@ -309,7 +310,7 @@ parseHaydn eval = do
 
 mainHaydn = do
   slices <- slicesFromFile haydn5
-  derivs <- parseSize pvCount $ slicesToPath $ take 8 slices
+  derivs <- parseSize pvCountNoRepSplitRightBranchSplitFirst $ slicesToPath $ take 8 slices
   print derivs
   putStrLn "done."
 

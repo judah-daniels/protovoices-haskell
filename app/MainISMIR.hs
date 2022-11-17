@@ -86,20 +86,24 @@ main = do
   plotDeriv "321sus.tex" deriv321sus
 
   putStrLn "counting 321sus..."
-  count321sus <- parseSilent pvCount path321sus
+  count321sus <- parseSilent pvCountNoRepSplitRightBranchSplitFirst path321sus
+  count321sus' <- parseSilent pvCountUnrestricted path321sus
 
   putStrLn "parsing 321sus"
-  parses321sus <- parseSilent pvDeriv path321sus
+  parses321sus <- parseSilent pvDerivRightBranch path321sus
   let Just parse321 = firstDerivation parses321sus
   plotDeriv "321sus-parsed.tex" parse321
 
   putStrLn "counting Bach..."
   bachSlices <- slicesFromFile "testdata/allemande.musicxml"
-  bachCount <- parseSize pvCount $ slicesToPath $ take 9 bachSlices
+  bachCount <- parseSize pvCountNoRepSplitRightBranchSplitFirst $ slicesToPath $ take 9 bachSlices
+  bachCount' <- parseSize pvCountUnrestricted $ slicesToPath $ take 9 bachSlices
 
   putStrLn "Results:"
   putStrLn $ "number of derivations (321sus): " <> show count321sus
   putStrLn $ "number of derivations (bach): " <> show bachCount
+  putStrLn $ "number of derivations (321sus, no restrictions): " <> show count321sus'
+  putStrLn $ "number of derivations (bach, no restrictions): " <> show bachCount'
   putStrLn "derivation of 321sus:"
   mapM_ print parse321
 
