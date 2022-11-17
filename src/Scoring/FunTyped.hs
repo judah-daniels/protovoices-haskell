@@ -25,13 +25,22 @@
 -}
 module Scoring.FunTyped
   ( -- * The Score Type
-    Score
+    Score (..)
+  , TypedScore (..)
   , val
+  , showScore
+
+    -- ** IDs
   , LeftId (..)
   , RightId (..)
   , leftSide
   , rightSide
-  , showScore
+
+    -- ** Hole Types
+  , LeftHoles
+  , RightHoles
+  , RightHole
+  , BothHoles
 
     -- * Semiring operations
 
@@ -71,12 +80,14 @@ import GHC.Generics (Generic)
 -- Score type --
 ----------------
 
+-- | Newtype for the left ID of a partial score.
 newtype LeftId i = LeftId i
   deriving (Eq, Ord, Generic, NFData, Hashable)
 
 instance Show i => Show (LeftId i) where
   show (LeftId i) = show i
 
+-- | Newtype for the right ID of a partial score.
 newtype RightId i = RightId i
   deriving (Eq, Ord, Generic, NFData, Hashable)
 
@@ -86,6 +97,7 @@ instance Show i => Show (RightId i) where
 match :: Eq a => RightId a -> LeftId a -> Bool
 match (RightId ir) (LeftId il) = il == ir
 
+-- | A single right hole (helper for 'RightHoles').
 data RightHole (n :: Nat) s where
   RightHole :: !(RightHoles n s) -> RightHole ('S n) s
   RightEnd :: !s -> RightHole 'Z s
@@ -94,10 +106,13 @@ instance (NFData s) => NFData (RightHole n s) where
   rnf (RightHole f) = rnf f
   rnf (RightEnd s) = rnf s
 
+-- | The type of a function representing @n@ right holes.
 type RightHoles (n :: Nat) s = s -> RightHole n s
 
+-- | The type of a function representing @n@ left holes.
 type LeftHoles (n :: Nat) s = (RightHoles n s -> s)
 
+-- | The type of a function containing @nl@ left and @nr@ right holes.
 type BothHoles (nl :: Nat) (nr :: Nat) s = (RightHoles nr s -> RightHoles nl s)
 
 {- | A partially applied score of type @s@.
@@ -133,6 +148,10 @@ instance (NFData s, NFData i) => NFData (TypedScore nl nr s i) where
   rnf (SLeft _ i) = rnf i
   rnf (SBoth il _ ir) = il `deepseq` rnf ir
 
+{- | A paritally applied score of type @s@
+ with an unknown number of holes (as used by the "ChartParser").
+ Wraps a 'TypedScore' together with witnesses for the number of holes on each side.
+-}
 data Score s i :: Type where
   MkScore :: SNat nl -> SNat nr -> TypedScore nl nr s i -> Score s i
 
@@ -180,6 +199,9 @@ showTScore (SLeft _ ir) = "()-" <> show ir
 showTScore (SRight il _) = show il <> "-()"
 showTScore (SBoth il _ ir) = show il <> "-" <> show ir
 
+{- | Returns a string representation of a 'Score'
+ (more compact than it's 'Show' instance).
+-}
 showScore :: (Show s, Show i) => Score s i -> String
 showScore (MkScore _ _ s) = showTScore s
 

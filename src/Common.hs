@@ -63,6 +63,7 @@ module Common
   , UnspreadRight
   , Unsplit
   , Eval (..)
+  , IsLast
   , mapEvalScore
   , productEval
 
@@ -102,7 +103,10 @@ module Common
     -- * Monadic Interface for Constructing Derivations #monadicDeriv#
     -- $monadicdoc
   , PartialDerivation (..)
+  , DerivationInfo
+  , IndexedWriter
   , itell
+  , DerivationAction (..)
   , buildDerivation
   , buildPartialDerivation
   , split
@@ -434,7 +438,7 @@ data RightBranchSpread
   deriving (Eq, Ord, Show, Generic, NFData, Hashable)
 
 {- | An evaluator that doesn't parse the input but restricts spread operations to right branching.
- Legal combinations will just return a singleton `()` while illegal combinations return nothing.
+ Legal combinations will just return a singleton @()@ while illegal combinations return nothing.
  Combine this with any evaluator as a product (using 'productEval' or 'rightBranchSpread')
  to make the evaluator right-branching.
 -}
@@ -467,7 +471,7 @@ data Merged
 
 {- | An evaluator that doesn't parse the input but restricts the order of operations
  to always have splits before spreads on the left and right transitions at a spread.
- Legal combinations will just return a singleton `()` while illegal combinations return nothing.
+ Legal combinations will just return a singleton @()@ while illegal combinations return nothing.
  Combine this with any evaluator as a product (using 'productEval' or 'splitFirst')
  to make the evaluator order-restricted.
 -}
@@ -541,7 +545,7 @@ data LeftmostDouble s f h
   | LMDoubleSpread !h
   deriving (Eq, Ord, Show, Generic, NFData)
 
--- | Helper function for 'LeftmostDouble''s 'ToJSON' instance.
+-- | Helper function for `LeftmostDouble`'s 'ToJSON' instance.
 lmDoubleToJSONName "LMDoubleSpread" = "hori"
 lmDoubleToJSONName str = firstToLower $ drop 8 str
 
@@ -822,7 +826,10 @@ instance (Monoid w) => MI.IxMonad (IndexedWriter w) where
 itell :: Monoid w => w -> IndexedWriter w i j ()
 itell = IW . MW.tell
 
--- | A type-level wrapper for partial derivation info.
+{- | A type-level wrapper for partial derivation info.
+ Encodes the number of open transitions
+ and whether the last operation was a right split.
+-}
 type DerivationInfo :: Nat -> Bool -> Type
 data DerivationInfo a b
 

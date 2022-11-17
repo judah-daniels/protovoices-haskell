@@ -298,7 +298,7 @@ unfoldDerivation player = unfoldDerivation' topPath player
  where
   topPath = PathEnd $ dpTopTrans player
 
-{- | A derivation player that uses '()' for slice and transition contents.
+{- | A derivation player that uses @()@ for slice and transition contents.
  The actual derivation operations are ignored, so only the outer structure is produced.
 -}
 derivationPlayerUnit :: DerivationPlayer s f h () ()
@@ -308,7 +308,7 @@ derivationPlayerUnit = DerivationPlayer () usplit ufreeze uspread
   ufreeze _ _ = Right ()
   uspread _ _ _ _ = Right ((), (), (), (), ())
 
--- | A helper type that is like '()' but has a 'Show' instance that returns the empty string.
+-- | A helper type that is like @()@ but has a 'Show' instance that returns the empty string.
 data Empty = Empty
   deriving (Eq, Ord)
 

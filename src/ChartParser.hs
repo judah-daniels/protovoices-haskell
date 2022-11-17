@@ -21,17 +21,36 @@ The grammar to parse is definend in an "evaluator" ('Common.Eval')
 which provides completions for parsing the splits, spreads and freezes.
 -}
 module ChartParser
-  ( Parsable
-  , Normal
-  , Normal'
-  , tcGetByLength
-  , vcGetByLength
-  , VChart
-  , TChart
-  , parse
+  ( -- * Parsing Interface
+    parse
   , parseSize
   , parseSilent
+  , logSize
   , logTikz
+
+    -- * Charts
+
+    -- ** Basic Elements
+  , Slice
+  , Transition
+  , transLen
+  , Item
+  , TItem
+
+    -- ** Transition Chart
+  , TContents
+  , TChart
+  , tcGetByLength
+
+    -- ** Verticalization Chart
+  , Vert
+  , VChart
+  , vcGetByLength
+
+    -- * Constraint Aliases
+  , Parsable
+  , Normal
+  , Normal'
   ) where
 
 import Common

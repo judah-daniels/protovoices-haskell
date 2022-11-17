@@ -15,7 +15,77 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -Wno-partial-type-signatures #-}
 
-module PVGrammar.Prob.Simple where
+{- | This module contains a simple (and musically rather naive)
+ probabilistic model of protovoice derivations.
+ This model can be used to sample a derivation,
+ evaluate a derivations probability,
+ or infer posterior distributions of the model parmeters from given derivations
+ (i.e., "learn" the model's probabilities).
+
+ This model is a /locally conjugate/ model:
+ It samples a derivation using a sequence of random decisions with certain probabilities.
+ These probabilities are generally unknown, so they are themselves modeled as random variables with prior distributions.
+ The full model \(p(d, \theta)\) thus splits into
+ \[p(D, \theta) = p(d \mid \theta) \cdot p(\theta),\]
+ the prior over the probability variables
+ \[p(\theta) = \prod_i p(\theta_i),\]
+ and the likelihood of the derivation(s) given these probabilities
+ \[p(D \mid \theta) = \prod_{d \in D} p(d \mid \theta) = \prod_{d \in D} \prod_i p(d_i \mid \theta, d_0, \ldots, d_{i-1}).\]
+ Given all prior decisions, the likelihood of a decision \(d_i\) based on some parameter \(\theta_a\)
+ \[p(d_i \mid \theta, d_{<i})\]
+ is [conjugate](https://en.wikipedia.org/wiki/Conjugate_prior) with the prior of that parameter \(p(\theta_a)\),
+ which means that the posterior of the parameters given one (or several) derivation(s) \(p(\theta \mid D)\)
+ can be computed analytically.
+
+ The parameters \(\theta\) and their prior distributions
+ are represented by the higher-kinded type 'PVParams'.
+ Different instantiations of this type (using 'Hyper' or 'Probs') results in concrete record types
+ that represent prior or posterior distributions
+ or concrete values (probabilities) for the parameters.
+ 'PVParams' also supports 'jeffreysPrior' and 'uniformPrior' as default priors,
+as well as 'sampleProbs' for sampling from a prior (see "Inferenc.Conjugate").
+
+ The likelihood \(p(d \mid \theta)\) of a derivation is represented by
+ 'sampleDerivation'.
+ It can be executed under different "modes" (probability monads)
+ for sampling, inference, or tracing (see "Inference.Conjugate").
+ The decisions during the derivation are represented by a 'Trace' (here @Trace PVParams@).
+ In order to learn from a given derivation,
+ the corresponding trace can be obtained using 'observeDerivation'.
+ A combination of getting a trace and learning from it
+ is provided by 'trainSinglePiece'.
+-}
+module PVGrammar.Prob.Simple
+  ( -- * Model Parameters
+
+    -- | A higher-kinded type that represents the global parameters (probabilities) of the model.
+    -- Use it as 'Hyper PVParams' to represent hyperparameters (priors and posteriors)
+    -- or as 'Probs PVParams' to represent actual probabilites.
+    -- Each record field corresponds to one parameter
+    -- that influences a specific type of decision in the generation process.
+    PVParams (..)
+  , PVParamsOuter (..)
+  , PVParamsInner (..)
+
+    -- * Likelihood Model
+
+    -- | 'sampleDerivation' represents a probabilistic program that samples a derivation.
+    -- that can be interpreted in various modes for
+    --
+    -- - sampling ('sampleTrace', 'sampleResult'),
+    -- - inference ('evalTraceLogP', 'getPosterior'),
+    -- - tracing ('showTrace', 'traceTrace').
+    --
+    -- 'observeDerivation' takes and existing derivation and returns the corresponding trace.
+  , sampleDerivation
+  , sampleDerivation'
+  , observeDerivation
+  , observeDerivation'
+
+    -- * Utilities
+  , roundtrip
+  , trainSinglePiece
+  ) where
 
 import Common
   ( Analysis
@@ -79,36 +149,7 @@ import Musicology.Pitch as MP hiding
   )
 import System.Random.MWC.Probability (categorical)
 
--- observeValue
---   :: _ => String -> l -> Accessor r p -> Support l -> StateT (Trace r) m ()
--- observeValue name dist acc val = do
---   DT.traceM str
---   IC.observeValue name dist acc $ DT.trace str val
---  where
---   str =
---     "Observd value "
---       <> show val
---       <> " from a "
---       <> show dist
---       <> " at "
---       <> name
---       <> "."
-
--- observeConst
---   :: _ => String -> d -> Params d -> Support d -> StateT (Trace r) m ()
--- observeConst name dist params val = do
---   DT.traceM str
---   IC.observeConst name dist params $ DT.trace str val
---  where
---   str =
---     "Observd value "
---       <> show val
---       <> " from a "
---       <> show dist
---       <> " at "
---       <> name
---       <> "."
-
+-- | Parameters for decisions about outer operations (split, spread, freeze).
 data PVParamsOuter f = PVParamsOuter
   { _pSingleFreeze :: f Beta
   , _pDoubleLeft :: f Beta
@@ -121,6 +162,9 @@ deriving instance (Show (f Beta)) => Show (PVParamsOuter f)
 
 makeLenses ''PVParamsOuter
 
+{- | Parameters for decisions about inner operations
+ (elaboration and distribution within splits and spreads).
+-}
 data PVParamsInner f = PVParamsInner
   -- split
   { _pElaborateRegular :: f Beta
@@ -161,6 +205,7 @@ deriving instance
 
 makeLenses ''PVParamsInner
 
+-- | The combined parameters for inner and outer operations.
 data PVParams f = PVParams
   { _pOuter :: PVParamsOuter f
   , _pInner :: PVParamsInner f
@@ -196,6 +241,10 @@ type ContextDouble n =
 
 type PVObs a = StateT (Trace PVParams) (Either String) a
 
+{- | A helper function that tests whether 'observeDerivation''
+ followed by 'sampleDerivation'' restores the original derivation.
+ Useful for testing the compatibility of the two functions.
+-}
 roundtrip :: FilePath -> IO (Either String [PVLeftmost SPitch])
 roundtrip fn = do
   anaE <- loadAnalysis fn
@@ -208,6 +257,9 @@ roundtrip fn = do
         Right trace -> do
           pure $ traceTrace trace sampleDerivation'
 
+{- | Helper function: Load a single derivation
+ and infer the corresponding posterior for a uniform prior.
+-}
 trainSinglePiece :: FilePath -> IO (Maybe (PVParams HyperRep))
 trainSinglePiece fn = do
   anaE <- loadAnalysis fn
@@ -221,16 +273,23 @@ trainSinglePiece fn = do
           let prior = uniformPrior @PVParams
           pure $ getPosterior prior trace (sampleDerivation $ anaTop ana)
 
+-- | A shorthand for 'sampleDerivation' starting from ⋊——⋉.
 sampleDerivation' :: _ => m (Either String [PVLeftmost SPitch])
 sampleDerivation' = sampleDerivation $ PathEnd topEdges
 
+-- | A shorthand for 'observeDerivation' starting from ⋊——⋉.
 observeDerivation' :: [PVLeftmost SPitch] -> Either String (Trace PVParams)
 observeDerivation' deriv = observeDerivation deriv $ PathEnd topEdges
 
+{- | A probabilistic program that samples a derivation starting from a given root path.
+ Can be interpreted by the interpreter functions in "Inference.Conjugate".
+-}
 sampleDerivation
   :: _
   => Path (Edges SPitch) (Notes SPitch)
+  -- ^ root path
   -> m (Either String [PVLeftmost SPitch])
+  -- ^ a probabilistic program
 sampleDerivation top = runExceptT $ go Start top False
  where
   go sl surface ars = case surface of
@@ -269,6 +328,11 @@ sampleDerivation top = runExceptT $ go Start top False
         nextSteps <- go sl (Path ctl csl (Path ctm csr (mkrest ctr))) False
         pure $ LMSpread spreadOp : nextSteps
 
+{- | Walk through a derivation (starting at a given root path)
+ and return the corresponding 'Trace' (if possible).
+ The trace can be used together with 'sampleDerivation'
+ for inference ('getPosterior') or for showing the trace ('printTrace').
+-}
 observeDerivation
   :: [PVLeftmost SPitch]
   -> Path (Edges SPitch) (Notes SPitch)

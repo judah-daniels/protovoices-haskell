@@ -105,7 +105,7 @@ import qualified Musicology.MusicXML as MusicXML
 
 -- Slices contain a multiset of notes.
 
-{- | The content type of 'Slice's.
+{- | The content type of slices in the protovoice model.
  Contains a multiset of pitches, representing the notes in a slice.
 -}
 newtype Notes n = Notes (MS.MultiSet n)
@@ -140,7 +140,7 @@ type Edge n = (StartStop n, StartStop n)
 -- | A proto-voice edge between two notes (excluding start/stop symbols).
 type InnerEdge n = (n, n)
 
-{- | The content type of 'Transition's.
+{- | The content type of transitions in the protovoice model.
  Contains a multiset of regular edges and a multiset of passing edges.
  The represented edges are those that are definitely used later on.
  Edges that are not used are dropped before creating a child transition.

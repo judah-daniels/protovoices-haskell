@@ -14,8 +14,9 @@ module PVGrammar.Parse
   ( -- * Generic Parsing
 
     -- | Evaluators that directly return protovoice operations.
-    -- They can be embedded into a semiring using 'evalMapScores'.
-    protoVoiceEvaluator
+    -- They can be embedded into a semiring using 'mapEvalScore'.
+    IsNote
+  , protoVoiceEvaluator
   , protoVoiceEvaluatorNoRepSplit
 
     -- * Parsing Derivations
@@ -115,8 +116,16 @@ type IsNote :: Type -> Constraint
 type IsNote n =
   (HasPitch n, Diatonic (ICOf (IntervalOf n)), Eq (ICOf (IntervalOf n)))
 
--- | Checks if `pm` is between `pl` and `pr`.
-between :: (Eq i, Interval i) => Pitch i -> Pitch i -> Pitch i -> Bool
+-- | Checks if the middle pitch is between the left and the right pitch.
+between
+  :: (Eq i, Interval i)
+  => Pitch i
+  -- ^ left pitch
+  -> Pitch i
+  -- ^ middle pitch
+  -> Pitch i
+  -- ^ right pitch
+  -> Bool
 between pl pm pr =
   pl /= pm && pm /= pr && pl /= pr && dir1 == odir && dir2 == odir
  where
@@ -217,7 +226,7 @@ findLeftOrnament m r
 {- | The evaluator that represents the proto-voice grammar.
  As scores it returns a representation of each operation.
  These scores do not form a semiring,
- but can be embedded into different semirings using 'evalMapScores'.
+ but can be embedded into different semirings using 'mapEvalScore'.
 -}
 protoVoiceEvaluator
   :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n)

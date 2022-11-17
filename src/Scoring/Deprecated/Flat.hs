@@ -18,6 +18,7 @@
 module Scoring.Deprecated.Flat
   ( -- * The Score Type
     Score (..)
+  , Holes
   , val
   , LeftId (..)
   , RightId (..)
@@ -57,12 +58,14 @@ import GHC.Generics (Generic)
 -- Score type --
 ----------------
 
+-- | Newtype for the left ID of a partial score.
 newtype LeftId i = LeftId i
   deriving (Eq, Ord, Generic, NFData, Hashable)
 
 instance Show i => Show (LeftId i) where
   show (LeftId i) = show i
 
+-- | Newtype for the right ID of a partial score.
 newtype RightId i = RightId i
   deriving (Eq, Ord, Generic, NFData, Hashable)
 
@@ -72,6 +75,7 @@ instance Show i => Show (RightId i) where
 match :: Eq a => RightId a -> LeftId a -> Bool
 match (RightId ir) (LeftId il) = il == ir
 
+-- | A type alias for the holes in a 'Score'.
 type Holes s = [s]
 
 {- | A partially applied score of type @s@.
@@ -150,6 +154,9 @@ instance (Show i, Show s) => Show (Score s i) where
 
 -- simplified showing (only "type")
 
+{- | Returns a string representation of a 'Score'
+ (more compact than it's 'Show' instance).
+-}
 showScore :: (Show s, Show i) => Score s i -> String
 showScore (SVal v) = show v
 showScore (SLeft _ ir) = "()-" <> show ir
