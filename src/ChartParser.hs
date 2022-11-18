@@ -113,7 +113,7 @@ data Slice slc = Slice
   }
   deriving (Eq, Ord, Generic, NFData)
 
-instance Hashable (Slice slc) where
+instance (Eq slc) => Hashable (Slice slc) where
   hashWithSalt s (Slice _ _ i _) = hashWithSalt s i
 
 instance Show slc => Show (Slice slc) where

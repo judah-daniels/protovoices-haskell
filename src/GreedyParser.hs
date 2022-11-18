@@ -12,12 +12,14 @@
  In addition, the parser takes a policy function
  that picks a reduction option in each step.
 -}
-module GreedyParser
-  ( parseGreedy
-  , pickRandom
-  , parseRandom
-  , parseRandom'
-  ) where
+module GreedyParser where
+
+-- TODO: add back export list once haddock's ignore-exports works again.
+-- ( parseGreedy
+-- , pickRandom
+-- , parseRandom
+-- , parseRandom'
+-- ) where
 
 import Common
 

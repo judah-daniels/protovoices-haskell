@@ -68,78 +68,22 @@ packages:
     commit: f2f48f7942605722494b2cd58be573b85dadc106
     git: https://github.com/DCMLab/conjugate-haskell-programs.git
 - completed:
-    hackage: random-1.2.1@sha256:8bee24dc0c985a90ee78d94c61f8aed21c49633686f0f1c14c5078d818ee43a2,6598
+    hackage: Frames-0.7.3@sha256:35ad00d5a8897bb0fd01b204b0d51729a35a0b2138f61ecaeee8f1791b0ce4a4,9011
     pantry-tree:
-      sha256: 8bdc994ce41f43624ab42302a881fe5a0f81d965f5d238841e24943664681a06
-      size: 1528
-  original:
-    hackage: random-1.2.1@sha256:8bee24dc0c985a90ee78d94c61f8aed21c49633686f0f1c14c5078d818ee43a2,6598
-- completed:
-    hackage: diagrams-lib-1.4.3@sha256:04f77778d4b550d3c8e54440800685f88467bef91075e82e009a8a6f45c51033,8232
-    pantry-tree:
-      sha256: bf481bb5bbbd135a778be4cc69cc2f857944dc5d3b856894effaddc9279adf58
-      size: 11604
-  original:
-    hackage: diagrams-lib-1.4.3@sha256:04f77778d4b550d3c8e54440800685f88467bef91075e82e009a8a6f45c51033,8232
-- completed:
-    hackage: diagrams-svg-1.4.3@sha256:36708b0b4cf35507ccf689f1a25f6f81b8f41c2c4c2900793de820f66d4e241c,3181
-    pantry-tree:
-      sha256: 2a2f10e8c32a6c181a06494e13a462e00f77e98ad346fd99c123afa3fa89f9e1
-      size: 475
-  original:
-    hackage: diagrams-svg-1.4.3@sha256:36708b0b4cf35507ccf689f1a25f6f81b8f41c2c4c2900793de820f66d4e241c,3181
-- completed:
-    hackage: Frames-0.7.0@sha256:a7f68646ab369e6940143f2ed233e61c910158fc4018bac65580534dbd19e99e,8898
-    pantry-tree:
-      sha256: 6f2c3d26700905d18fa7e4d0f577cf27e2a529f8128546b0fb8724cf616af445
+      sha256: 07598c4781048590d07d312606821fcd43ce7774764c7ca8dea9ac15fc387d7d
       size: 4069
   original:
-    hackage: Frames-0.7.0@sha256:a7f68646ab369e6940143f2ed233e61c910158fc4018bac65580534dbd19e99e,8898
+    hackage: Frames-0.7.3@sha256:35ad00d5a8897bb0fd01b204b0d51729a35a0b2138f61ecaeee8f1791b0ce4a4,9011
 - completed:
-    hackage: discrimination-0.4.1@sha256:2870c50b9582610a7f20b8b9a7f3b8dc5d37e5ba0082dee22107c6aeb2405a6a,3482
+    hackage: readable-0.3.1@sha256:ea550740bbee9ae46c6bbf1c5e5185818a1d37509b855c640b0a7f2dfba6dc37,1121
     pantry-tree:
-      sha256: 1636800cd5e9f38dd2cf47ee2f8904831b21fd3f03b502f3056cc2f2e1fe436e
-      size: 1050
+      sha256: a93d2c4e208cf064a8b1e8087d7a8ea77c263115e7ba18f3ef6abe935548faca
+      size: 313
   original:
-    hackage: discrimination-0.4.1@sha256:2870c50b9582610a7f20b8b9a7f3b8dc5d37e5ba0082dee22107c6aeb2405a6a,3482
-- completed:
-    hackage: diagrams-core-1.4.2@sha256:47de45658e8a805b7cb7f535e7b093daf7e861604fa3c70e25bd4ef481bf1571,2997
-    pantry-tree:
-      sha256: 00c9bd036e8552d494c912774f05fb9b5752022b4827d3e815ad016a3cb6e16b
-      size: 2018
-  original:
-    hackage: diagrams-core-1.4.2@sha256:47de45658e8a805b7cb7f535e7b093daf7e861604fa3c70e25bd4ef481bf1571,2997
-- completed:
-    hackage: active-0.2.0.14@sha256:e618aba4a7881eb85dc1585e0a01230af6b4fbab6693931e4a5d0d3a5b184406,1823
-    pantry-tree:
-      sha256: 9326ee3500f7bb1adea18f581dc51ebdb522677d8cddc847a506ba5d328ee723
-      size: 1017
-  original:
-    hackage: active-0.2.0.14@sha256:e618aba4a7881eb85dc1585e0a01230af6b4fbab6693931e4a5d0d3a5b184406,1823
-- completed:
-    hackage: dual-tree-0.2.2.1@sha256:9ff31e461d873ae74ba51d93b454c0c4094726d7cb78a0c454394c965e83539d,2830
-    pantry-tree:
-      sha256: 70ea91862ac301648d63e9c69d0ff8154b1d3c9c632d224d4002c027861ec33e
-      size: 387
-  original:
-    hackage: dual-tree-0.2.2.1@sha256:9ff31e461d873ae74ba51d93b454c0c4094726d7cb78a0c454394c965e83539d,2830
-- completed:
-    hackage: monoid-extras-0.5.1@sha256:2324414ed6cfa57f38d5d7e3e676b0dfdba0d070a8b12df78bb71eb84d2b1d2d,2242
-    pantry-tree:
-      sha256: fd8e28e6d39def8ba12ba5d6a45e3d13532640f265e5163daf37b8e4b9ae3c38
-      size: 1187
-  original:
-    hackage: monoid-extras-0.5.1@sha256:2324414ed6cfa57f38d5d7e3e676b0dfdba0d070a8b12df78bb71eb84d2b1d2d,2242
-- completed:
-    hackage: svg-builder-0.1.1@sha256:43c2adbb301592666d44d32b4741ffe68fb58ed2ac873c2bd9cc86cadeac1680,1477
-    pantry-tree:
-      sha256: 897cdee109d3aa0a733b043519694f432e5421d656e5dcc7abd1ba7df3a68019
-      size: 535
-  original:
-    hackage: svg-builder-0.1.1@sha256:43c2adbb301592666d44d32b4741ffe68fb58ed2ac873c2bd9cc86cadeac1680,1477
+    hackage: readable-0.3.1@sha256:ea550740bbee9ae46c6bbf1c5e5185818a1d37509b855c640b0a7f2dfba6dc37,1121
 snapshots:
 - completed:
-    sha256: e76d109964d9335abb412e22139c5bce3078be290ac6d90b8ecea6cc009bb198
-    size: 590102
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/18/26.yaml
-  original: lts-18.26
+    sha256: a2cbcd2f37010a64c4ef74c21fd7e55982a07b49840d2bed306f9bac9981a9c3
+    size: 648420
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/20/0.yaml
+  original: lts-20.0
