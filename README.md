@@ -1,6 +1,6 @@
 # Protovoices - A Model of Tonal Structure
 
-![A protovoice derivation](doc-images/sus.svg) ![The inner structure of a protovoice analysis](doc-images/sus-inner.svg)
+![A protovoice derivation and its inner structure](doc-images/sus-both.svg)
 
 This project is an implementation of the protovoice model as described in:
 
