@@ -1,5 +1,5 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE RebindableSyntax #-}
+{-# LANGUAGE QualifiedDo #-}
 {-# OPTIONS_GHC -Wno-all #-}
 
 module Main where
@@ -37,11 +37,7 @@ import Data.Typeable (Proxy (Proxy))
 import Data.String (fromString)
 
 -- better do syntax
-import Language.Haskell.DoNotation
-import Prelude hiding
-  ( Monad (..)
-  , pure
-  )
+import Language.Haskell.DoNotation qualified as Do
 
 plotSteps :: FilePath -> [Leftmost s f h] -> IO ()
 plotSteps fn deriv = do
@@ -59,7 +55,7 @@ plotDeriv fn deriv = do
     (Left err) -> putStrLn err
     (Right g) -> viewGraph fn g
 
-example1 = buildDerivation $ do
+example1 = buildDerivation $ Do.do
   split ()
   splitRight ()
   spread ()
@@ -75,15 +71,15 @@ example1Main = do
   let Right g = replayDerivation derivationPlayerEmpty example1
   writeGraph "doc-images/monadic-deriv.tex" g
 
-spreadSplitLeft = buildPartialDerivation @2 $ spread () >> split ()
+spreadSplitLeft = buildPartialDerivation @2 $ spread () Do.>> split ()
 splitLeftSpread =
-  buildPartialDerivation @2 $ split () >> freeze () >> spread ()
+  buildPartialDerivation @2 $ split () Do.>> freeze () Do.>> spread ()
 
-splitRightSpread = buildPartialDerivation @2 $ do
+splitRightSpread = buildPartialDerivation @2 $ Do.do
   splitRight ()
   spread ()
 
-exampleBoth = buildPartialDerivation @3 $ do
+exampleBoth = buildPartialDerivation @3 $ Do.do
   splitRight ()
   spread ()
   freeze ()
@@ -91,7 +87,7 @@ exampleBoth = buildPartialDerivation @3 $ do
   freeze ()
   spread ()
 
-examplePartials = buildDerivation $ do
+examplePartials = buildDerivation $ Do.do
   split ()
   spread ()
   split ()
@@ -99,7 +95,7 @@ examplePartials = buildDerivation $ do
   spread ()
 
 derivBach :: [PVLeftmost (Pitch MT.SIC)]
-derivBach = buildDerivation $ do
+derivBach = buildDerivation $ Do.do
   split $ mkSplit $ do
     splitRegular Start Stop (d' nat) RootNote False False
     splitRegular Start Stop (d' nat) RootNote False False

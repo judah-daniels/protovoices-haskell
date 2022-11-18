@@ -771,19 +771,15 @@ mkLeftmostEval unspreadm unspreadl unspreadr unsplit uf =
  Since 'PartialDerivation' is an indexed monad
  (it's exact type changes between actions),
  using do-notation requires you to rebind its syntax to use indexed versions of '>>=' and '>>'
- using the @RebindableSyntax@ extension.
+ using the @QualifiedDo@ extension.
  The easiest way to do use the generic operators from "Language.Haskell.DoNotation"
- by either hiding the monadic operators (and 'pure' / 'return') from "Prelude"
- and importing them from "Language.Haskell.DoNotation",
- or by locally shadowing them with the generic operators like this:
+ by using this module as the @do@ qualifier:
 
  > import qualified Language.Haskell.DoNotation as Do
  >
- > deriv = buildDerivation $ do
+ > deriv = buildDerivation $ Do.do -- requires -XQualifiedDo
+ >   split ()
  >   ...
- >  where
- >   (>>) :: Do.BindSyntax x y z => x a -> y b -> z b
- >   (>>) = (Do.>>) -- usually sufficient since the operations here return ()
 -}
 
 {- | A wrapper around leftmost derivations

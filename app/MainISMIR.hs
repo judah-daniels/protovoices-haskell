@@ -1,4 +1,4 @@
-{-# LANGUAGE RebindableSyntax #-}
+{-# LANGUAGE QualifiedDo #-}
 
 module Main where
 
@@ -22,15 +22,11 @@ import Data.Text.Lazy qualified as TL
 import Data.Text.Lazy.IO qualified as TL
 
 -- better do syntax
-import Language.Haskell.DoNotation
-import Prelude hiding
-  ( Monad (..)
-  , pure
-  )
+import Language.Haskell.DoNotation qualified as Do
 
 -- | The example derivation shown in Figure 4, specified manually.
 deriv321sus :: [PVLeftmost (Pitch MT.SIC)]
-deriv321sus = buildDerivation $ do
+deriv321sus = buildDerivation $ Do.do
   split $ mkSplit $ do
     splitRegular Start Stop (c' nat) RootNote False False
     splitRegular Start Stop (e' nat) RootNote False False

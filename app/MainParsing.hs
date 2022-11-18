@@ -1,5 +1,5 @@
 {-# LANGUAGE PartialTypeSignatures #-}
-{-# LANGUAGE RebindableSyntax #-}
+{-# LANGUAGE QualifiedDo #-}
 {-# OPTIONS_GHC -Wno-all #-}
 
 module Main where
@@ -64,11 +64,6 @@ import Language.Haskell.DoNotation qualified as Do
 -- import           Prelude                 hiding ( Monad(..)
 --                                                 , pure
 --                                                 )
-
-import Prelude
-
-ifThenElse True t e = t
-ifThenElse False t e = e
 
 -- utilities
 -- =========
@@ -178,7 +173,7 @@ checkDeriv deriv original = do
 -- ===================
 
 derivBrahms :: [PVLeftmost (Pitch MT.SIC)]
-derivBrahms = buildDerivation $ do
+derivBrahms = buildDerivation $ Do.do
   split $ mkSplit $ do
     splitRegular Start Stop (c' shp) RootNote False False
     splitRegular Start Stop (a' nat) RootNote False False
