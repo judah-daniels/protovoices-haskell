@@ -1,10 +1,4 @@
-{-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE StandaloneKindSignatures #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 
 {- | This module contains code that is specific to parsing the protovoice grammar.
@@ -47,18 +41,19 @@ import Data.Foldable
   ( foldl'
   , toList
   )
-import qualified Data.HashMap.Strict as HM
-import qualified Data.HashSet as S
+import Data.HashMap.Strict qualified as HM
+import Data.HashSet qualified as S
 import Data.Hashable (Hashable)
 import Data.Kind (Constraint, Type)
-import qualified Data.List as L
-import qualified Data.Map.Strict as M
+import Data.List qualified as L
+import Data.Map.Strict qualified as M
 import Data.Maybe
   ( catMaybes
+  , mapMaybe
   , maybeToList
   )
 import GHC.Generics (Generic)
-import qualified Internal.MultiSet as MS
+import Internal.MultiSet qualified as MS
 import Musicology.Core
   ( HasPitch (..)
   , Pitch
@@ -335,7 +330,7 @@ pvUnsplit notesl (Edges leftRegs leftPass) (Notes notesm) (Edges rightRegs right
         pure (red, MS.delete r mr)
       -- TODO: remove mr options here?
       tryOpt r = tryReduction True (r `S.member` mrightRegs) l note r
-      opt = fmap (,mr) $ catMaybes $ tryOpt <$> innerR
+      opt = (,mr) <$> mapMaybe tryOpt innerR
       single = fmap (,mr) $ maybeToList $ tryLeftReduction note l
 
     -- stage 2: consume all remaining mandatory edges on the right
@@ -347,7 +342,7 @@ pvUnsplit notesl (Edges leftRegs leftPass) (Notes notesm) (Edges rightRegs right
     pickRight r = opt <> single
      where
       tryOpt l = tryReduction (l `S.member` mleftRegs) True l note r
-      opt = catMaybes $ tryOpt <$> innerL
+      opt = mapMaybe tryOpt innerL
       single = maybeToList $ tryRightReduction note r
 
     -- stage 3: explain all remaining notes through a combination of unknown edges
@@ -366,9 +361,9 @@ pvUnsplit notesl (Edges leftRegs leftPass) (Notes notesm) (Edges rightRegs right
       maybeToList $
         tryReduction (l `S.member` mleftRegs) (r `S.member` mrightRegs) l note r
     -- reduce to left using free edge
-    pickFreeLeft = catMaybes $ tryLeftReduction note <$> innerL
+    pickFreeLeft = mapMaybe (tryLeftReduction note) innerL
     -- reduce to right using free edge
-    pickFreeRight = catMaybes $ tryRightReduction note <$> innerR
+    pickFreeRight = mapMaybe (tryRightReduction note) innerR
 
   -- at all stages: try out potential reductions:
 
@@ -408,12 +403,12 @@ pvUnsplit notesl (Edges leftRegs leftPass) (Notes notesm) (Edges rightRegs right
       else foldM pickOption ([], [], [], []) options -- otherwise, compute all combinations
       -- picks all different options for a single note in the list monad
   pickOption (accReg, accPass, accL, accR) opts = do
-    (ts, nts, ls, rs) <- opts
-    pure (ts <> accReg, nts <> accPass, ls <> accL, rs <> accR)
+    (regs, pass, ls, rs) <- opts
+    pure (regs <> accReg, pass <> accPass, ls <> accL, rs <> accR)
 
   -- convert a combination into a derivation operation:
   -- turn the accumulated information into the format expected from the evaluator
-  mkTop (ts, nts, rs, ls) =
+  mkTop (regs, pass, rs, ls) =
     if True -- validate
       then (top, SplitOp tmap ntmap rmap lmap leftRegs rightRegs passL passR)
       else
@@ -432,20 +427,20 @@ pvUnsplit notesl (Edges leftRegs leftPass) (Notes notesm) (Edges rightRegs right
             <> show top
    where
     -- validate =
-    --   all ((`L.elem` innerNotes notesl) . fst . fst) ts
-    --     && all ((`L.elem` innerNotes notesr) . snd . fst)   ts
+    --   all ((`L.elem` innerNotes notesl) . fst . fst) regs
+    --     && all ((`L.elem` innerNotes notesr) . snd . fst)   regs
     --     && all ((`L.elem` innerNotes notesl) . Inner . fst) rs
     --     && all ((`L.elem` innerNotes notesr) . Inner . fst) ls
 
     -- collect all operations
     mapify xs = M.fromListWith (<>) $ fmap (: []) <$> xs
-    tmap = mapify ts
-    ntmap = mapify nts
+    tmap = mapify regs
+    ntmap = mapify pass
     lmap = mapify ls
     rmap = mapify rs
-    top = Edges (S.fromList (fst <$> ts)) (MS.fromList (fst <$> nts))
-    passL = foldr MS.delete leftPass $ catMaybes $ leftPassingChild <$> nts
-    passR = foldr MS.delete rightPass $ catMaybes $ rightPassingChild <$> nts
+    top = Edges (S.fromList (fst <$> regs)) (MS.fromList (fst <$> pass))
+    passL = foldr MS.delete leftPass $ mapMaybe leftPassingChild pass
+    passR = foldr MS.delete rightPass $ mapMaybe rightPassingChild pass
     leftPassingChild ((l, _r), (m, orn)) =
       if orn == PassingRight then Just (l, m) else Nothing
     rightPassingChild ((_l, r), (m, orn)) =
@@ -482,16 +477,16 @@ protoVoiceEvaluatorNoRepSplit = Eval vm vl vr filterSplit t s
   ok (_, LMSplitOnly op) = not $ onlyRepeats op
   ok (_, LMSplitRight op) = not $ onlyRepeats op
   ok _ = False
-  onlyRepeats (SplitOp ts nts rs ls _ _ _ _) =
-    M.null nts && (allRepetitionsLeft || allRepetitionsRight)
+  onlyRepeats (SplitOp regs pass rs ls _ _ _ _) =
+    M.null pass && (allRepetitionsLeft || allRepetitionsRight)
    where
     allSinglesRepeat =
       all (check (== RightRepeat)) (M.toList rs)
         && all (check (== LeftRepeat)) (M.toList ls)
     allRepetitionsLeft =
-      all (check isRepetitionOnLeft) (M.toList ts) && allSinglesRepeat
+      all (check isRepetitionOnLeft) (M.toList regs) && allSinglesRepeat
     allRepetitionsRight =
-      all (check isRepetitionOnRight) (M.toList ts) && allSinglesRepeat
+      all (check isRepetitionOnRight) (M.toList regs) && allSinglesRepeat
   check fpred (_, os) = all (fpred . snd) os
 
 -- | An evaluator for protovoices that produces values in the 'Derivations' semiring.

@@ -4,7 +4,7 @@ cabal-version: 1.18
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: fd4e48a03e1afa2f4419bcbd342254c5ed308f0b18f357ff863ea4c3b9c8379f
+-- hash: 0692ad8dc2bb9794ba80b43851f87b27c40963e40a989cbd50eae738e0007828
 
 name:           proto-voice-model
 version:        0.1.0.0
@@ -79,7 +79,7 @@ library
     , transformers
     , unordered-containers
     , vector
-  default-language: Haskell2010
+  default-language: GHC2021
 
 executable examples
   main-is: app/MainExamples.hs
@@ -120,7 +120,7 @@ executable examples
     , transformers
     , unordered-containers
     , vector
-  default-language: Haskell2010
+  default-language: GHC2021
 
 executable ismir2021
   main-is: app/MainISMIR.hs
@@ -161,7 +161,7 @@ executable ismir2021
     , transformers
     , unordered-containers
     , vector
-  default-language: Haskell2010
+  default-language: GHC2021
 
 executable learn
   main-is: app/MainLearning.hs
@@ -202,7 +202,7 @@ executable learn
     , transformers
     , unordered-containers
     , vector
-  default-language: Haskell2010
+  default-language: GHC2021
 
 executable parse
   main-is: app/MainParsing.hs
@@ -243,7 +243,7 @@ executable parse
     , transformers
     , unordered-containers
     , vector
-  default-language: Haskell2010
+  default-language: GHC2021
 
 test-suite proto-voice-model-test
   type: exitcode-stdio-1.0
@@ -287,4 +287,4 @@ test-suite proto-voice-model-test
     , transformers
     , unordered-containers
     , vector
-  default-language: Haskell2010
+  default-language: GHC2021

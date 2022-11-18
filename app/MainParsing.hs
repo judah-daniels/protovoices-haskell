@@ -1,6 +1,3 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE MonoLocalBinds #-}
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE RebindableSyntax #-}
 {-# OPTIONS_GHC -Wno-all #-}
@@ -37,16 +34,16 @@ import Control.Monad
   , forM_
   )
 import Control.Monad.Except (runExceptT)
-import qualified Data.HashSet as HS
-import qualified Data.List as L
-import qualified Data.Semiring as R
-import qualified Data.Sequence as Seq
-import qualified Data.Set as S
-import qualified Data.Text as T
-import qualified Data.Text.IO as T
-import qualified Data.Text.Lazy as TL
-import qualified Data.Text.Lazy.IO as TL
-import qualified Internal.MultiSet as MS
+import Data.HashSet qualified as HS
+import Data.List qualified as L
+import Data.Semiring qualified as R
+import Data.Sequence qualified as Seq
+import Data.Set qualified as S
+import Data.Text qualified as T
+import Data.Text.IO qualified as T
+import Data.Text.Lazy qualified as TL
+import Data.Text.Lazy.IO qualified as TL
+import Internal.MultiSet qualified as MS
 
 import Control.DeepSeq
   ( deepseq
@@ -62,7 +59,7 @@ import Inference.Conjugate
   )
 
 -- better do syntax
-import qualified Language.Haskell.DoNotation as Do
+import Language.Haskell.DoNotation qualified as Do
 
 -- import           Prelude                 hiding ( Monad(..)
 --                                                 , pure

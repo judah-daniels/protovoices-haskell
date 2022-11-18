@@ -1,7 +1,5 @@
-{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE DerivingStrategies #-}
 
 {- | /This module is deprecated, use "Scoring.FunTyped" instead./
 
@@ -49,9 +47,9 @@ import Control.DeepSeq (NFData)
 import Data.Bifunctor (first)
 import Data.Foldable (foldl')
 import Data.Hashable (Hashable)
-import qualified Data.List as L
+import Data.List qualified as L
 import Data.Maybe (fromMaybe)
-import qualified Data.Semiring as R
+import Data.Semiring qualified as R
 import GHC.Generics (Generic)
 
 ----------------
@@ -60,14 +58,16 @@ import GHC.Generics (Generic)
 
 -- | Newtype for the left ID of a partial score.
 newtype LeftId i = LeftId i
-  deriving (Eq, Ord, Generic, NFData, Hashable)
+  deriving (Eq, Ord, Generic)
+  deriving anyclass (Hashable, NFData)
 
 instance Show i => Show (LeftId i) where
   show (LeftId i) = show i
 
 -- | Newtype for the right ID of a partial score.
 newtype RightId i = RightId i
-  deriving (Eq, Ord, Generic, NFData, Hashable)
+  deriving (Eq, Ord, Generic)
+  deriving anyclass (NFData, Hashable)
 
 instance Show i => Show (RightId i) where
   show (RightId i) = show i

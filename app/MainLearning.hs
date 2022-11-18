@@ -1,11 +1,8 @@
-{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
--- {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TypeApplications #-}
 
 module Main where
 
-import qualified ChartParser
+import ChartParser qualified
 import Common
   ( Analysis (..)
   , Path (..)
@@ -20,16 +17,16 @@ import Control.Monad
 import Control.Monad.Except (runExceptT)
 import Data.Either (rights)
 import Data.List (unzip4)
-import qualified Data.List as L
+import Data.List qualified as L
 import Data.Maybe
   ( catMaybes
   , listToMaybe
   , mapMaybe
   )
-import qualified Data.Vector as V
+import Data.Vector qualified as V
 import GHC.Float (int2Double)
-import qualified Graphics.Matplotlib as Plt
-import qualified GreedyParser as Greedy
+import Graphics.Matplotlib qualified as Plt
+import GreedyParser qualified as Greedy
 import Inference.Conjugate
   ( Hyper
   , HyperRep
@@ -45,7 +42,7 @@ import Inference.Conjugate
   , uniformPrior
   )
 import Musicology.Pitch (SPitch)
-import qualified Numeric.Log as Log
+import Numeric.Log qualified as Log
 import PVGrammar
   ( Edge
   , PVAnalysis
@@ -62,14 +59,14 @@ import PVGrammar.Prob.Simple
   , observeDerivation'
   , sampleDerivation'
   )
-import qualified Statistics.Sample as Stats
+import Statistics.Sample qualified as Stats
 import System.FilePath
   ( (<.>)
   , (</>)
   )
-import qualified System.FilePattern as FP
-import qualified System.FilePattern.Directory as FP
-import qualified System.Random.MWC.Probability as MWC
+import System.FilePattern qualified as FP
+import System.FilePattern.Directory qualified as FP
+import System.Random.MWC.Probability qualified as MWC
 import System.Random.Stateful
   ( StatefulGen
   , initStdGen
@@ -234,7 +231,7 @@ loadDir dir exclude = do
   let getName file = FP.match "*.analysis.json" file >>= listToMaybe
       names =
         -- exclude duplicats
-        filter (`L.notElem` exclude) $ catMaybes $ getName <$> files
+        filter (`L.notElem` exclude) $ mapMaybe getName files
   -- print names
   items <- mapM (loadItem dir) names
   pure $ catMaybes items

@@ -1,11 +1,5 @@
-{-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneKindSignatures #-}
 
 {- | A chart-based semiring parser for path grammars (e.g. the PV grammar).
 Path grammars operate on "paths"
@@ -54,16 +48,16 @@ module ChartParser
   ) where
 
 import Common
-import qualified Scoring.FunTyped as S
+import Scoring.FunTyped qualified as S
 
-import qualified Data.HashMap.Strict as HM
-import qualified Data.IntMap.Strict as IM
-import qualified Data.Semiring as R
+import Data.HashMap.Strict qualified as HM
+import Data.IntMap.Strict qualified as IM
+import Data.Semiring qualified as R
 
 import Control.Monad.State as ST
 
 import Control.DeepSeq
-import qualified Control.Parallel.Strategies as P
+import Control.Parallel.Strategies qualified as P
 import Data.Foldable (foldl')
 import Data.Hashable
   ( Hashable
@@ -74,8 +68,9 @@ import Data.Kind (Constraint, Type)
 import Data.Maybe
   ( catMaybes
   , fromMaybe
+  , mapMaybe
   )
-import qualified Data.Set as Set
+import Data.Set qualified as Set
 import GHC.Generics (Generic)
 
 -- Basic Types
@@ -327,7 +322,7 @@ vcGetByLeftChild
   -> [Slice slc]
   -- ^ all potential parent slices
 vcGetByLeftChild maxn chart left =
-  Set.toList $ Set.unions $ catMaybes $ getN <$> [2 .. maxn]
+  Set.toList $ Set.unions $ mapMaybe getN [2 .. maxn]
  where
   getN n = HM.lookup (sID left, n) $ vcByLeftChild chart
 
@@ -342,7 +337,7 @@ vcGetByRightChild
   -> Slice slc
   -> [Vert tr slc v]
 vcGetByRightChild maxn chart right =
-  concat $ catMaybes $ getN <$> [2 .. maxn]
+  concat $ mapMaybe getN [2 .. maxn]
  where
   getN n = HM.lookup (sID right, n) $ vcByRightChild chart
 

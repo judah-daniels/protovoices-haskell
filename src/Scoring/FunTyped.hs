@@ -1,12 +1,4 @@
-{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE PolyKinds #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 
 {- | Semiring scores with "holes".
@@ -68,7 +60,7 @@ import Control.DeepSeq
 import Data.Hashable (Hashable)
 import Data.Kind (Type)
 import Data.Maybe (fromMaybe)
-import qualified Data.Semiring as R
+import Data.Semiring qualified as R
 import Data.Type.Equality
 import Data.Type.Nat
   ( Nat (..)

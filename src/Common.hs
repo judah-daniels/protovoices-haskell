@@ -1,19 +1,8 @@
-{-# LANGUAGE ConstrainedClassMethods #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DeriveTraversable #-}
-{-# LANGUAGE EmptyDataDecls #-}
-{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE PatternSynonyms #-}
-{-# LANGUAGE PolyKinds #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneKindSignatures #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE TypeSynonymInstances #-}
 {-# OPTIONS_GHC -Wno-partial-type-signatures #-}
 
 -- | Common types and functionality that are used throughout the model.
@@ -136,18 +125,18 @@ import Control.Monad.Except
   ( ExceptT
   , runExceptT
   )
-import qualified Control.Monad.Indexed as MI
+import Control.Monad.Indexed qualified as MI
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Except (except)
-import qualified Control.Monad.Writer.Strict as MW
+import Control.Monad.Writer.Strict qualified as MW
 import Data.Aeson
   ( FromJSON (..)
   , ToJSON (..)
   , (.:)
   )
-import qualified Data.Aeson as Aeson
+import Data.Aeson qualified as Aeson
 import Data.Aeson.Types (unexpected)
-import qualified Data.Aeson.Types as Aeson
+import Data.Aeson.Types qualified as Aeson
 import Data.Bifunctor
   ( Bifunctor
   , bimap
@@ -156,9 +145,9 @@ import Data.Bifunctor
 import Data.Hashable (Hashable)
 import Data.Kind (Type)
 import Data.Semigroup (stimesMonoid)
-import qualified Data.Semiring as R
-import qualified Data.Set as S
-import qualified Data.Text as T
+import Data.Semiring qualified as R
+import Data.Set qualified as S
+import Data.Text qualified as T
 import Data.Typeable (Proxy (Proxy))
 import Debug.Trace (trace)
 import GHC.Generics (Generic)
@@ -172,7 +161,7 @@ import GHC.TypeNats
   )
 import GHC.Unicode (toLower)
 import Musicology.Pitch (Notation (..))
-import qualified Text.ParserCombinators.ReadP as ReadP
+import Text.ParserCombinators.ReadP qualified as ReadP
 
 -- Path: sequences of alternating objects
 -- ======================================

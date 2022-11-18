@@ -1,8 +1,5 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RebindableSyntax #-}
-{-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -Wno-all #-}
 
 module Main where
@@ -30,11 +27,11 @@ import Control.Monad
   ( forM
   , forM_
   )
-import qualified Data.List as L
-import qualified Data.Semiring as R
-import qualified Data.Set as S
-import qualified Data.Text as T
-import qualified Data.Text.IO as T
+import Data.List qualified as L
+import Data.Semiring qualified as R
+import Data.Set qualified as S
+import Data.Text qualified as T
+import Data.Text.IO qualified as T
 import Data.Typeable (Proxy (Proxy))
 
 import Data.String (fromString)

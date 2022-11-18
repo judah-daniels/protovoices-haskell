@@ -1,13 +1,7 @@
 {-# LANGUAGE ApplicativeDo #-}
 {-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE UndecidableInstances #-}
 
 {- | This module contains common datatypes and functions specific to the protovoice grammar.
  In a protovoice derivations, slices are multisets of notes
@@ -83,21 +77,21 @@ import Data.Aeson
   , ToJSON
   , (.:)
   )
-import qualified Data.Aeson as Aeson
-import qualified Data.Aeson.Types as Aeson
-import qualified Data.HashMap.Strict as HM
-import qualified Data.HashSet as S
+import Data.Aeson qualified as Aeson
+import Data.Aeson.Types qualified as Aeson
+import Data.HashMap.Strict qualified as HM
+import Data.HashSet qualified as S
 import Data.Hashable (Hashable)
-import qualified Data.List as L
-import qualified Data.Map.Strict as M
-import Data.Maybe (catMaybes)
-import qualified Data.Text.Lazy.IO as TL
+import Data.List qualified as L
+import Data.Map.Strict qualified as M
+import Data.Maybe (mapMaybe)
+import Data.Text.Lazy.IO qualified as TL
 import Data.Traversable (for)
 import GHC.Generics (Generic)
-import qualified Internal.MultiSet as MS
-import qualified Musicology.Core as Music
-import qualified Musicology.Core.Slicing as Music
-import qualified Musicology.MusicXML as MusicXML
+import Internal.MultiSet qualified as MS
+import Musicology.Core qualified as Music
+import Musicology.Core.Slicing qualified as Music
+import Musicology.MusicXML qualified as MusicXML
 
 -- * Inner Structure Types
 
@@ -109,7 +103,8 @@ import qualified Musicology.MusicXML as MusicXML
  Contains a multiset of pitches, representing the notes in a slice.
 -}
 newtype Notes n = Notes (MS.MultiSet n)
-  deriving (Eq, Ord, Generic, NFData, Hashable)
+  deriving (Eq, Ord, Generic)
+  deriving anyclass (NFData, Hashable)
 
 instance (Notation n) => Show (Notes n) where
   show (Notes ns) =
@@ -528,7 +523,7 @@ slicesToPath = go
   -- normalizeTies [s] = [map (fmap $ const Ends) s]
   -- normalizeTies []  = []
   mkSlice = fmap fst
-  mkEdges notes = catMaybes $ mkEdge <$> notes
+  mkEdges = mapMaybe mkEdge
    where
     mkEdge (_, Music.Ends) = Nothing
     mkEdge (p, Music.Holds) = Just (Inner p, Inner p)

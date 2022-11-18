@@ -1,4 +1,3 @@
-{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RebindableSyntax #-}
 
 module Main where
@@ -18,9 +17,9 @@ import Musicology.Core.Slicing
 import Musicology.MusicXML
 import Musicology.Pitch.Spelled as MT
 
-import Data.Maybe (catMaybes)
-import qualified Data.Text.Lazy as TL
-import qualified Data.Text.Lazy.IO as TL
+import Data.Maybe (mapMaybe)
+import Data.Text.Lazy qualified as TL
+import Data.Text.Lazy.IO qualified as TL
 
 -- better do syntax
 import Language.Haskell.DoNotation
@@ -136,7 +135,7 @@ slicesToPath
 slicesToPath = go
  where
   mkSlice = fmap (pc . fst)
-  mkEdges notes = catMaybes $ mkEdge <$> notes
+  mkEdges = mapMaybe mkEdge
    where
     mkEdge (p, Ends) = Nothing
     mkEdge (p, Holds) = let p' = pc p in Just (Inner p', Inner p')

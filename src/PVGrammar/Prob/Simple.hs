@@ -1,16 +1,6 @@
-{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE PartialTypeSignatures #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE TupleSections #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -Wno-partial-type-signatures #-}
@@ -120,23 +110,23 @@ import Control.Monad.Trans.State
   ( StateT
   , execStateT
   )
-import qualified Data.Bifunctor as Bi
+import Data.Bifunctor qualified as Bi
 import Data.Foldable (forM_)
-import qualified Data.HashMap.Strict as HM
-import qualified Data.HashSet as S
+import Data.HashMap.Strict qualified as HM
+import Data.HashSet qualified as S
 import Data.Hashable (Hashable)
-import qualified Data.List as L
-import qualified Data.Map.Strict as M
+import Data.List qualified as L
+import Data.Map.Strict qualified as M
 import Data.Maybe
   ( catMaybes
   , fromMaybe
   )
-import qualified Debug.Trace as DT
+import Debug.Trace qualified as DT
 import GHC.Generics (Generic)
 import Inference.Conjugate
 
 -- import qualified Inference.Conjugate           as IC
-import qualified Internal.MultiSet as MS
+import Internal.MultiSet qualified as MS
 import Lens.Micro.TH (makeLenses)
 import Musicology.Pitch as MP hiding
   ( a

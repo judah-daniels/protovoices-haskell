@@ -1,6 +1,3 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 
 {- | This module contains functions for the generative aspects of protovoice derivations:
@@ -66,17 +63,17 @@ import PVGrammar
 import Musicology.Pitch (Notation (..))
 
 import Control.Monad (foldM)
-import qualified Control.Monad.Writer.Strict as MW
+import Control.Monad.Writer.Strict qualified as MW
 import Data.Bifunctor (bimap)
 import Data.Foldable (toList)
-import qualified Data.HashMap.Strict as HM
-import qualified Data.HashSet as S
+import Data.HashMap.Strict qualified as HM
+import Data.HashSet qualified as S
 import Data.Hashable (Hashable)
-import qualified Data.List as L
-import qualified Data.Map.Strict as M
+import Data.List qualified as L
+import Data.Map.Strict qualified as M
 import Data.Monoid (Endo (..))
-import qualified Internal.MultiSet as MS
-import qualified Musicology.Core as MC
+import Internal.MultiSet qualified as MS
+import Musicology.Core qualified as MC
   ( HasPitch (pitch)
   , Pitched (IntervalOf)
   )
