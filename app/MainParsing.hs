@@ -307,6 +307,7 @@ mainHaydn = do
   putStrLn "done."
 
 mainRare = do
+<<<<<<< HEAD
   slices <- slicesFromFile "data/theory-article/10c_rare_int.musicxml"
   putStrLn "\\documentclass[tikz]{standalone}"
   putStrLn "\\usetikzlibrary{calc,positioning}"
@@ -326,5 +327,23 @@ mainRare = do
       return Nothing
     Right g -> return $ Just g
   viewGraphs "rare.tex" $ catMaybes pics
+=======
+  slices <- slicesFromFile "testdata/allemande.musicxml"
+  derivs <- parse logFull pvDerivUnrestricted $ slicesToPath slices
+  pure ()
+  -- let ds = S.toList $ flattenDerivations derivs
+  -- pics <- forM ds $ \d -> case replayDerivation derivationPlayerPV d of
+  --   Left err -> do
+  --     putStrLn err
+  --     print d
+  --     return Nothing
+  --   Right g -> return $ Just g
+  -- viewGraphs "rare.tex" $ catMaybes pics
+  --
+mainMozart = do
+  slices <- slicesFromFile "testdata/simpletest.musicxml"
+  derivs <- parse logFull pvDerivUnrestricted $ slicesToPath slices
+  pure ()
+>>>>>>> e89a1c575ab71fd64d9f2ce2c1d4caeea86508d2
 
 main = mainMozart

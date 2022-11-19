@@ -42,6 +42,7 @@ packages:
 
 extra-deps:
 # local packages
+<<<<<<< HEAD
 # - ../haskell-musicology/musicology-pitch
 # - ../haskell-musicology/musicology-time
 # - ../haskell-musicology/musicology-core
@@ -56,6 +57,27 @@ extra-deps:
   - musicology-musicxml
 - git: https://github.com/DCMLab/conjugate-haskell-programs.git
   commit: f2f48f7942605722494b2cd58be573b85dadc106
+=======
+- ../haskell-musicology/musicology-pitch
+- ../haskell-musicology/musicology-time
+- ../haskell-musicology/musicology-core
+- ../haskell-musicology/musicology-musicxml
+# - git: https://github.com/DCMLab/haskell-musicology.git
+#   commit: de3babd16d7b8cd5a62b2f95303ac89e150cfcdb
+#   subdirs:
+#   - musicology-pitch
+#   - musicology-core
+#   - musicology-musicxml
+- ../conjugate-haskell-programs/ # TODO: make this refer to a git repo
+
+# newer version of random
+- random-1.2.1@sha256:8bee24dc0c985a90ee78d94c61f8aed21c49633686f0f1c14c5078d818ee43a2,6598
+
+# other packages
+- diagrams-lib-1.4.3@sha256:04f77778d4b550d3c8e54440800685f88467bef91075e82e009a8a6f45c51033,8232
+- diagrams-svg-1.4.3@sha256:36708b0b4cf35507ccf689f1a25f6f81b8f41c2c4c2900793de820f66d4e241c,3181
+# - diagrams-1.4@sha256:3e36369e84115b900fd9dcb570672a188339a470eb19ca62170775cd835cf8ca,5483
+>>>>>>> e89a1c575ab71fd64d9f2ce2c1d4caeea86508d2
 
 # transitive deps
 #   for haskell-musicology stuff

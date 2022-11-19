@@ -4,11 +4,10 @@ cabal-version: 1.18
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 0692ad8dc2bb9794ba80b43851f87b27c40963e40a989cbd50eae738e0007828
+-- hash: 0cc2def75e40583b91af19f40df4862ec9f3a31b03fc6085710077dd3d7a2a85
 
 name:           proto-voice-model
-version:        0.1.0.0
-description:    Please see the README on GitHub at <https://github.com/chfin/proto-voice-model#readme>
+version:        0.1.0.0 description:    Please see the README on GitHub at <https://github.com/chfin/proto-voice-model#readme>
 homepage:       https://github.com/chfin/proto-voice-model#readme
 bug-reports:    https://github.com/chfin/proto-voice-model/issues
 author:         Christoph Finkensiep

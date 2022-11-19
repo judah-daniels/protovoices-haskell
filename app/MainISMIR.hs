@@ -84,11 +84,6 @@ main = do
   count321sus <- parseSilent pvCountNoRepSplitRightBranchSplitFirst path321sus
   count321sus' <- parseSilent pvCountUnrestricted path321sus
 
-  putStrLn "parsing 321sus"
-  parses321sus <- parseSilent pvDerivRightBranch path321sus
-  let Just parse321 = firstDerivation parses321sus
-  plotDeriv "321sus-parsed.tex" parse321
-
   putStrLn "counting Bach..."
   bachSlices <- slicesFromFile "testdata/allemande.musicxml"
   bachCount <- parseSize pvCountNoRepSplitRightBranchSplitFirst $ slicesToPath $ take 9 bachSlices
