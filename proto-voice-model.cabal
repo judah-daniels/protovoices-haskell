@@ -3,11 +3,10 @@ cabal-version: 1.18
 -- This file has been generated from package.yaml by hpack version 0.35.0.
 --
 -- see: https://github.com/sol/hpack
---
--- hash: 0cc2def75e40583b91af19f40df4862ec9f3a31b03fc6085710077dd3d7a2a85
 
 name:           proto-voice-model
-version:        0.1.0.0 description:    Please see the README on GitHub at <https://github.com/chfin/proto-voice-model#readme>
+version:        0.1.0.0
+description:    Please see the README on GitHub at <https://github.com/chfin/proto-voice-model#readme>
 homepage:       https://github.com/chfin/proto-voice-model#readme
 bug-reports:    https://github.com/chfin/proto-voice-model/issues
 author:         Christoph Finkensiep
@@ -21,6 +20,7 @@ extra-source-files:
     ChangeLog.md
 extra-doc-files:
     doc-images/monadic-deriv.svg
+    doc-images/sus-both.svg
     doc-images/sus-inner.svg
     doc-images/sus.svg
 
@@ -33,7 +33,10 @@ library
       ChartParser
       Common
       Display
+      Evaluator
       GreedyParser
+      HeuristicParser
+      HeuristicSearch
       Internal.MultiSet
       PVGrammar
       PVGrammar.Generate
@@ -49,6 +52,7 @@ library
       aeson
     , base >=4.7 && <5
     , bytestring
+    , cassava
     , conjugate-programs
     , containers
     , deepseq
@@ -57,6 +61,7 @@ library
     , filepattern
     , fin
     , hashable
+    , hspec
     , indexed
     , log-domain
     , matplotlib
@@ -74,6 +79,52 @@ library
     , process
     , random
     , semirings
+    , split
+    , statistics
+    , text
+    , transformers
+    , unordered-containers
+    , vector
+  default-language: GHC2021
+
+executable csvtest
+  main-is: app/MainCSVTest.hs
+  other-modules:
+      Paths_proto_voice_model
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      aeson
+    , base >=4.7 && <5
+    , bytestring
+    , cassava
+    , conjugate-programs
+    , containers
+    , deepseq
+    , do-notation
+    , filepath
+    , filepattern
+    , fin
+    , hashable
+    , hspec
+    , indexed
+    , log-domain
+    , matplotlib
+    , microlens
+    , microlens-th
+    , mtl
+    , musicology-core
+    , musicology-musicxml
+    , musicology-pitch
+    , mwc-probability
+    , mwc-random
+    , parallel
+    , pretty-simple
+    , primitive
+    , process
+    , proto-voice-model
+    , random
+    , semirings
+    , split
     , statistics
     , text
     , transformers
@@ -90,6 +141,7 @@ executable examples
       aeson
     , base >=4.7 && <5
     , bytestring
+    , cassava
     , conjugate-programs
     , containers
     , deepseq
@@ -98,6 +150,7 @@ executable examples
     , filepattern
     , fin
     , hashable
+    , hspec
     , indexed
     , log-domain
     , matplotlib
@@ -116,6 +169,7 @@ executable examples
     , proto-voice-model
     , random
     , semirings
+    , split
     , statistics
     , text
     , transformers
@@ -132,6 +186,7 @@ executable ismir2021
       aeson
     , base >=4.7 && <5
     , bytestring
+    , cassava
     , conjugate-programs
     , containers
     , deepseq
@@ -140,6 +195,7 @@ executable ismir2021
     , filepattern
     , fin
     , hashable
+    , hspec
     , indexed
     , log-domain
     , matplotlib
@@ -158,12 +214,13 @@ executable ismir2021
     , proto-voice-model
     , random
     , semirings
+    , split
     , statistics
     , text
     , transformers
     , unordered-containers
     , vector
-  default-language: Haskell2010
+  default-language: GHC2021
 
 executable judah
   main-is: app/MainJudah.hs
@@ -174,6 +231,7 @@ executable judah
       aeson
     , base >=4.7 && <5
     , bytestring
+    , cassava
     , conjugate-programs
     , containers
     , deepseq
@@ -182,6 +240,7 @@ executable judah
     , filepattern
     , fin
     , hashable
+    , hspec
     , indexed
     , log-domain
     , matplotlib
@@ -200,6 +259,7 @@ executable judah
     , proto-voice-model
     , random
     , semirings
+    , split
     , statistics
     , text
     , transformers
@@ -216,6 +276,7 @@ executable learn
       aeson
     , base >=4.7 && <5
     , bytestring
+    , cassava
     , conjugate-programs
     , containers
     , deepseq
@@ -224,6 +285,7 @@ executable learn
     , filepattern
     , fin
     , hashable
+    , hspec
     , indexed
     , log-domain
     , matplotlib
@@ -242,6 +304,7 @@ executable learn
     , proto-voice-model
     , random
     , semirings
+    , split
     , statistics
     , text
     , transformers
@@ -258,6 +321,7 @@ executable parse
       aeson
     , base >=4.7 && <5
     , bytestring
+    , cassava
     , conjugate-programs
     , containers
     , deepseq
@@ -266,6 +330,7 @@ executable parse
     , filepattern
     , fin
     , hashable
+    , hspec
     , indexed
     , log-domain
     , matplotlib
@@ -284,6 +349,7 @@ executable parse
     , proto-voice-model
     , random
     , semirings
+    , split
     , statistics
     , text
     , transformers
@@ -291,10 +357,11 @@ executable parse
     , vector
   default-language: GHC2021
 
-test-suite proto-voice-model-test
+test-suite heuristic-search-test
   type: exitcode-stdio-1.0
-  main-is: Spec.hs
+  main-is: HeuristicSearchSpec.hs
   other-modules:
+      Spec
       Paths_proto_voice_model
   hs-source-dirs:
       test
@@ -303,6 +370,7 @@ test-suite proto-voice-model-test
       aeson
     , base >=4.7 && <5
     , bytestring
+    , cassava
     , conjugate-programs
     , containers
     , deepseq
@@ -311,6 +379,7 @@ test-suite proto-voice-model-test
     , filepattern
     , fin
     , hashable
+    , hspec
     , indexed
     , log-domain
     , matplotlib
@@ -329,6 +398,7 @@ test-suite proto-voice-model-test
     , proto-voice-model
     , random
     , semirings
+    , split
     , statistics
     , text
     , transformers
