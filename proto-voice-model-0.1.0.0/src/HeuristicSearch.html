@@ -1,0 +1,42 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE ScopedTypeVariables #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">HeuristicSearch</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Common.html"><span class="hs-identifier">Common</span></a></span><span>
+</span><span id="line-6"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Applicative</span></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="HeuristicParser.html"><span class="hs-identifier">HeuristicParser</span></a></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="PVGrammar.html"><span class="hs-identifier">PVGrammar</span></a></span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="PVGrammar.Parse.html"><span class="hs-identifier">PVGrammar.Parse</span></a></span><span>
+</span><span id="line-10"></span><span>
+</span><span id="line-11"></span><span class="hs-comment">-- pathFromSlices</span><span>
+</span><span id="line-12"></span><span class="hs-comment">--   :: Eval (Edges SPC) [Edge SPC] (Notes SPC) [SPC] (PVLeftmost SPC)</span><span>
+</span><span id="line-13"></span><span class="hs-comment">--   -&gt; [ ([(SPC, Bool)], Bool)]</span><span>
+</span><span id="line-14"></span><span class="hs-comment">--   -&gt; Path (Maybe [Edge SPC], Bool) (Slice (Notes SPC))</span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-comment">-- | Entry point to the search algorithm</span><span>
+</span><span id="line-17"></span><span class="annot"><a href="HeuristicSearch.html#heuristicSearch"><span class="hs-identifier hs-type">heuristicSearch</span></a></span><span> </span><span class="hs-glyph">::</span><span>
+</span><span id="line-18"></span><span>  </span><span class="hs-keyword">forall</span><span> </span><span id="local-6989586621679461428"><span class="annot"><a href="#local-6989586621679461428"><span class="hs-identifier hs-type">state</span></a></span></span><span class="hs-operator">.</span><span>
+</span><span id="line-19"></span><span>  </span><span class="annot"><a href="#local-6989586621679461428"><span class="hs-identifier hs-type">state</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-20"></span><span>  </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679461428"><span class="hs-identifier hs-type">state</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679461428"><span class="hs-identifier hs-type">state</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-21"></span><span>  </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679461428"><span class="hs-identifier hs-type">state</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-22"></span><span>  </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679461428"><span class="hs-identifier hs-type">state</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-23"></span><span>  </span><span class="annot"><a href="#local-6989586621679461428"><span class="hs-identifier hs-type">state</span></a></span><span>
+</span><span id="line-24"></span><span id="heuristicSearch"><span class="annot"><span class="annottext">heuristicSearch :: forall state.
+state
+-&gt; (state -&gt; [state])
+-&gt; (state -&gt; Bool)
+-&gt; (state -&gt; Float)
+-&gt; state
+</span><a href="HeuristicSearch.html#heuristicSearch"><span class="hs-identifier hs-var hs-var">heuristicSearch</span></a></span></span><span> </span><span id="local-6989586621679461424"><span class="annot"><span class="annottext">state
+</span><a href="#local-6989586621679461424"><span class="hs-identifier hs-var">initialState</span></a></span></span><span> </span><span id="local-6989586621679461423"><span class="annot"><span class="annottext">state -&gt; [state]
+</span><a href="#local-6989586621679461423"><span class="hs-identifier hs-var">getNextStates</span></a></span></span><span> </span><span id="local-6989586621679461422"><span class="annot"><span class="annottext">state -&gt; Bool
+</span><a href="#local-6989586621679461422"><span class="hs-identifier hs-var">isGoalState</span></a></span></span><span> </span><span id="local-6989586621679461421"><span class="annot"><span class="annottext">state -&gt; Float
+</span><a href="#local-6989586621679461421"><span class="hs-identifier hs-var">heuristic</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. [a] -&gt; a
+</span><span class="hs-identifier hs-var">head</span></span><span> </span><span class="annot"><span class="annottext">[state]
+</span><a href="#local-6989586621679461419"><span class="hs-identifier hs-var">nextStates</span></a></span><span>
+</span><span id="line-25"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-26"></span><span>    </span><span id="local-6989586621679461419"><span class="annot"><span class="annottext">nextStates :: [state]
+</span><a href="#local-6989586621679461419"><span class="hs-identifier hs-var hs-var">nextStates</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">state -&gt; [state]
+</span><a href="#local-6989586621679461423"><span class="hs-identifier hs-var">getNextStates</span></a></span><span> </span><span class="annot"><span class="annottext">state
+</span><a href="#local-6989586621679461424"><span class="hs-identifier hs-var">initialState</span></a></span><span>
+</span><span id="line-27"></span></pre></body></html>
