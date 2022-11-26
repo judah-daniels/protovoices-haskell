@@ -95,7 +95,7 @@ main = do
   putStrLn $ "number of derivations (321sus, no restrictions): " <> show count321sus'
   putStrLn $ "number of derivations (bach, no restrictions): " <> show bachCount'
   putStrLn "derivation of 321sus:"
-  mapM_ print parse321
+  -- mapM_ print parse321
 
 -- helper functions
 -- ----------------

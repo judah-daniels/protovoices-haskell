@@ -57,11 +57,11 @@ exploreStates eval state = case state of
   SSFrozen path -> case path of
     PathEnd (t, boundary) -> map genState thawed
       where
-        thawed = evalThaw eval Start t Stop True
+        thawed = evalUnfreeze eval Start t Stop True
         genState (t, o) = SSOpen (PathEnd (Trans t False boundary)) [o]
     Path (t, boundary) slice rest -> map genState thawed
       where
-        thawed = evalThaw eval Start t (Inner $ sContent slice) False
+        thawed = evalUnfreeze eval Start t (Inner $ sContent slice) False
         genState (t, o) = SSSemiOpen rest slice (PathEnd (Trans t False boundary)) [o]
 
   SSSemiOpen frozen midSlice open ops -> thawOps <> reductions -- we can either unfreeze, or apply an operation to the open part
@@ -69,11 +69,11 @@ exploreStates eval state = case state of
       thawOps = case frozen of
         PathEnd (t, boundary) -> map genState thawed
           where
-            thawed = evalThaw eval Start t Stop False
+            thawed = evalUnfreeze eval Start t Stop False
             genState (t, op) = SSOpen (Path (Trans t False boundary) midSlice open) (op : ops)
         Path (t, boundary) frozenSlice rest -> map genState thawed
           where
-            thawed = evalThaw eval Start t Stop False
+            thawed = evalUnfreeze eval Start t Stop False
             genState (t, op) = SSSemiOpen rest frozenSlice (Path (Trans t False boundary) midSlice open) (op : ops)
 
       reductions :: [SearchState es es' ns o]
@@ -83,7 +83,7 @@ exploreStates eval state = case state of
         -- Two open transitions: merge
         Path (Trans tl tl2nd tlBoundary) (Slice slice) (PathEnd (Trans tr _ trBoundary)) -> if tlBoundary then [] else map genState merged
           where
-            merged = evalMerge eval (Inner $ sContent midSlice) tl slice tr Stop LeftOnly
+            merged = evalUnsplit eval (Inner $ sContent midSlice) tl slice tr Stop SingleOfOne
             genState (parent, op) = SSSemiOpen frozen midSlice (PathEnd (Trans parent tl2nd trBoundary)) (op : ops)
 
         -- Three open transitions: mergeleft mergeRight or verticalise
@@ -92,13 +92,13 @@ exploreStates eval state = case state of
             -- TODO consider 2nd and boundary
             leftMergeStates = map genState leftMerges
               where
-                leftMerges = evalMerge eval (Inner $ sContent midSlice) tl sl tm (Inner sm) LeftOnly
+                leftMerges = evalUnsplit eval (Inner $ sContent midSlice) tl sl tm (Inner sm) LeftOfTwo
                 genState (parent, op) = SSSemiOpen frozen midSlice (Path (Trans parent tl2nd tlBoundary) (Slice sm) (PathEnd (Trans tr tr2nd trBoundary))) (op : ops)
 
             -- TODO consider 2nd and boundary
             rightMergeStates = if not tm2nd || tmBoundary then [] else map genState rightMerges
               where
-                rightMerges = evalMerge eval (Inner sl) tl sl tm (Inner sm) LeftOnly
+                rightMerges = evalUnsplit eval (Inner sl) tm sm tr Stop RightOfTwo
                 genState (parent, op) = SSSemiOpen frozen midSlice (Path (Trans tl tl2nd tlBoundary) (Slice sl) (PathEnd (Trans parent True trBoundary))) (op : ops)
 
             vertStates =
@@ -106,9 +106,9 @@ exploreStates eval state = case state of
                 then []
                 else do
                   -- List
-                  (sTop, op) <- maybeToList $ evalVertMiddle eval (sl, tm, sm)
-                  lTop <- evalVertLeft eval (tl, sl) sTop -- Check boundaries TODO
-                  rTop <- evalVertRight eval (sm, tr) sTop -- TODO boundaris
+                  (sTop, op) <- maybeToList $ evalUnspreadMiddle eval (sl, tm ,sm)
+                  lTop <- evalUnspreadLeft eval (tl, sl) sTop -- Check boundaries TODO
+                  rTop <- evalUnspreadRight eval (sm, tr) sTop -- TODO boundaris
                   pure $ getState lTop sTop rTop op
               where
                 getState lTop sTop rTop op = SSSemiOpen frozen midSlice (Path (Trans lTop False False) (Slice sTop) (PathEnd (Trans rTop False False))) (op : ops)
@@ -118,13 +118,13 @@ exploreStates eval state = case state of
             -- TODO consider 2nd and boundary
             leftMergeStates = map genState leftMerges
               where
-                leftMerges = evalMerge eval (Inner $ sContent midSlice) tl sl tm (Inner sm) LeftOnly
+                leftMerges = evalUnsplit eval (Inner $ sContent midSlice) tl sl tm (Inner sm) LeftOfTwo
                 genState (parent, op) = SSSemiOpen frozen midSlice (Path (Trans parent tl2nd tlBoundary) (Slice sm) (PathEnd (Trans tr tr2nd trBoundary))) (op : ops)
 
             -- TODO consider 2nd and boundary
             rightMergeStates = if not tm2nd || tmBoundary then [] else map genState rightMerges
               where
-                rightMerges = evalMerge eval (Inner sl) tl sl tm (Inner sm) LeftOnly
+                rightMerges = evalUnsplit eval (Inner sl) tl sl tm (Inner sm) RightOfTwo
                 genState (parent, op) = SSSemiOpen frozen midSlice (Path (Trans tl tl2nd tlBoundary) (Slice sl) (PathEnd (Trans parent True trBoundary))) (op : ops)
 
             vertStates =
@@ -132,9 +132,9 @@ exploreStates eval state = case state of
                 then []
                 else do
                   -- List
-                  (sTop, op) <- maybeToList $ evalVertMiddle eval (sl, tm, sm)
-                  lTop <- evalVertLeft eval (tl, sl) sTop -- Check boundaries TODO
-                  rTop <- evalVertRight eval (sm, tr) sTop -- TODO boundaris
+                  (sTop, op) <- maybeToList $ evalUnspreadMiddle eval (sl, tm, sm)
+                  lTop <- evalUnspreadLeft eval (tl, sl) sTop -- Check boundaries TODO
+                  rTop <- evalUnspreadRight eval (sm, tr) sTop -- TODO boundaris
                   pure $ getState lTop sTop rTop op
               where
                 getState lTop sTop rTop op = SSSemiOpen frozen midSlice (Path (Trans lTop False False) (Slice sTop) (Path (Trans rTop tr2nd trBoundary) sr rst)) (op : ops)
@@ -150,7 +150,7 @@ exploreStates eval state = case state of
         -- Two open transitions: merge
         Path (Trans tl tl2nd tlBoundary) (Slice slice) (PathEnd (Trans tr _ trBoundary)) -> if tlBoundary then [] else map genState merged
           where
-            merged = evalMerge eval Start tl slice tr Stop LeftOnly -- Start as left slice correct?
+            merged = evalUnsplit eval Start tl slice tr Stop SingleOfOne -- Start as left slice correct?
             genState (parent, op) = SSOpen (PathEnd (Trans parent tl2nd trBoundary)) (op : ops)
 
         -- Three open transitions: mergeleft mergeRight or verticalise
@@ -159,13 +159,13 @@ exploreStates eval state = case state of
             -- TODO consider 2nd and boundary
             leftMergeStates = map genState leftMerges
               where
-                leftMerges = evalMerge eval Start tl sl tm (Inner sm) LeftOnly
+                leftMerges = evalUnsplit eval Start tl sl tm (Inner sm) LeftOfTwo
                 genState (parent, op) = SSOpen (Path (Trans parent tl2nd tlBoundary) (Slice sm) (PathEnd (Trans tr tr2nd trBoundary))) (op : ops)
 
             -- TODO consider 2nd and boundary
             rightMergeStates = if not tm2nd || tmBoundary then [] else map genState rightMerges
               where
-                rightMerges = evalMerge eval (Inner sl) tl sl tm (Inner sm) LeftOnly
+                rightMerges = evalUnsplit eval (Inner sl) tl sl tm (Inner sm) RightOfTwo
                 genState (parent, op) = SSOpen (Path (Trans tl tl2nd tlBoundary) (Slice sl) (PathEnd (Trans parent True trBoundary))) (op : ops)
 
             vertStates =
@@ -173,9 +173,9 @@ exploreStates eval state = case state of
                 then []
                 else do
                   -- List
-                  (sTop, op) <- maybeToList $ evalVertMiddle eval (sl, tm, sm)
-                  lTop <- evalVertLeft eval (tl, sl) sTop -- Check boundaries TODO
-                  rTop <- evalVertRight eval (sm, tr) sTop -- TODO boundaris
+                  (sTop, op) <- maybeToList $ evalUnspreadMiddle eval (sl, tm, sm)
+                  lTop <- evalUnspreadLeft eval (tl, sl) sTop -- Check boundaries TODO
+                  rTop <- evalUnspreadRight eval (sm, tr) sTop -- TODO boundaris
                   pure $ getState lTop sTop rTop op
               where
                 getState lTop sTop rTop op = SSOpen (Path (Trans lTop False False) (Slice sTop) (PathEnd (Trans rTop False False))) (op : ops)
@@ -185,13 +185,13 @@ exploreStates eval state = case state of
             -- TODO consider 2nd and boundary
             leftMergeStates = map genState leftMerges
               where
-                leftMerges = evalMerge eval Start tl sl tm (Inner sm) LeftOnly
+                leftMerges = evalUnsplit eval Start tl sl tm (Inner sm) LeftOfTwo
                 genState (parent, op) = SSOpen (Path (Trans parent tl2nd tlBoundary) (Slice sm) (PathEnd (Trans tr tr2nd trBoundary))) (op : ops)
 
             -- TODO consider 2nd and boundary
             rightMergeStates = if not tm2nd || tmBoundary then [] else map genState rightMerges
               where
-                rightMerges = evalMerge eval (Inner sl) tl sl tm (Inner sm) LeftOnly
+                rightMerges = evalUnsplit eval (Inner sl) tl sl tm (Inner sm) RightOfTwo
                 genState (parent, op) = SSOpen (Path (Trans tl tl2nd tlBoundary) (Slice sl) (PathEnd (Trans parent True trBoundary))) (op : ops)
 
             vertStates =
@@ -199,9 +199,9 @@ exploreStates eval state = case state of
                 then []
                 else do
                   -- List
-                  (sTop, op) <- maybeToList $ evalVertMiddle eval (sl, tm, sm)
-                  lTop <- evalVertLeft eval (tl, sl) sTop -- Check boundaries TODO
-                  rTop <- evalVertRight eval (sm, tr) sTop -- TODO boundaris
+                  (sTop, op) <- maybeToList $ evalUnspreadMiddle eval (sl, tm, sm)
+                  lTop <- evalUnspreadLeft eval (tl, sl) sTop -- Check boundaries TODO
+                  rTop <- evalUnspreadRight eval (sm, tr) sTop -- TODO boundaris
                   pure $ getState lTop sTop rTop op
               where
                 getState lTop sTop rTop op = SSOpen (Path (Trans lTop False tlBoundary) (Slice sTop) (Path (Trans rTop tr2nd trBoundary) sr rst)) (op : ops)

@@ -91,11 +91,12 @@ main = mainParseStep
 
 mainParseStep :: IO ()
 mainParseStep = do
-  (state, ops) <- search' 9 eval s
-  -- print state
+  (state, ops, p) <- search' 9 eval s
+
+  print state
   putStrLn "\nAttempting to plot derivation: "
-  -- mapM_ print ops
-  plotDeriv "testDeriv.tex" ops
+  mapM_ print ops
+  plotDeriv p "testDeriv.tex" ops
 
   putStrLn "done."
   -- print statee
@@ -104,13 +105,12 @@ mainParseStep = do
 
     eval :: Eval (Edges SPC) [Edge SPC] (Notes SPC) [SPC] (PVLeftmost SPC)
     eval = protoVoiceEvaluator
-
-    states = exploreStates eval s 
-
-    state' = heuristicSearch s (exploreStates eval) isGoalState heuristic
-      where
-        isGoalState x = True 
-        heuristic x = 1
+    -- states = exploreStates eval s 
+    --
+    -- state' = heuristicSearch s (exploreStates eval) isGoalState heuristic
+    --   where
+    --     isGoalState x = True 
+    --     heuristic x = 1
 
 slices321sus :: [ ([(SPC, Bool)], Bool) ]
 slices321sus = 
@@ -127,13 +127,22 @@ search'
   => Int 
   -> Eval es es' ns ns' o 
   -> SearchState es es' ns o
-  -> IO (SearchState es es' ns o, [o])
-search' 0 eval state = pure (state, getOps state)
+  -> IO (SearchState es es' ns o, [o], Path es ns)
+search' 0 eval state = pure (state, getOps state, getPath state)
   where
     getOps s = case s of 
       SSOpen p d -> d
       SSSemiOpen p m f d -> d 
       SSFrozen p -> []
+    getPath s = case s of
+      SSOpen p d -> transformPath p
+      SSSemiOpen p m f d -> undefined 
+      SSFrozen p -> undefined
+    transformPath
+      :: Path (Trans es) (Slice ns)
+      -> Path es ns
+    transformPath (PathEnd t) = PathEnd (tContent t)
+    transformPath (Path t s rst) = Path (tContent t) (sContent s) $ transformPath rst
 
 search' i eval state = do 
   -- print state
@@ -146,9 +155,9 @@ search' i eval state = do
       0 -> state 
       _ -> nextStates !! rand
 
-plotDeriv fn deriv = mapM_ printStep derivs
+plotDeriv initPath fn deriv = mapM_ printStep derivs
   where
-    derivs = unfoldDerivation derivationPlayerPV deriv
+    derivs = unfoldDerivation' initPath derivationPlayerPV deriv
     printStep el = do 
       case el of
         Left err -> do
