@@ -17,7 +17,8 @@ import PVGrammar.Parse
 
 import Data.Maybe
   ( catMaybes,
-    mapMaybe
+    mapMaybe,
+    fromMaybe
   )
 
 import Display
@@ -87,7 +88,20 @@ path321 =
 
 main :: IO ()
 -- main = print $ pathFromSlices protoVoiceEvaluator testInput
-main = mainParseStep
+main = mainHeuristicSearch
+
+
+mainHeuristicSearch :: IO ()
+mainHeuristicSearch = do 
+  print r
+    where 
+      res = heuristicSearch'' initState exploreStates goalTest heuristic
+      r = snd $ fromMaybe (0,0) res
+      initState = 0 :: Float
+      exploreStates n = [n+4, n-17, n+30] :: [Float]
+      goalTest = (==) (29::Float) 
+      heuristic :: Float -> Float
+      heuristic x = (x-20) * (x-20) 
 
 mainParseStep :: IO ()
 mainParseStep = do
