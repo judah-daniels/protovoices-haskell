@@ -88,7 +88,8 @@ path321 =
 
 main :: IO ()
 -- main = print $ pathFromSlices protoVoiceEvaluator testInput
-main = mainHeuristicSearch
+-- main = mainHeuristicSearch
+main = mainHeuristicSearch'
 
 
 mainHeuristicSearch :: IO ()
@@ -96,7 +97,7 @@ mainHeuristicSearch = do
   print r
     where 
       res = heuristicSearch'' initState exploreStates goalTest heuristic
-      r = snd $ fromMaybe (0,0) res
+      r = fromMaybe 0 res
       initState = 0 :: Float
       exploreStates n = [n+4, n-17, n+30] :: [Float]
       goalTest = (==) (29::Float) 
@@ -134,6 +135,27 @@ slices321sus =
   , ([(c' nat, False)], False) 
   ]
 
+getOpsFromState 
+  :: SearchState es es' ns o
+  -> [o]
+getOpsFromState s = case s of 
+  SSOpen p d -> d
+  SSSemiOpen p m f d -> d 
+  SSFrozen p -> []
+
+getPathFromState
+  :: SearchState es es' ns o
+  -> Path es ns
+getPathFromState s = case s of
+  SSOpen p d -> transformPath p
+  SSSemiOpen p m f d -> undefined 
+  SSFrozen p -> undefined
+  where
+    transformPath
+      :: Path (Trans es) (Slice ns)
+      -> Path es ns
+    transformPath (PathEnd t) = PathEnd (tContent t)
+    transformPath (Path t s rst) = Path (tContent t) (sContent s) $ transformPath rst
 
 search' 
   :: forall es es' ns ns' o 
@@ -142,21 +164,7 @@ search'
   -> Eval es es' ns ns' o 
   -> SearchState es es' ns o
   -> IO (SearchState es es' ns o, [o], Path es ns)
-search' 0 eval state = pure (state, getOps state, getPath state)
-  where
-    getOps s = case s of 
-      SSOpen p d -> d
-      SSSemiOpen p m f d -> d 
-      SSFrozen p -> []
-    getPath s = case s of
-      SSOpen p d -> transformPath p
-      SSSemiOpen p m f d -> undefined 
-      SSFrozen p -> undefined
-    transformPath
-      :: Path (Trans es) (Slice ns)
-      -> Path es ns
-    transformPath (PathEnd t) = PathEnd (tContent t)
-    transformPath (Path t s rst) = Path (tContent t) (sContent s) $ transformPath rst
+search' 0 eval state = pure (state, getOpsFromState state, getPathFromState state)
 
 search' i eval state = do 
   -- print state
@@ -168,6 +176,40 @@ search' i eval state = do
     nextState = case n of 
       0 -> state 
       _ -> nextStates !! rand
+
+
+mainHeuristicSearch' :: IO ()
+mainHeuristicSearch' = do 
+  print finalState 
+
+  putStrLn "\nAttempting to plot derivation: "
+
+  mapM_ print ops
+  plotDeriv p "testDeriv.tex" ops
+
+  putStrLn "done."
+    where
+      initialState = SSFrozen $ pathFromSlices protoVoiceEvaluator slices321sus
+
+      eval :: Eval (Edges SPC) [Edge SPC] (Notes SPC) [SPC] (PVLeftmost SPC)
+      eval = protoVoiceEvaluator
+
+      finalState = fromMaybe initialState (heuristicSearch'' initialState getNeighboringStates goalTest heuristic)
+
+      ops = getOpsFromState finalState
+      p = getPathFromState finalState
+
+      getNeighboringStates = exploreStates eval
+
+      goalTest s = case s of  
+        SSOpen p d -> True
+        SSSemiOpen p m f d -> False  
+        SSFrozen p -> False
+
+
+      -- Where the magic happens!
+      heuristic x = 3 
+
 
 plotDeriv initPath fn deriv = mapM_ printStep derivs
   where
