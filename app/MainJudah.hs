@@ -202,10 +202,13 @@ mainHeuristicSearch' = do
       getNeighboringStates = exploreStates eval
 
       goalTest s = case s of  
-        SSOpen p d -> True
-        SSSemiOpen p m f d -> False  
-        SSFrozen p -> False
-
+        SSSemiOpen {} -> False 
+        SSFrozen {} -> False
+        SSOpen p _ -> oneChordPerSegment p
+          where
+            oneChordPerSegment :: Path (Trans es) (Slice ns) -> Bool
+            oneChordPerSegment (PathEnd trans) = True
+            oneChordPerSegment (Path tl slice rst) = tBoundary tl && oneChordPerSegment rst
 
       -- Where the magic happens!
       heuristic x = 3 
