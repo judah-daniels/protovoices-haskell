@@ -4,22 +4,17 @@
 
 module Main where
 
-
-import System.Random
 import Common
+
 import HeuristicParser
 import HeuristicSearch
+
 import PVGrammar hiding
   ( slicesFromFile,
   )
 import PVGrammar.Generate
 import PVGrammar.Parse
 
-import Data.Maybe
-  ( catMaybes,
-    mapMaybe,
-    fromMaybe
-  )
 
 import Display
 import Language.Haskell.DoNotation
@@ -30,11 +25,34 @@ import Musicology.Pitch.Spelled
 import Prelude hiding
   ( Monad (..),
     pure,
+    lift
   )
 
-seed::Int
-seed = 37
-generator = mkStdGen seed
+import Control.Monad.Except
+  ( ExceptT
+  , MonadError (throwError), runExceptT
+  )
+import Control.Monad.IO.Class
+  ( MonadIO
+  )
+import Control.Monad.Trans.Class (lift)
+import Data.Maybe
+  ( catMaybes
+  , mapMaybe
+  , fromMaybe
+  , maybeToList 
+  )
+import System.Random (initStdGen)
+import System.Random.Stateful
+  ( StatefulGen
+  , newIOGenM
+  , uniformRM
+  , randomRIO
+  )
+
+-- seed::Int
+-- seed = 37
+-- generator = mkStdGen seed
 
 -- | The musical surface from Figure 4 as a sequence of slices and transitions.
 -- Can be used as an input for parsing.
@@ -96,7 +114,7 @@ mainHeuristicSearch :: IO ()
 mainHeuristicSearch = do 
   print r
     where 
-      res = heuristicSearch'' initState exploreStates goalTest heuristic
+      res = heuristicSearch initState exploreStates goalTest heuristic
       r = fromMaybe 0 res
       initState = 0 :: Float
       exploreStates n = [n+4, n-17, n+30] :: [Float]
@@ -104,29 +122,29 @@ mainHeuristicSearch = do
       heuristic :: Float -> Float
       heuristic x = (x-20) * (x-20) 
 
-mainParseStep :: IO ()
-mainParseStep = do
-  (state, ops, p) <- search' 9 eval s
-
-  print state
-  putStrLn "\nAttempting to plot derivation: "
-  mapM_ print ops
-  plotDeriv p "testDeriv.tex" ops
-
-  putStrLn "done."
-  -- print statee
-  where
-    s = SSFrozen $ pathFromSlices protoVoiceEvaluator slices321sus
-
-    eval :: Eval (Edges SPC) [Edge SPC] (Notes SPC) [SPC] (PVLeftmost SPC)
-    eval = protoVoiceEvaluator
-    -- states = exploreStates eval s 
-    --
-    -- state' = heuristicSearch s (exploreStates eval) isGoalState heuristic
-    --   where
-    --     isGoalState x = True 
-    --     heuristic x = 1
-
+-- mainParseStep :: IO ()
+-- mainParseStep = do
+--   (state, ops, p) <- search' 9 eval s
+--
+--   print state
+--   putStrLn "\nAttempting to plot derivation: "
+--   mapM_ print ops
+--   plotDeriv p "testDeriv.tex" ops
+--
+--   putStrLn "done."
+--   -- print statee
+--   where
+--     s = SSFrozen $ pathFromSlices protoVoiceEvaluator slices321sus
+--
+--     eval :: Eval (Edges SPC) [Edge SPC] (Notes SPC) [SPC] (PVLeftmost SPC)
+--     eval = protoVoiceEvaluator
+--     -- states = exploreStates eval s 
+--     --
+--     -- state' = heuristicSearch s (exploreStates eval) isGoalState heuristic
+--     --   where
+--     --     isGoalState x = True 
+--     --     heuristic x = 1
+--
 slices321sus :: [ ([(SPC, Bool)], Bool) ]
 slices321sus = 
   [ ([(e' nat, False), (c' nat, True)], True)
@@ -157,27 +175,27 @@ getPathFromState s = case s of
     transformPath (PathEnd t) = PathEnd (tContent t)
     transformPath (Path t s rst) = Path (tContent t) (sContent s) $ transformPath rst
 
-search' 
-  :: forall es es' ns ns' o 
-  .  (Show es, Show es', Show ns, Show ns', Show o) 
-  => Int 
-  -> Eval es es' ns ns' o 
-  -> SearchState es es' ns o
-  -> IO (SearchState es es' ns o, [o], Path es ns)
-search' 0 eval state = pure (state, getOpsFromState state, getPathFromState state)
-
-search' i eval state = do 
-  -- print state
-  search' (i-1) eval nextState
-  where
-    nextStates = (exploreStates eval state) 
-    n = length nextStates
-    (rand, _) =randomR (0, (n-1)) generator
-    nextState = case n of 
-      0 -> state 
-      _ -> nextStates !! rand
-
-
+-- search' 
+--   :: forall es es' ns ns' o 
+--   .  (Show es, Show es', Show ns, Show ns', Show o) 
+--   => Int 
+--   -> Eval es es' ns ns' o 
+--   -> SearchState es es' ns o
+--   -> IO (SearchState es es' ns o, [o], Path es ns)
+-- search' 0 eval state = pure (state, getOpsFromState state, getPathFromState state)
+--
+-- search' i eval state = do 
+--   -- print state
+--   search' (i-1) eval nextState
+--   where
+--     nextStates = (exploreStates eval state) 
+--     n = length nextStates
+--     (rand, _) =randomR (0, (n-1)) generator
+--     nextState = case n of 
+--       0 -> state 
+--       _ -> nextStates !! rand
+--
+--
 mainHeuristicSearch' :: IO ()
 mainHeuristicSearch' = do 
   print finalState 
@@ -194,7 +212,7 @@ mainHeuristicSearch' = do
       eval :: Eval (Edges SPC) [Edge SPC] (Notes SPC) [SPC] (PVLeftmost SPC)
       eval = protoVoiceEvaluator
 
-      finalState = fromMaybe initialState (heuristicSearch'' initialState getNeighboringStates goalTest heuristic)
+      finalState = fromMaybe initialState (heuristicSearch initialState getNeighboringStates goalTest heuristic)
 
       ops = getOpsFromState finalState
       p = getPathFromState finalState
@@ -207,12 +225,11 @@ mainHeuristicSearch' = do
         SSOpen p _ -> oneChordPerSegment p
           where
             oneChordPerSegment :: Path (Trans es) (Slice ns) -> Bool
-            oneChordPerSegment (PathEnd trans) = True
-            oneChordPerSegment (Path tl slice rst) = tBoundary tl && oneChordPerSegment rst
+            oneChordPerSegment (PathEnd _ ) = True
+            oneChordPerSegment (Path tl _ rst) = tBoundary tl && oneChordPerSegment rst
 
       -- Where the magic happens!
       heuristic x = 3 
-
 
 plotDeriv initPath fn deriv = mapM_ printStep derivs
   where

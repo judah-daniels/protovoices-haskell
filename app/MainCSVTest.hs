@@ -6,6 +6,7 @@
 import Common
 import HeuristicParser
 import PVGrammar
+import Evaluator
 
 import Data.Csv
 import Data.List.Split
@@ -26,6 +27,24 @@ import Musicology.Pitch
     pc,
   )
 import PVGrammar.Parse (protoVoiceEvaluator)
+
+import Control.Monad.Except
+  ( ExceptT
+  , MonadError (throwError), runExceptT
+  )
+import Control.Monad.IO.Class
+  ( MonadIO
+  )
+
+import System.Random (initStdGen)
+import System.Random.Stateful
+  ( StatefulGen
+  , newIOGenM
+  , uniformRM
+  , randomRIO
+  )
+
+import Control.Monad.Trans.Class (lift)
 
 instance FromField Music.RightTied where
   parseField s = case s of
@@ -73,8 +92,12 @@ main :: IO ()
 main = do
   slices <- slicesFromFile' "preprocessing/salamis.csv"
   chords <- chordsFromFile "preprocessing/chords.csv"
+  params <- loadParams "preprocessing/dcml_params.json"
+  print params
+  
 
   path <- pure $ pathFromSlices protoVoiceEvaluator slices  
+
   print  path
 
   printSlicesWithLabels' slices chords
