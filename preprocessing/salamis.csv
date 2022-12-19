@@ -3,7 +3,7 @@ False,False,F3,False
 False,False,A4,False
 False,False,C5,True
 False,False,F5,True
-True,True,A4,False
+False,True,A4,False
 False,False,C5,True
 False,False,F5,True
 False,False,A3,False
@@ -15,7 +15,7 @@ True,True,C4,False
 False,False,G4,False
 False,False,C5,True
 False,False,F5,True
-True,True,C4,False
+False,True,C4,False
 False,False,G4,False
 False,False,C5,True
 False,False,E5,False
@@ -31,7 +31,7 @@ True,True,G3,False
 False,False,Bb4,False
 False,False,D5,True
 False,False,G5,True
-True,True,Bb4,False
+False,True,Bb4,False
 False,False,D5,True
 False,False,G5,True
 False,False,Bb3,False
@@ -43,7 +43,7 @@ True,True,D4,False
 False,False,A4,False
 False,False,D5,True
 False,False,G5,True
-True,True,D4,False
+False,True,D4,False
 False,False,A4,False
 False,False,D5,True
 False,False,F#5,False
@@ -59,7 +59,7 @@ True,True,A3,False
 False,False,C5,False
 False,False,E5,False
 False,False,A5,False
-True,True,C5,False
+False,True,C5,False
 False,False,E5,False
 False,False,A5,False
 False,False,C4,False
@@ -101,7 +101,7 @@ True,True,Ab4,False
 False,False,C5,False
 False,False,Eb5,False
 False,False,C6,False
-True,True,C5,False
+False,True,C5,False
 False,False,Eb5,False
 False,False,Ab5,False
 False,False,Eb6,False
@@ -109,7 +109,7 @@ True,True,Bb4,False
 False,False,Eb5,False
 False,False,G5,False
 False,False,Eb6,False
-True,True,Bb4,False
+False,True,Bb4,False
 False,False,Eb5,False
 False,False,G5,False
 False,False,Db6,False
@@ -121,7 +121,7 @@ True,True,Ab4,False
 False,False,Bb4,False
 False,False,G5,False
 False,False,Db6,False
-True,True,Ab4,False
+False,True,Ab4,False
 False,False,Ab4,False
 False,False,Ab5,False
 False,False,C6,False
@@ -133,7 +133,7 @@ True,True,F4,False
 False,False,C5,False
 False,False,C5,False
 False,False,Ab5,False
-True,True,Ab4,False
+False,True,Ab4,False
 False,False,C5,False
 False,False,F5,False
 False,False,C6,False
@@ -141,7 +141,7 @@ True,True,G4,False
 False,False,C5,False
 False,False,E5,False
 False,False,C6,False
-True,True,G4,False
+False,True,G4,False
 False,False,C5,False
 False,False,E5,False
 False,False,Bb5,False
@@ -153,7 +153,7 @@ True,True,F4,False
 False,False,C5,False
 False,False,E5,False
 False,False,Bb5,False
-True,True,F4,False
+False,True,F4,False
 False,False,C5,False
 False,False,F5,False
 False,False,Ab5,False
@@ -174,7 +174,7 @@ True,True,Ab4,False
 False,False,Ab5,False
 False,False,Db6,True
 False,False,F6,True
-True,True,Ab4,False
+False,True,Ab4,False
 False,False,C6,False
 False,False,Eb6,False
 True,True,Gb4,False
@@ -197,7 +197,7 @@ True,True,Bb4,False
 False,False,Bb5,False
 False,False,Eb6,True
 False,False,Gb6,True
-True,True,Bb4,False
+False,True,Bb4,False
 False,False,D6,False
 False,False,F6,False
 True,True,Ab4,False
@@ -222,7 +222,7 @@ True,True,C5,False
 False,False,C6,False
 False,False,F6,True
 False,False,Ab6,True
-True,True,C5,False
+False,True,C5,False
 False,False,C6,False
 False,False,E6,False
 False,False,G6,False
@@ -296,7 +296,7 @@ False,False,E5,False
 False,False,G6,False
 False,True,E5,False
 False,True,F5,False
-True,True,E4,False
+False,True,E4,False
 False,False,G4,False
 False,False,C5,False
 False,False,G5,False
@@ -312,7 +312,7 @@ False,False,G5,False
 False,False,C6,False
 False,True,E6,False
 False,True,F6,False
-True,True,G3,False
+False,True,G3,False
 False,False,Bb4,False
 False,False,C6,False
 False,False,G6,False
@@ -328,7 +328,7 @@ False,False,E5,False
 False,False,G6,False
 False,True,G5,False
 False,True,A5,False
-True,True,G4,False
+False,True,G4,False
 False,False,E5,False
 False,False,Bb5,False
 False,False,Bb5,False
@@ -344,13 +344,13 @@ False,False,Bb5,False
 False,False,E6,False
 False,True,G6,False
 False,True,A6,False
-True,True,C4,False
+False,True,C4,False
 False,False,Bb6,False
 True,True,Bb3,False
 False,False,G4,False
 False,False,C5,False
 False,False,E5,False
-True,True,G3,False
+False,True,G3,False
 False,False,G4,False
 False,False,C5,False
 False,False,E5,False
@@ -358,7 +358,7 @@ True,True,F3,False
 False,False,A4,False
 False,False,C5,False
 False,False,F5,True
-True,True,A4,False
+False,True,A4,False
 False,False,C5,False
 False,False,F5,True
 False,False,A3,False
@@ -370,7 +370,7 @@ True,True,C4,False
 False,False,G4,False
 False,False,D5,True
 False,False,F5,True
-True,True,C4,False
+False,True,C4,False
 False,False,G4,False
 False,False,C5,False
 False,False,E5,False
@@ -386,7 +386,7 @@ True,True,G3,False
 False,False,C5,True
 False,False,D5,False
 False,False,G5,True
-True,True,D5,False
+False,True,D5,False
 False,False,G5,True
 False,False,B3,False
 False,False,B4,False
@@ -398,7 +398,7 @@ True,True,D4,False
 False,False,A4,False
 False,False,E5,True
 False,False,G5,True
-True,True,D4,False
+False,True,D4,False
 False,False,A4,False
 False,False,D5,False
 False,False,F#5,False
@@ -414,7 +414,7 @@ True,True,A3,False
 False,False,D5,True
 False,False,E5,False
 False,False,A5,False
-True,True,E5,False
+False,True,E5,False
 False,False,A5,False
 False,False,C4,False
 False,False,C5,False
@@ -430,7 +430,7 @@ True,True,D4,False
 False,False,F5,False
 False,False,A5,False
 False,False,D6,False
-True,True,F5,False
+False,True,F5,False
 False,False,A5,False
 False,False,D6,False
 False,False,F4,False
@@ -446,7 +446,7 @@ True,True,F4,False
 False,False,A5,False
 False,False,C6,False
 False,False,F6,False
-True,True,A5,False
+False,True,A5,False
 False,False,C6,False
 False,False,F6,False
 False,False,A4,False
@@ -606,7 +606,7 @@ True,True,F4,False
 False,False,A4,False
 False,False,A5,False
 False,False,F6,True
-True,True,A5,False
+False,True,A5,False
 False,False,F6,True
 False,False,A4,False
 False,False,C5,False
@@ -618,7 +618,7 @@ True,True,C5,False
 False,False,E5,False
 False,False,G5,False
 False,False,F6,True
-True,True,C5,False
+False,True,C5,False
 False,False,E5,False
 False,False,G5,False
 False,False,E6,False
@@ -634,7 +634,7 @@ True,True,G4,False
 False,False,D5,False
 False,False,Bb5,False
 False,False,G6,True
-True,True,G6,True
+False,True,G6,True
 False,False,Bb4,False
 False,False,Bb5,False
 False,False,D6,False
@@ -710,7 +710,7 @@ True,True,G4,False
 False,False,Bb4,False
 False,False,Bb6,False
 False,False,D7,False
-True,True,Bb4,False
+False,True,Bb4,False
 False,False,Bb5,False
 False,False,G6,False
 False,False,Bb6,False
@@ -770,7 +770,7 @@ True,True,Bb3,False
 False,False,Bb4,False
 False,False,D5,False
 False,False,G5,False
-True,True,G3,False
+False,True,G3,False
 False,False,Bb4,False
 False,False,G5,False
 False,False,Bb5,False
@@ -792,11 +792,11 @@ True,True,F4,True
 False,False,Ab4,True
 False,False,C5,False
 False,False,C6,False
-True,True,C5,False
+False,True,C5,False
 False,False,C6,False
 False,False,E4,False
 False,False,G4,False
-True,True,C5,False
+False,True,C5,False
 False,False,C6,False
 False,False,C4,False
 False,False,E4,False
@@ -814,11 +814,11 @@ True,True,F3,True
 False,False,Ab4,True
 False,False,C6,True
 False,False,C7,True
-True,True,C6,True
+False,True,C6,True
 False,False,C7,True
 False,False,E3,False
 False,False,G4,False
-True,True,C6,True
+False,True,C6,True
 False,False,C7,True
 False,False,C3,False
 False,False,E4,False
@@ -830,7 +830,7 @@ True,True,E3,False
 False,False,G4,False
 False,False,C6,True
 False,False,C7,True
-True,True,C6,True
+False,True,C6,True
 False,False,C7,True
 False,False,C3,False
 False,False,E4,False
@@ -842,7 +842,7 @@ True,True,E4,False
 False,False,G5,False
 False,False,C6,True
 False,False,C7,True
-True,True,C6,True
+False,True,C6,True
 False,False,C7,True
 False,False,C4,False
 False,False,E5,False
@@ -858,7 +858,7 @@ False,True,F3,False
 False,False,C5,False
 False,False,A5,False
 False,False,A6,False
-True,True,F3,False
+False,True,F3,False
 False,False,A4,False
 False,False,F5,False
 False,False,F6,False
@@ -938,7 +938,7 @@ False,False,Db4,False
 False,False,Ab4,False
 False,False,F5,False
 False,False,Eb5,False
-True,True,Db3,True
+False,True,Db3,True
 False,False,Ab4,True
 False,False,Db5,True
 False,False,F5,False
@@ -1174,7 +1174,7 @@ False,True,Db4,False
 False,False,Db5,False
 False,False,Db5,False
 False,False,F5,False
-True,True,Db4,False
+False,True,Db4,False
 False,False,Db5,False
 False,False,Db5,False
 False,False,Db5,False
@@ -1208,7 +1208,7 @@ False,False,C5,False
 False,False,F5,False
 False,True,Ab5,False
 False,True,C6,False
-True,True,C3,False
+False,True,C3,False
 False,False,C4,False
 False,False,C5,False
 False,False,C5,False
@@ -1323,7 +1323,7 @@ False,True,G5,True
 False,False,Ab5,True
 False,False,C6,True
 False,False,F5,False
-True,True,F4,False
+False,True,F4,False
 False,False,F5,False
 False,False,Ab5,True
 False,False,C6,False
@@ -1726,7 +1726,7 @@ False,True,G3,False
 False,False,D4,True
 False,False,Bb4,True
 False,False,B5,False
-True,True,G3,True
+False,True,G3,True
 False,False,E4,False
 False,False,C5,False
 False,False,C6,False
@@ -1940,7 +1940,7 @@ False,False,C4,True
 False,False,G4,True
 False,False,E5,True
 False,False,E5,False
-True,True,C4,False
+False,True,C4,False
 False,False,A4,False
 False,False,C5,False
 False,False,F5,False
@@ -1950,7 +1950,7 @@ False,False,A4,False
 False,False,C5,False
 False,False,F5,False
 False,False,A5,False
-True,True,C3,False
+False,True,C3,False
 False,False,C4,False
 False,False,G4,False
 False,False,C5,False
