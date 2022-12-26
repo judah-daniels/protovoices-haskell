@@ -19,6 +19,8 @@ import PVGrammar.Parse
 import Display
 import Language.Haskell.DoNotation
 
+import Evaluator
+
 import qualified Musicology.Core as Music
 import Musicology.Pitch.Spelled 
 
@@ -49,6 +51,8 @@ import System.Random.Stateful
   , uniformRM
   , randomRIO
   )
+import Control.Exception (evaluate)
+import Evaluator (ChordLabel(ChordLabel))
 
 -- seed::Int
 -- seed = 37
@@ -109,7 +113,7 @@ main :: IO ()
 -- main = mainHeuristicSearch
 main = mainHeuristicSearch'
 
-
+-- Testing Heuristic search with a simple search problem
 mainHeuristicSearch :: IO ()
 mainHeuristicSearch = do 
   print r
@@ -122,29 +126,6 @@ mainHeuristicSearch = do
       heuristic :: Float -> Float
       heuristic x = (x-20) * (x-20) 
 
--- mainParseStep :: IO ()
--- mainParseStep = do
---   (state, ops, p) <- search' 9 eval s
---
---   print state
---   putStrLn "\nAttempting to plot derivation: "
---   mapM_ print ops
---   plotDeriv p "testDeriv.tex" ops
---
---   putStrLn "done."
---   -- print statee
---   where
---     s = SSFrozen $ pathFromSlices protoVoiceEvaluator slices321sus
---
---     eval :: Eval (Edges SPC) [Edge SPC] (Notes SPC) [SPC] (PVLeftmost SPC)
---     eval = protoVoiceEvaluator
---     -- states = exploreStates eval s 
---     --
---     -- state' = heuristicSearch s (exploreStates eval) isGoalState heuristic
---     --   where
---     --     isGoalState x = True 
---     --     heuristic x = 1
---
 slices321sus :: [ ([(SPC, Bool)], Bool) ]
 slices321sus = 
   [ ([(e' nat, False), (c' nat, True)], True)
@@ -153,59 +134,22 @@ slices321sus =
   , ([(c' nat, False)], False) 
   ]
 
-getOpsFromState 
-  :: SearchState es es' ns o
-  -> [o]
-getOpsFromState s = case s of 
-  SSOpen p d -> d
-  SSSemiOpen p m f d -> d 
-  SSFrozen p -> []
-
-getPathFromState
-  :: SearchState es es' ns o
-  -> Path es ns
-getPathFromState s = case s of
-  SSOpen p d -> transformPath p
-  SSSemiOpen p m f d -> undefined 
-  SSFrozen p -> undefined
-  where
-    transformPath
-      :: Path (Trans es) (Slice ns)
-      -> Path es ns
-    transformPath (PathEnd t) = PathEnd (tContent t)
-    transformPath (Path t s rst) = Path (tContent t) (sContent s) $ transformPath rst
-
--- search' 
---   :: forall es es' ns ns' o 
---   .  (Show es, Show es', Show ns, Show ns', Show o) 
---   => Int 
---   -> Eval es es' ns ns' o 
---   -> SearchState es es' ns o
---   -> IO (SearchState es es' ns o, [o], Path es ns)
--- search' 0 eval state = pure (state, getOpsFromState state, getPathFromState state)
---
--- search' i eval state = do 
---   -- print state
---   search' (i-1) eval nextState
---   where
---     nextStates = (exploreStates eval state) 
---     n = length nextStates
---     (rand, _) =randomR (0, (n-1)) generator
---     nextState = case n of 
---       0 -> state 
---       _ -> nextStates !! rand
---
---
 mainHeuristicSearch' :: IO ()
 mainHeuristicSearch' = do 
-  print finalState 
+  -- print finalState 
+  -- putStrLn "\nAttempting to plot derivation: "
+  -- mapM_ print ops
+  -- plotDeriv p "testDeriv.tex" ops
+  -- putStrLn "done."
+  -- evaluate
+  hpData <- loadParams "preprocessing/dcml_params.json"
 
-  putStrLn "\nAttempting to plot derivation: "
+  let res = evalPath p [ChordLabel "MM7" (sic 0) (f' nat)] hpData
 
-  mapM_ print ops
-  plotDeriv p "testDeriv.tex" ops
+  putStrLn "Derivation complete: "
+  putStrLn $ "\nFinal Path: " <> show p
+  putStrLn $ "\nEvaluation score: " <> show res
 
-  putStrLn "done."
     where
       initialState = SSFrozen $ pathFromSlices protoVoiceEvaluator slices321sus
 

@@ -5,12 +5,14 @@
 
 import Common
 import HeuristicParser
+import HeuristicSearch
 import PVGrammar
 import Evaluator
 
 import Data.Csv
 import Data.List.Split
 import Data.Maybe
+import Internal.MultiSet (MultiSet, fromList)
 
 import qualified Data.Vector as V
 import qualified Data.ByteString.Lazy as BL
@@ -45,6 +47,7 @@ import System.Random.Stateful
   )
 
 import Control.Monad.Trans.Class (lift)
+import Evaluator 
 
 instance FromField Music.RightTied where
   parseField s = case s of
@@ -65,11 +68,12 @@ data SalamiNote = SalamiNote
   }
 
 -- | Data Structure for parsing chord labels
-data ChordLabel = ChordLabel
+data ChordLabel' = ChordLabel'
   { _segment_id' :: !Int,
-    _chord :: !String,
-    _globalkey :: !String,
-    _globalkey_is_minor :: !Bool
+    _chordtype :: !String,
+    _rootoffset :: !Int,
+    _globalkey :: !String
+    -- _globalkey_is_minor :: !Bool
   }
 
 instance FromNamedRecord SalamiNote where
@@ -80,27 +84,65 @@ instance FromNamedRecord SalamiNote where
       <*> r .: "pitch"
       <*> r .: "tied"
 
-instance FromNamedRecord ChordLabel where
+instance FromNamedRecord ChordLabel' where
   parseNamedRecord r =
-    ChordLabel
+    ChordLabel'
       <$> r .: "segment_id"
-      <*> r .: "chord"
+      <*> r .: "chordtype"
+      <*> r .: "rootoffset"
       <*> r .: "globalkey"
-      <*> r .: "globalkey_is_minor"
+      -- <*> r .: "globalkey_is_minor"
 
 main :: IO ()
 main = do
   slices <- slicesFromFile' "preprocessing/salamis.csv"
   chords <- chordsFromFile "preprocessing/chords.csv"
   params <- loadParams "preprocessing/dcml_params.json"
-  print params
-  
 
-  path <- pure $ pathFromSlices protoVoiceEvaluator slices  
+  let initialState = SSFrozen $ pathFromSlices protoVoiceEvaluator slices
+  doHeuristicSearch protoVoiceEvaluator initialState chords
+  pure ()
+  -- let path = pathFromSlices protoVoiceEvaluator slices  
 
-  print  path
+doHeuristicSearch 
+  :: forall ns ns' es es' 
+  .  (Notation ns,Show ns) 
+  => Eval (Edges ns) [Edge ns] (Notes ns) [ns] (PVLeftmost ns)
+  -> SearchState (Edges ns) [Edge ns] (Notes ns) (PVLeftmost ns)
+  -> [ChordLabel]
+  -> IO ()
+doHeuristicSearch eval initialState chords  = do 
 
-  printSlicesWithLabels' slices chords
+  -- let eval = protoVoiceEvaluator -- :: Eval (Edges SPC) [Edge SPitch] (Notes SPitch) [SPC] (PVLeftmost SPC)
+
+  let getNeighboringStates = exploreStates eval
+
+  -- Do the search!!!
+  let finalState = fromMaybe initialState (heuristicSearch initialState getNeighboringStates goalTest heuristic)
+
+  let ops = getOpsFromState finalState
+  let p = getPathFromState finalState
+
+
+  putStrLn "Derivation complete: "
+  -- putStrLn $ "\nFinal Path: " <> show p
+
+  hpData <- loadParams "preprocessing/dcml_params.json"
+  -- let res = evalPath p chords hpData
+  print ops
+
+  putStrLn $ "\nEvaluation score: " -- <> show res
+    where
+      goalTest s = case s of  
+        SSSemiOpen {} -> False 
+        SSFrozen {} -> False
+        SSOpen p _ -> oneChordPerSegment p
+          where
+            oneChordPerSegment (PathEnd _ ) = True
+            oneChordPerSegment (Path tl _ rst) = tBoundary tl && oneChordPerSegment rst
+
+      -- Where the magic happens!
+      heuristic x = 0 
 
 pathFromSlices 
   :: forall ns 
@@ -130,7 +172,7 @@ pathFromSlices eval = reversePath . mkPath (Nothing, False)
     
 printSlicesWithLabels' :: [(Slice', Bool)] -> [Chord] -> IO ()
 printSlicesWithLabels' slices chords = do
-  mapM_ (printLine chords slices) [0 .. 10]
+  mapM_ (printLine chords slices) [0 .. 7]
   where
     printSlice :: Slice' -> IO ()
     printSlice slice = do
@@ -186,15 +228,15 @@ printSlicesWithLabels slices chords = do
 type Chord = String
 
 -- | Loads chord annotations from filepath
-chordsFromFile :: FilePath -> IO [Chord]
+chordsFromFile :: FilePath -> IO [Evaluator.ChordLabel]
 chordsFromFile file = do
   txt <- BL.readFile file
   case decodeByName txt of
-    Left err -> pure [err]
+    Left err -> pure []
     Right (_, v) -> do
       pure $ fmap parseChordLabel (V.toList v)
   where
-    parseChordLabel r = _chord r
+    parseChordLabel r = Evaluator.ChordLabel (_chordtype r) (Music.sic $ _rootoffset r) (fromMaybe undefined (readNotation $ _globalkey r))
 
 -- | Datatype for a slice
 type Slice' = [(SPitch, Music.RightTied)]
@@ -211,7 +253,7 @@ slicesFromFile' file = do
           segmentedNotes = splitWhen (\(_, _, newSeg, _) -> newSeg) notes
           segmentedNotes' = (map . map) (\(s, t, _, n) -> (s, t, n)) segmentedNotes
           -- segmentedSlices :: [(Slice, Bool)]
-          segmentedSlices = map (((map . map) (\(s, t, _) -> (s, t))) . splitWhen (\(_, _, newSlice) -> newSlice)) segmentedNotes'
+          segmentedSlices = map ((map . map) (\(s, t, _) -> (s, t)) . splitWhen (\(_, _, newSlice) -> newSlice)) segmentedNotes'
           b = output segmentedSlices
       pure b
           where
@@ -222,7 +264,7 @@ slicesFromFile' file = do
             -- Assign boundary marker to first slice of each segment
             addBoundaries :: [[(SPitch, Music.RightTied)]] -> [(Slice', Bool)]
             addBoundaries [] = []
-            addBoundaries (s:sx) = (s, True):map (\s -> (s, False)) sx
+            addBoundaries (s:sx) = (s, True):map (, False) sx
 
 -- Parse a salami note as output from the python salalmis package.
 noteFromSalami :: SalamiNote -> (SPitch, Music.RightTied, Bool, Bool)

@@ -20,6 +20,7 @@ data Trans es = Trans
   }
   deriving (Eq, Show)
 
+
 -- | The state of the search between steps
 -- es' : Unparsed/frozen transitions
 -- es  : Unfrozen transitions
@@ -208,3 +209,25 @@ exploreStates eval state = case state of
 
 -- Keep in mind we start at the very end of the piece to parse.
 -- Everytime we thaw a transition we send it the evaluator. Set t2nd upon an unspread, for use later for splits.
+
+getOpsFromState 
+  :: SearchState es es' ns o
+  -> [o]
+getOpsFromState s = case s of 
+  SSOpen p d -> d
+  SSSemiOpen p m f d -> d 
+  SSFrozen p -> []
+
+getPathFromState
+  :: SearchState es es' ns o
+  -> Path es ns
+getPathFromState s = case s of
+  SSOpen p d -> transformPath p
+  SSSemiOpen p m f d -> undefined 
+  SSFrozen p -> undefined
+  where
+    transformPath
+      :: Path (Trans es) (Slice ns)
+      -> Path es ns
+    transformPath (PathEnd t) = PathEnd (tContent t)
+    transformPath (Path t s rst) = Path (tContent t) (sContent s) $ transformPath rst
