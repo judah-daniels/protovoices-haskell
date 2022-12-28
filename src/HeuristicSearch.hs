@@ -1,9 +1,10 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module HeuristicSearch where
 
-import Debug.Trace
 
+import Debug.Trace
 import qualified Data.Heap as H
+import HeuristicParser (getPathFromState)
 
 data HeuristicSearch s c = HeuristicSearch 
   { end :: Maybe s
@@ -26,16 +27,17 @@ heuristicSearch
   -> (state -> [state]) -- get adjacent states
   -> (state -> Bool)    -- goal test
   -> (state -> Float)   -- heuristic
+  -> (state -> String)
   -> Maybe state        -- output
-heuristicSearch initialState getNextStates isGoalState heuristic = search $ heuristicSearchInit initialState heuristic isGoalState 
+heuristicSearch initialState getNextStates isGoalState heuristic printState = trace "Starting Heuristic Search " search $ heuristicSearchInit initialState heuristic isGoalState 
   where
     search hs
-      | H.null (frontier hs) = Nothing
+      | H.null (frontier hs) = trace "Dead end, no goal found." Nothing
       -- | not (null goalStates) = trace "returning" Just (snd $ head goalStates)
       -- | otherwise = trace (  "\nCurrent head: " <> show (snd . head $ nearestState) 
       --                     <> "\nNew frontier: " <> show newFrontier ) 
-      | not (null goalStates) = Just (snd $ head goalStates)
-      | otherwise = search $ hs {frontier = newFrontier}
+        | not (null goalStates) = trace ("Goal State Found!: " <> printState (snd $ head goalStates)) Just (snd $ head goalStates)
+      | otherwise = trace ("Current State: " <> printState (snd. head $ nearestState)) search $ hs {frontier = newFrontier}
       where
         -- Pop the node in the frontier with the lowest priority
         (nearestState, remainingQueue) = H.splitAt 1 (frontier hs) -- pop lowest 0 from pq 
@@ -45,6 +47,8 @@ heuristicSearch initialState getNextStates isGoalState heuristic = search $ heur
 
         -- Determine if any of these neighboring states are goal states
         goalStates = filter (isGoalState . snd) nextStatesAndCosts
+        path = trace ("Path: " <> printState (snd. head $ nearestState)) ""
+
 
         -- Add the new states to the frontier.
         -- newFrontier = trace ("Inserting " <> show nextStatesAndCosts <> " into " <> show remainingQueue ) 

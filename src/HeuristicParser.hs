@@ -210,6 +210,24 @@ exploreStates eval state = case state of
 -- Keep in mind we start at the very end of the piece to parse.
 -- Everytime we thaw a transition we send it the evaluator. Set t2nd upon an unspread, for use later for splits.
 
+heursiticSearchGoalTest 
+  :: SearchState es es' ns o
+  -> Bool
+heursiticSearchGoalTest s = case s of  
+  SSSemiOpen {} -> False 
+  SSFrozen {} -> False
+  SSOpen p _ -> oneChordPerSegment p
+    where
+      oneChordPerSegment :: Path (Trans es) (Slice ns) -> Bool
+      oneChordPerSegment (PathEnd _ ) = True
+      oneChordPerSegment (Path tl _ rst) = tBoundary tl && oneChordPerSegment rst
+
+printPathFromState
+  :: (Show es, Show ns) 
+  => SearchState es es' ns o
+  -> String
+printPathFromState s = maybe "" show (getPathFromState s)
+
 getOpsFromState 
   :: SearchState es es' ns o
   -> [o]
@@ -220,11 +238,11 @@ getOpsFromState s = case s of
 
 getPathFromState
   :: SearchState es es' ns o
-  -> Path es ns
+  -> Maybe (Path es ns)
 getPathFromState s = case s of
-  SSOpen p d -> transformPath p
-  SSSemiOpen p m f d -> undefined 
-  SSFrozen p -> undefined
+  SSOpen p d -> Just $ transformPath p
+  SSSemiOpen p m f d -> Just $ transformPath f 
+  SSFrozen p -> Nothing 
   where
     transformPath
       :: Path (Trans es) (Slice ns)

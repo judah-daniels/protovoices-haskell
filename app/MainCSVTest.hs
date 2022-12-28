@@ -8,6 +8,7 @@ import HeuristicParser
 import HeuristicSearch
 import PVGrammar
 import Evaluator
+import Data.Hashable
 
 import Data.Csv
 import Data.List.Split
@@ -48,6 +49,7 @@ import System.Random.Stateful
 
 import Control.Monad.Trans.Class (lift)
 import Evaluator 
+import HeuristicParser (printPathFromState)
 
 instance FromField Music.RightTied where
   parseField s = case s of
@@ -95,14 +97,52 @@ instance FromNamedRecord ChordLabel' where
 
 main :: IO ()
 main = do
-  slices <- slicesFromFile' "preprocessing/salamis.csv"
+  -- slices <- slicesFromFile' "preprocessing/salamis.csv"
   chords <- chordsFromFile "preprocessing/chords.csv"
   params <- loadParams "preprocessing/dcml_params.json"
 
-  let initialState = SSFrozen $ pathFromSlices protoVoiceEvaluator slices
-  doHeuristicSearch protoVoiceEvaluator initialState chords
+  -- let initialState = SSFrozen $ pathFromSlices protoVoiceEvaluator slices
+
+  -- doHeuristicSearch protoVoiceEvaluator initialState chords
+  -- runHeuristicSearch protoVoiceEvaluator slices chords
+
   pure ()
   -- let path = pathFromSlices protoVoiceEvaluator slices  
+
+type InputSlice ns = ([(ns, Music.RightTied)], Bool)
+
+runHeuristicSearch 
+  :: ( Music.HasPitch ns
+     , Eq (Music.IntervalOf ns)
+     , Data.Hashable.Hashable ns
+     , Ord ns
+     , Show ns
+     , Music.Notation ns) 
+  => Eval (Edges ns) [Edge ns] (Notes ns) [ns] (PVLeftmost ns)
+  -> [InputSlice ns]
+  -> [ChordLabel]
+  -> IO (Path (Edges ns) (Notes ns))
+runHeuristicSearch eval inputSlices chordLabels = do
+  -- putStrLn "\nPlotting Derivation: "
+  -- plotDeriv p ("output198" <> ".tex") ops
+
+  pure p
+    where
+      initialState = SSFrozen $ pathFromSlices eval inputSlices
+
+      finalState = fromMaybe initialState (heuristicSearch initialState getNeighboringStates goalTest heuristic printPathFromState)
+
+      ops = getOpsFromState finalState
+      p = fromMaybe undefined $ getPathFromState finalState
+
+      getNeighboringStates = exploreStates eval
+
+      -- The goal is to find a state with a slice for each chord label.
+      goalTest (SSOpen p _) = pathLen p - 1 == length chordLabels
+      goalTest _ = False
+
+      -- Where the magic happens!
+      heuristic x = 0
 
 doHeuristicSearch 
   :: forall ns ns' es es' 
@@ -118,18 +158,19 @@ doHeuristicSearch eval initialState chords  = do
   let getNeighboringStates = exploreStates eval
 
   -- Do the search!!!
-  let finalState = fromMaybe initialState (heuristicSearch initialState getNeighboringStates goalTest heuristic)
-
+  putStrLn "Doing Search"
+  let finalState = fromMaybe initialState (heuristicSearch initialState getNeighboringStates goalTest heuristic printPathFromState)
+  
   let ops = getOpsFromState finalState
   let p = getPathFromState finalState
 
-
   putStrLn "Derivation complete: "
-  -- putStrLn $ "\nFinal Path: " <> show p
+
+  putStrLn $ "\nFinal Path: " <> show p
 
   hpData <- loadParams "preprocessing/dcml_params.json"
   -- let res = evalPath p chords hpData
-  print ops
+  -- print ops
 
   putStrLn $ "\nEvaluation score: " -- <> show res
     where

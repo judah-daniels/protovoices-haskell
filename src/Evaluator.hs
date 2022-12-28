@@ -101,9 +101,8 @@ getAllParams hpData = normaliseList <$> pChordTones
     normaliseList xs = (/ sum xs) <$> xs
 
 evalPath
-  ::
-  -- .  (Show ns, Music.Spelled ns, AdditiveGroup ns)
-   Path (Edges SPC) (Notes SPC)
+  :: (Show ns, Music.Spelled ns)
+  =>  Path (Edges ns) (Notes SPC)
   -> [ChordLabel]
   -> HarmonicProfileData
   -> Double
@@ -122,7 +121,7 @@ evalPath (Path _ (Notes slc) rst) (lbl : lbls) hpData = evalSegment slc' lbl' hp
 
     slc' = Notes $ Internal.MultiSet.map transformPitch slc
       where
-        -- transformPitch :: ns -> SIC
+        transformPitch :: Music.Pitch SIC -> SIC
         transformPitch p = Music.pfrom p chordRootNote
 
 evalSegment
