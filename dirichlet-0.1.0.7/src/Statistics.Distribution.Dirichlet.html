@@ -1,0 +1,433 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-- |</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- Module      :  Statistics.Distribution.Dirichlet</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Description :  Multivariate Dirichlet distribution</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Copyright   :  2021 Dominik Schrempf</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License     :  GPL-3.0-or-later</span><span>
+</span><span id="line-6"></span><span class="hs-comment">--</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Maintainer  :  dominik.schrempf@gmail.com</span><span>
+</span><span id="line-8"></span><span class="hs-comment">-- Stability   :  unstable</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Portability :  portable</span><span>
+</span><span id="line-10"></span><span class="hs-comment">--</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-- Creation date: Tue Oct 20 10:10:39 2020.</span><span>
+</span><span id="line-12"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Statistics.Distribution.Dirichlet</span><span>
+</span><span id="line-13"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-comment">-- * Dirichlet distribution</span></span><span>
+</span><span id="line-14"></span><span>    </span><span class="annot"><a href="Statistics.Distribution.Dirichlet.html#DirichletDistribution"><span class="hs-identifier">DirichletDistribution</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Statistics.Distribution.Dirichlet.html#ddGetParameters"><span class="hs-identifier">ddGetParameters</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-15"></span><span>    </span><span class="annot"><a href="Statistics.Distribution.Dirichlet.html#dirichletDistribution"><span class="hs-identifier">dirichletDistribution</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-16"></span><span>    </span><span class="annot"><a href="Statistics.Distribution.Dirichlet.html#dirichletDensity"><span class="hs-identifier">dirichletDensity</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-17"></span><span>    </span><span class="annot"><a href="Statistics.Distribution.Dirichlet.html#dirichletSample"><span class="hs-identifier">dirichletSample</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Symmetric Dirichlet distribution</span></span><span>
+</span><span id="line-20"></span><span>    </span><span class="annot"><a href="Statistics.Distribution.Dirichlet.html#DirichletDistributionSymmetric"><span class="hs-identifier">DirichletDistributionSymmetric</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Statistics.Distribution.Dirichlet.html#ddSymGetParameter"><span class="hs-identifier">ddSymGetParameter</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-21"></span><span>    </span><span class="annot"><a href="Statistics.Distribution.Dirichlet.html#dirichletDistributionSymmetric"><span class="hs-identifier">dirichletDistributionSymmetric</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-22"></span><span>    </span><span class="annot"><a href="Statistics.Distribution.Dirichlet.html#dirichletDensitySymmetric"><span class="hs-identifier">dirichletDensitySymmetric</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-23"></span><span>    </span><span class="annot"><a href="Statistics.Distribution.Dirichlet.html#dirichletSampleSymmetric"><span class="hs-identifier">dirichletSampleSymmetric</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-24"></span><span>  </span><span class="hs-special">)</span><span>
+</span><span id="line-25"></span><span class="hs-keyword">where</span><span>
+</span><span id="line-26"></span><span>
+</span><span id="line-27"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Vector.Unboxed</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">V</span></span><span>
+</span><span id="line-28"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Numeric.Log</span></span><span>
+</span><span id="line-29"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Numeric.SpecFunctions</span></span><span>
+</span><span id="line-30"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">System.Random.MWC.Distributions</span></span><span>
+</span><span id="line-31"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">System.Random.Stateful</span></span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span class="hs-comment">-- | The [Dirichlet distribution](https://en.wikipedia.org/wiki/Dirichlet_distribution).</span><span>
+</span><span id="line-34"></span><span class="hs-keyword">data</span><span> </span><span id="DirichletDistribution"><span class="annot"><a href="Statistics.Distribution.Dirichlet.html#DirichletDistribution"><span class="hs-identifier hs-var">DirichletDistribution</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="DirichletDistribution"><span class="annot"><a href="Statistics.Distribution.Dirichlet.html#DirichletDistribution"><span class="hs-identifier hs-var">DirichletDistribution</span></a></span></span><span>
+</span><span id="line-35"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="ddGetParameters"><span class="annot"><span class="annottext">DirichletDistribution -&gt; Vector Double
+</span><a href="Statistics.Distribution.Dirichlet.html#ddGetParameters"><span class="hs-identifier hs-var hs-var">ddGetParameters</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">V.Vector</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span class="hs-special">,</span><span>
+</span><span id="line-36"></span><span>    </span><span id="_getDimension"><span class="annot"><span class="annottext">DirichletDistribution -&gt; Int
+</span><a href="Statistics.Distribution.Dirichlet.html#_getDimension"><span class="hs-identifier hs-var hs-var">_getDimension</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">,</span><span>
+</span><span id="line-37"></span><span>    </span><span id="_getNormConst"><span class="annot"><span class="annottext">DirichletDistribution -&gt; Log Double
+</span><a href="Statistics.Distribution.Dirichlet.html#_getNormConst"><span class="hs-identifier hs-var hs-var">_getNormConst</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Log</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span>
+</span><span id="line-38"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-39"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679067519"><span id="local-6989586621679067527"><span class="annot"><span class="annottext">DirichletDistribution -&gt; DirichletDistribution -&gt; Bool
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+/= :: DirichletDistribution -&gt; DirichletDistribution -&gt; Bool
+$c/= :: DirichletDistribution -&gt; DirichletDistribution -&gt; Bool
+== :: DirichletDistribution -&gt; DirichletDistribution -&gt; Bool
+$c== :: DirichletDistribution -&gt; DirichletDistribution -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679067502"><span id="local-6989586621679067504"><span id="local-6989586621679067515"><span class="annot"><span class="annottext">Int -&gt; DirichletDistribution -&gt; ShowS
+[DirichletDistribution] -&gt; ShowS
+DirichletDistribution -&gt; String
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+showList :: [DirichletDistribution] -&gt; ShowS
+$cshowList :: [DirichletDistribution] -&gt; ShowS
+show :: DirichletDistribution -&gt; String
+$cshow :: DirichletDistribution -&gt; String
+showsPrec :: Int -&gt; DirichletDistribution -&gt; ShowS
+$cshowsPrec :: Int -&gt; DirichletDistribution -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-40"></span><span>
+</span><span id="line-41"></span><span class="hs-comment">-- Check if vector is strictly positive.</span><span>
+</span><span id="line-42"></span><span class="annot"><a href="Statistics.Distribution.Dirichlet.html#isNegativeOrZero"><span class="hs-identifier hs-type">isNegativeOrZero</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">V.Vector</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-43"></span><span id="isNegativeOrZero"><span class="annot"><span class="annottext">isNegativeOrZero :: Vector Double -&gt; Bool
+</span><a href="Statistics.Distribution.Dirichlet.html#isNegativeOrZero"><span class="hs-identifier hs-var hs-var">isNegativeOrZero</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. Unbox a =&gt; (a -&gt; Bool) -&gt; Vector a -&gt; Bool
+</span><span class="hs-identifier hs-var">V.any</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;=</span></span><span> </span><span class="annot"><span class="annottext">Double
+</span><span class="hs-number">0</span></span><span class="hs-special">)</span><span>
+</span><span id="line-44"></span><span>
+</span><span id="line-45"></span><span class="hs-comment">-- Inverse multivariate beta function. Does not check if parameters are valid!</span><span>
+</span><span id="line-46"></span><span class="annot"><a href="Statistics.Distribution.Dirichlet.html#invBeta"><span class="hs-identifier hs-type">invBeta</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">V.Vector</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Log</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span>
+</span><span id="line-47"></span><span id="invBeta"><span class="annot"><span class="annottext">invBeta :: Vector Double -&gt; Log Double
+</span><a href="Statistics.Distribution.Dirichlet.html#invBeta"><span class="hs-identifier hs-var hs-var">invBeta</span></a></span></span><span> </span><span id="local-6989586621679067494"><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679067494"><span class="hs-identifier hs-var">v</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. a -&gt; Log a
+</span><span class="hs-identifier hs-var">Exp</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679067492"><span class="hs-identifier hs-var">logDenominator</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679067491"><span class="hs-identifier hs-var">logNominator</span></a></span><span>
+</span><span id="line-48"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-49"></span><span>    </span><span id="local-6989586621679067491"><span class="annot"><span class="annottext">logNominator :: Double
+</span><a href="#local-6989586621679067491"><span class="hs-identifier hs-var hs-var">logNominator</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. (Unbox a, Num a) =&gt; Vector a -&gt; a
+</span><span class="hs-identifier hs-var">V.sum</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (Unbox a, Unbox b) =&gt; (a -&gt; b) -&gt; Vector a -&gt; Vector b
+</span><span class="hs-identifier hs-var">V.map</span></span><span> </span><span class="annot"><span class="annottext">Double -&gt; Double
+</span><span class="hs-identifier hs-var">logGamma</span></span><span> </span><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679067494"><span class="hs-identifier hs-var">v</span></a></span><span>
+</span><span id="line-50"></span><span>    </span><span id="local-6989586621679067492"><span class="annot"><span class="annottext">logDenominator :: Double
+</span><a href="#local-6989586621679067492"><span class="hs-identifier hs-var hs-var">logDenominator</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Double -&gt; Double
+</span><span class="hs-identifier hs-var">logGamma</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. (Unbox a, Num a) =&gt; Vector a -&gt; a
+</span><span class="hs-identifier hs-var">V.sum</span></span><span> </span><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679067494"><span class="hs-identifier hs-var">v</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-51"></span><span>
+</span><span id="line-52"></span><span class="hs-comment">-- | Create a Dirichlet distribution from the given parameter vector.</span><span>
+</span><span id="line-53"></span><span class="hs-comment">--</span><span>
+</span><span id="line-54"></span><span class="hs-comment">-- Return Left if:</span><span>
+</span><span id="line-55"></span><span class="hs-comment">--</span><span>
+</span><span id="line-56"></span><span class="hs-comment">-- - The parameter vector has less then two elements.</span><span>
+</span><span id="line-57"></span><span class="hs-comment">--</span><span>
+</span><span id="line-58"></span><span class="hs-comment">-- - One or more parameters are negative or zero.</span><span>
+</span><span id="line-59"></span><span class="annot"><a href="Statistics.Distribution.Dirichlet.html#dirichletDistribution"><span class="hs-identifier hs-type">dirichletDistribution</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">V.Vector</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="annot"><a href="Statistics.Distribution.Dirichlet.html#DirichletDistribution"><span class="hs-identifier hs-type">DirichletDistribution</span></a></span><span>
+</span><span id="line-60"></span><span id="dirichletDistribution"><span class="annot"><span class="annottext">dirichletDistribution :: Vector Double -&gt; Either String DirichletDistribution
+</span><a href="Statistics.Distribution.Dirichlet.html#dirichletDistribution"><span class="hs-identifier hs-var hs-var">dirichletDistribution</span></a></span></span><span> </span><span id="local-6989586621679067481"><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679067481"><span class="hs-identifier hs-var">v</span></a></span></span><span>
+</span><span id="line-61"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">forall a. Unbox a =&gt; Vector a -&gt; Int
+</span><span class="hs-identifier hs-var">V.length</span></span><span> </span><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679067481"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">2</span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-62"></span><span>      </span><span class="annot"><span class="annottext">forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;dirichletDistribution: Parameter vector is too short.&quot;</span></span><span>
+</span><span id="line-63"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Vector Double -&gt; Bool
+</span><a href="Statistics.Distribution.Dirichlet.html#isNegativeOrZero"><span class="hs-identifier hs-var">isNegativeOrZero</span></a></span><span> </span><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679067481"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-64"></span><span>      </span><span class="annot"><span class="annottext">forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;dirichletDistribution: One or more parameters are negative or zero.&quot;</span></span><span>
+</span><span id="line-65"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Vector Double -&gt; Int -&gt; Log Double -&gt; DirichletDistribution
+</span><a href="Statistics.Distribution.Dirichlet.html#DirichletDistribution"><span class="hs-identifier hs-var">DirichletDistribution</span></a></span><span> </span><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679067481"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Unbox a =&gt; Vector a -&gt; Int
+</span><span class="hs-identifier hs-var">V.length</span></span><span> </span><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679067481"><span class="hs-identifier hs-var">v</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Vector Double -&gt; Log Double
+</span><a href="Statistics.Distribution.Dirichlet.html#invBeta"><span class="hs-identifier hs-var">invBeta</span></a></span><span> </span><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679067481"><span class="hs-identifier hs-var">v</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-66"></span><span>
+</span><span id="line-67"></span><span class="hs-comment">-- Tolerance.</span><span>
+</span><span id="line-68"></span><span class="annot"><a href="Statistics.Distribution.Dirichlet.html#eps"><span class="hs-identifier hs-type">eps</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span>
+</span><span id="line-69"></span><span id="eps"><span class="annot"><span class="annottext">eps :: Double
+</span><a href="Statistics.Distribution.Dirichlet.html#eps"><span class="hs-identifier hs-var hs-var">eps</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Double
+</span><span class="hs-number">1e-14</span></span><span>
+</span><span id="line-70"></span><span>
+</span><span id="line-71"></span><span class="hs-comment">-- Check if vector is normalized with tolerance 'eps'.</span><span>
+</span><span id="line-72"></span><span class="annot"><a href="Statistics.Distribution.Dirichlet.html#isNormalized"><span class="hs-identifier hs-type">isNormalized</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">V.Vector</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-73"></span><span id="isNormalized"><span class="annot"><span class="annottext">isNormalized :: Vector Double -&gt; Bool
+</span><a href="Statistics.Distribution.Dirichlet.html#isNormalized"><span class="hs-identifier hs-var hs-var">isNormalized</span></a></span></span><span> </span><span id="local-6989586621679067476"><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679067476"><span class="hs-identifier hs-var">v</span></a></span></span><span>
+</span><span id="line-74"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">abs</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. (Unbox a, Num a) =&gt; Vector a -&gt; a
+</span><span class="hs-identifier hs-var">V.sum</span></span><span> </span><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679067476"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Double
+</span><span class="hs-number">1.0</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&gt;</span></span><span> </span><span class="annot"><span class="annottext">Double
+</span><a href="Statistics.Distribution.Dirichlet.html#eps"><span class="hs-identifier hs-var">eps</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-75"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-76"></span><span>
+</span><span id="line-77"></span><span class="hs-comment">-- | Density of the Dirichlet distribution evaluated at a given value vector.</span><span>
+</span><span id="line-78"></span><span class="hs-comment">--</span><span>
+</span><span id="line-79"></span><span class="hs-comment">-- Return 0 if:</span><span>
+</span><span id="line-80"></span><span class="hs-comment">--</span><span>
+</span><span id="line-81"></span><span class="hs-comment">-- - The value vector has a different length than the parameter vector.</span><span>
+</span><span id="line-82"></span><span class="hs-comment">--</span><span>
+</span><span id="line-83"></span><span class="hs-comment">-- - The value vector has elements being negative or zero.</span><span>
+</span><span id="line-84"></span><span class="hs-comment">--</span><span>
+</span><span id="line-85"></span><span class="hs-comment">-- - The value vector does not sum to 1.0 (with tolerance @eps = 1e-14@).</span><span>
+</span><span id="line-86"></span><span class="annot"><a href="Statistics.Distribution.Dirichlet.html#dirichletDensity"><span class="hs-identifier hs-type">dirichletDensity</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Statistics.Distribution.Dirichlet.html#DirichletDistribution"><span class="hs-identifier hs-type">DirichletDistribution</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">V.Vector</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Log</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span>
+</span><span id="line-87"></span><span id="dirichletDensity"><span class="annot"><span class="annottext">dirichletDensity :: DirichletDistribution -&gt; Vector Double -&gt; Log Double
+</span><a href="Statistics.Distribution.Dirichlet.html#dirichletDensity"><span class="hs-identifier hs-var hs-var">dirichletDensity</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Statistics.Distribution.Dirichlet.html#DirichletDistribution"><span class="hs-identifier hs-type">DirichletDistribution</span></a></span><span> </span><span id="local-6989586621679067473"><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679067473"><span class="hs-keyword hs-var">as</span></a></span></span><span> </span><span id="local-6989586621679067472"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679067472"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span id="local-6989586621679067471"><span class="annot"><span class="annottext">Log Double
+</span><a href="#local-6989586621679067471"><span class="hs-identifier hs-var">c</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679067470"><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679067470"><span class="hs-identifier hs-var">xs</span></a></span></span><span>
+</span><span id="line-88"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679067472"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">/=</span></span><span> </span><span class="annot"><span class="annottext">forall a. Unbox a =&gt; Vector a -&gt; Int
+</span><span class="hs-identifier hs-var">V.length</span></span><span> </span><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679067470"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Log Double
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-89"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Vector Double -&gt; Bool
+</span><a href="Statistics.Distribution.Dirichlet.html#isNegativeOrZero"><span class="hs-identifier hs-var">isNegativeOrZero</span></a></span><span> </span><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679067470"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Log Double
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-90"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Vector Double -&gt; Bool
+</span><a href="Statistics.Distribution.Dirichlet.html#isNormalized"><span class="hs-identifier hs-var">isNormalized</span></a></span><span> </span><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679067470"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Log Double
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-91"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Log Double
+</span><a href="#local-6989586621679067471"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">forall a. a -&gt; Log a
+</span><span class="hs-identifier hs-var">Exp</span></span><span> </span><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679067466"><span class="hs-identifier hs-var">logXsPow</span></a></span><span>
+</span><span id="line-92"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-93"></span><span>    </span><span id="local-6989586621679067466"><span class="annot"><span class="annottext">logXsPow :: Double
+</span><a href="#local-6989586621679067466"><span class="hs-identifier hs-var hs-var">logXsPow</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. (Unbox a, Num a) =&gt; Vector a -&gt; a
+</span><span class="hs-identifier hs-var">V.sum</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a b c.
+(Unbox a, Unbox b, Unbox c) =&gt;
+(a -&gt; b -&gt; c) -&gt; Vector a -&gt; Vector b -&gt; Vector c
+</span><span class="hs-identifier hs-var">V.zipWith</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679067455"><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679067455"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679067454"><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679067454"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall a. Floating a =&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">log</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679067454"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Floating a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">**</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679067455"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Double
+</span><span class="hs-number">1.0</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679067473"><span class="hs-keyword hs-var">as</span></a></span><span> </span><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679067470"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-94"></span><span>
+</span><span id="line-95"></span><span class="hs-comment">-- | Sample a value vector from the Dirichlet distribution.</span><span>
+</span><span id="line-96"></span><span id="local-6989586621679067612"><span id="local-6989586621679067613"><span class="annot"><a href="Statistics.Distribution.Dirichlet.html#dirichletSample"><span class="hs-identifier hs-type">dirichletSample</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">StatefulGen</span></span><span> </span><span class="annot"><a href="#local-6989586621679067613"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679067612"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Statistics.Distribution.Dirichlet.html#DirichletDistribution"><span class="hs-identifier hs-type">DirichletDistribution</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679067613"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679067612"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">V.Vector</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-97"></span><span id="dirichletSample"><span class="annot"><span class="annottext">dirichletSample :: forall g (m :: * -&gt; *).
+StatefulGen g m =&gt;
+DirichletDistribution -&gt; g -&gt; m (Vector Double)
+</span><a href="Statistics.Distribution.Dirichlet.html#dirichletSample"><span class="hs-identifier hs-var hs-var">dirichletSample</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Statistics.Distribution.Dirichlet.html#DirichletDistribution"><span class="hs-identifier hs-type">DirichletDistribution</span></a></span><span> </span><span id="local-6989586621679067439"><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679067439"><span class="hs-keyword hs-var">as</span></a></span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Log Double
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679067438"><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679067438"><span class="hs-identifier hs-var">g</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-98"></span><span>  </span><span id="local-6989586621679067437"><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679067437"><span class="hs-identifier hs-var">ys</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a b.
+(Monad m, Unbox a, Unbox b) =&gt;
+(a -&gt; m b) -&gt; Vector a -&gt; m (Vector b)
+</span><span class="hs-identifier hs-var">V.mapM</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679067435"><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679067435"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall g (m :: * -&gt; *).
+StatefulGen g m =&gt;
+Double -&gt; Double -&gt; g -&gt; m Double
+</span><span class="hs-identifier hs-var">gamma</span></span><span> </span><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679067435"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Double
+</span><span class="hs-number">1.0</span></span><span> </span><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679067438"><span class="hs-identifier hs-var">g</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679067439"><span class="hs-keyword hs-var">as</span></a></span><span>
+</span><span id="line-99"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679067431"><span class="annot"><span class="annottext">s :: Double
+</span><a href="#local-6989586621679067431"><span class="hs-identifier hs-var hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. (Unbox a, Num a) =&gt; Vector a -&gt; a
+</span><span class="hs-identifier hs-var">V.sum</span></span><span> </span><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679067437"><span class="hs-identifier hs-var">ys</span></a></span><span>
+</span><span id="line-100"></span><span>  </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (Unbox a, Unbox b) =&gt; (a -&gt; b) -&gt; Vector a -&gt; Vector b
+</span><span class="hs-identifier hs-var">V.map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Fractional a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">/</span></span><span> </span><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679067431"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679067437"><span class="hs-identifier hs-var">ys</span></a></span><span>
+</span><span id="line-101"></span><span>
+</span><span id="line-102"></span><span class="hs-comment">-- | See 'DirichletDistribution' but with parameter vector @replicate DIM VAL@.</span><span>
+</span><span id="line-103"></span><span class="hs-keyword">data</span><span> </span><span id="DirichletDistributionSymmetric"><span class="annot"><a href="Statistics.Distribution.Dirichlet.html#DirichletDistributionSymmetric"><span class="hs-identifier hs-var">DirichletDistributionSymmetric</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="DirichletDistributionSymmetric"><span class="annot"><a href="Statistics.Distribution.Dirichlet.html#DirichletDistributionSymmetric"><span class="hs-identifier hs-var">DirichletDistributionSymmetric</span></a></span></span><span>
+</span><span id="line-104"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="ddSymGetParameter"><span class="annot"><span class="annottext">DirichletDistributionSymmetric -&gt; Double
+</span><a href="Statistics.Distribution.Dirichlet.html#ddSymGetParameter"><span class="hs-identifier hs-var hs-var">ddSymGetParameter</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span class="hs-special">,</span><span>
+</span><span id="line-105"></span><span>    </span><span id="_symGetDimension"><span class="annot"><span class="annottext">DirichletDistributionSymmetric -&gt; Int
+</span><a href="Statistics.Distribution.Dirichlet.html#_symGetDimension"><span class="hs-identifier hs-var hs-var">_symGetDimension</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">,</span><span>
+</span><span id="line-106"></span><span>    </span><span id="_symGetNormConst"><span class="annot"><span class="annottext">DirichletDistributionSymmetric -&gt; Log Double
+</span><a href="Statistics.Distribution.Dirichlet.html#_symGetNormConst"><span class="hs-identifier hs-var hs-var">_symGetNormConst</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Log</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span>
+</span><span id="line-107"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-108"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679067420"><span id="local-6989586621679067425"><span class="annot"><span class="annottext">DirichletDistributionSymmetric
+-&gt; DirichletDistributionSymmetric -&gt; Bool
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+/= :: DirichletDistributionSymmetric
+-&gt; DirichletDistributionSymmetric -&gt; Bool
+$c/= :: DirichletDistributionSymmetric
+-&gt; DirichletDistributionSymmetric -&gt; Bool
+== :: DirichletDistributionSymmetric
+-&gt; DirichletDistributionSymmetric -&gt; Bool
+$c== :: DirichletDistributionSymmetric
+-&gt; DirichletDistributionSymmetric -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679067409"><span id="local-6989586621679067411"><span id="local-6989586621679067418"><span class="annot"><span class="annottext">Int -&gt; DirichletDistributionSymmetric -&gt; ShowS
+[DirichletDistributionSymmetric] -&gt; ShowS
+DirichletDistributionSymmetric -&gt; String
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+showList :: [DirichletDistributionSymmetric] -&gt; ShowS
+$cshowList :: [DirichletDistributionSymmetric] -&gt; ShowS
+show :: DirichletDistributionSymmetric -&gt; String
+$cshow :: DirichletDistributionSymmetric -&gt; String
+showsPrec :: Int -&gt; DirichletDistributionSymmetric -&gt; ShowS
+$cshowsPrec :: Int -&gt; DirichletDistributionSymmetric -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-109"></span><span>
+</span><span id="line-110"></span><span class="hs-comment">-- Inverse multivariate beta function. Does not check if parameters are valid!</span><span>
+</span><span id="line-111"></span><span class="annot"><a href="Statistics.Distribution.Dirichlet.html#invBetaSym"><span class="hs-identifier hs-type">invBetaSym</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Log</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span>
+</span><span id="line-112"></span><span id="invBetaSym"><span class="annot"><span class="annottext">invBetaSym :: Int -&gt; Double -&gt; Log Double
+</span><a href="Statistics.Distribution.Dirichlet.html#invBetaSym"><span class="hs-identifier hs-var hs-var">invBetaSym</span></a></span></span><span> </span><span id="local-6989586621679067407"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679067407"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span id="local-6989586621679067406"><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679067406"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. a -&gt; Log a
+</span><span class="hs-identifier hs-var">Exp</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679067405"><span class="hs-identifier hs-var">logDenominator</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679067404"><span class="hs-identifier hs-var">logNominator</span></a></span><span>
+</span><span id="line-113"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-114"></span><span>    </span><span id="local-6989586621679067404"><span class="annot"><span class="annottext">logNominator :: Double
+</span><a href="#local-6989586621679067404"><span class="hs-identifier hs-var hs-var">logNominator</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679067407"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">Double -&gt; Double
+</span><span class="hs-identifier hs-var">logGamma</span></span><span> </span><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679067406"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-115"></span><span>    </span><span id="local-6989586621679067405"><span class="annot"><span class="annottext">logDenominator :: Double
+</span><a href="#local-6989586621679067405"><span class="hs-identifier hs-var hs-var">logDenominator</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Double -&gt; Double
+</span><span class="hs-identifier hs-var">logGamma</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679067407"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679067406"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-116"></span><span>
+</span><span id="line-117"></span><span class="hs-comment">-- | Create a symmetric Dirichlet distribution of given dimension and parameter.</span><span>
+</span><span id="line-118"></span><span class="hs-comment">--</span><span>
+</span><span id="line-119"></span><span class="hs-comment">-- Return Left if:</span><span>
+</span><span id="line-120"></span><span class="hs-comment">--</span><span>
+</span><span id="line-121"></span><span class="hs-comment">-- - The given dimension is smaller than two.</span><span>
+</span><span id="line-122"></span><span class="hs-comment">--</span><span>
+</span><span id="line-123"></span><span class="hs-comment">-- - The parameter is negative or zero.</span><span>
+</span><span id="line-124"></span><span class="annot"><a href="Statistics.Distribution.Dirichlet.html#dirichletDistributionSymmetric"><span class="hs-identifier hs-type">dirichletDistributionSymmetric</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="annot"><a href="Statistics.Distribution.Dirichlet.html#DirichletDistributionSymmetric"><span class="hs-identifier hs-type">DirichletDistributionSymmetric</span></a></span><span>
+</span><span id="line-125"></span><span id="dirichletDistributionSymmetric"><span class="annot"><span class="annottext">dirichletDistributionSymmetric :: Int -&gt; Double -&gt; Either String DirichletDistributionSymmetric
+</span><a href="Statistics.Distribution.Dirichlet.html#dirichletDistributionSymmetric"><span class="hs-identifier hs-var hs-var">dirichletDistributionSymmetric</span></a></span></span><span> </span><span id="local-6989586621679067396"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679067396"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span id="local-6989586621679067395"><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679067395"><span class="hs-identifier hs-var">a</span></a></span></span><span>
+</span><span id="line-126"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679067396"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">2</span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-127"></span><span>      </span><span class="annot"><span class="annottext">forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;dirichletDistributionSymmetric: The dimension is smaller than two.&quot;</span></span><span>
+</span><span id="line-128"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679067395"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;=</span></span><span> </span><span class="annot"><span class="annottext">Double
+</span><span class="hs-number">0</span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-129"></span><span>      </span><span class="annot"><span class="annottext">forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;dirichletDistributionSymmetric: The parameter is negative or zero.&quot;</span></span><span>
+</span><span id="line-130"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Double -&gt; Int -&gt; Log Double -&gt; DirichletDistributionSymmetric
+</span><a href="Statistics.Distribution.Dirichlet.html#DirichletDistributionSymmetric"><span class="hs-identifier hs-var">DirichletDistributionSymmetric</span></a></span><span> </span><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679067395"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679067396"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; Double -&gt; Log Double
+</span><a href="Statistics.Distribution.Dirichlet.html#invBetaSym"><span class="hs-identifier hs-var">invBetaSym</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679067396"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679067395"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-131"></span><span>
+</span><span id="line-132"></span><span class="hs-comment">-- | Density of the symmetric Dirichlet distribution evaluated at a given value</span><span>
+</span><span id="line-133"></span><span class="hs-comment">-- vector.</span><span>
+</span><span id="line-134"></span><span class="hs-comment">--</span><span>
+</span><span id="line-135"></span><span class="hs-comment">-- Return 0 if:</span><span>
+</span><span id="line-136"></span><span class="hs-comment">--</span><span>
+</span><span id="line-137"></span><span class="hs-comment">-- - The value vector has a different dimension.</span><span>
+</span><span id="line-138"></span><span class="hs-comment">--</span><span>
+</span><span id="line-139"></span><span class="hs-comment">-- - The value vector has elements being negative or zero.</span><span>
+</span><span id="line-140"></span><span class="hs-comment">--</span><span>
+</span><span id="line-141"></span><span class="hs-comment">-- - The value vector does not sum to 1.0 (with tolerance @eps = 1e-14@).</span><span>
+</span><span id="line-142"></span><span class="annot"><a href="Statistics.Distribution.Dirichlet.html#dirichletDensitySymmetric"><span class="hs-identifier hs-type">dirichletDensitySymmetric</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Statistics.Distribution.Dirichlet.html#DirichletDistributionSymmetric"><span class="hs-identifier hs-type">DirichletDistributionSymmetric</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">V.Vector</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Log</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span>
+</span><span id="line-143"></span><span id="dirichletDensitySymmetric"><span class="annot"><span class="annottext">dirichletDensitySymmetric :: DirichletDistributionSymmetric -&gt; Vector Double -&gt; Log Double
+</span><a href="Statistics.Distribution.Dirichlet.html#dirichletDensitySymmetric"><span class="hs-identifier hs-var hs-var">dirichletDensitySymmetric</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Statistics.Distribution.Dirichlet.html#DirichletDistributionSymmetric"><span class="hs-identifier hs-type">DirichletDistributionSymmetric</span></a></span><span> </span><span id="local-6989586621679067394"><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679067394"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679067393"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679067393"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span id="local-6989586621679067392"><span class="annot"><span class="annottext">Log Double
+</span><a href="#local-6989586621679067392"><span class="hs-identifier hs-var">c</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679067391"><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679067391"><span class="hs-identifier hs-var">xs</span></a></span></span><span>
+</span><span id="line-144"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679067393"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">/=</span></span><span> </span><span class="annot"><span class="annottext">forall a. Unbox a =&gt; Vector a -&gt; Int
+</span><span class="hs-identifier hs-var">V.length</span></span><span> </span><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679067391"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Log Double
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-145"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Vector Double -&gt; Bool
+</span><a href="Statistics.Distribution.Dirichlet.html#isNegativeOrZero"><span class="hs-identifier hs-var">isNegativeOrZero</span></a></span><span> </span><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679067391"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Log Double
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-146"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Vector Double -&gt; Bool
+</span><a href="Statistics.Distribution.Dirichlet.html#isNormalized"><span class="hs-identifier hs-var">isNormalized</span></a></span><span> </span><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679067391"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Log Double
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-147"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Log Double
+</span><a href="#local-6989586621679067392"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">forall a. a -&gt; Log a
+</span><span class="hs-identifier hs-var">Exp</span></span><span> </span><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679067390"><span class="hs-identifier hs-var">logXsPow</span></a></span><span>
+</span><span id="line-148"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-149"></span><span>    </span><span id="local-6989586621679067390"><span class="annot"><span class="annottext">logXsPow :: Double
+</span><a href="#local-6989586621679067390"><span class="hs-identifier hs-var hs-var">logXsPow</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. (Unbox a, Num a) =&gt; Vector a -&gt; a
+</span><span class="hs-identifier hs-var">V.sum</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (Unbox a, Unbox b) =&gt; (a -&gt; b) -&gt; Vector a -&gt; Vector b
+</span><span class="hs-identifier hs-var">V.map</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679067381"><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679067381"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall a. Floating a =&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">log</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679067381"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Floating a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">**</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679067394"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Double
+</span><span class="hs-number">1.0</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679067391"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-150"></span><span>
+</span><span id="line-151"></span><span class="hs-comment">-- | Sample a value vector from the symmetric Dirichlet distribution.</span><span>
+</span><span id="line-152"></span><span id="local-6989586621679067595"><span id="local-6989586621679067596"><span class="annot"><a href="Statistics.Distribution.Dirichlet.html#dirichletSampleSymmetric"><span class="hs-identifier hs-type">dirichletSampleSymmetric</span></a></span><span> </span><span class="hs-glyph">::</span><span>
+</span><span id="line-153"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">StatefulGen</span></span><span> </span><span class="annot"><a href="#local-6989586621679067596"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679067595"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span>
+</span><span id="line-154"></span><span>  </span><span class="annot"><a href="Statistics.Distribution.Dirichlet.html#DirichletDistributionSymmetric"><span class="hs-identifier hs-type">DirichletDistributionSymmetric</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-155"></span><span>  </span><span class="annot"><a href="#local-6989586621679067596"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-156"></span><span>  </span><span class="annot"><a href="#local-6989586621679067595"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">V.Vector</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-157"></span><span id="dirichletSampleSymmetric"><span class="annot"><span class="annottext">dirichletSampleSymmetric :: forall g (m :: * -&gt; *).
+StatefulGen g m =&gt;
+DirichletDistributionSymmetric -&gt; g -&gt; m (Vector Double)
+</span><a href="Statistics.Distribution.Dirichlet.html#dirichletSampleSymmetric"><span class="hs-identifier hs-var hs-var">dirichletSampleSymmetric</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Statistics.Distribution.Dirichlet.html#DirichletDistributionSymmetric"><span class="hs-identifier hs-type">DirichletDistributionSymmetric</span></a></span><span> </span><span id="local-6989586621679067370"><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679067370"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679067369"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679067369"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="annot"><span class="annottext">Log Double
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679067368"><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679067368"><span class="hs-identifier hs-var">g</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-158"></span><span>  </span><span id="local-6989586621679067367"><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679067367"><span class="hs-identifier hs-var">ys</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a.
+(Monad m, Unbox a) =&gt;
+Int -&gt; m a -&gt; m (Vector a)
+</span><span class="hs-identifier hs-var">V.replicateM</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679067369"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall g (m :: * -&gt; *).
+StatefulGen g m =&gt;
+Double -&gt; Double -&gt; g -&gt; m Double
+</span><span class="hs-identifier hs-var">gamma</span></span><span> </span><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679067370"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Double
+</span><span class="hs-number">1.0</span></span><span> </span><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679067368"><span class="hs-identifier hs-var">g</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-159"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679067363"><span class="annot"><span class="annottext">s :: Double
+</span><a href="#local-6989586621679067363"><span class="hs-identifier hs-var hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. (Unbox a, Num a) =&gt; Vector a -&gt; a
+</span><span class="hs-identifier hs-var">V.sum</span></span><span> </span><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679067367"><span class="hs-identifier hs-var">ys</span></a></span><span>
+</span><span id="line-160"></span><span>  </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (Unbox a, Unbox b) =&gt; (a -&gt; b) -&gt; Vector a -&gt; Vector b
+</span><span class="hs-identifier hs-var">V.map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Fractional a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">/</span></span><span> </span><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679067363"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679067367"><span class="hs-identifier hs-var">ys</span></a></span><span>
+</span><span id="line-161"></span></pre></body></html>

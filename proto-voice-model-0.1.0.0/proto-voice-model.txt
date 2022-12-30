@@ -507,9 +507,6 @@ instance GHC.Classes.Ord Display.Empty
 instance GHC.Classes.Eq Display.Empty
 instance GHC.Show.Show Display.Empty
 
-module Evaluator
-evalSlice :: Analysis s f h e a -> String -> Float
-
 
 -- | This module contains a simple greedy parser for path grammars. The
 --   grammar is provided by an evaluator (<a>Eval</a>). In addition, the
@@ -643,9 +640,55 @@ Trans :: !es -> !Bool -> !Bool -> Trans es
 [t2nd] :: Trans es -> !Bool
 [tBoundary] :: Trans es -> !Bool
 
--- | The state of the search between steps es' : Unparsed/frozen
---   transitions es : Unfrozen transitions ns : Evaluated slice content o :
---   Operation type
+-- | The state of the search between steps. Generally, the current
+--   reduction consists of frozen transitions between the ⋊ and the current
+--   location and open transitions between the current location and ⋉.
+--   
+--   <pre>
+--   ⋊==[1]==[2]==[3]——[4]——[5]——⋉
+--     └ frozen  ┘  | └   open  ┘
+--               midSlice (current position)
+--   
+--   frozen:   ==[2]==[1]==
+--   midSlice: [3]
+--   open:     ——[4]——[5]——
+--   </pre>
+--   
+--   This is the <a>SSSemiOpen</a> case: The slice at the current pointer
+--   (<tt>[3]</tt>) is represented as an individual slice
+--   (<tt>_ssMidSlice</tt>). The frozen part is represented by a
+--   <a>Path</a> of frozen transitions (<tt>tr'</tt>) and slices
+--   (<tt>slc</tt>). <b>in reverse direction</b>, i.e. from
+--   <tt>midslice</tt> back to ⋊ (excluding ⋊). The open part is a
+--   <a>Path</a> of open transitions (<tt>tr</tt>) and slices
+--   (<tt>slc</tt>) in forward direction from <tt>midSlice</tt> up to ⋉.
+--   
+--   There are two special cases. All transitions can be frozen
+--   (<a>SSFrozen</a>), in which case state only contains the backward
+--   <a>Path</a> of frozen transitions (excluding ⋊ and ⋉):
+--   
+--   <pre>
+--   ⋊==[1]==[2]==[3]==⋉
+--                      └ current position
+--   represented as: ==[3]==[2]==[1]==
+--   </pre>
+--   
+--   Or all transitions can be open (<a>SSOpen</a>), in which case the
+--   state is just the forward path of open transitions:
+--   
+--   <pre>
+--   ⋊——[1]——[2]——[3]——⋉
+--   └ current position
+--   represented as: ——[1]——[2]——[3]——
+--   </pre>
+--   
+--   The open and semiopen case additionally have a list of operations in
+--   generative order.
+--   
+--   Types: es' : Unparsed/frozen transitions es : Unfrozen transitions ns
+--   : Evaluated slice content o : Operation type
+--   
+--   The state of the search between steps
 data SearchState es es' ns o
 SSFrozen :: !Path (Maybe es', Bool) (Slice ns) -> SearchState es es' ns o
 SSSemiOpen :: !Path (Maybe es', Bool) (Slice ns) -> !Slice ns -> !Path (Trans es) (Slice ns) -> ![o] -> SearchState es es' ns o
@@ -663,13 +706,35 @@ SSSemiOpen :: !Path (Maybe es', Bool) (Slice ns) -> !Slice ns -> !Path (Trans es
 [_ssDeriv] :: SearchState es es' ns o -> ![o]
 SSOpen :: !Path (Trans es) (Slice ns) -> ![o] -> SearchState es es' ns o
 
+-- | Helper function for showing the frozen part of a piece.
+showFrozen :: Show slc => Path (Maybe es', Bool) slc -> String
+
+-- | Helper function for showing the open part of a piece.
+showOpen :: Show slc => Path (Trans es') slc -> String
+
 -- | Returns a list of possible next states given the current state.
 exploreStates :: forall es es' ns ns' o. Eval es es' ns ns' o -> SearchState es es' ns o -> [SearchState es es' ns o]
+heursiticSearchGoalTest :: SearchState es es' ns o -> Bool
+printPathFromState :: (Show es, Show ns) => SearchState es es' ns o -> String
+getOpsFromState :: SearchState es es' ns o -> [o]
+getPathFromState :: SearchState es es' ns o -> Maybe (Path es ns)
 instance GHC.Classes.Eq ns => GHC.Classes.Eq (HeuristicParser.Slice ns)
 instance GHC.Show.Show es => GHC.Show.Show (HeuristicParser.Trans es)
 instance GHC.Classes.Eq es => GHC.Classes.Eq (HeuristicParser.Trans es)
-instance (GHC.Show.Show es, GHC.Show.Show es', GHC.Show.Show ns, GHC.Show.Show o) => GHC.Show.Show (HeuristicParser.SearchState es es' ns o)
+instance (GHC.Show.Show ns, GHC.Show.Show o) => GHC.Show.Show (HeuristicParser.SearchState es es' ns o)
 instance GHC.Show.Show ns => GHC.Show.Show (HeuristicParser.Slice ns)
+
+module HeuristicSearch
+data HeuristicSearch s c
+HeuristicSearch :: Maybe s -> MinPrioHeap c s -> (s -> c) -> (s -> Bool) -> HeuristicSearch s c
+[end] :: HeuristicSearch s c -> Maybe s
+[frontier] :: HeuristicSearch s c -> MinPrioHeap c s
+[heuristic] :: HeuristicSearch s c -> s -> c
+[goal] :: HeuristicSearch s c -> s -> Bool
+heuristicSearchInit :: Ord c => s -> (s -> c) -> (s -> Bool) -> HeuristicSearch s c
+
+-- | Entry point to the search algorithm
+heuristicSearch :: Show state => state -> (state -> [state]) -> (state -> Bool) -> (state -> Float) -> (state -> String) -> Maybe state
 
 
 -- | A simple implementation of multisets as hash maps to counts. Supports
@@ -1000,6 +1065,44 @@ instance (GHC.Classes.Eq n, Data.Hashable.Class.Hashable n, Musicology.Pitch.Cla
 instance Musicology.Pitch.Class.Notation n => GHC.Show.Show (PVGrammar.Notes n)
 instance (Musicology.Pitch.Class.Notation n, GHC.Classes.Eq n, Data.Hashable.Class.Hashable n) => Data.Aeson.Types.FromJSON.FromJSON (PVGrammar.Notes n)
 
+module Evaluator
+data HarmonicProfileData
+HarmonicProfileData :: Params -> [String] -> HarmonicProfileData
+[params] :: HarmonicProfileData -> Params
+[chordtypes] :: HarmonicProfileData -> [String]
+data Params
+Params :: [Float] -> [[Double]] -> [[Float]] -> [Float] -> [Float] -> Float -> Float -> Params
+[params_p_harmony] :: Params -> [Float]
+[params_p_chordtones] :: Params -> [[Double]]
+[params_p_ornaments] :: Params -> [[Float]]
+[alpha_p_ict] :: Params -> [Float]
+[beta_p_ict] :: Params -> [Float]
+[alpha_rate_notes] :: Params -> Float
+[beta_rate_notes] :: Params -> Float
+loadParams :: FilePath -> IO HarmonicProfileData
+data ChordLabel
+ChordLabel :: String -> SIC -> SPC -> ChordLabel
+[chordType] :: ChordLabel -> String
+[rootOffset] :: ChordLabel -> SIC
+[keyCenter] :: ChordLabel -> SPC
+
+-- | Provides a score measuring how much the slice matches the chord
+--   annoation p
+evaluateSlice :: Notes SIC -> String -> HarmonicProfileData -> Double
+genSliceVector :: Notes SIC -> [Double]
+getAllParams :: HarmonicProfileData -> [[Double]]
+evalPath :: (Show ns, Spelled ns) => Path (Edges ns) (Notes SPC) -> [ChordLabel] -> HarmonicProfileData -> Double
+evalSegment :: Notes SIC -> String -> HarmonicProfileData -> Double
+multinomialLogProb :: [Double] -> [Double] -> Double
+instance GHC.Show.Show Evaluator.Params
+instance GHC.Generics.Generic Evaluator.Params
+instance GHC.Show.Show Evaluator.HarmonicProfileData
+instance GHC.Generics.Generic Evaluator.HarmonicProfileData
+instance GHC.Show.Show Evaluator.ChordLabel
+instance GHC.Generics.Generic Evaluator.ChordLabel
+instance Data.Aeson.Types.FromJSON.FromJSON Evaluator.HarmonicProfileData
+instance Data.Aeson.Types.FromJSON.FromJSON Evaluator.Params
+
 
 -- | This module contains functions for the generative aspects of
 --   protovoice derivations:
@@ -1195,11 +1298,6 @@ instance GHC.Generics.Generic (PVGrammar.Parse.Elaboration a b c d)
 instance (GHC.Show.Show a, GHC.Show.Show b, GHC.Show.Show c, GHC.Show.Show d) => GHC.Show.Show (PVGrammar.Parse.Elaboration a b c d)
 instance (GHC.Classes.Ord a, GHC.Classes.Ord b, GHC.Classes.Ord c, GHC.Classes.Ord d) => GHC.Classes.Ord (PVGrammar.Parse.Elaboration a b c d)
 instance (GHC.Classes.Eq a, GHC.Classes.Eq b, GHC.Classes.Eq c, GHC.Classes.Eq d) => GHC.Classes.Eq (PVGrammar.Parse.Elaboration a b c d)
-
-module HeuristicSearch
-
--- | Entry point to the search algorithm
-heuristicSearch :: forall state. state -> (state -> [state]) -> (state -> Bool) -> (state -> Float) -> state
 
 
 -- | This module contains a simple (and musically rather naive)
