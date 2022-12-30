@@ -113,7 +113,6 @@ evalPath (Path _ (Notes slc) rst) (lbl : lbls) hpData = evalSegment slc' lbl' hp
     rOffset = rootOffset lbl
     lbl' = chordType lbl
     chordRootNote = key Music.+^ rOffset
-
     -- Input is SPC - Spelled Pitch Class eg F4
     -- key Is a SPC
     -- rOffset is an SIC (interval)
@@ -121,13 +120,15 @@ evalPath (Path _ (Notes slc) rst) (lbl : lbls) hpData = evalSegment slc' lbl' hp
 
     slc' = Notes $ Internal.MultiSet.map transformPitch slc
       where
-        transformPitch :: Music.Pitch SIC -> SIC
+        transformPitch :: 
+          Music.Pitch SIC -> SIC
         transformPitch p = Music.pfrom p chordRootNote
 
 evalSegment
   :: Notes SIC
   -> String
   -> HarmonicProfileData 
+
   -> Double
 evalSegment (Notes ms) = evaluateSlice slice' 
   where

@@ -13,14 +13,13 @@ import Data.List.Split
 import Data.Hashable
 import Data.Maybe
   ( catMaybes,
-    fromMaybe,
+    fromMaybe ,
     mapMaybe,
     maybeToList,
   )
 import Data.Vector qualified as V
 import Display
 import Evaluator
-import GHC.IO.Handle.Lock (FileLockingNotSupported (FileLockingNotSupported))
 import HeuristicParser
 import HeuristicSearch
 import Language.Haskell.DoNotation
@@ -36,14 +35,19 @@ import Prelude hiding
     lift,
     pure,
   )
+import Control.Monad.State (evalState)
 
 type InputSlice ns = ([(ns, Music.RightTied)], Bool)
 
 main :: IO ()
 main = do
+  slices <- slicesFromFile' "preprocessing/salamis.csv"
+  chords <- chordsFromFile "preprocessing/chords.csv"
+  params <- loadParams "preprocessing/dcml_params.json"
   finalPath <- runHeuristicSearch protoVoiceEvaluator slices321sus chords321sus
   hpData <- loadParams "preprocessing/dcml_params.json"
 
+  -- let res = evalPath finalPath chords hpData
   let res = evalPath finalPath chords321sus hpData
 
   putStrLn $ "\nFinal Path: " <> show finalPath
@@ -142,7 +146,7 @@ chordsFromFile file = do
     parseChordLabel r = Evaluator.ChordLabel (_chordtype r) (Music.sic $ _rootoffset r) (fromMaybe undefined (Music.readNotation $ _globalkey r))
 
 -- | Datatype for a slice
-type Slice' = [(SPitch, Music.RightTied)]
+type Slice' = [(SPC, Music.RightTied)]
 
 -- | Loads slices from filepath
 slicesFromFile' :: FilePath -> IO [(Slice', Bool)]
@@ -152,7 +156,7 @@ slicesFromFile' file = do
     Left err -> pure []
     Right (_, v) -> do
       let notes = fmap noteFromSalami (V.toList v)
-          segmentedNotes :: [[(SPitch, Music.RightTied, Bool, Bool)]]
+          segmentedNotes :: [[(SPC, Music.RightTied, Bool, Bool)]]
           segmentedNotes = splitWhen (\(_, _, newSeg, _) -> newSeg) notes
           segmentedNotes' = (map . map) (\(s, t, _, n) -> (s, t, n)) segmentedNotes
           -- segmentedSlices :: [(Slice, Bool)]
@@ -160,17 +164,17 @@ slicesFromFile' file = do
           b = output segmentedSlices
       pure b
       where
-        output :: [[[(SPitch, Music.RightTied)]]] -> [(Slice', Bool)]
+        output :: [[[(SPC, Music.RightTied)]]] -> [(Slice', Bool)]
         -- f :: [[a]] -> (a->b) -> [b]
         output = concatMap addBoundaries
 
         -- Assign boundary marker to first slice of each segment
-        addBoundaries :: [[(SPitch, Music.RightTied)]] -> [(Slice', Bool)]
+        addBoundaries :: [[(SPC, Music.RightTied)]] -> [(Slice', Bool)]
         addBoundaries [] = []
         addBoundaries (s : sx) = (s, True) : map (,False) sx
 
 -- Parse a salami note as output from the python salalmis package.
-noteFromSalami :: SalamiNote -> (SPitch, Music.RightTied, Bool, Bool)
+noteFromSalami :: SalamiNote -> (SPC, Music.RightTied, Bool, Bool)
 noteFromSalami s = (sPitch, tied, newSegment, newSlice)
   where
     newSegment = _new_segment s
@@ -233,7 +237,16 @@ runHeuristicSearch eval inputSlices chordLabels = do
     goalTest _ = False
 
     -- Where the magic happens!
-    heuristic x = 0
+    heuristic state = 3
+
+
+testHeuristic 
+  :: (Show ns, Music.Notation ns)
+  => SearchState (Edges ns) [Edge ns] (Notes ns) (PVLeftmost ns)
+  -> Float
+testHeuristic = undefined
+
+
 
 plotDeriv initPath fn deriv = mapM_ printStep derivs
   where
