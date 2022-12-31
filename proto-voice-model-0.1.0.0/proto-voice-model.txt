@@ -635,10 +635,10 @@ newtype Slice ns
 Slice :: ns -> Slice ns
 [sContent] :: Slice ns -> ns
 data Trans es
-Trans :: !es -> !Bool -> !Bool -> Trans es
+Trans :: !es -> !Bool -> !Boundary -> Trans es
 [tContent] :: Trans es -> !es
 [t2nd] :: Trans es -> !Bool
-[tBoundary] :: Trans es -> !Bool
+[tBoundary] :: Trans es -> !Boundary
 
 -- | The state of the search between steps. Generally, the current
 --   reduction consists of frozen transitions between the ⋊ and the current
@@ -713,14 +713,34 @@ showFrozen :: Show slc => Path (Maybe es', Bool) slc -> String
 showOpen :: Show slc => Path (Trans es') slc -> String
 
 -- | Returns a list of possible next states given the current state.
-exploreStates :: forall es es' ns ns' o. Eval es es' ns ns' o -> SearchState es es' ns o -> [SearchState es es' ns o]
+exploreStates :: forall es es' ns ns' s f h. (Show s, Show f, Show h) => Eval es es' ns ns' (Leftmost s f h) -> SearchState es es' ns (Leftmost s f h) -> [SearchState es es' ns (Leftmost s f h)]
+type Boundary = Bool
 heursiticSearchGoalTest :: SearchState es es' ns o -> Bool
 printPathFromState :: (Show es, Show ns) => SearchState es es' ns o -> String
 getOpsFromState :: SearchState es es' ns o -> [o]
+getPathLengthFromState :: SearchState es es' ns o -> Int
 getPathFromState :: SearchState es es' ns o -> Maybe (Path es ns)
+
+-- | A parsing action (reduction step) with a single parent transition.
+--   Combines the parent elements with a single-transition derivation
+--   operation.
+data ActionSingle ns tr s f
+ActionSingle :: (StartStop ns, Trans tr, StartStop ns) -> LeftmostSingle s f -> ActionSingle ns tr s f
+
+-- | A parsing action (reduction step) with two parent transitions.
+--   Combines the parent elements with a double-transition derivation
+--   operation.
+data ActionDouble ns tr s f h
+ActionDouble :: (StartStop ns, Trans tr, ns, Trans tr, StartStop ns) -> LeftmostDouble s f h -> ActionDouble ns tr s f h
+
+-- | An alias that combines <a>ActionSingle</a> and <a>ActionDouble</a>,
+--   representing all possible reduction steps.
+type Action slc tr s f h = Either (ActionSingle slc tr s f) (ActionDouble slc tr s f h)
 instance GHC.Classes.Eq ns => GHC.Classes.Eq (HeuristicParser.Slice ns)
 instance GHC.Show.Show es => GHC.Show.Show (HeuristicParser.Trans es)
 instance GHC.Classes.Eq es => GHC.Classes.Eq (HeuristicParser.Trans es)
+instance (GHC.Show.Show ns, GHC.Show.Show tr, GHC.Show.Show s, GHC.Show.Show f) => GHC.Show.Show (HeuristicParser.ActionSingle ns tr s f)
+instance (GHC.Show.Show ns, GHC.Show.Show tr, GHC.Show.Show s, GHC.Show.Show f, GHC.Show.Show h) => GHC.Show.Show (HeuristicParser.ActionDouble ns tr s f h)
 instance (GHC.Show.Show ns, GHC.Show.Show o) => GHC.Show.Show (HeuristicParser.SearchState es es' ns o)
 instance GHC.Show.Show ns => GHC.Show.Show (HeuristicParser.Slice ns)
 
@@ -1091,7 +1111,7 @@ ChordLabel :: String -> SIC -> SPC -> ChordLabel
 evaluateSlice :: Notes SIC -> String -> HarmonicProfileData -> Double
 genSliceVector :: Notes SIC -> [Double]
 getAllParams :: HarmonicProfileData -> [[Double]]
-evalPath :: (Show ns, Spelled ns) => Path (Edges ns) (Notes SPC) -> [ChordLabel] -> HarmonicProfileData -> Double
+evalPath :: (Show ns, Spelled ns) => Path (Edges ns) (Notes SPitch) -> [ChordLabel] -> HarmonicProfileData -> Double
 evalSegment :: Notes SIC -> String -> HarmonicProfileData -> Double
 multinomialLogProb :: [Double] -> [Double] -> Double
 instance GHC.Show.Show Evaluator.Params
