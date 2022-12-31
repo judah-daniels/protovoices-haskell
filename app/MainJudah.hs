@@ -13,7 +13,9 @@ import Data.List.Split
 import Data.Hashable
 import Data.Maybe
   ( catMaybes,
+    isNothing,
     fromMaybe ,
+    fromJust,
     mapMaybe,
     maybeToList,
   )
@@ -36,6 +38,7 @@ import Prelude hiding
     pure,
   )
 import Control.Monad.State (evalState)
+import HeuristicParser (getPathLengthFromState)
 
 type InputSlice ns = ([(ns, Music.RightTied)], Bool)
 
@@ -45,6 +48,8 @@ main = do
   chords <- chordsFromFile "preprocessing/chords.csv"
   params <- loadParams "preprocessing/dcml_params.json"
   finalPath <- runHeuristicSearch protoVoiceEvaluator slices321sus chords321sus
+  -- finalPath <- runHeuristicSearch protoVoiceEvaluator (slices) chords
+
   hpData <- loadParams "preprocessing/dcml_params.json"
 
   -- let res = evalPath finalPath chords hpData
@@ -59,10 +64,10 @@ main = do
 -- The musical surface from Figure 4 as a sequence of slices and transitions.
 -- Can be used as an input for parsing.
 path321sus =
-  Path [e' nat, c' nat] [(Inner $ c' nat, Inner $ c' nat)] $
-    Path [d' nat, c' nat] [(Inner $ d' nat, Inner $ d' nat)] $
-      Path [d' nat, b' nat] [] $
-        PathEnd [c' nat]
+  Path [e nat 4, c nat 4] [(Inner $ c nat 4, Inner $ c nat 4)] $
+    Path [d nat 4, c nat 4] [(Inner $ d nat 4, Inner $ d nat 4)] $
+      Path [d nat 4, b nat 4] [] $
+        PathEnd [c nat 4]
 
 testInput :: [InputSlice SPC]
 testInput =
@@ -71,12 +76,12 @@ testInput =
     ([(e' nat, Music.Ends)], False)
   ]
 
-slices321sus :: [InputSlice SPC]
+slices321sus :: [InputSlice SPitch]
 slices321sus =
-  [ ([(e' nat, Music.Ends), (c' nat, Music.Holds)], True),
-    ([(d' nat, Music.Holds), (c' nat, Music.Ends)], False),
-    ([(d' nat, Music.Holds), (b' nat, Music.Ends)], False),
-    ([(c' nat, Music.Ends)], True)
+  [ ([(e nat 4, Music.Ends), (c nat 4, Music.Holds)], True),
+    ([(d nat 4, Music.Holds), (c nat 4, Music.Ends)], False),
+    ([(d nat 4, Music.Holds), (b nat 4, Music.Ends)], True),
+    ([(c nat 4, Music.Ends)], True)
   ]
 
 chords321sus :: [ChordLabel]
@@ -146,7 +151,7 @@ chordsFromFile file = do
     parseChordLabel r = Evaluator.ChordLabel (_chordtype r) (Music.sic $ _rootoffset r) (fromMaybe undefined (Music.readNotation $ _globalkey r))
 
 -- | Datatype for a slice
-type Slice' = [(SPC, Music.RightTied)]
+type Slice' = [(SPitch, Music.RightTied)]
 
 -- | Loads slices from filepath
 slicesFromFile' :: FilePath -> IO [(Slice', Bool)]
@@ -156,7 +161,7 @@ slicesFromFile' file = do
     Left err -> pure []
     Right (_, v) -> do
       let notes = fmap noteFromSalami (V.toList v)
-          segmentedNotes :: [[(SPC, Music.RightTied, Bool, Bool)]]
+          segmentedNotes :: [[(SPitch, Music.RightTied, Bool, Bool)]]
           segmentedNotes = splitWhen (\(_, _, newSeg, _) -> newSeg) notes
           segmentedNotes' = (map . map) (\(s, t, _, n) -> (s, t, n)) segmentedNotes
           -- segmentedSlices :: [(Slice, Bool)]
@@ -164,23 +169,23 @@ slicesFromFile' file = do
           b = output segmentedSlices
       pure b
       where
-        output :: [[[(SPC, Music.RightTied)]]] -> [(Slice', Bool)]
+        output :: [[[(SPitch, Music.RightTied)]]] -> [(Slice', Bool)]
         -- f :: [[a]] -> (a->b) -> [b]
         output = concatMap addBoundaries
 
         -- Assign boundary marker to first slice of each segment
-        addBoundaries :: [[(SPC, Music.RightTied)]] -> [(Slice', Bool)]
+        addBoundaries :: [[(SPitch, Music.RightTied)]] -> [(Slice', Bool)]
         addBoundaries [] = []
         addBoundaries (s : sx) = (s, True) : map (,False) sx
 
 -- Parse a salami note as output from the python salalmis package.
-noteFromSalami :: SalamiNote -> (SPC, Music.RightTied, Bool, Bool)
+noteFromSalami :: SalamiNote -> (SPitch, Music.RightTied, Bool, Bool)
 noteFromSalami s = (sPitch, tied, newSegment, newSlice)
   where
     newSegment = _new_segment s
     newSlice = _new_slice s
     tied = _tied s
-    sPitch = Data.Maybe.fromMaybe undefined (Music.readNotation $ _pitch s) -- Refactor to deal with maybe
+    sPitch = Data.Maybe.fromMaybe (c nat 0) (Music.readNotation $ _pitch s) -- Refactor to deal with maybe
 
 pathFromSlices ::
   forall ns o.
@@ -197,7 +202,7 @@ pathFromSlices eval = reversePath . mkPath Nothing
     mkPath eLeft ((slice, boundary) : rst) =
       Path (eLeft, boundary) (Slice $ evalSlice eval (fst <$> slice)) $
         mkPath (Just $ getTiedEdges slice) rst
-    mkPath eLeft [] = PathEnd (Nothing, False)
+    mkPath eLeft [] = PathEnd (Nothing, True)
 
     getTiedEdges :: [(ns, Music.RightTied)] -> [Edge ns]
     getTiedEdges = mapMaybe mkTiedEdge
@@ -225,7 +230,10 @@ runHeuristicSearch eval inputSlices chordLabels = do
   where
     initialState = SSFrozen $ pathFromSlices eval inputSlices
 
-    finalState = fromMaybe initialState (heuristicSearch initialState getNeighboringStates goalTest heuristic printPathFromState)
+    finalState = fromMaybe initialState (heuristicSearch initialState getNeighboringStates goalTest heuristic 
+      ((\s -> case s of
+                       [] -> "" 
+                       x:_ -> show x ) . getOpsFromState))
 
     ops = getOpsFromState finalState
     p = fromMaybe undefined $ getPathFromState finalState
@@ -237,15 +245,42 @@ runHeuristicSearch eval inputSlices chordLabels = do
     goalTest _ = False
 
     -- Where the magic happens!
-    heuristic state = 3
+    heuristic  = testHeuristic
 
 
 testHeuristic 
   :: (Show ns, Music.Notation ns)
   => SearchState (Edges ns) [Edge ns] (Notes ns) (PVLeftmost ns)
   -> Float
-testHeuristic = undefined
+testHeuristic state = 
+  score + (remainingOps /100)
+    where
+      ops = getOpsFromState state
 
+      op = case ops of 
+             [] -> Nothing
+             x:_ -> Just x
+
+      remainingOps :: Float
+      remainingOps = fromIntegral $ getPathLengthFromState state 
+      score :: Float
+      score = if isNothing op then 0.0 else 
+        case fromJust op of
+          -- Splitting Left
+          LMDouble (LMDoubleSplitLeft splitOp) -> 50.0
+          -- Splitting Right
+          LMDouble (LMDoubleSplitRight splitOp) -> 50.0
+          -- Freezing
+          LMDouble (LMDoubleFreezeLeft freezeOp) -> 0.0
+          -- Spreading
+          LMDouble (LMDoubleSpread spreadOp) -> 0.0
+          -- Freezing (Terminate)
+          -- numSlices - num
+          LMSingle (LMSingleFreeze freezeOp) -> 0.0
+          -- Splitting Only
+          LMSingle (LMSingleSplit splitOp) -> 0.0
+        
+  
 
 
 plotDeriv initPath fn deriv = mapM_ printStep derivs

@@ -21,7 +21,7 @@ import Data.List as List
 import Data.Maybe
 import Debug.Trace
 
-import Internal.MultiSet (distinctElems,map, toOccurList, lookup)
+import Internal.MultiSet (distinctElems,map, toOccurList, lookup, empty)
 
 import System.Random.MWC.Probability (multinomial)
 import Musicology.Core (AdditiveGroup)
@@ -102,7 +102,7 @@ getAllParams hpData = normaliseList <$> pChordTones
 
 evalPath
   :: (Show ns, Music.Spelled ns)
-  =>  Path (Edges ns) (Notes SPC)
+  =>  Path (Edges ns) (Notes SPitch)
   -> [ChordLabel]
   -> HarmonicProfileData
   -> Double
@@ -118,11 +118,11 @@ evalPath (Path _ (Notes slc) rst) (lbl : lbls) hpData = evalSegment slc' lbl' hp
     -- rOffset is an SIC (interval)
     -- chordRootNote is SPC
 
-    slc' = Notes $ Internal.MultiSet.map transformPitch slc
+    slc' = Notes $ Internal.MultiSet.map transformPitch (slc)
       where
         transformPitch :: 
-          Music.Pitch SIC -> SIC
-        transformPitch p = Music.pfrom p chordRootNote
+          Music.SPitch -> SIC
+        transformPitch p = let q = spc (fifths p) in Music.pfrom q chordRootNote
 
 evalSegment
   :: Notes SIC

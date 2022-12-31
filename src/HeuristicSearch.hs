@@ -37,8 +37,26 @@ heuristicSearch initialState getNextStates isGoalState heuristic printOp = trace
     -- \| not (null goalStates) = trace "returning" Just (snd $ head goalStates)
     -- \| otherwise = trace (  "\nCurrent head: " <> show (snd . head $ nearestState)
     --                     <> "\nNew frontier: " <> show newFrontier )
-    | not (null goalStates) = trace ("Goal State(s) found: " <> show (snd <$> goalStates)) Just (snd $ head goalStates)
-    | otherwise = trace ("Current State: \n" <> show (snd . head $ nearestState) <> "\n") search $ hs{frontier = newFrontier}
+    | not (null goalStates) =
+        trace
+          ( "Goal State(s) found: "
+              <> show (snd <$> goalStates)
+              <> "\n    "
+              <> printOp (snd . head $ goalStates)
+              <> "\n"
+          )
+          Just
+          (snd $ head goalStates)
+    | otherwise =
+        trace
+          ( "Exploring: \n"
+              <> show (snd . head $ nearestState)
+              <> "\n    "
+              <> printOp (snd . head $ nearestState)
+              <> "\n"
+          )
+          search
+          $ hs{frontier = newFrontier}
    where
     -- Pop the node in the frontier with the lowest priority
     (nearestState, remainingQueue) = H.splitAt 1 (frontier hs) -- pop lowest 0 from pq
