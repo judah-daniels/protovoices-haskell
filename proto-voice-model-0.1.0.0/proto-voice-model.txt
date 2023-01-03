@@ -713,7 +713,7 @@ showFrozen :: Show slc => Path (Maybe es', Bool) slc -> String
 showOpen :: Show slc => Path (Trans es') slc -> String
 
 -- | Returns a list of possible next states given the current state.
-exploreStates :: forall es es' ns ns' s f h. (Show s, Show f, Show h) => Eval es es' ns ns' (Leftmost s f h) -> SearchState es es' ns (Leftmost s f h) -> [SearchState es es' ns (Leftmost s f h)]
+exploreStates :: forall es es' ns ns' s f h. (Show s, Show f, Show h, Show es, Show es', Show ns, Show ns') => Eval es es' ns ns' (Leftmost s f h) -> SearchState es es' ns (Leftmost s f h) -> [SearchState es es' ns (Leftmost s f h)]
 type Boundary = Bool
 heursiticSearchGoalTest :: SearchState es es' ns o -> Bool
 printPathFromState :: (Show es, Show ns) => SearchState es es' ns o -> String
@@ -737,11 +737,11 @@ ActionDouble :: (StartStop ns, Trans tr, ns, Trans tr, StartStop ns) -> Leftmost
 --   representing all possible reduction steps.
 type Action slc tr s f h = Either (ActionSingle slc tr s f) (ActionDouble slc tr s f h)
 instance GHC.Classes.Eq ns => GHC.Classes.Eq (HeuristicParser.Slice ns)
-instance GHC.Show.Show es => GHC.Show.Show (HeuristicParser.Trans es)
 instance GHC.Classes.Eq es => GHC.Classes.Eq (HeuristicParser.Trans es)
 instance (GHC.Show.Show ns, GHC.Show.Show tr, GHC.Show.Show s, GHC.Show.Show f) => GHC.Show.Show (HeuristicParser.ActionSingle ns tr s f)
 instance (GHC.Show.Show ns, GHC.Show.Show tr, GHC.Show.Show s, GHC.Show.Show f, GHC.Show.Show h) => GHC.Show.Show (HeuristicParser.ActionDouble ns tr s f h)
 instance (GHC.Show.Show ns, GHC.Show.Show o) => GHC.Show.Show (HeuristicParser.SearchState es es' ns o)
+instance GHC.Show.Show es => GHC.Show.Show (HeuristicParser.Trans es)
 instance GHC.Show.Show ns => GHC.Show.Show (HeuristicParser.Slice ns)
 
 module HeuristicSearch
