@@ -4,6 +4,7 @@ module HeuristicParser where
 
 import Common
 import Data.Maybe
+import Debug.Trace
 
 newtype Slice ns = Slice
   { sContent :: ns
@@ -18,7 +19,11 @@ data Trans es = Trans
   , t2nd :: !Bool
   , tBoundary :: !Boundary
   }
-  deriving (Eq, Show)
+  deriving (Eq)
+
+instance Show es => Show (Trans es) where
+  show (Trans t t2 True) = "|" <> show t
+  show (Trans t t2 False) = show t
 
 {- | The state of the search between steps.
  Generally, the current reduction consists of frozen transitions
@@ -88,21 +93,25 @@ instance (Show ns, Show o) => Show (SearchState es es' ns o) where
 
 -- | Helper function for showing the frozen part of a piece.
 showFrozen :: Show slc => Path (Maybe es', Bool) slc -> String
-showFrozen path = "⋊" <> go path
+showFrozen path = "⋊" <> go 5 path
  where
-  go (PathEnd (_, True)) = "≠"
-  go (PathEnd (_, False)) = "="
-  go (Path (_, True) a rst) = go rst <> show a <> "≠"
-  go (Path (_, False) a rst) = go rst <> show a <> "="
+  go _ (PathEnd (_, True)) = "≠"
+  go _ (PathEnd (_, False)) = "="
+  go 0 (Path (_, True) a rst) = "..." <> show a <> "≠"
+  go n (Path (_, True) a rst) = go (n - 1) rst <> show a <> "≠"
+  go 0 (Path (_, False) a rst) = "..." <> show a <> "="
+  go n (Path (_, False) a rst) = go (n - 1) rst <> show a <> "="
 
 -- | Helper function for showing the open part of a piece.
 showOpen :: Show slc => Path (Trans es') slc -> String
-showOpen path = go path <> "⋉"
+showOpen path = go 5 path <> "⋉"
  where
-  go (PathEnd (Trans _ _ True)) = "⌿"
-  go (PathEnd (Trans _ _ _)) = "-"
-  go (Path (Trans _ _ True) a rst) = "⌿" <> show a <> go rst
-  go (Path _ a rst) = "-" <> show a <> go rst
+  go _ (PathEnd (Trans _ _ True)) = "⌿"
+  go _ (PathEnd (Trans _ _ False)) = "-"
+  go 0 (Path (Trans _ _ True) a rst) = "⌿" <> show a <> "..."
+  go n (Path (Trans _ _ True) a rst) = "⌿" <> show a <> go (n - 1) rst
+  go 0 (Path _ a rst) = "-" <> show a <> "..."
+  go n (Path _ a rst) = "-" <> show a <> go (n - 1) rst
 
 {-
  > freeze left:         split left:          split right:         spread:
@@ -114,53 +123,97 @@ showOpen path = go path <> "⋉"
 -- | Returns a list of possible next states given the current state.
 exploreStates
   :: forall es es' ns ns' s f h
-   . (Show s, Show f, Show h)
+   . (Show s, Show f, Show h, Show es, Show es', Show ns, Show ns')
   => Eval es es' ns ns' (Leftmost s f h)
   -> SearchState es es' ns (Leftmost s f h)
   -> [SearchState es es' ns (Leftmost s f h)]
 exploreStates eval state = case state of
   SSFrozen frozen -> case frozen of
     -- Only one trasition: we unfreeze and terminate
-    PathEnd t -> genState <$> actions
+    PathEnd t ->
+      trace ("Evaluating :" <> show state <> "\n  1 frozen transition: ") genState <$> actions
      where
       actions = collectUnfreezeSingle Start t Stop True
       genState (ActionSingle (sl, top, sr) op) = SSOpen (PathEnd top) [LMSingle op]
     -- Multiple transitions: unfreeze first and continue
-    Path t slice rest -> genState <$> actions
+    Path t slice rest ->
+      trace
+        ("Evaluating:" <> show state <> "\n  1+ frozen transitions only: \n ")
+        genState
+        <$> actions
      where
       actions = collectUnfreezeSingle Start t (Inner $ sContent slice) True
       genState (ActionSingle (sl, top, sr) op) = SSSemiOpen rest slice (PathEnd top) [LMSingle op]
 
   -- Case: Every transition is unfrozen
-  SSOpen open ops -> reductions -- we can either unfreeze, or apply an operation to the open part
+  SSOpen open ops -> trace "ssopen" reductions -- we can either unfreeze, or apply an operation to the open part
    where
     reductions :: [SearchState es es' ns (Leftmost s f h)]
     reductions = case open of
       -- A single transition - No operations
-      PathEnd _ -> []
+      PathEnd _ -> trace "  0 Frozen, 1 open: No operations\n" []
       -- Two open transitions: unsplit single
-      Path tl (Slice slice) (PathEnd tr) -> genState <$> actions
+      Path tl (Slice slice) (PathEnd tr) ->
+        trace
+          ("Evaluating:" <> show state <> "\n  2 open transitions only: \n  Unsplit operations: " <> (show (actions)))
+          genState
+          <$> actions
        where
         actions = collectUnsplitSingle Start tl slice tr Stop
         genState (ActionSingle (sl, top, sr) op) = SSOpen (PathEnd top) (LMSingle op : ops)
 
       -- Three open transitions: mergeleft mergeRight or verticalise
-      Path tl (Slice sl) (Path tm (Slice sm) rst) -> genState <$> actions
+      Path tl (Slice sl) (Path tm (Slice sm) rst) ->
+        trace
+          ("Evaluating:" <> show state <> "\n  3+ Open transitions: \n  Actions: " <> show actions)
+          genState
+          <$> actions
        where
         actions = collectDoubles Start tl sl tm sm rst
-        genState (ActionDouble (sl, tl, slice, tr, st) op) = SSOpen (Path tl (Slice slice) (PathEnd tr)) (LMDouble op : ops)
+        genState (ActionDouble (sl, tl, slice, tr, st) op) =
+          SSOpen
+            ( Path
+                tl
+                (Slice slice)
+                ( Path
+                    tr
+                    (Slice sm)
+                    (pathSetHead rst tr)
+                )
+            )
+            (LMDouble op : ops)
+
   -- Mid Parse
+  --
   SSSemiOpen frozen (Slice midSlice) open ops -> case open of
     -- Only one open transition: unfreeze
     PathEnd topen -> case frozen of
-      PathEnd tfrozen -> genState <$> actions
+      PathEnd tfrozen ->
+        trace
+          ( "Evaluating:"
+              <> show state
+              <> "\n  1 Open Transition, 1 frozen transition: \n  Following States: "
+              -- <> show
+              -- (genState <$> actions)
+          )
+          genState
+          <$> actions
        where
         actions = collectUnfreezeLeft Start tfrozen midSlice topen Stop
         genState (ActionDouble (sl, tl, slice, tr, st) op) =
           SSOpen
             (Path tl (Slice slice) (PathEnd tr))
             (LMDouble op : ops)
-      Path tfrozen (Slice sfrozen) rstFrozen -> genState <$> actions
+      Path tfrozen (Slice sfrozen) rstFrozen ->
+        trace
+          ( "Evaluating:"
+              <> show state
+              <> "\n  1 Open Transition, 1+ frozen transition: \n  Following States: "
+              -- <> show
+              -- (genState <$> actions)
+          )
+          genState
+          <$> actions
        where
         actions = collectUnfreezeLeft (Inner sfrozen) tfrozen midSlice topen Stop
         genState (ActionDouble (sl, tl, slice, tr, st) op) =
@@ -169,7 +222,18 @@ exploreStates eval state = case state of
     Path topenl (Slice sopen) (PathEnd topenr) ->
       let unsplitActions = Right <$> collectUnsplitSingle (Inner midSlice) topenl sopen topenr Stop
        in case frozen of
-            PathEnd tfrozen -> (genState <$> unfreezeActions) <> (genState <$> unsplitActions)
+            PathEnd tfrozen ->
+              trace
+                ( "Evaluating:"
+                    <> show state
+                    <> "\n  2 Open Transitions, 1 frozen transition: \n  Following states: "
+                    -- <> show (genState <$> (unfreezeActions <> unsplitActions))
+                    -- <> "\n  Following Actions: "
+                    -- <> show (unfreezeActions <> unsplitActions)
+                    <> "\n"
+                )
+                genState
+                <$> (unfreezeActions <> unsplitActions)
              where
               unfreezeActions = Left <$> collectUnfreezeLeft Start tfrozen midSlice topenl Stop
               genState action = case action of
@@ -177,7 +241,18 @@ exploreStates eval state = case state of
                   SSOpen (Path unfrozen (Slice midSlice) open) (LMDouble op : ops)
                 Right (ActionSingle (_, parent, _) op) ->
                   SSSemiOpen frozen (Slice midSlice) (PathEnd parent) (LMSingle op : ops)
-            Path tfrozen (Slice sfrozen) rstFrozen -> genState <$> (unfreezeActions <> unsplitActions)
+            Path tfrozen (Slice sfrozen) rstFrozen ->
+              trace
+                ( "Evaluating:"
+                    <> show state
+                    <> "\n  2 Open Transitions, 1+ frozen transitions: \n Following states: "
+                    -- <> (show (genState <$> (unfreezeActions <> unsplitActions)))
+                    -- <> "\n  Following Actions: "
+                    -- <> show (unfreezeActions <> unsplitActions)
+                    <> "\n"
+                )
+                genState
+                <$> (unfreezeActions <> unsplitActions)
              where
               unfreezeActions = Left <$> collectUnfreezeLeft (Inner sfrozen) tfrozen midSlice topenl (Inner sopen)
               genState action = case action of
@@ -187,9 +262,18 @@ exploreStates eval state = case state of
                   SSSemiOpen frozen (Slice midSlice) (PathEnd parent) (LMSingle op : ops)
     -- More than two open transitions
     Path topenl (Slice sopenl) (Path topenm (Slice sopenr) rstOpen) ->
-      let doubleActions = Right <$> collectDoubles (Inner midSlice) topenl sopenl topenm sopenr rstOpen
+      let doubleActions = (Right <$> collectDoubles (Inner midSlice) topenl sopenl topenm sopenr rstOpen) :: [Either (ActionDouble ns es s f h) (ActionDouble ns es s f h)]
        in case frozen of
-            PathEnd tfrozen -> genState <$> (doubleActions <> unfreezeActions)
+            PathEnd tfrozen ->
+              trace
+                ( "  2+ Open Transitions, 1 frozen transition Left: \n  Following states: "
+                    <> (show (genState <$> doubleActions))
+                    -- <> "\n  Following Actions: "
+                    -- <> show (unfreezeActions <> doubleActions)
+                    <> "\n"
+                )
+                genState
+                <$> (doubleActions <> unfreezeActions)
              where
               unfreezeActions = Left <$> collectUnfreezeLeft Start tfrozen midSlice topenl (Inner sopenl)
               genState action = case action of
@@ -197,7 +281,16 @@ exploreStates eval state = case state of
                   SSOpen (Path unfrozen (Slice midSlice) open) (LMDouble op : ops)
                 Right (ActionDouble (_, topl, tops, topr, _) op) ->
                   SSSemiOpen frozen (Slice midSlice) (Path topl (Slice tops) (pathSetHead rstOpen topr)) (LMDouble op : ops)
-            Path tfrozen (Slice sfrozen) rstFrozen -> genState <$> (doubleActions <> unfreezeActions)
+            Path tfrozen (Slice sfrozen) rstFrozen ->
+              trace
+                ( "  2+ Open Transitions, 1+ frozen transition left:\n  Following states: "
+                    <> (show (genState <$> doubleActions))
+                    -- <> "\n  Following Actions: "
+                    -- <> show (unfreezeActions <> doubleActions)
+                    <> "\n"
+                )
+                genState
+                <$> (doubleActions <> unfreezeActions)
              where
               unfreezeActions = Left <$> collectUnfreezeLeft (Inner sfrozen) tfrozen midSlice topenl (Inner sopenl)
               genState action = case action of
@@ -278,7 +371,7 @@ exploreStates eval state = case state of
         LMDouble dop ->
           Just $
             ActionDouble
-              (sstart, Trans ttop False tlBoundary, sr, Trans tr False trBoundary, send)
+              (sstart, Trans ttop False (tlBoundary || tmBoundary), sr, Trans tr False trBoundary, send)
               dop
 
   collectUnsplitRight
@@ -315,6 +408,8 @@ exploreStates eval state = case state of
        )
   collectUnspreads sstart (Trans tl _ tlBoundary) sl (Trans tm _ tmBoundary) sr (Trans tr _ trBoundary) send
     | tmBoundary = []
+    | tlBoundary = []
+    | trBoundary = []
     | otherwise = catMaybes $ do
         -- List
         (sTop, op) <- maybeToList $ evalUnspreadMiddle eval (sl, tm, sr)
@@ -375,7 +470,7 @@ getPathLengthFromState
   :: SearchState es es' ns o
   -> Int
 getPathLengthFromState (SSOpen p d) = pathLen p
-getPathLengthFromState (SSSemiOpen p m f d) = pathLen f + 1 + pathLen p
+getPathLengthFromState (SSSemiOpen p m f d) = pathLen f + pathLen p
 getPathLengthFromState (SSFrozen p) = pathLen p
 
 getPathFromState

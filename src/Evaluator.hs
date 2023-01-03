@@ -71,9 +71,10 @@ data ChordLabel = ChordLabel
 -}
 evaluateSlice :: Notes SIC -> String -> HarmonicProfileData -> Double
 evaluateSlice pitchClasses chordType hpData = trace 
-  ("Evaluating Slice: \n" 
-  <> "Slice: " <> show pitchClasses 
-  <> "\nLabel: " <> show chordType )
+  ("Evaluating Slice:" 
+  <> "\n  Slice: " <> show pitchClasses 
+  <> "\n  Label: " <> show chordType 
+  <> "\n  Score: " <> show ( weightedlikelihoods !! chordTypeIndex))
   -- <> "\nWeighted Likelihoods: " <> showList ((zip (chordtypes hpData) weightedlikelihoods)) "")
     weightedlikelihoods !! chordTypeIndex 
   where 

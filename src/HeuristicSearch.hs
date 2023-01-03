@@ -39,22 +39,29 @@ heuristicSearch initialState getNextStates isGoalState heuristic printOp = trace
     --                     <> "\nNew frontier: " <> show newFrontier )
     | not (null goalStates) =
         trace
-          ( "Goal State(s) found: "
-              <> show (snd <$> goalStates)
-              <> "\n    "
-              <> printOp (snd . head $ goalStates)
-              <> "\n"
-          )
+          ("\n Open: " <> show (H.toList (frontier hs)))
+          -- ( "Exploring: \n"
+          --     <> show (snd . head $ nearestState)
+          --     <> "\n    "
+          --     <> printOp (snd . head $ nearestState)
+          --     <> "\n\n\n"
+          --     <> "Goal State(s) found: "
+          --     <> show (snd <$> goalStates)
+          --     <> "\n    "
+          --     <> printOp (snd . head $ goalStates)
+          --     <> "\n"
+          -- )
           Just
-          (snd $ head goalStates)
+          (snd . head $ goalStates)
     | otherwise =
         trace
-          ( "Exploring: \n"
-              <> show (snd . head $ nearestState)
-              <> "\n    "
-              <> printOp (snd . head $ nearestState)
-              <> "\n"
-          )
+          -- ( "Exploring: \n"
+          --     <> show (snd . head $ nearestState)
+          --     <> "\n    "
+          --     <> printOp (snd . head $ nearestState)
+          --     <> "\n"
+          -- )
+          ("\nFrontier: " <> show (snd <$> H.toList (frontier hs)))
           search
           $ hs{frontier = newFrontier}
    where
@@ -68,7 +75,13 @@ heuristicSearch initialState getNextStates isGoalState heuristic printOp = trace
     goalStates = filter (isGoalState . snd) nextStatesAndCosts
 
     -- Add the new states to the frontier.
+    -- Keeping 5 states in the front at a time
     -- newFrontier = trace ("Inserting " <> show nextStatesAndCosts <> " into " <> show remainingQueue )
-    newFrontier = foldr H.insert remainingQueue nextStatesAndCosts
+    newFrontier = limitHeapAt 2 $ foldr H.insert remainingQueue nextStatesAndCosts
 
     getNextStatesAndCosts state = (\s -> (heuristic s, s)) <$> getNextStates state
+
+    limitHeapAt :: H.HeapItem pol item => Int -> H.Heap pol item -> H.Heap pol item
+    limitHeapAt n heap
+      | H.size heap >= n = snd $ H.splitAt n heap
+      | otherwise = heap

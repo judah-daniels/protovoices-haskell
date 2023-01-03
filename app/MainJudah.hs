@@ -44,16 +44,18 @@ type InputSlice ns = ([(ns, Music.RightTied)], Bool)
 
 main :: IO ()
 main = do
-  slices <- slicesFromFile' "preprocessing/salamis.csv"
-  chords <- chordsFromFile "preprocessing/chords.csv"
+  -- slices <- slicesFromFile' "preprocessing/salamis.csv"
+  slices <- slicesFromFile' "preprocessing/salamisShortest.csv"
+  -- chords <- chordsFromFile "preprocessing/chords.csv"
+  chords <- chordsFromFile "preprocessing/chordsShortest.csv"
   params <- loadParams "preprocessing/dcml_params.json"
-  finalPath <- runHeuristicSearch protoVoiceEvaluator slices321sus chords321sus
-  -- finalPath <- runHeuristicSearch protoVoiceEvaluator (slices) chords
+  -- finalPath <- runHeuristicSearch protoVoiceEvaluator slices321sus chords321sus
+  finalPath <- runHeuristicSearch protoVoiceEvaluator (slices) chords
 
   hpData <- loadParams "preprocessing/dcml_params.json"
 
-  -- let res = evalPath finalPath chords hpData
-  let res = evalPath finalPath chords321sus hpData
+  let res = evalPath finalPath chords hpData
+  -- let res = evalPath finalPath chords321sus hpData
 
   putStrLn $ "\nFinal Path: " <> show finalPath
   putStrLn $ "\nEvaluation score: " <> show res
@@ -229,11 +231,17 @@ runHeuristicSearch eval inputSlices chordLabels = do
   pure p
   where
     initialState = SSFrozen $ pathFromSlices eval inputSlices
+    -- initialState = 
 
     finalState = fromMaybe initialState (heuristicSearch initialState getNeighboringStates goalTest heuristic 
-      ((\s -> case s of
-                       [] -> "" 
-                       x:_ -> show x ) . getOpsFromState))
+                       (showOp . getOpsFromState))
+
+    -- showOp :: [Leftmost (Split ns) Freeze (Spread ns)] -> String
+    showOp [] = ""
+    showOp (x:_) = case x of
+     LMDouble y -> show y
+     LMSingle y -> show y
+
 
     ops = getOpsFromState finalState
     p = fromMaybe undefined $ getPathFromState finalState
