@@ -3,53 +3,54 @@
 </span><span id="line-3"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">HeuristicSearch</span><span> </span><span class="hs-keyword">where</span><span>
 </span><span id="line-4"></span><span>
 </span><span id="line-5"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Heap</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">H</span></span><span>
-</span><span id="line-6"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Debug.Trace</span></span><span>
-</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="HeuristicParser.html"><span class="hs-identifier">HeuristicParser</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="HeuristicParser.html#getPathFromState"><span class="hs-identifier">getPathFromState</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-8"></span><span>
-</span><span id="line-9"></span><span class="hs-keyword">data</span><span> </span><span id="HeuristicSearch"><span class="annot"><a href="HeuristicSearch.html#HeuristicSearch"><span class="hs-identifier hs-var">HeuristicSearch</span></a></span></span><span> </span><span id="local-6989586621679460070"><span class="annot"><a href="#local-6989586621679460070"><span class="hs-identifier hs-type">s</span></a></span></span><span> </span><span id="local-6989586621679460069"><span class="annot"><a href="#local-6989586621679460069"><span class="hs-identifier hs-type">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="HeuristicSearch"><span class="annot"><a href="HeuristicSearch.html#HeuristicSearch"><span class="hs-identifier hs-var">HeuristicSearch</span></a></span></span><span>
-</span><span id="line-10"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="end"><span class="annot"><span class="annottext">forall s c. HeuristicSearch s c -&gt; Maybe s
-</span><a href="HeuristicSearch.html#end"><span class="hs-identifier hs-var hs-var">end</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679460070"><span class="hs-identifier hs-type">s</span></a></span><span>
-</span><span id="line-11"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="frontier"><span class="annot"><span class="annottext">forall s c. HeuristicSearch s c -&gt; MinPrioHeap c s
-</span><a href="HeuristicSearch.html#frontier"><span class="hs-identifier hs-var hs-var">frontier</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">H.MinPrioHeap</span></span><span> </span><span class="annot"><a href="#local-6989586621679460069"><span class="hs-identifier hs-type">c</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679460070"><span class="hs-identifier hs-type">s</span></a></span><span>
-</span><span id="line-12"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="heuristic"><span class="annot"><span class="annottext">forall s c. HeuristicSearch s c -&gt; s -&gt; c
-</span><a href="HeuristicSearch.html#heuristic"><span class="hs-identifier hs-var hs-var">heuristic</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621679460070"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679460069"><span class="hs-identifier hs-type">c</span></a></span><span>
-</span><span id="line-13"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="goal"><span class="annot"><span class="annottext">forall s c. HeuristicSearch s c -&gt; s -&gt; Bool
-</span><a href="HeuristicSearch.html#goal"><span class="hs-identifier hs-var hs-var">goal</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621679460070"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
-</span><span id="line-14"></span><span>  </span><span class="hs-special">}</span><span>
-</span><span id="line-15"></span><span>
-</span><span id="line-16"></span><span id="heuristicSearchInit"><span class="annot"><span class="annottext">heuristicSearchInit :: s -&gt; (s -&gt; c) -&gt; (s -&gt; Bool) -&gt; HeuristicSearch s c
-</span><a href="HeuristicSearch.html#heuristicSearchInit"><span class="hs-identifier hs-var hs-var">heuristicSearchInit</span></a></span></span><span> </span><span id="local-6989586621679459994"><span class="annot"><span class="annottext">s
-</span><a href="#local-6989586621679459994"><span class="hs-identifier hs-var">start</span></a></span></span><span> </span><span id="local-6989586621679459993"><span class="annot"><span class="annottext">s -&gt; c
-</span><a href="#local-6989586621679459993"><span class="hs-identifier hs-var">heuristic'</span></a></span></span><span> </span><span id="local-6989586621679459992"><span class="annot"><span class="annottext">s -&gt; Bool
-</span><a href="#local-6989586621679459992"><span class="hs-identifier hs-var">goal'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
-</span><span id="line-17"></span><span>  </span><span class="annot"><a href="HeuristicSearch.html#HeuristicSearch"><span class="hs-identifier hs-type">HeuristicSearch</span></a></span><span>
-</span><span id="line-18"></span><span>    </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">end :: Maybe s
+</span><span id="line-6"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">fromMaybe</span></span><span class="hs-special">)</span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Debug.Trace</span></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="HeuristicParser.html"><span class="hs-identifier">HeuristicParser</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="HeuristicParser.html#getPathFromState"><span class="hs-identifier">getPathFromState</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-9"></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">data</span><span> </span><span id="HeuristicSearch"><span class="annot"><a href="HeuristicSearch.html#HeuristicSearch"><span class="hs-identifier hs-var">HeuristicSearch</span></a></span></span><span> </span><span id="local-6989586621679460194"><span class="annot"><a href="#local-6989586621679460194"><span class="hs-identifier hs-type">s</span></a></span></span><span> </span><span id="local-6989586621679460193"><span class="annot"><a href="#local-6989586621679460193"><span class="hs-identifier hs-type">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="HeuristicSearch"><span class="annot"><a href="HeuristicSearch.html#HeuristicSearch"><span class="hs-identifier hs-var">HeuristicSearch</span></a></span></span><span>
+</span><span id="line-11"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="end"><span class="annot"><span class="annottext">forall s c. HeuristicSearch s c -&gt; Maybe s
+</span><a href="HeuristicSearch.html#end"><span class="hs-identifier hs-var hs-var">end</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679460194"><span class="hs-identifier hs-type">s</span></a></span><span>
+</span><span id="line-12"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="frontier"><span class="annot"><span class="annottext">forall s c. HeuristicSearch s c -&gt; MinPrioHeap c s
+</span><a href="HeuristicSearch.html#frontier"><span class="hs-identifier hs-var hs-var">frontier</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">H.MinPrioHeap</span></span><span> </span><span class="annot"><a href="#local-6989586621679460193"><span class="hs-identifier hs-type">c</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679460194"><span class="hs-identifier hs-type">s</span></a></span><span>
+</span><span id="line-13"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="heuristic"><span class="annot"><span class="annottext">forall s c. HeuristicSearch s c -&gt; s -&gt; c
+</span><a href="HeuristicSearch.html#heuristic"><span class="hs-identifier hs-var hs-var">heuristic</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621679460194"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679460193"><span class="hs-identifier hs-type">c</span></a></span><span>
+</span><span id="line-14"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="goal"><span class="annot"><span class="annottext">forall s c. HeuristicSearch s c -&gt; s -&gt; Bool
+</span><a href="HeuristicSearch.html#goal"><span class="hs-identifier hs-var hs-var">goal</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621679460194"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-15"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span id="heuristicSearchInit"><span class="annot"><span class="annottext">heuristicSearchInit :: s -&gt; (s -&gt; c) -&gt; (s -&gt; Bool) -&gt; HeuristicSearch s c
+</span><a href="HeuristicSearch.html#heuristicSearchInit"><span class="hs-identifier hs-var hs-var">heuristicSearchInit</span></a></span></span><span> </span><span id="local-6989586621679460112"><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679460112"><span class="hs-identifier hs-var">start</span></a></span></span><span> </span><span id="local-6989586621679460111"><span class="annot"><span class="annottext">s -&gt; c
+</span><a href="#local-6989586621679460111"><span class="hs-identifier hs-var">heuristic'</span></a></span></span><span> </span><span id="local-6989586621679460110"><span class="annot"><span class="annottext">s -&gt; Bool
+</span><a href="#local-6989586621679460110"><span class="hs-identifier hs-var">goal'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-18"></span><span>  </span><span class="annot"><a href="HeuristicSearch.html#HeuristicSearch"><span class="hs-identifier hs-type">HeuristicSearch</span></a></span><span>
+</span><span id="line-19"></span><span>    </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">end :: Maybe s
 </span><a href="HeuristicSearch.html#end"><span class="hs-identifier hs-var">end</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. Maybe a
 </span><span class="hs-identifier hs-var">Nothing</span></span><span>
-</span><span id="line-19"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">frontier :: MinPrioHeap c s
+</span><span id="line-20"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">frontier :: MinPrioHeap c s
 </span><a href="HeuristicSearch.html#frontier"><span class="hs-identifier hs-var">frontier</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall pol item. HeapItem pol item =&gt; item -&gt; Heap pol item
 </span><span class="hs-identifier hs-var">H.singleton</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">s -&gt; c
-</span><a href="#local-6989586621679459993"><span class="hs-identifier hs-var">heuristic'</span></a></span><span> </span><span class="annot"><span class="annottext">s
-</span><a href="#local-6989586621679459994"><span class="hs-identifier hs-var">start</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">s
-</span><a href="#local-6989586621679459994"><span class="hs-identifier hs-var">start</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-20"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">heuristic :: s -&gt; c
+</span><a href="#local-6989586621679460111"><span class="hs-identifier hs-var">heuristic'</span></a></span><span> </span><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679460112"><span class="hs-identifier hs-var">start</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679460112"><span class="hs-identifier hs-var">start</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-21"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">heuristic :: s -&gt; c
 </span><a href="HeuristicSearch.html#heuristic"><span class="hs-identifier hs-var">heuristic</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">s -&gt; c
-</span><a href="#local-6989586621679459993"><span class="hs-identifier hs-var">heuristic'</span></a></span><span>
-</span><span id="line-21"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">goal :: s -&gt; Bool
+</span><a href="#local-6989586621679460111"><span class="hs-identifier hs-var">heuristic'</span></a></span><span>
+</span><span id="line-22"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">goal :: s -&gt; Bool
 </span><a href="HeuristicSearch.html#goal"><span class="hs-identifier hs-var">goal</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">s -&gt; Bool
-</span><a href="#local-6989586621679459992"><span class="hs-identifier hs-var">goal'</span></a></span><span>
-</span><span id="line-22"></span><span>    </span><span class="hs-special">}</span><span>
-</span><span id="line-23"></span><span>
-</span><span id="line-24"></span><span class="hs-comment">-- | Entry point to the search algorithm</span><span>
-</span><span id="line-25"></span><span id="local-6989586621679460048"><span class="annot"><a href="HeuristicSearch.html#heuristicSearch"><span class="hs-identifier hs-type">heuristicSearch</span></a></span><span>
-</span><span id="line-26"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="annot"><a href="#local-6989586621679460048"><span class="hs-identifier hs-type">state</span></a></span><span>
-</span><span id="line-27"></span><span>  </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679460048"><span class="hs-identifier hs-type">state</span></a></span><span> </span><span class="hs-comment">-- starting state</span><span>
-</span><span id="line-28"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679460048"><span class="hs-identifier hs-type">state</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679460048"><span class="hs-identifier hs-type">state</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="hs-comment">-- get adjacent states</span><span>
-</span><span id="line-29"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679460048"><span class="hs-identifier hs-type">state</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span> </span><span class="hs-comment">-- goal test</span><span>
-</span><span id="line-30"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679460048"><span class="hs-identifier hs-type">state</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span class="hs-special">)</span><span> </span><span class="hs-comment">-- heuristic</span><span>
-</span><span id="line-31"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679460048"><span class="hs-identifier hs-type">state</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">)</span><span>
-</span><span id="line-32"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679460048"><span class="hs-identifier hs-type">state</span></a></span></span><span> </span><span class="hs-comment">-- output</span><span>
-</span><span id="line-33"></span><span id="heuristicSearch"><span class="annot"><span class="annottext">heuristicSearch :: forall state.
+</span><a href="#local-6989586621679460110"><span class="hs-identifier hs-var">goal'</span></a></span><span>
+</span><span id="line-23"></span><span>    </span><span class="hs-special">}</span><span>
+</span><span id="line-24"></span><span>
+</span><span id="line-25"></span><span class="hs-comment">-- | Entry point to the search algorithm</span><span>
+</span><span id="line-26"></span><span id="local-6989586621679460172"><span class="annot"><a href="HeuristicSearch.html#heuristicSearch"><span class="hs-identifier hs-type">heuristicSearch</span></a></span><span>
+</span><span id="line-27"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="annot"><a href="#local-6989586621679460172"><span class="hs-identifier hs-type">state</span></a></span><span>
+</span><span id="line-28"></span><span>  </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679460172"><span class="hs-identifier hs-type">state</span></a></span><span> </span><span class="hs-comment">-- starting state</span><span>
+</span><span id="line-29"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679460172"><span class="hs-identifier hs-type">state</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679460172"><span class="hs-identifier hs-type">state</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="hs-comment">-- get adjacent states</span><span>
+</span><span id="line-30"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679460172"><span class="hs-identifier hs-type">state</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span> </span><span class="hs-comment">-- goal test</span><span>
+</span><span id="line-31"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679460172"><span class="hs-identifier hs-type">state</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span class="hs-special">)</span><span> </span><span class="hs-comment">-- heuristic</span><span>
+</span><span id="line-32"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679460172"><span class="hs-identifier hs-type">state</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">)</span><span>
+</span><span id="line-33"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679460172"><span class="hs-identifier hs-type">state</span></a></span></span><span> </span><span class="hs-comment">-- output</span><span>
+</span><span id="line-34"></span><span id="heuristicSearch"><span class="annot"><span class="annottext">heuristicSearch :: forall state.
 Show state =&gt;
 state
 -&gt; (state -&gt; [state])
@@ -57,79 +58,79 @@ state
 -&gt; (state -&gt; Float)
 -&gt; (state -&gt; String)
 -&gt; Maybe state
-</span><a href="HeuristicSearch.html#heuristicSearch"><span class="hs-identifier hs-var hs-var">heuristicSearch</span></a></span></span><span> </span><span id="local-6989586621679459986"><span class="annot"><span class="annottext">state
-</span><a href="#local-6989586621679459986"><span class="hs-identifier hs-var">initialState</span></a></span></span><span> </span><span id="local-6989586621679459985"><span class="annot"><span class="annottext">state -&gt; [state]
-</span><a href="#local-6989586621679459985"><span class="hs-identifier hs-var">getNextStates</span></a></span></span><span> </span><span id="local-6989586621679459984"><span class="annot"><span class="annottext">state -&gt; Bool
-</span><a href="#local-6989586621679459984"><span class="hs-identifier hs-var">isGoalState</span></a></span></span><span> </span><span id="local-6989586621679459983"><span class="annot"><span class="annottext">state -&gt; Float
-</span><a href="#local-6989586621679459983"><span class="hs-identifier hs-var">heuristic</span></a></span></span><span> </span><span id="local-6989586621679459982"><span class="annot"><span class="annottext">state -&gt; String
-</span><a href="#local-6989586621679459982"><span class="hs-identifier hs-var">printOp</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. String -&gt; a -&gt; a
+</span><a href="HeuristicSearch.html#heuristicSearch"><span class="hs-identifier hs-var hs-var">heuristicSearch</span></a></span></span><span> </span><span id="local-6989586621679460104"><span class="annot"><span class="annottext">state
+</span><a href="#local-6989586621679460104"><span class="hs-identifier hs-var">initialState</span></a></span></span><span> </span><span id="local-6989586621679460103"><span class="annot"><span class="annottext">state -&gt; [state]
+</span><a href="#local-6989586621679460103"><span class="hs-identifier hs-var">getNextStates</span></a></span></span><span> </span><span id="local-6989586621679460102"><span class="annot"><span class="annottext">state -&gt; Bool
+</span><a href="#local-6989586621679460102"><span class="hs-identifier hs-var">isGoalState</span></a></span></span><span> </span><span id="local-6989586621679460101"><span class="annot"><span class="annottext">state -&gt; Float
+</span><a href="#local-6989586621679460101"><span class="hs-identifier hs-var">heuristic</span></a></span></span><span> </span><span id="local-6989586621679460100"><span class="annot"><span class="annottext">state -&gt; String
+</span><a href="#local-6989586621679460100"><span class="hs-identifier hs-var">printOp</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. String -&gt; a -&gt; a
 </span><span class="hs-identifier hs-var">trace</span></span><span> </span><span class="annot"><span class="annottext">String
 </span><span class="hs-string">&quot;Starting Heuristic Search &quot;</span></span><span> </span><span class="annot"><span class="annottext">HeuristicSearch state Float -&gt; Maybe state
-</span><a href="#local-6989586621679459981"><span class="hs-identifier hs-var">search</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><a href="#local-6989586621679460099"><span class="hs-identifier hs-var">search</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall {c} {s}.
 Ord c =&gt;
 s -&gt; (s -&gt; c) -&gt; (s -&gt; Bool) -&gt; HeuristicSearch s c
 </span><a href="HeuristicSearch.html#heuristicSearchInit"><span class="hs-identifier hs-var">heuristicSearchInit</span></a></span><span> </span><span class="annot"><span class="annottext">state
-</span><a href="#local-6989586621679459986"><span class="hs-identifier hs-var">initialState</span></a></span><span> </span><span class="annot"><span class="annottext">state -&gt; Float
-</span><a href="#local-6989586621679459983"><span class="hs-identifier hs-var">heuristic</span></a></span><span> </span><span class="annot"><span class="annottext">state -&gt; Bool
-</span><a href="#local-6989586621679459984"><span class="hs-identifier hs-var">isGoalState</span></a></span><span>
-</span><span id="line-34"></span><span> </span><span class="hs-keyword">where</span><span>
-</span><span id="line-35"></span><span>  </span><span id="local-6989586621679459981"><span class="annot"><span class="annottext">search :: HeuristicSearch state Float -&gt; Maybe state
-</span><a href="#local-6989586621679459981"><span class="hs-identifier hs-var hs-var">search</span></a></span></span><span> </span><span id="local-6989586621679459962"><span class="annot"><span class="annottext">HeuristicSearch state Float
-</span><a href="#local-6989586621679459962"><span class="hs-identifier hs-var">hs</span></a></span></span><span>
-</span><span id="line-36"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">forall prio val. HeapT prio val -&gt; Bool
+</span><a href="#local-6989586621679460104"><span class="hs-identifier hs-var">initialState</span></a></span><span> </span><span class="annot"><span class="annottext">state -&gt; Float
+</span><a href="#local-6989586621679460101"><span class="hs-identifier hs-var">heuristic</span></a></span><span> </span><span class="annot"><span class="annottext">state -&gt; Bool
+</span><a href="#local-6989586621679460102"><span class="hs-identifier hs-var">isGoalState</span></a></span><span>
+</span><span id="line-35"></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-36"></span><span>  </span><span id="local-6989586621679460099"><span class="annot"><span class="annottext">search :: HeuristicSearch state Float -&gt; Maybe state
+</span><a href="#local-6989586621679460099"><span class="hs-identifier hs-var hs-var">search</span></a></span></span><span> </span><span id="local-6989586621679460080"><span class="annot"><span class="annottext">HeuristicSearch state Float
+</span><a href="#local-6989586621679460080"><span class="hs-identifier hs-var">hs</span></a></span></span><span>
+</span><span id="line-37"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">forall prio val. HeapT prio val -&gt; Bool
 </span><span class="hs-identifier hs-var">H.null</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall s c. HeuristicSearch s c -&gt; MinPrioHeap c s
 </span><a href="HeuristicSearch.html#frontier"><span class="hs-identifier hs-var">frontier</span></a></span><span> </span><span class="annot"><span class="annottext">HeuristicSearch state Float
-</span><a href="#local-6989586621679459962"><span class="hs-identifier hs-var">hs</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. String -&gt; a -&gt; a
+</span><a href="#local-6989586621679460080"><span class="hs-identifier hs-var">hs</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. String -&gt; a -&gt; a
 </span><span class="hs-identifier hs-var">trace</span></span><span> </span><span class="annot"><span class="annottext">String
 </span><span class="hs-string">&quot;Dead end, no goal found.&quot;</span></span><span> </span><span class="annot"><span class="annottext">forall a. Maybe a
 </span><span class="hs-identifier hs-var">Nothing</span></span><span>
-</span><span id="line-37"></span><span>    </span><span class="hs-comment">-- \| not (null goalStates) = trace &quot;returning&quot; Just (snd $ head goalStates)</span><span>
-</span><span id="line-38"></span><span>    </span><span class="hs-comment">-- \| otherwise = trace (  &quot;\nCurrent head: &quot; &lt;&gt; show (snd . head $ nearestState)</span><span>
-</span><span id="line-39"></span><span>    </span><span class="hs-comment">--                     &lt;&gt; &quot;\nNew frontier: &quot; &lt;&gt; show newFrontier )</span><span>
-</span><span id="line-40"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span id="line-38"></span><span>    </span><span class="hs-comment">-- \| not (null goalStates) = trace &quot;returning&quot; Just (snd $ head goalStates)</span><span>
+</span><span id="line-39"></span><span>    </span><span class="hs-comment">-- \| otherwise = trace (  &quot;\nCurrent head: &quot; &lt;&gt; show (snd . head $ nearestState)</span><span>
+</span><span id="line-40"></span><span>    </span><span class="hs-comment">--                     &lt;&gt; &quot;\nNew frontier: &quot; &lt;&gt; show newFrontier )</span><span>
+</span><span id="line-41"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool
 </span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Bool
 </span><span class="hs-identifier hs-var">null</span></span><span> </span><span class="annot"><span class="annottext">[(Float, state)]
-</span><a href="#local-6989586621679459958"><span class="hs-identifier hs-var">goalStates</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
-</span><span id="line-41"></span><span>        </span><span class="annot"><span class="annottext">forall a. String -&gt; a -&gt; a
+</span><a href="#local-6989586621679460076"><span class="hs-identifier hs-var">goalStates</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-42"></span><span>        </span><span class="annot"><span class="annottext">forall a. String -&gt; a -&gt; a
 </span><span class="hs-identifier hs-var">trace</span></span><span>
-</span><span id="line-42"></span><span>          </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String
+</span><span id="line-43"></span><span>          </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String
 </span><span class="hs-string">&quot;\n Open: &quot;</span></span><span> </span><span class="annot"><span class="annottext">forall a. Semigroup a =&gt; a -&gt; a -&gt; a
 </span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">forall a. Show a =&gt; a -&gt; String
 </span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall pol item. HeapItem pol item =&gt; Heap pol item -&gt; [item]
 </span><span class="hs-identifier hs-var">H.toList</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall s c. HeuristicSearch s c -&gt; MinPrioHeap c s
 </span><a href="HeuristicSearch.html#frontier"><span class="hs-identifier hs-var">frontier</span></a></span><span> </span><span class="annot"><span class="annottext">HeuristicSearch state Float
-</span><a href="#local-6989586621679459962"><span class="hs-identifier hs-var">hs</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
-</span><span id="line-43"></span><span>          </span><span class="hs-comment">-- ( &quot;Exploring: \n&quot;</span><span>
-</span><span id="line-44"></span><span>          </span><span class="hs-comment">--     &lt;&gt; show (snd . head $ nearestState)</span><span>
-</span><span id="line-45"></span><span>          </span><span class="hs-comment">--     &lt;&gt; &quot;\n    &quot;</span><span>
-</span><span id="line-46"></span><span>          </span><span class="hs-comment">--     &lt;&gt; printOp (snd . head $ nearestState)</span><span>
-</span><span id="line-47"></span><span>          </span><span class="hs-comment">--     &lt;&gt; &quot;\n\n\n&quot;</span><span>
-</span><span id="line-48"></span><span>          </span><span class="hs-comment">--     &lt;&gt; &quot;Goal State(s) found: &quot;</span><span>
-</span><span id="line-49"></span><span>          </span><span class="hs-comment">--     &lt;&gt; show (snd &lt;$&gt; goalStates)</span><span>
-</span><span id="line-50"></span><span>          </span><span class="hs-comment">--     &lt;&gt; &quot;\n    &quot;</span><span>
-</span><span id="line-51"></span><span>          </span><span class="hs-comment">--     &lt;&gt; printOp (snd . head $ goalStates)</span><span>
-</span><span id="line-52"></span><span>          </span><span class="hs-comment">--     &lt;&gt; &quot;\n&quot;</span><span>
-</span><span id="line-53"></span><span>          </span><span class="hs-comment">-- )</span><span>
-</span><span id="line-54"></span><span>          </span><span class="annot"><span class="annottext">forall a. a -&gt; Maybe a
+</span><a href="#local-6989586621679460080"><span class="hs-identifier hs-var">hs</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-44"></span><span>          </span><span class="hs-comment">-- ( &quot;Exploring: \n&quot;</span><span>
+</span><span id="line-45"></span><span>          </span><span class="hs-comment">--     &lt;&gt; show (snd . head $ nearestState)</span><span>
+</span><span id="line-46"></span><span>          </span><span class="hs-comment">--     &lt;&gt; &quot;\n    &quot;</span><span>
+</span><span id="line-47"></span><span>          </span><span class="hs-comment">--     &lt;&gt; printOp (snd . head $ nearestState)</span><span>
+</span><span id="line-48"></span><span>          </span><span class="hs-comment">--     &lt;&gt; &quot;\n\n\n&quot;</span><span>
+</span><span id="line-49"></span><span>          </span><span class="hs-comment">--     &lt;&gt; &quot;Goal State(s) found: &quot;</span><span>
+</span><span id="line-50"></span><span>          </span><span class="hs-comment">--     &lt;&gt; show (snd &lt;$&gt; goalStates)</span><span>
+</span><span id="line-51"></span><span>          </span><span class="hs-comment">--     &lt;&gt; &quot;\n    &quot;</span><span>
+</span><span id="line-52"></span><span>          </span><span class="hs-comment">--     &lt;&gt; printOp (snd . head $ goalStates)</span><span>
+</span><span id="line-53"></span><span>          </span><span class="hs-comment">--     &lt;&gt; &quot;\n&quot;</span><span>
+</span><span id="line-54"></span><span>          </span><span class="hs-comment">-- )</span><span>
+</span><span id="line-55"></span><span>          </span><span class="annot"><span class="annottext">forall a. a -&gt; Maybe a
 </span><span class="hs-identifier hs-var">Just</span></span><span>
-</span><span id="line-55"></span><span>          </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a b. (a, b) -&gt; b
+</span><span id="line-56"></span><span>          </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a b. (a, b) -&gt; b
 </span><span class="hs-identifier hs-var">snd</span></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
 </span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall a. [a] -&gt; a
 </span><span class="hs-identifier hs-var">head</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[(Float, state)]
-</span><a href="#local-6989586621679459958"><span class="hs-identifier hs-var">goalStates</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-56"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621679460076"><span class="hs-identifier hs-var">goalStates</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-57"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
 </span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span>
-</span><span id="line-57"></span><span>        </span><span class="annot"><span class="annottext">forall a. String -&gt; a -&gt; a
+</span><span id="line-58"></span><span>        </span><span class="annot"><span class="annottext">forall a. String -&gt; a -&gt; a
 </span><span class="hs-identifier hs-var">trace</span></span><span>
-</span><span id="line-58"></span><span>          </span><span class="hs-comment">-- ( &quot;Exploring: \n&quot;</span><span>
-</span><span id="line-59"></span><span>          </span><span class="hs-comment">--     &lt;&gt; show (snd . head $ nearestState)</span><span>
-</span><span id="line-60"></span><span>          </span><span class="hs-comment">--     &lt;&gt; &quot;\n    &quot;</span><span>
-</span><span id="line-61"></span><span>          </span><span class="hs-comment">--     &lt;&gt; printOp (snd . head $ nearestState)</span><span>
-</span><span id="line-62"></span><span>          </span><span class="hs-comment">--     &lt;&gt; &quot;\n&quot;</span><span>
-</span><span id="line-63"></span><span>          </span><span class="hs-comment">-- )</span><span>
-</span><span id="line-64"></span><span>          </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String
+</span><span id="line-59"></span><span>          </span><span class="hs-comment">-- ( &quot;Exploring: \n&quot;</span><span>
+</span><span id="line-60"></span><span>          </span><span class="hs-comment">--     &lt;&gt; show (snd . head $ nearestState)</span><span>
+</span><span id="line-61"></span><span>          </span><span class="hs-comment">--     &lt;&gt; &quot;\n    &quot;</span><span>
+</span><span id="line-62"></span><span>          </span><span class="hs-comment">--     &lt;&gt; printOp (snd . head $ nearestState)</span><span>
+</span><span id="line-63"></span><span>          </span><span class="hs-comment">--     &lt;&gt; &quot;\n&quot;</span><span>
+</span><span id="line-64"></span><span>          </span><span class="hs-comment">-- )</span><span>
+</span><span id="line-65"></span><span>          </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String
 </span><span class="hs-string">&quot;\nFrontier: &quot;</span></span><span> </span><span class="annot"><span class="annottext">forall a. Semigroup a =&gt; a -&gt; a -&gt; a
 </span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">forall a. Show a =&gt; a -&gt; String
 </span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a b. (a, b) -&gt; b
@@ -137,95 +138,106 @@ s -&gt; (s -&gt; c) -&gt; (s -&gt; Bool) -&gt; HeuristicSearch s c
 </span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">forall pol item. HeapItem pol item =&gt; Heap pol item -&gt; [item]
 </span><span class="hs-identifier hs-var">H.toList</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall s c. HeuristicSearch s c -&gt; MinPrioHeap c s
 </span><a href="HeuristicSearch.html#frontier"><span class="hs-identifier hs-var">frontier</span></a></span><span> </span><span class="annot"><span class="annottext">HeuristicSearch state Float
-</span><a href="#local-6989586621679459962"><span class="hs-identifier hs-var">hs</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
-</span><span id="line-65"></span><span>          </span><span class="annot"><span class="annottext">HeuristicSearch state Float -&gt; Maybe state
-</span><a href="#local-6989586621679459981"><span class="hs-identifier hs-var">search</span></a></span><span>
-</span><span id="line-66"></span><span>          </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><a href="#local-6989586621679460080"><span class="hs-identifier hs-var">hs</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-66"></span><span>          </span><span class="annot"><span class="annottext">HeuristicSearch state Float -&gt; Maybe state
+</span><a href="#local-6989586621679460099"><span class="hs-identifier hs-var">search</span></a></span><span>
+</span><span id="line-67"></span><span>          </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">HeuristicSearch state Float
-</span><a href="#local-6989586621679459962"><span class="hs-identifier hs-var">hs</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">frontier :: MinPrioHeap Float state
+</span><a href="#local-6989586621679460080"><span class="hs-identifier hs-var">hs</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">frontier :: MinPrioHeap Float state
 </span><a href="HeuristicSearch.html#frontier"><span class="hs-identifier hs-var">frontier</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">HeapT (Prio FstMinPolicy (Float, state)) state
-</span><a href="#local-6989586621679459952"><span class="hs-identifier hs-var">newFrontier</span></a></span><span class="hs-special">}</span><span>
-</span><span id="line-67"></span><span>   </span><span class="hs-keyword">where</span><span>
-</span><span id="line-68"></span><span>    </span><span class="hs-comment">-- Pop the node in the frontier with the lowest priority</span><span>
-</span><span id="line-69"></span><span>    </span><span class="hs-special">(</span><span id="local-6989586621679459949"><span class="annot"><span class="annottext">[(Float, state)]
-</span><a href="#local-6989586621679459949"><span class="hs-identifier hs-var">nearestState</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679459948"><span class="annot"><span class="annottext">MinPrioHeap Float state
-</span><a href="#local-6989586621679459948"><span class="hs-identifier hs-var">remainingQueue</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall pol item.
+</span><a href="#local-6989586621679460070"><span class="hs-identifier hs-var">newFrontier</span></a></span><span class="hs-special">}</span><span>
+</span><span id="line-68"></span><span>   </span><span class="hs-keyword">where</span><span>
+</span><span id="line-69"></span><span>    </span><span class="hs-comment">-- Pop the node in the frontier with the lowest priority</span><span>
+</span><span id="line-70"></span><span>    </span><span class="hs-special">(</span><span id="local-6989586621679460067"><span class="annot"><span class="annottext">[(Float, state)]
+</span><a href="#local-6989586621679460067"><span class="hs-identifier hs-var">nearestState</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679460066"><span class="annot"><span class="annottext">MinPrioHeap Float state
+</span><a href="#local-6989586621679460066"><span class="hs-identifier hs-var">remainingQueue</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall pol item.
 HeapItem pol item =&gt;
 Int -&gt; Heap pol item -&gt; ([item], Heap pol item)
 </span><span class="hs-identifier hs-var">H.splitAt</span></span><span> </span><span class="annot"><span class="annottext">Int
 </span><span class="hs-number">1</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall s c. HeuristicSearch s c -&gt; MinPrioHeap c s
 </span><a href="HeuristicSearch.html#frontier"><span class="hs-identifier hs-var">frontier</span></a></span><span> </span><span class="annot"><span class="annottext">HeuristicSearch state Float
-</span><a href="#local-6989586621679459962"><span class="hs-identifier hs-var">hs</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-comment">-- pop lowest 0 from pq</span><span>
-</span><span id="line-70"></span><span>
-</span><span id="line-71"></span><span>    </span><span class="hs-comment">-- Find neighboring states and costs</span><span>
-</span><span id="line-72"></span><span>    </span><span id="local-6989586621679459946"><span class="annot"><span class="annottext">nextStatesAndCosts :: [(Float, state)]
-</span><a href="#local-6989586621679459946"><span class="hs-identifier hs-var hs-var">nextStatesAndCosts</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">state -&gt; [(Float, state)]
-</span><a href="#local-6989586621679459945"><span class="hs-identifier hs-var">getNextStatesAndCosts</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a b. (a, b) -&gt; b
+</span><a href="#local-6989586621679460080"><span class="hs-identifier hs-var">hs</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-comment">-- pop lowest 0 from pq</span><span>
+</span><span id="line-71"></span><span>    </span><span id="local-6989586621679460063"><span class="annot"><span class="annottext">getNextStatesAndCosts :: state -&gt; [(Float, state)]
+</span><a href="#local-6989586621679460063"><span class="hs-identifier hs-var hs-var">getNextStatesAndCosts</span></a></span></span><span> </span><span id="local-6989586621679460062"><span class="annot"><span class="annottext">state
+</span><a href="#local-6989586621679460062"><span class="hs-identifier hs-var">state</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679460061"><span class="annot"><span class="annottext">state
+</span><a href="#local-6989586621679460061"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">state -&gt; Float
+</span><a href="#local-6989586621679460101"><span class="hs-identifier hs-var">heuristic</span></a></span><span> </span><span class="annot"><span class="annottext">state
+</span><a href="#local-6989586621679460061"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">state
+</span><a href="#local-6989586621679460061"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">state -&gt; [state]
+</span><a href="#local-6989586621679460103"><span class="hs-identifier hs-var">getNextStates</span></a></span><span> </span><span class="annot"><span class="annottext">state
+</span><a href="#local-6989586621679460062"><span class="hs-identifier hs-var">state</span></a></span><span>
+</span><span id="line-72"></span><span>
+</span><span id="line-73"></span><span>    </span><span class="hs-comment">-- Find neighboring states and costs</span><span>
+</span><span id="line-74"></span><span>    </span><span id="local-6989586621679460060"><span class="annot"><span class="annottext">nextStatesAndCosts :: [(Float, state)]
+</span><a href="#local-6989586621679460060"><span class="hs-identifier hs-var hs-var">nextStatesAndCosts</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">state -&gt; [(Float, state)]
+</span><a href="#local-6989586621679460063"><span class="hs-identifier hs-var">getNextStatesAndCosts</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a b. (a, b) -&gt; b
 </span><span class="hs-identifier hs-var">snd</span></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
 </span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall a. [a] -&gt; a
 </span><span class="hs-identifier hs-var">head</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[(Float, state)]
-</span><a href="#local-6989586621679459949"><span class="hs-identifier hs-var">nearestState</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-73"></span><span>
-</span><span id="line-74"></span><span>    </span><span class="hs-comment">-- Determine if any of these neighboring states are goal states</span><span>
-</span><span id="line-75"></span><span>    </span><span id="local-6989586621679459958"><span class="annot"><span class="annottext">goalStates :: [(Float, state)]
-</span><a href="#local-6989586621679459958"><span class="hs-identifier hs-var hs-var">goalStates</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. (a -&gt; Bool) -&gt; [a] -&gt; [a]
+</span><a href="#local-6989586621679460067"><span class="hs-identifier hs-var">nearestState</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-75"></span><span>
+</span><span id="line-76"></span><span>    </span><span class="hs-comment">-- Determine if any of these neighboring states are goal states</span><span>
+</span><span id="line-77"></span><span>    </span><span id="local-6989586621679460076"><span class="annot"><span class="annottext">goalStates :: [(Float, state)]
+</span><a href="#local-6989586621679460076"><span class="hs-identifier hs-var hs-var">goalStates</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. (a -&gt; Bool) -&gt; [a] -&gt; [a]
 </span><span class="hs-identifier hs-var">filter</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">state -&gt; Bool
-</span><a href="#local-6989586621679459984"><span class="hs-identifier hs-var">isGoalState</span></a></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><a href="#local-6989586621679460102"><span class="hs-identifier hs-var">isGoalState</span></a></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
 </span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a, b) -&gt; b
 </span><span class="hs-identifier hs-var">snd</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[(Float, state)]
-</span><a href="#local-6989586621679459946"><span class="hs-identifier hs-var">nextStatesAndCosts</span></a></span><span>
-</span><span id="line-76"></span><span>
-</span><span id="line-77"></span><span>    </span><span class="hs-comment">-- Add the new states to the frontier.</span><span>
-</span><span id="line-78"></span><span>    </span><span class="hs-comment">-- Keeping 5 states in the front at a time</span><span>
-</span><span id="line-79"></span><span>    </span><span class="hs-comment">-- newFrontier = trace (&quot;Inserting &quot; &lt;&gt; show nextStatesAndCosts &lt;&gt; &quot; into &quot; &lt;&gt; show remainingQueue )</span><span>
-</span><span id="line-80"></span><span>    </span><span id="local-6989586621679459952"><span class="annot"><span class="annottext">newFrontier :: MinPrioHeap Float state
-</span><a href="#local-6989586621679459952"><span class="hs-identifier hs-var hs-var">newFrontier</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall pol item.
-HeapItem pol item =&gt;
-Int -&gt; Heap pol item -&gt; Heap pol item
-</span><a href="#local-6989586621679459940"><span class="hs-identifier hs-var">limitHeapAt</span></a></span><span> </span><span class="annot"><span class="annottext">Int
-</span><span class="hs-number">2</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
-</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a b.
+</span><a href="#local-6989586621679460060"><span class="hs-identifier hs-var">nextStatesAndCosts</span></a></span><span>
+</span><span id="line-78"></span><span>
+</span><span id="line-79"></span><span>    </span><span class="hs-comment">-- Add the new states to the frontier.</span><span>
+</span><span id="line-80"></span><span>    </span><span class="hs-comment">-- Keeping 5 states in the front at a time</span><span>
+</span><span id="line-81"></span><span>    </span><span class="hs-comment">-- newFrontier = trace (&quot;Inserting &quot; &lt;&gt; show nextStatesAndCosts &lt;&gt; &quot; into &quot; &lt;&gt; show remainingQueue )</span><span>
+</span><span id="line-82"></span><span>    </span><span id="local-6989586621679460070"><span class="annot"><span class="annottext">newFrontier :: HeapT (Prio FstMinPolicy (Float, state)) state
+</span><a href="#local-6989586621679460070"><span class="hs-identifier hs-var hs-var">newFrontier</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a b.
 Foldable t =&gt;
 (a -&gt; b -&gt; b) -&gt; b -&gt; t a -&gt; b
-</span><span class="hs-identifier hs-var">foldr</span></span><span> </span><span class="annot"><span class="annottext">forall pol item.
+</span><span class="hs-identifier hs-var">foldr</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall {pol} {item}.
 HeapItem pol item =&gt;
-item -&gt; Heap pol item -&gt; Heap pol item
-</span><span class="hs-identifier hs-var">H.insert</span></span><span> </span><span class="annot"><span class="annottext">HeapT (Prio FstMinPolicy (Float, state)) state
-</span><a href="#local-6989586621679459948"><span class="hs-identifier hs-var">remainingQueue</span></a></span><span> </span><span class="annot"><span class="annottext">[(Float, state)]
-</span><a href="#local-6989586621679459946"><span class="hs-identifier hs-var">nextStatesAndCosts</span></a></span><span>
-</span><span id="line-81"></span><span>
-</span><span id="line-82"></span><span>    </span><span id="local-6989586621679459945"><span class="annot"><span class="annottext">getNextStatesAndCosts :: state -&gt; [(Float, state)]
-</span><a href="#local-6989586621679459945"><span class="hs-identifier hs-var hs-var">getNextStatesAndCosts</span></a></span></span><span> </span><span id="local-6989586621679459936"><span class="annot"><span class="annottext">state
-</span><a href="#local-6989586621679459936"><span class="hs-identifier hs-var">state</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679459935"><span class="annot"><span class="annottext">state
-</span><a href="#local-6989586621679459935"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">state -&gt; Float
-</span><a href="#local-6989586621679459983"><span class="hs-identifier hs-var">heuristic</span></a></span><span> </span><span class="annot"><span class="annottext">state
-</span><a href="#local-6989586621679459935"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">state
-</span><a href="#local-6989586621679459935"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
-</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">state -&gt; [state]
-</span><a href="#local-6989586621679459985"><span class="hs-identifier hs-var">getNextStates</span></a></span><span> </span><span class="annot"><span class="annottext">state
-</span><a href="#local-6989586621679459936"><span class="hs-identifier hs-var">state</span></a></span><span>
-</span><span id="line-83"></span><span>
-</span><span id="line-84"></span><span>    </span><span id="local-6989586621679460015"><span id="local-6989586621679460016"><span class="annot"><a href="#local-6989586621679459940"><span class="hs-identifier hs-type">limitHeapAt</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">H.HeapItem</span></span><span> </span><span class="annot"><a href="#local-6989586621679460016"><span class="hs-identifier hs-type">pol</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679460015"><span class="hs-identifier hs-type">item</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">H.Heap</span></span><span> </span><span class="annot"><a href="#local-6989586621679460016"><span class="hs-identifier hs-type">pol</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679460015"><span class="hs-identifier hs-type">item</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">H.Heap</span></span><span> </span><span class="annot"><a href="#local-6989586621679460016"><span class="hs-identifier hs-type">pol</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679460015"><span class="hs-identifier hs-type">item</span></a></span></span></span><span>
-</span><span id="line-85"></span><span>    </span><span id="local-6989586621679459940"><span class="annot"><span class="annottext">limitHeapAt :: forall pol item.
-HeapItem pol item =&gt;
-Int -&gt; Heap pol item -&gt; Heap pol item
-</span><a href="#local-6989586621679459940"><span class="hs-identifier hs-var hs-var">limitHeapAt</span></a></span></span><span> </span><span id="local-6989586621679459930"><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679459930"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span id="local-6989586621679459929"><span class="annot"><span class="annottext">Heap pol item
-</span><a href="#local-6989586621679459929"><span class="hs-identifier hs-var">heap</span></a></span></span><span>
-</span><span id="line-86"></span><span>      </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">forall prio val. HeapT prio val -&gt; Int
-</span><span class="hs-identifier hs-var">H.size</span></span><span> </span><span class="annot"><span class="annottext">Heap pol item
-</span><a href="#local-6989586621679459929"><span class="hs-identifier hs-var">heap</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+Int
+-&gt; item
+-&gt; HeapT (Prio pol item) (Val pol item)
+-&gt; HeapT (Prio pol item) (Val pol item)
+</span><a href="#local-6989586621679460055"><span class="hs-identifier hs-var">insertLimitedBy</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">HeapT (Prio FstMinPolicy (Float, state)) state
+</span><a href="#local-6989586621679460066"><span class="hs-identifier hs-var">remainingQueue</span></a></span><span> </span><span class="annot"><span class="annottext">[(Float, state)]
+</span><a href="#local-6989586621679460060"><span class="hs-identifier hs-var">nextStatesAndCosts</span></a></span><span>
+</span><span id="line-83"></span><span>    </span><span class="hs-comment">-- newFrontier = foldr H.insert remainingQueue nextStatesAndCosts</span><span>
+</span><span id="line-84"></span><span>
+</span><span id="line-85"></span><span>    </span><span class="hs-comment">-- insertLimited :: H.HeapItem pol state =&gt; Int -&gt; item -&gt; H.Heap pol item -&gt; H.Heap pol item</span><span>
+</span><span id="line-86"></span><span>    </span><span id="local-6989586621679460055"><span class="annot"><span class="annottext">insertLimitedBy :: Int
+-&gt; item
+-&gt; HeapT (Prio pol item) (Val pol item)
+-&gt; HeapT (Prio pol item) (Val pol item)
+</span><a href="#local-6989586621679460055"><span class="hs-identifier hs-var hs-var">insertLimitedBy</span></a></span></span><span> </span><span id="local-6989586621679460049"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679460049"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span id="local-6989586621679460048"><span class="annot"><span class="annottext">item
+</span><a href="#local-6989586621679460048"><span class="hs-identifier hs-var">item</span></a></span></span><span> </span><span id="local-6989586621679460047"><span class="annot"><span class="annottext">HeapT (Prio pol item) (Val pol item)
+</span><a href="#local-6989586621679460047"><span class="hs-identifier hs-var">heap</span></a></span></span><span>
+</span><span id="line-87"></span><span>      </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">forall prio val. HeapT prio val -&gt; Int
+</span><span class="hs-identifier hs-var">H.size</span></span><span> </span><span class="annot"><span class="annottext">HeapT (Prio pol item) (Val pol item)
+</span><a href="#local-6989586621679460047"><span class="hs-identifier hs-var">heap</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
 </span><span class="hs-operator hs-var">&gt;=</span></span><span> </span><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679459930"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a b. (a, b) -&gt; b
-</span><span class="hs-identifier hs-var">snd</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><a href="#local-6989586621679460049"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679460042"><span class="annot"><span class="annottext">heap' :: HeapT (Prio pol item) (Val pol item)
+</span><a href="#local-6989586621679460042"><span class="hs-identifier hs-var hs-var">heap'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. a -&gt; Maybe a -&gt; a
+</span><span class="hs-identifier hs-var">fromMaybe</span></span><span> </span><span class="annot"><span class="annottext">forall a. HasCallStack =&gt; a
+</span><span class="hs-identifier hs-var">undefined</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall pol item.
 HeapItem pol item =&gt;
-Int -&gt; Heap pol item -&gt; ([item], Heap pol item)
-</span><span class="hs-identifier hs-var">H.splitAt</span></span><span> </span><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679459930"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">Heap pol item
-</span><a href="#local-6989586621679459929"><span class="hs-identifier hs-var">heap</span></a></span><span>
-</span><span id="line-87"></span><span>      </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
-</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Heap pol item
-</span><a href="#local-6989586621679459929"><span class="hs-identifier hs-var">heap</span></a></span><span>
-</span><span id="line-88"></span></pre></body></html>
+Heap pol item -&gt; Maybe (Heap pol item)
+</span><span class="hs-identifier hs-var">H.viewTail</span></span><span> </span><span class="annot"><span class="annottext">HeapT (Prio pol item) (Val pol item)
+</span><a href="#local-6989586621679460047"><span class="hs-identifier hs-var">heap</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">in</span><span> </span><span class="annot"><span class="annottext">forall pol item.
+HeapItem pol item =&gt;
+item -&gt; Heap pol item -&gt; Heap pol item
+</span><span class="hs-identifier hs-var">H.insert</span></span><span> </span><span class="annot"><span class="annottext">item
+</span><a href="#local-6989586621679460048"><span class="hs-identifier hs-var">item</span></a></span><span> </span><span class="annot"><span class="annottext">HeapT (Prio pol item) (Val pol item)
+</span><a href="#local-6989586621679460042"><span class="hs-identifier hs-var">heap'</span></a></span><span>
+</span><span id="line-88"></span><span>      </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall pol item.
+HeapItem pol item =&gt;
+item -&gt; Heap pol item -&gt; Heap pol item
+</span><span class="hs-identifier hs-var">H.insert</span></span><span> </span><span class="annot"><span class="annottext">item
+</span><a href="#local-6989586621679460048"><span class="hs-identifier hs-var">item</span></a></span><span> </span><span class="annot"><span class="annottext">HeapT (Prio pol item) (Val pol item)
+</span><a href="#local-6989586621679460047"><span class="hs-identifier hs-var">heap</span></a></span><span>
+</span><span id="line-89"></span></pre></body></html>
