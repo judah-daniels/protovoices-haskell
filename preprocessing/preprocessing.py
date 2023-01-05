@@ -50,7 +50,7 @@ def get_chord_type(globalkey_is_minor, numeral, form :str, figbass :str, changes
       if augmented:
         return "+7"
       else:
-        return "M7"
+        return "Mm7"
     elif augmented:
       return "+"
     else:
@@ -119,5 +119,5 @@ def transform_chords_abs(df):
     :obj:`pandas.DataFrame`
     """
     
-    df['rootoffset'] = df.apply(lambda x: get_chord_offset(x.numeral,x.globalkey_is_minor), axis = 1)
+    df['rootoffset'] = df.apply(lambda x: int(get_chord_offset(x.numeral,x.globalkey_is_minor)), axis = 1)
     df['chordtype'] = df.apply(lambda x: get_chord_type(x.globalkey_is_minor, x.numeral, x.form, x.figbass, x.changes), axis = 1)

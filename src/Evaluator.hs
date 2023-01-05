@@ -21,7 +21,7 @@ import Data.List as List
 import Data.Maybe
 import Debug.Trace
 
-import Internal.MultiSet (distinctElems,map, toOccurList, lookup, empty)
+import Internal.MultiSet (distinctElems, map, toOccurList, lookup, empty)
 
 import System.Random.MWC.Probability (multinomial)
 import Musicology.Core (AdditiveGroup)

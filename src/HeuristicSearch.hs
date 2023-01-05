@@ -3,6 +3,7 @@
 module HeuristicSearch where
 
 import qualified Data.Heap as H
+import Data.Maybe (fromMaybe)
 import Debug.Trace
 import HeuristicParser (getPathFromState)
 
@@ -67,6 +68,7 @@ heuristicSearch initialState getNextStates isGoalState heuristic printOp = trace
    where
     -- Pop the node in the frontier with the lowest priority
     (nearestState, remainingQueue) = H.splitAt 1 (frontier hs) -- pop lowest 0 from pq
+    getNextStatesAndCosts state = (\s -> (heuristic s, s)) <$> getNextStates state
 
     -- Find neighboring states and costs
     nextStatesAndCosts = getNextStatesAndCosts (snd . head $ nearestState)
@@ -77,11 +79,10 @@ heuristicSearch initialState getNextStates isGoalState heuristic printOp = trace
     -- Add the new states to the frontier.
     -- Keeping 5 states in the front at a time
     -- newFrontier = trace ("Inserting " <> show nextStatesAndCosts <> " into " <> show remainingQueue )
-    newFrontier = limitHeapAt 2 $ foldr H.insert remainingQueue nextStatesAndCosts
+    newFrontier = foldr (insertLimitedBy 1) remainingQueue nextStatesAndCosts
+    -- newFrontier = foldr H.insert remainingQueue nextStatesAndCosts
 
-    getNextStatesAndCosts state = (\s -> (heuristic s, s)) <$> getNextStates state
-
-    limitHeapAt :: H.HeapItem pol item => Int -> H.Heap pol item -> H.Heap pol item
-    limitHeapAt n heap
-      | H.size heap >= n = snd $ H.splitAt n heap
-      | otherwise = heap
+    -- insertLimited :: H.HeapItem pol state => Int -> item -> H.Heap pol item -> H.Heap pol item
+    insertLimitedBy n item heap
+      | H.size heap >= n = let heap' = (fromMaybe undefined $ H.viewTail heap) in H.insert item heap'
+      | otherwise = H.insert item heap

@@ -112,17 +112,19 @@ instance (Show slc, Show o) => Show (GreedyState tr tr' slc o) where
 
 -- | Helper function for showing the frozen part of a piece.
 showFrozen :: Show slc => Path tr' slc -> String
-showFrozen path = "⋊" <> go path
+showFrozen path = "⋊" <> go 5 path
  where
-  go (PathEnd _) = "="
-  go (Path _ a rst) = go rst <> show a <> "="
+  go _ (PathEnd _) = "="
+  go 0 (Path _ a rst) = "..." <> show a <> "="
+  go n (Path _ a rst) = go (n - 1) rst <> show a <> "="
 
 -- | Helper function for showing the open part of a piece.
 showOpen :: Show slc => Path tr slc -> String
-showOpen path = go path <> "⋉"
+showOpen path = go 5 path <> "⋉"
  where
-  go (PathEnd _) = "-"
-  go (Path _ a rst) = "-" <> show a <> go rst
+  go _ (PathEnd _) = "-"
+  go 0 (Path _ a rst) = "-" <> show a <> "..."
+  go n (Path _ a rst) = "-" <> show a <> go (n - 1) rst
 
 -- * Parsing Actions
 

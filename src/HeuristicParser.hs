@@ -93,7 +93,7 @@ instance (Show ns, Show o) => Show (SearchState es es' ns o) where
 
 -- | Helper function for showing the frozen part of a piece.
 showFrozen :: Show slc => Path (Maybe es', Bool) slc -> String
-showFrozen path = "⋊" <> go 5 path
+showFrozen path = "⋊" <> go 1 path
  where
   go _ (PathEnd (_, True)) = "≠"
   go _ (PathEnd (_, False)) = "="
@@ -104,7 +104,7 @@ showFrozen path = "⋊" <> go 5 path
 
 -- | Helper function for showing the open part of a piece.
 showOpen :: Show slc => Path (Trans es') slc -> String
-showOpen path = go 5 path <> "⋉"
+showOpen path = go 2 path <> "⋉"
  where
   go _ (PathEnd (Trans _ _ True)) = "⌿"
   go _ (PathEnd (Trans _ _ False)) = "-"
@@ -218,6 +218,7 @@ exploreStates eval state = case state of
         actions = collectUnfreezeLeft (Inner sfrozen) tfrozen midSlice topen Stop
         genState (ActionDouble (sl, tl, slice, tr, st) op) =
           SSSemiOpen rstFrozen (Slice sfrozen) (Path tl (Slice midSlice) open) (LMDouble op : ops)
+
     -- Two Open transitions: unfreeze or unsplit single
     Path topenl (Slice sopen) (PathEnd topenr) ->
       let unsplitActions = Right <$> collectUnsplitSingle (Inner midSlice) topenl sopen topenr Stop
@@ -267,7 +268,7 @@ exploreStates eval state = case state of
             PathEnd tfrozen ->
               trace
                 ( "  2+ Open Transitions, 1 frozen transition Left: \n  Following states: "
-                    <> (show (genState <$> doubleActions))
+                    -- <> (show (genState <$> doubleActions))
                     -- <> "\n  Following Actions: "
                     -- <> show (unfreezeActions <> doubleActions)
                     <> "\n"
@@ -359,7 +360,7 @@ exploreStates eval state = case state of
          -> StartStop ns
          -> [ActionDouble ns es s f h]
        )
-  collectUnsplitLeft sstart (Trans tl _ tlBoundary) sl (Trans tm _ tmBoundary) sr (Trans tr _ trBoundary) send
+  collectUnsplitLeft sstart (Trans tl _ tlBoundary) sl (Trans tm _ tmBoundary) sr tr send
     | tlBoundary && tmBoundary = []
     | otherwise =
         mapMaybe getAction $
@@ -371,7 +372,7 @@ exploreStates eval state = case state of
         LMDouble dop ->
           Just $
             ActionDouble
-              (sstart, Trans ttop False (tlBoundary || tmBoundary), sr, Trans tr False trBoundary, send)
+              (sstart, Trans ttop False (tlBoundary || tmBoundary), sr, tr, send)
               dop
 
   collectUnsplitRight
@@ -408,8 +409,6 @@ exploreStates eval state = case state of
        )
   collectUnspreads sstart (Trans tl _ tlBoundary) sl (Trans tm _ tmBoundary) sr (Trans tr _ trBoundary) send
     | tmBoundary = []
-    | tlBoundary = []
-    | trBoundary = []
     | otherwise = catMaybes $ do
         -- List
         (sTop, op) <- maybeToList $ evalUnspreadMiddle eval (sl, tm, sr)
