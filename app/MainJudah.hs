@@ -6,6 +6,7 @@
 
 module Main where
 
+import Debug.Trace
 import Common
 import Data.ByteString.Lazy qualified as BL
 import Data.Csv
@@ -24,6 +25,7 @@ import Display
 import Evaluator
 import HeuristicParser
 import HeuristicSearch
+import PBHModel
 import Language.Haskell.DoNotation
 import Musicology.Core qualified as Music
 import Musicology.Pitch.Spelled
@@ -50,11 +52,10 @@ main = do
   chords <- chordsFromFile "preprocessing/chordsShortest.csv"
   params <- loadParams "preprocessing/dcml_params.json"
   -- finalPath <- runHeuristicSearch protoVoiceEvaluator slices321sus chords321sus
-  finalPath <- runHeuristicSearch protoVoiceEvaluator (slices) chords
+  finalPath <- runHeuristicSearch params protoVoiceEvaluator (slices) chords
 
-  hpData <- loadParams "preprocessing/dcml_params.json"
 
-  let res = evalPath finalPath chords hpData
+  let res = evalPath finalPath chords params
   -- let res = evalPath finalPath chords321sus hpData
 
   putStrLn $ "\nFinal Path: " <> show finalPath
@@ -134,7 +135,7 @@ instance FromNamedRecord ChordLabel' where
   parseNamedRecord r =
     ChordLabel'
       <$> r .: "segment_id"
-      <*> r .: "chordtype"
+      <*> r .: "chord_type"
       <*> r .: "rootoffset"
       <*> r .: "globalkey"
 
@@ -142,7 +143,7 @@ instance FromNamedRecord ChordLabel' where
 type Chord = String
 
 -- | Loads chord annotations from filepath
-chordsFromFile :: FilePath -> IO [Evaluator.ChordLabel]
+chordsFromFile :: FilePath -> IO [ChordLabel]
 chordsFromFile file = do
   txt <- BL.readFile file
   case decodeByName txt of
@@ -150,7 +151,7 @@ chordsFromFile file = do
     Right (_, v) -> do
       pure $ fmap parseChordLabel (V.toList v)
   where
-    parseChordLabel r = Evaluator.ChordLabel (_chordtype r) (Music.sic $ _rootoffset r) (fromMaybe undefined (Music.readNotation $ _globalkey r))
+    parseChordLabel r = ChordLabel (_chordtype r) (Music.sic $ _rootoffset r) (fromMaybe undefined (Music.readNotation $ _globalkey r))
 
 -- | Datatype for a slice
 type Slice' = [(SPitch, Music.RightTied)]
@@ -221,11 +222,12 @@ runHeuristicSearch ::
     Show ns,
     Music.Notation ns
   ) =>
+  HarmonicProfileData ->
   Eval (Edges ns) [Edge ns] (Notes ns) [ns] (PVLeftmost ns) ->
   [InputSlice ns] ->
   [ChordLabel] ->
   IO (Path (Edges ns) (Notes ns))
-runHeuristicSearch eval inputSlices chordLabels = do
+runHeuristicSearch params eval inputSlices chordLabels = do
   -- putStrLn "\nPlotting Derivation: "
   -- plotDeriv p ("output198" <> ".tex") ops
   pure p
@@ -253,15 +255,16 @@ runHeuristicSearch eval inputSlices chordLabels = do
     goalTest _ = False
 
     -- Where the magic happens!
-    heuristic  = testHeuristic
+    heuristic = testHeuristic params
 
 
 testHeuristic 
-  :: (Show ns, Music.Notation ns)
-  => SearchState (Edges ns) [Edge ns] (Notes ns) (PVLeftmost ns)
+  :: (Hashable ns, Show ns, Eq (Music.IntervalOf ns), Music.HasPitch ns, Music.Notation ns, Ord ns)
+  => HarmonicProfileData
+  -> SearchState (Edges ns) [Edge ns] (Notes ns) (PVLeftmost ns)
   -> Float
-testHeuristic state = 
-  score + (remainingOps /100)
+testHeuristic params state = 
+  score 
     where
       ops = getOpsFromState state
 
@@ -271,24 +274,94 @@ testHeuristic state =
 
       remainingOps :: Float
       remainingOps = fromIntegral $ getPathLengthFromState state 
+
       score :: Float
-      score = if isNothing op then 0.0 else 
+      score = if isNothing op then 100.0 else 
         case fromJust op of
           -- Splitting Left
-          LMDouble (LMDoubleSplitLeft splitOp) -> 50.0
+          LMDouble (LMDoubleSplitLeft splitOp) -> let (tl, parent, tr) = getParentDouble state in
+            case applySplit splitOp tl of 
+              Left err -> trace err undefined
+              Right (childl,slice,childr) -> 0.0
+          
           -- Splitting Right
-          LMDouble (LMDoubleSplitRight splitOp) -> 50.0
+          LMDouble (LMDoubleSplitRight splitOp) -> let (tl, parent, tr) = getParentDouble state in
+            case applySplit splitOp tr of 
+              Left err -> trace err undefined
+              Right (childl,slice,childr) -> 0.0
+
           -- Freezing
-          LMDouble (LMDoubleFreezeLeft freezeOp) -> 0.0
+          -- no unfreeze if there are 3 open non boundary transition 
+          LMDouble (LMDoubleFreezeLeft freezeOp) -> let (tl, parent, tr) = getParentDouble state in
+            case applyFreeze freezeOp tl of 
+              Left err -> trace err undefined
+              Right frozen -> 1.0 
+
           -- Spreading
-          LMDouble (LMDoubleSpread spreadOp) -> 0.0
+          -- Calculate for each chord possibility, the likelihood that they are all the same chord
+          LMDouble (LMDoubleSpread spreadOp@(SpreadOp spreads edges)) -> 
+            let (tl, parent, tr) = getParentDouble state in 
+                case applySpread spreadOp tl parent tr of 
+                  Left err -> trace err undefined
+                  Right (sl,childl,slice,childr,st) -> 0.0
+                    where 
+                      -- predChord = mostLikelyChord hpData parent 
+                      -- jointLogLikelihood = 
+                      --     sliceChordLogLikelihood childl 
+                      --   + sliceChordLogLikelihood childr 
+                      --   - sliceChordLogLikelihood predChord
+
+                      -- jointLikelihood
+                      go :: SpreadDirection -> Float
+                      go = undefined
+
+
+
+
           -- Freezing (Terminate)
-          -- numSlices - num
-          LMSingle (LMSingleFreeze freezeOp) -> 0.0
+          -- numSlices From  SSFrozen with 1 or 1+ transitions
+          LMSingle (LMSingleFreeze freezeOp) -> let parent = getParentSingle state in
+            case applyFreeze freezeOp parent of 
+              Left err -> trace err undefined
+              Right frozen -> 0.0 
+
           -- Splitting Only
-          LMSingle (LMSingleSplit splitOp) -> 0.0
-        
-  
+{-
+                                split:          
+                       ..=[mS]--parent---end
+                            cl\        /cr                     
+                                [slc]                       
+-}
+          LMSingle (LMSingleSplit splitOp) -> let parent = getParentSingle state in
+            case applySplit splitOp parent of 
+              Left err -> trace err undefined
+              Right (childl, slc, childr) -> 0.0
+         where 
+           getParentDouble state = case state of 
+              SSFrozen _ -> undefined -- SSFrozen can only be the frist state.
+              SSOpen open ops -> 
+                case open of 
+                  Path tl slice (Path tr sm rst) -> (tContent tl, sContent slice,  tContent tr)  -- SSOpen only case is a split from  two open transitions. 
+                  Path tl slice (PathEnd _ ) -> trace "illegal double spread" undefined  -- illegal?
+                  PathEnd _ -> trace "illegal double spread" undefined  -- SSOpen only case is a split from  two open transitions. 
+
+              SSSemiOpen frozen (Slice midSlice) open ops -> 
+                case open of -- From two open transitions only 
+                  Path tl slice (Path tr sm rst) -> (tContent tl, sContent slice, tContent tr)  -- SSOpen only case is a split from  two open transitions. 
+                  Path tl slice (PathEnd tr) -> (tContent tl, sContent slice, tContent tr)  -- SSOpen only case is a split from  two open transitions. 
+                  PathEnd tl -> trace "This case I believe never occurs?" (tContent tl, undefined, undefined)
+
+           getParentSingle state = tContent $ case state of 
+              SSFrozen _ -> undefined -- SSFrozen can only be the frist state.
+              SSOpen open ops -> 
+                case open of 
+                  PathEnd parent -> parent  -- SSOpen only case is a split from  two open transitions. 
+                  _ -> trace "Illegal single " undefined -- illegal state
+
+              SSSemiOpen frozen (Slice midSlice) open ops -> 
+                case open of -- From two open transitions only 
+                  PathEnd parent -> parent 
+                  _ -> trace "Illegal single" undefined -- illegal state
 
 
 plotDeriv initPath fn deriv = mapM_ printStep derivs

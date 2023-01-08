@@ -68,21 +68,35 @@ def get_chord_type(globalkey_is_minor, numeral, form :str, figbass :str, changes
     else:
       return "m"
 
-
+"""
+C    0
+C#   7
+D  2
+Eb 9
+E 4
+F 11
+F# 6
+G 1 
+G# 8
+A 3
+A# 10
+B 5
+C 0
+"""
 
 
 def get_chord_offset(numeral: str, globalkey_is_minor):
-  alteration = numeral.count("#") - numeral.count("b")
+  alteration = (numeral.count("#") - numeral.count("b")) * 7
 
   numeral = numeral.strip("#b")
-  numeral = numeral.upper()
-  numeral_to_interval_major = {"I": 0, "II": 2, "III": 4, "IV": 5, "V":7, "VI":9, "VII":11}
-  numeral_to_interval_minor = {"I": 0, "II": 2, "III": 3, "IV": 5, "V":7, "VI":8, "VII":10}
+  numeral = numeral.upper()#
+  numeral_to_interval_major = {"I": 0, "II": 2, "III": 4, "IV": 5, "V":1, "VI":3, "VII":5}
+  numeral_to_interval_minor = {"I": 0, "II": 2, "III": 9, "IV": 5, "V":1, "VI":8, "VII":10}
 
   if globalkey_is_minor:
-    return numeral_to_interval_minor[numeral] + alteration
+    return int((numeral_to_interval_minor[numeral] + alteration) % 7)
   else:
-    return numeral_to_interval_major[numeral] + alteration
+    return int((numeral_to_interval_major[numeral] + alteration) % 7)
 
 
 def transform_chords_abs(df):
