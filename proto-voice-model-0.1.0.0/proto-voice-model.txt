@@ -1128,42 +1128,10 @@ instance Data.Aeson.Types.FromJSON.FromJSON PBHModel.HarmonicProfileData
 instance Data.Aeson.Types.FromJSON.FromJSON PBHModel.Params
 
 module Evaluator
-data HarmonicProfileData
-HarmonicProfileData :: Params -> [String] -> HarmonicProfileData
-[params] :: HarmonicProfileData -> Params
-[chordtypes] :: HarmonicProfileData -> [String]
-data Params
-Params :: [Float] -> [[Double]] -> [[Float]] -> [Float] -> [Float] -> Float -> Float -> Params
-[params_p_harmony] :: Params -> [Float]
-[params_p_chordtones] :: Params -> [[Double]]
-[params_p_ornaments] :: Params -> [[Float]]
-[alpha_p_ict] :: Params -> [Float]
-[beta_p_ict] :: Params -> [Float]
-[alpha_rate_notes] :: Params -> Float
-[beta_rate_notes] :: Params -> Float
-loadParams :: FilePath -> IO HarmonicProfileData
-data ChordLabel
-ChordLabel :: String -> SIC -> SPC -> ChordLabel
-[chordType] :: ChordLabel -> String
-[rootOffset] :: ChordLabel -> SIC
-[keyCenter] :: ChordLabel -> SPC
 
 -- | Provides a score measuring how much the slice matches the chord
 --   annoation p
 evaluateSlice :: Notes SIC -> String -> HarmonicProfileData -> Double
-genSliceVector :: Notes SIC -> [Double]
-getAllParams :: HarmonicProfileData -> [[Double]]
-evalPath :: (Show ns, Spelled ns) => Path (Edges ns) (Notes SPitch) -> [ChordLabel] -> HarmonicProfileData -> Double
-evalSegment :: Notes SIC -> String -> HarmonicProfileData -> Double
-multinomialLogProb :: [Double] -> [Double] -> Double
-instance GHC.Show.Show Evaluator.Params
-instance GHC.Generics.Generic Evaluator.Params
-instance GHC.Show.Show Evaluator.HarmonicProfileData
-instance GHC.Generics.Generic Evaluator.HarmonicProfileData
-instance GHC.Show.Show Evaluator.ChordLabel
-instance GHC.Generics.Generic Evaluator.ChordLabel
-instance Data.Aeson.Types.FromJSON.FromJSON Evaluator.HarmonicProfileData
-instance Data.Aeson.Types.FromJSON.FromJSON Evaluator.Params
 
 
 -- | This module contains functions for the generative aspects of
