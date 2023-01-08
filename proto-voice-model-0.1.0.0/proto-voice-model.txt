@@ -1085,6 +1085,48 @@ instance (GHC.Classes.Eq n, Data.Hashable.Class.Hashable n, Musicology.Pitch.Cla
 instance Musicology.Pitch.Class.Notation n => GHC.Show.Show (PVGrammar.Notes n)
 instance (Musicology.Pitch.Class.Notation n, GHC.Classes.Eq n, Data.Hashable.Class.Hashable n) => Data.Aeson.Types.FromJSON.FromJSON (PVGrammar.Notes n)
 
+module PBHModel
+data HarmonicProfileData
+HarmonicProfileData :: Params -> [String] -> HarmonicProfileData
+[params] :: HarmonicProfileData -> Params
+[chordtypes] :: HarmonicProfileData -> [String]
+data Params
+Params :: [Double] -> [[Double]] -> [[Double]] -> [Double] -> [Double] -> Double -> Double -> Params
+[params_p_harmony] :: Params -> [Double]
+[params_p_chordtones] :: Params -> [[Double]]
+[params_p_ornaments] :: Params -> [[Double]]
+[alpha_p_ict] :: Params -> [Double]
+[beta_p_ict] :: Params -> [Double]
+[alpha_rate_notes] :: Params -> Double
+[beta_rate_notes] :: Params -> Double
+
+-- | Load the paramaters from the JSON
+loadParams :: FilePath -> IO HarmonicProfileData
+data ChordLabel
+ChordLabel :: String -> SIC -> SPC -> ChordLabel
+[chordType] :: ChordLabel -> String
+[rootOffset] :: ChordLabel -> SIC
+[keyCenter] :: ChordLabel -> SPC
+
+-- | Provides a score measuring how much the slice matches the chord
+--   annoation
+evaluateSlice :: Notes SIC -> String -> HarmonicProfileData -> Double
+sliceChordLogLikelihoods :: HarmonicProfileData -> Notes SIC -> [[Double]]
+sliceChordLogLikelihood :: HarmonicProfileData -> ChordLabel -> Notes SIC -> Double
+genSliceVector :: Notes SIC -> [Double]
+getOrnamentParams :: HarmonicProfileData -> [[Double]]
+getChordToneParams :: HarmonicProfileData -> [[Double]]
+evalPath :: (Show ns, Spelled ns) => Path (Edges ns) (Notes SPitch) -> [ChordLabel] -> HarmonicProfileData -> Double
+multinomialLogProb :: [Double] -> [Double] -> Double
+instance GHC.Show.Show PBHModel.Params
+instance GHC.Generics.Generic PBHModel.Params
+instance GHC.Show.Show PBHModel.HarmonicProfileData
+instance GHC.Generics.Generic PBHModel.HarmonicProfileData
+instance GHC.Show.Show PBHModel.ChordLabel
+instance GHC.Generics.Generic PBHModel.ChordLabel
+instance Data.Aeson.Types.FromJSON.FromJSON PBHModel.HarmonicProfileData
+instance Data.Aeson.Types.FromJSON.FromJSON PBHModel.Params
+
 module Evaluator
 data HarmonicProfileData
 HarmonicProfileData :: Params -> [String] -> HarmonicProfileData
