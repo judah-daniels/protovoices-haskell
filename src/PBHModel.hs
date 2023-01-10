@@ -1,6 +1,7 @@
 module PBHModel where
 
 import Common
+import Data.Ord
 import Data.Aeson
 import Data.ByteString.Lazy qualified as BL
 import Data.List as List
@@ -41,7 +42,7 @@ instance FromJSON Params
 loadParams :: FilePath -> IO HarmonicProfileData
 loadParams file = do
   json <- BL.readFile "preprocessing/dcml_params.json"
-  print json
+  -- print json
   case (decode json :: Maybe HarmonicProfileData) of
     Just params -> pure params
     Nothing -> error "JSON parameter file not found or corrupted"
@@ -79,6 +80,23 @@ evaluateSlice pitchClasses chordType hpData =
     weightedlikelihoods = (/ maximum likelihoods) <$> likelihoods
 
     chordTypeIndex = fromMaybe 0 $ elemIndex chordType (chordtypes hpData)
+
+
+-- SIC from C as a base
+mostLikelyChordFromSlice :: HarmonicProfileData -> Notes SPitch -> (SIC, String, Double)
+mostLikelyChordFromSlice hpData (Notes slc) = (sic root, chordtypes hpData !! chordTypeIndex , p)
+  where 
+    (root, (chordTypeIndex, p)) = maximumBy (comparing (snd . snd)) (zip [0 .. ] (mostLikelyChordType <$> sliceChordLogLikelihoods hpData notes))
+      where
+        mostLikelyChordType :: [Double] -> (Int, Double)
+        mostLikelyChordType chordTypeProbs = maximumBy (comparing snd) (zip [0..] chordTypeProbs )
+        notes = Notes $ MS.map transformPitch slc
+          where
+            transformPitch 
+              :: Music.SPitch -> SIC
+            transformPitch p = let q = spc (fifths p) in Music.pfrom q (spc 0)
+
+maxi xs = maximumBy (comparing fst) (zip xs [0..])
 
 -- Gives Likelihoods for all possible chord types in all root positions
 -- Could ignore root positions which don't have a chord tone? Maybe

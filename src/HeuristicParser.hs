@@ -285,7 +285,7 @@ exploreStates eval state = case state of
             Path tfrozen (Slice sfrozen) rstFrozen ->
               trace
                 ( "  2+ Open Transitions, 1+ frozen transition left:\n  Following states: "
-                    <> (show (genState <$> doubleActions))
+                    -- <> (show (genState <$> doubleActions))
                     -- <> "\n  Following Actions: "
                     -- <> show (unfreezeActions <> doubleActions)
                     <> "\n"

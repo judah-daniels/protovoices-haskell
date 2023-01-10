@@ -9,6 +9,7 @@ module Main where
 import Debug.Trace
 import Common
 import Data.ByteString.Lazy qualified as BL
+import Control.Monad.Except (ExceptT, lift, throwError)
 import Data.Csv
 import Data.List.Split
 import Data.Hashable
@@ -40,7 +41,7 @@ import Prelude hiding
     pure,
   )
 import Control.Monad.State (evalState)
-import HeuristicParser (getPathLengthFromState)
+import Control.Monad.Except (runExceptT)
 
 type InputSlice ns = ([(ns, Music.RightTied)], Bool)
 
@@ -52,14 +53,14 @@ main = do
   chords <- chordsFromFile "preprocessing/chordsShortest.csv"
   params <- loadParams "preprocessing/dcml_params.json"
   -- finalPath <- runHeuristicSearch protoVoiceEvaluator slices321sus chords321sus
-  finalPath <- runHeuristicSearch params protoVoiceEvaluator (slices) chords
-
+  (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (testHeuristic params) slices chords
 
   let res = evalPath finalPath chords params
   -- let res = evalPath finalPath chords321sus hpData
 
   putStrLn $ "\nFinal Path: " <> show finalPath
   putStrLn $ "\nEvaluation score: " <> show res
+
 
 ---------------------------------- -------------------------------- -------------------------------- |
 -- INPUTS FOR TESTING
@@ -214,6 +215,7 @@ pathFromSlices eval = reversePath . mkPath Nothing
         mkTiedEdge (pitch, Music.Holds) = Just (Inner pitch, Inner pitch)
         mkTiedEdge _ = Nothing
 
+
 runHeuristicSearch ::
   ( Music.HasPitch ns,
     Eq (Music.IntervalOf ns),
@@ -221,32 +223,31 @@ runHeuristicSearch ::
     Ord ns,
     Show ns,
     Music.Notation ns
-  ) =>
-  HarmonicProfileData ->
-  Eval (Edges ns) [Edge ns] (Notes ns) [ns] (PVLeftmost ns) ->
-  [InputSlice ns] ->
-  [ChordLabel] ->
-  IO (Path (Edges ns) (Notes ns))
-runHeuristicSearch params eval inputSlices chordLabels = do
-  -- putStrLn "\nPlotting Derivation: "
-  -- plotDeriv p ("output198" <> ".tex") ops
-  pure p
+  ) 
+  => HarmonicProfileData 
+  -> Eval (Edges ns) [Edge ns] (Notes ns) [ns] (PVLeftmost ns) 
+  -> (SearchState (Edges ns) [Edge ns] (Notes ns) (PVLeftmost ns) -> IO Float)
+  -> [InputSlice ns] 
+  -> [ChordLabel] 
+  -> IO (Path (Edges ns) (Notes ns), [PVLeftmost ns])
+runHeuristicSearch params eval heuristic inputSlices chordLabels = do
+  let initialState = SSFrozen $ pathFromSlices eval inputSlices
+  res <- runExceptT (heuristicSearch initialState getNeighboringStates goalTest heuristic (showOp . getOpsFromState))
+  finalState <- case res of 
+    Left err -> do 
+      print err
+      return undefined
+    Right s -> pure s
+
+  let p = fromMaybe undefined $ getPathFromState finalState
+  let ops = getOpsFromState finalState
+
+  pure (p, ops)
   where
-    initialState = SSFrozen $ pathFromSlices eval inputSlices
-    -- initialState = 
-
-    finalState = fromMaybe initialState (heuristicSearch initialState getNeighboringStates goalTest heuristic 
-                       (showOp . getOpsFromState))
-
-    -- showOp :: [Leftmost (Split ns) Freeze (Spread ns)] -> String
     showOp [] = ""
     showOp (x:_) = case x of
      LMDouble y -> show y
      LMSingle y -> show y
-
-
-    ops = getOpsFromState finalState
-    p = fromMaybe undefined $ getPathFromState finalState
 
     getNeighboringStates = exploreStates eval
 
@@ -254,17 +255,20 @@ runHeuristicSearch params eval inputSlices chordLabels = do
     goalTest (SSOpen p _) = pathLen p - 1 == length chordLabels
     goalTest _ = False
 
-    -- Where the magic happens!
-    heuristic = testHeuristic params
 
 
-testHeuristic 
-  :: (Hashable ns, Show ns, Eq (Music.IntervalOf ns), Music.HasPitch ns, Music.Notation ns, Ord ns)
-  => HarmonicProfileData
-  -> SearchState (Edges ns) [Edge ns] (Notes ns) (PVLeftmost ns)
-  -> Float
-testHeuristic params state = 
-  score 
+testHeuristic
+  :: --(Hashable ns, Show ns, Eq (Music.IntervalOf ns), Music.HasPitch ns, Music.Notation ns, Ord ns)
+  HarmonicProfileData
+  -> SearchState (Edges SPitch) [Edge SPitch] (Notes SPitch) (PVLeftmost SPitch)
+  -> IO Float
+testHeuristic params state = do 
+    res <- runExceptT score 
+    case res of 
+        Left err -> do 
+          print err
+          pure 1000.0
+        Right s -> pure s
     where
       ops = getOpsFromState state
 
@@ -275,55 +279,62 @@ testHeuristic params state =
       remainingOps :: Float
       remainingOps = fromIntegral $ getPathLengthFromState state 
 
-      score :: Float
-      score = if isNothing op then 100.0 else 
+      score :: ExceptT String IO Float
+      score = if isNothing op then pure 100.0 else 
         case fromJust op of
           -- Splitting Left
-          LMDouble (LMDoubleSplitLeft splitOp) -> let (tl, parent, tr) = getParentDouble state in
+          LMDouble (LMDoubleSplitLeft splitOp) -> do 
+            lift $ print "Splitting Left"
+            let (tl, parent, tr) = getParentDouble state 
             case applySplit splitOp tl of 
               Left err -> trace err undefined
-              Right (childl,slice,childr) -> 0.0
+              Right (childl,slice,childr) -> pure 2.0
           
           -- Splitting Right
-          LMDouble (LMDoubleSplitRight splitOp) -> let (tl, parent, tr) = getParentDouble state in
+          LMDouble (LMDoubleSplitRight splitOp) -> do
+
+            let (tl, parent, tr) = getParentDouble state
             case applySplit splitOp tr of 
               Left err -> trace err undefined
-              Right (childl,slice,childr) -> 0.0
+              Right (childl,slice,childr) -> pure 1.5
 
           -- Freezing
           -- no unfreeze if there are 3 open non boundary transition 
-          LMDouble (LMDoubleFreezeLeft freezeOp) -> let (tl, parent, tr) = getParentDouble state in
+          LMDouble (LMDoubleFreezeLeft freezeOp) -> do
+            let (tl, parent, tr) = getParentDouble state
             case applyFreeze freezeOp tl of 
               Left err -> trace err undefined
-              Right frozen -> 1.0 
+              Right frozen -> pure  0.2 
 
           -- Spreading
           -- Calculate for each chord possibility, the likelihood that they are all the same chord
-          LMDouble (LMDoubleSpread spreadOp@(SpreadOp spreads edges)) -> 
-            let (tl, parent, tr) = getParentDouble state in 
-                case applySpread spreadOp tl parent tr of 
-                  Left err -> trace err undefined
-                  Right (sl,childl,slice,childr,st) -> 0.0
-                    where 
-                      -- predChord = mostLikelyChord hpData parent 
-                      -- jointLogLikelihood = 
-                      --     sliceChordLogLikelihood childl 
-                      --   + sliceChordLogLikelihood childr 
-                      --   - sliceChordLogLikelihood predChord
+          LMDouble (LMDoubleSpread spreadOp@(SpreadOp spreads edges)) -> do
+            let (tl, parent, tr) = getParentDouble state 
+            case applySpread spreadOp tl parent tr of 
+              Left err -> trace err undefined
+              Right (sl,childl,slice,childr,st) -> pure 2.0
+                -- trace (show $ mostLikelyChordFromSlice params parent ) -2.0
+                where 
+                  -- predChord = mostLikelyChord hpData parent 
+                  -- jointLogLikelihood = 
+                  --     sliceChordLogLikelihood childl 
+                  --   + sliceChordLogLikelihood childr 
+                  --   - sliceChordLogLikelihood predChord
 
-                      -- jointLikelihood
-                      go :: SpreadDirection -> Float
-                      go = undefined
+                  -- jointLikelihood
+                  go :: SpreadDirection -> Float
+                  go = undefined
 
 
 
 
           -- Freezing (Terminate)
           -- numSlices From  SSFrozen with 1 or 1+ transitions
-          LMSingle (LMSingleFreeze freezeOp) -> let parent = getParentSingle state in
+          LMSingle (LMSingleFreeze freezeOp) -> do
+            let parent = getParentSingle state
             case applyFreeze freezeOp parent of 
               Left err -> trace err undefined
-              Right frozen -> 0.0 
+              Right frozen -> pure 0.2 
 
           -- Splitting Only
 {-
@@ -332,10 +343,11 @@ testHeuristic params state =
                             cl\        /cr                     
                                 [slc]                       
 -}
-          LMSingle (LMSingleSplit splitOp) -> let parent = getParentSingle state in
+          LMSingle (LMSingleSplit splitOp) -> do 
+            let parent = getParentSingle state
             case applySplit splitOp parent of 
               Left err -> trace err undefined
-              Right (childl, slc, childr) -> 0.0
+              Right (childl, slc, childr) -> pure 1.0
          where 
            getParentDouble state = case state of 
               SSFrozen _ -> undefined -- SSFrozen can only be the frist state.
