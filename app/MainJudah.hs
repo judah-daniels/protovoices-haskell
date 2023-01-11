@@ -9,14 +9,14 @@ module Main where
 import Debug.Trace
 import Common
 import Data.ByteString.Lazy qualified as BL
-import Control.Monad.Except (ExceptT, lift, throwError)
+import Control.Monad.Except (ExceptT,runExceptT, lift, throwError)
 import Data.Csv
 import Data.List.Split
 import Data.Hashable
 import Data.Maybe
   ( catMaybes,
     isNothing,
-    fromMaybe ,
+    fromMaybe,
     fromJust,
     mapMaybe,
     maybeToList,
@@ -30,6 +30,7 @@ import PBHModel
 import Language.Haskell.DoNotation
 import Musicology.Core qualified as Music
 import Musicology.Pitch.Spelled
+import Heuristics
 import PVGrammar hiding
   ( slicesFromFile,
   )
@@ -41,7 +42,7 @@ import Prelude hiding
     pure,
   )
 import Control.Monad.State (evalState)
-import Control.Monad.Except (runExceptT)
+import Control.Monad.Trans.Except (throwE)
 
 type InputSlice ns = ([(ns, Music.RightTied)], Bool)
 
@@ -256,124 +257,6 @@ runHeuristicSearch params eval heuristic inputSlices chordLabels = do
     goalTest _ = False
 
 
-
-testHeuristic
-  :: --(Hashable ns, Show ns, Eq (Music.IntervalOf ns), Music.HasPitch ns, Music.Notation ns, Ord ns)
-  HarmonicProfileData
-  -> SearchState (Edges SPitch) [Edge SPitch] (Notes SPitch) (PVLeftmost SPitch)
-  -> IO Float
-testHeuristic params state = do 
-    res <- runExceptT score 
-    case res of 
-        Left err -> do 
-          print err
-          pure 1000.0
-        Right s -> pure s
-    where
-      ops = getOpsFromState state
-
-      op = case ops of 
-             [] -> Nothing
-             x:_ -> Just x
-
-      remainingOps :: Float
-      remainingOps = fromIntegral $ getPathLengthFromState state 
-
-      score :: ExceptT String IO Float
-      score = if isNothing op then pure 100.0 else 
-        case fromJust op of
-          -- Splitting Left
-          LMDouble (LMDoubleSplitLeft splitOp) -> do 
-            lift $ print "Splitting Left"
-            let (tl, parent, tr) = getParentDouble state 
-            case applySplit splitOp tl of 
-              Left err -> trace err undefined
-              Right (childl,slice,childr) -> pure 2.0
-          
-          -- Splitting Right
-          LMDouble (LMDoubleSplitRight splitOp) -> do
-
-            let (tl, parent, tr) = getParentDouble state
-            case applySplit splitOp tr of 
-              Left err -> trace err undefined
-              Right (childl,slice,childr) -> pure 1.5
-
-          -- Freezing
-          -- no unfreeze if there are 3 open non boundary transition 
-          LMDouble (LMDoubleFreezeLeft freezeOp) -> do
-            let (tl, parent, tr) = getParentDouble state
-            case applyFreeze freezeOp tl of 
-              Left err -> trace err undefined
-              Right frozen -> pure  0.2 
-
-          -- Spreading
-          -- Calculate for each chord possibility, the likelihood that they are all the same chord
-          LMDouble (LMDoubleSpread spreadOp@(SpreadOp spreads edges)) -> do
-            let (tl, parent, tr) = getParentDouble state 
-            case applySpread spreadOp tl parent tr of 
-              Left err -> trace err undefined
-              Right (sl,childl,slice,childr,st) -> pure 2.0
-                -- trace (show $ mostLikelyChordFromSlice params parent ) -2.0
-                where 
-                  -- predChord = mostLikelyChord hpData parent 
-                  -- jointLogLikelihood = 
-                  --     sliceChordLogLikelihood childl 
-                  --   + sliceChordLogLikelihood childr 
-                  --   - sliceChordLogLikelihood predChord
-
-                  -- jointLikelihood
-                  go :: SpreadDirection -> Float
-                  go = undefined
-
-
-
-
-          -- Freezing (Terminate)
-          -- numSlices From  SSFrozen with 1 or 1+ transitions
-          LMSingle (LMSingleFreeze freezeOp) -> do
-            let parent = getParentSingle state
-            case applyFreeze freezeOp parent of 
-              Left err -> trace err undefined
-              Right frozen -> pure 0.2 
-
-          -- Splitting Only
-{-
-                                split:          
-                       ..=[mS]--parent---end
-                            cl\        /cr                     
-                                [slc]                       
--}
-          LMSingle (LMSingleSplit splitOp) -> do 
-            let parent = getParentSingle state
-            case applySplit splitOp parent of 
-              Left err -> trace err undefined
-              Right (childl, slc, childr) -> pure 1.0
-         where 
-           getParentDouble state = case state of 
-              SSFrozen _ -> undefined -- SSFrozen can only be the frist state.
-              SSOpen open ops -> 
-                case open of 
-                  Path tl slice (Path tr sm rst) -> (tContent tl, sContent slice,  tContent tr)  -- SSOpen only case is a split from  two open transitions. 
-                  Path tl slice (PathEnd _ ) -> trace "illegal double spread" undefined  -- illegal?
-                  PathEnd _ -> trace "illegal double spread" undefined  -- SSOpen only case is a split from  two open transitions. 
-
-              SSSemiOpen frozen (Slice midSlice) open ops -> 
-                case open of -- From two open transitions only 
-                  Path tl slice (Path tr sm rst) -> (tContent tl, sContent slice, tContent tr)  -- SSOpen only case is a split from  two open transitions. 
-                  Path tl slice (PathEnd tr) -> (tContent tl, sContent slice, tContent tr)  -- SSOpen only case is a split from  two open transitions. 
-                  PathEnd tl -> trace "This case I believe never occurs?" (tContent tl, undefined, undefined)
-
-           getParentSingle state = tContent $ case state of 
-              SSFrozen _ -> undefined -- SSFrozen can only be the frist state.
-              SSOpen open ops -> 
-                case open of 
-                  PathEnd parent -> parent  -- SSOpen only case is a split from  two open transitions. 
-                  _ -> trace "Illegal single " undefined -- illegal state
-
-              SSSemiOpen frozen (Slice midSlice) open ops -> 
-                case open of -- From two open transitions only 
-                  PathEnd parent -> parent 
-                  _ -> trace "Illegal single" undefined -- illegal state
 
 
 plotDeriv initPath fn deriv = mapM_ printStep derivs
