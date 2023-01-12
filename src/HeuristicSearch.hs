@@ -46,6 +46,8 @@ heuristicSearch initialState getNextStates isGoalState heuristic printOp = do
         lift $ mapM_ print (frontier hs)
 
         -- Find neighboring states and costs
+        -- Build as heap
+        -- let nextStatesHeap = H.empty
         nextStatesAndCosts <-
           let
             nextStateAndCost st = do
@@ -54,12 +56,16 @@ heuristicSearch initialState getNextStates isGoalState heuristic printOp = do
            in
             lift $ mapM nextStateAndCost (getNextStates nearestState)
 
+        let nextStatesHeap = genHeap nextStatesAndCosts
+
         -- Determine if any of these neighboring states are goal states
         let goalStates = filter (isGoalState . snd) nextStatesAndCosts
 
         -- Add the new states to the frontier.
+        -- Add lowest cost states
         -- Keeping a maximum of 5 states in the frontier at a time
-        let newFrontier = foldr (insertLimitedBy 5) remainingQueue nextStatesAndCosts
+        -- let newFrontier = foldr (insertLimitedBy 30) remainingQueue nextStatesAndCosts
+        let newFrontier = H.fromList . H.take 5 $ H.union nextStatesHeap remainingQueue
 
         search $
           hs{frontier = newFrontier}
@@ -74,6 +80,16 @@ popFromHeap :: H.HeapItem a b => H.Heap a b -> (b, H.Heap a b)
 popFromHeap heap =
   let (item : _, remaining) = H.splitAt 1 heap
    in (item, remaining)
+
+genHeap
+  :: (Ord a)
+  => [(a, b)]
+  -> H.MinPrioHeap a b
+genHeap = foldr H.insert H.empty
+
+insertHeapLimitedBy n item heap
+  | H.size heap >= n = let heap' = (fromMaybe undefined $ H.viewTail heap) in H.insert item heap'
+  | otherwise = H.insert item heap
 
 -- insertLimited :: H.HeapItem pol state => Int -> item -> H.Heap pol item -> H.Heap pol item
 insertLimitedBy n item heap

@@ -93,7 +93,7 @@ instance (Show ns, Show o) => Show (SearchState es es' ns o) where
 
 -- | Helper function for showing the frozen part of a piece.
 showFrozen :: Show slc => Path (Maybe es', Bool) slc -> String
-showFrozen path = "⋊" <> go 1 path
+showFrozen path = "⋊" <> go 2 path
  where
   go _ (PathEnd (_, True)) = "≠"
   go _ (PathEnd (_, False)) = "="
@@ -104,7 +104,7 @@ showFrozen path = "⋊" <> go 1 path
 
 -- | Helper function for showing the open part of a piece.
 showOpen :: Show slc => Path (Trans es') slc -> String
-showOpen path = go 2 path <> "⋉"
+showOpen path = go 5 path <> "⋉"
  where
   go _ (PathEnd (Trans _ _ True)) = "⌿"
   go _ (PathEnd (Trans _ _ False)) = "-"
@@ -163,23 +163,19 @@ exploreStates eval state = case state of
         genState (ActionSingle (sl, top, sr) op) = SSOpen (PathEnd top) (LMSingle op : ops)
 
       -- Three open transitions: mergeleft mergeRight or verticalise
-      Path tl (Slice sl) (Path tm (Slice sm) rst) ->
+      Path tl (Slice sl) (Path tm (Slice sr) rst) ->
         trace
           ("Evaluating:" <> show state <> "\n  3+ Open transitions: \n  Actions: " <> show actions)
           genState
           <$> actions
        where
-        actions = collectDoubles Start tl sl tm sm rst
-        genState (ActionDouble (sl, tl, slice, tr, st) op) =
+        actions = collectDoubles Start tl sl tm sr rst
+        genState (ActionDouble (_, topl, tops, topr, _) op) =
           SSOpen
             ( Path
-                tl
-                (Slice slice)
-                ( Path
-                    tr
-                    (Slice sm)
-                    (pathSetHead rst tr)
-                )
+                topl
+                (Slice tops)
+                (pathSetHead rst topr)
             )
             (LMDouble op : ops)
 
@@ -193,8 +189,6 @@ exploreStates eval state = case state of
           ( "Evaluating:"
               <> show state
               <> "\n  1 Open Transition, 1 frozen transition: \n  Following States: "
-              -- <> show
-              -- (genState <$> actions)
           )
           genState
           <$> actions
@@ -261,6 +255,7 @@ exploreStates eval state = case state of
                   SSSemiOpen rstFrozen (Slice sfrozen) (Path unfrozen (Slice midSlice) open) (LMDouble op : ops)
                 Right (ActionSingle (_, parent, _) op) ->
                   SSSemiOpen frozen (Slice midSlice) (PathEnd parent) (LMSingle op : ops)
+
     -- More than two open transitions
     Path topenl (Slice sopenl) (Path topenm (Slice sopenr) rstOpen) ->
       let doubleActions = (Right <$> collectDoubles (Inner midSlice) topenl sopenl topenm sopenr rstOpen) :: [Either (ActionDouble ns es s f h) (ActionDouble ns es s f h)]

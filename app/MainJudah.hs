@@ -54,7 +54,7 @@ main = do
   chords <- chordsFromFile "preprocessing/chordsShortest.csv"
   params <- loadParams "preprocessing/dcml_params.json"
   -- finalPath <- runHeuristicSearch protoVoiceEvaluator slices321sus chords321sus
-  (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (testHeuristic params) slices chords
+  (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slices chords
 
   let res = evalPath finalPath chords params
   -- let res = evalPath finalPath chords321sus hpData

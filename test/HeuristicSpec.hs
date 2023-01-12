@@ -1,79 +1,187 @@
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Main where
 
-import Common
-import Data.Maybe (catMaybes, mapMaybe)
-import HeuristicParser
-import HeuristicSearch
 import Musicology.Core
-import Musicology.Pitch.Spelled
-import PBHModel
-import PVGrammar
-import PVGrammar.Parse
 import Test.Hspec
 
-pathFromSlices
-  :: Eval (Edges SPC) [Edge SPC] (Notes SPC) [SPC] (PVLeftmost SPC)
-  -> [([(SPC, Bool)], Bool)]
-  -> Path (Maybe [Edge SPC], Bool) (Slice (Notes SPC))
-pathFromSlices eval = reversePath . mkPath Nothing
- where
-  mkPath
-    :: Maybe [Edge SPC]
-    -> [([(SPC, Bool)], Bool)]
-    -> Path (Maybe [Edge SPC], Bool) (Slice (Notes SPC))
+import Debug.Trace
+import Common
+import Data.ByteString.Lazy qualified as BL
+import Control.Monad.Except (ExceptT,runExceptT, lift, throwError)
+import Data.Csv
+import Data.List.Split
+import Data.Hashable
+import Data.Maybe
+  ( catMaybes,
+    isNothing,
+    fromMaybe,
+    fromJust,
+    mapMaybe,
+    maybeToList,
+  )
+import Data.Vector qualified as V
+import Display
+import Evaluator
+import HeuristicParser
+import HeuristicSearch
+import PBHModel
+import Language.Haskell.DoNotation
+import Musicology.Core qualified as Music
+import Musicology.Pitch.Spelled
+import Heuristics
+import PVGrammar hiding
+  ( slicesFromFile,
+  )
+import PVGrammar.Generate
+import PVGrammar.Parse
+import Prelude hiding
+  ( Monad (..),
+    lift,
+    pure,
+  )
+import Control.Monad.State (evalState)
+import Control.Monad.Trans.Except (throwE)
 
-  mkPath eLeft ((slice, boundary) : rst) = Path (eLeft, boundary) (Slice $ evalSlice' (map fst slice)) $ mkPath (Just $ getTiedEdges slice) rst
-  mkPath eLeft [] = PathEnd (Nothing, False)
+type InputSlice ns = ([(ns, Music.RightTied)], Bool)
 
-  evalSlice' :: [SPC] -> Notes SPC
-  evalSlice' = evalSlice eval
 
-  getTiedEdges :: [(SPC, Bool)] -> [Edge SPC]
-  getTiedEdges = mapMaybe mkTiedEdge
-   where
-    mkTiedEdge :: (SPC, Bool) -> Maybe (Edge SPC)
-    mkTiedEdge (_, False) = Nothing
-    mkTiedEdge (pitch, True) = Just (Inner pitch, Inner pitch)
 
--- | The musical surface of a 321 sus progression as a sequence of slices
-slices321sus :: [([(SPC, Bool)], Bool)]
-slices321sus =
-  [ ([(e' nat, False), (c' nat, True)], True)
-  , ([(d' nat, True), (c' nat, False)], False)
-  , ([(d' nat, False), (b' nat, False)], False)
-  , ([(c' nat, False)], False)
-  ]
-
--- | The musical surface of a 321 sus progression as a sequence of slices and transitions, ready for parsing
-path321sus :: Path (Maybe [Edge SPC], Bool) (Slice (Notes SPC))
-path321sus =
-  Path (Nothing, False) (Slice $ evalSlice' [c' nat]) $
-    Path (Just [], False) (Slice $ evalSlice' [d' nat, b' nat]) $
-      Path (Just [(Inner $ d' nat, Inner $ d' nat)], False) (Slice $ evalSlice' [d' nat, c' nat]) $
-        Path (Just [(Inner $ c' nat, Inner $ c' nat)], False) (Slice $ evalSlice' [e' nat, c' nat]) $
-          PathEnd (Nothing, True)
- where
-  evalSlice' = evalSlice eval
-
-  eval :: Eval (Edges SPC) [Edge SPC] (Notes SPC) [SPC] (PVLeftmost SPC)
-  eval = protoVoiceEvaluator
-
+-- import Mus
 main :: IO ()
 main = do
-  -- finalPath <- runHeuristicSearch protoVoiceEvaluator slices321sus chords321sus
-  (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (testHeuristic params) slices chords
-
-  let res = evalPath finalPath chords params
+  -- finalPath <- runHeuristicSearch proitoVoiceEvaluator slices321sus chords321sus
+  -- slices <- slicesFromFile' "preprocessing/salamis.csv"
+  -- slices <- slicesFromFile' "preprocessing/salamisShortest.csv"
+  -- chords <- chordsFromFile "preprocessing/chords.csv"
+  -- chords <- chordsFromFile "preprocessing/chordsShortest.csv"
+  params <- loadParams "preprocessing/dcml_params.json"
+  (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slicesTiny chordsTiny
+  -- print $ testHeuristic params s 
+  let res = evalPath finalPath chordsTiny params
   -- let res = evalPath finalPath chords321sus hpData
-
-  putStrLn $ "\nFinal Path: " <> show finalPath
   putStrLn $ "\nEvaluation score: " <> show res
-  hspec pathFromSlicesSpec
+  -- hspec pathFromSlicesSpec
 
-pathFromSlicesSpec :: Spec
-pathFromSlicesSpec = describe "Test setting up path from slices" $ do
-  it "Should match the manually created path" $
-    pathFromSlices protoVoiceEvaluator slices321sus `shouldBe` path321sus
+testOp =  
+  ActionDouble 
+    (Start, undefined,undefined, undefined, Stop) $
+    LMDoubleSplitLeft $ mkSplit $ do 
+      addToRight (c' nat) (c' nat) LeftRepeat True 
+
+---------------------------------- -------------------------------- -------------------------------- |
+-- INPUTS FOR TESTING
+--
+-- The musical surface from Figure 4 as a sequence of slices and transitions.
+-- Can be used as an input for parsing.
+path321sus =
+  Path [e nat 4, c nat 4] [(Inner $ c nat 4, Inner $ c nat 4)] $
+    Path [d nat 4, c nat 4] [(Inner $ d nat 4, Inner $ d nat 4)] $
+      Path [d nat 4, b nat 4] [] $
+        PathEnd [c nat 4]
+
+testInput :: [InputSlice SPC]
+testInput =
+  [ ([(e' nat, Music.Holds), (c' nat, Music.Ends)], False),
+    ([(e' nat, Music.Holds)], True),
+    ([(e' nat, Music.Ends)], False)
+  ]
+
+slicesTiny :: [InputSlice SPitch]
+slicesTiny =
+  [ ([(c nat 3, Music.Holds), (g nat 4, Music.Holds),(c nat 4, Music.Holds), (f nat 4, Music.Ends)], False),
+    ([(c nat 3, Music.Ends), (g nat 4, Music.Ends),(c nat 4, Music.Ends), (e nat 4, Music.Ends)], False),
+    ([(b flt 3, Music.Ends), (c nat 4, Music.Holds),(d nat 4, Music.Holds), (f shp 4, Music.Holds)], True),
+    ([(a nat 3, Music.Ends), (c nat 4, Music.Holds),(d nat 4, Music.Ends), (f shp 4, Music.Ends)], False),
+    ([(g nat 3, Music.Ends), (b flt 3, Music.Ends),(d nat 4, Music.Ends), (g nat 4, Music.Ends)], True)
+  ]
+
+chordsTiny :: [ChordLabel]
+chordsTiny =
+  [ ChordLabel "M" (sic 1) (f' nat),
+    ChordLabel "Mm7" (sic 3) (f' nat),
+    ChordLabel "m" (sic 2) (f' nat)
+  ]
+slices321sus :: [InputSlice SPitch]
+slices321sus =
+  [ ([(e nat 4, Music.Ends), (c nat 4, Music.Holds)], True),
+    ([(d nat 4, Music.Holds), (c nat 4, Music.Ends)], False),
+    ([(d nat 4, Music.Holds), (b nat 4, Music.Ends)], True),
+    ([(c nat 4, Music.Ends)], True)
+  ]
+
+chords321sus :: [ChordLabel]
+chords321sus =
+  [ ChordLabel "M" (sic 0) (c' nat),
+    ChordLabel "M" (sic 1) (c' nat),
+    ChordLabel "M" (sic 0) (c' nat)
+  ]
+-----
+runHeuristicSearch ::
+  ( Music.HasPitch ns,
+    Eq (Music.IntervalOf ns),
+    Data.Hashable.Hashable ns,
+    Ord ns,
+    Show ns,
+    Music.Notation ns
+  ) 
+  => HarmonicProfileData 
+  -> Eval (Edges ns) [Edge ns] (Notes ns) [ns] (PVLeftmost ns) 
+  -> (SearchState (Edges ns) [Edge ns] (Notes ns) (PVLeftmost ns) -> IO Float)
+  -> [InputSlice ns] 
+  -> [ChordLabel] 
+  -> IO (Path (Edges ns) (Notes ns), [PVLeftmost ns])
+runHeuristicSearch params eval heuristic inputSlices chordLabels = do
+  let initialState = SSFrozen $ pathFromSlices eval inputSlices
+  res <- runExceptT (heuristicSearch initialState getNeighboringStates goalTest heuristic (showOp . getOpsFromState))
+  finalState <- case res of 
+    Left err -> do 
+      print err
+      return undefined
+    Right s -> pure s
+
+  let p = fromMaybe undefined $ getPathFromState finalState
+  let ops = getOpsFromState finalState
+
+  pure (p, ops)
+  where
+    showOp [] = ""
+    showOp (x:_) = case x of
+     LMDouble y -> show y
+     LMSingle y -> show y
+
+    getNeighboringStates = exploreStates eval
+
+    -- The goal is to find a state with a slice for each chord label.
+    goalTest (SSOpen p _) = pathLen p - 1 == length chordLabels
+    goalTest _ = False
+
+pathFromSlices ::
+  forall ns o.
+  Eval (Edges ns) [Edge ns] (Notes ns) [ns] o ->
+  [InputSlice ns] ->
+  Path (Maybe [Edge ns], Bool) (Slice (Notes ns))
+pathFromSlices eval = reversePath . mkPath Nothing
+  where
+    mkPath ::
+      Maybe [Edge ns] ->
+      [InputSlice ns] ->
+      Path (Maybe [Edge ns], Bool) (Slice (Notes ns))
+
+    mkPath eLeft ((slice, boundary) : rst) =
+      Path (eLeft, boundary) (Slice $ evalSlice eval (fst <$> slice)) $
+        mkPath (Just $ getTiedEdges slice) rst
+    mkPath eLeft [] = PathEnd (Nothing, True)
+
+    getTiedEdges :: [(ns, Music.RightTied)] -> [Edge ns]
+    getTiedEdges = mapMaybe mkTiedEdge
+      where
+        mkTiedEdge :: (ns, Music.RightTied) -> Maybe (Edge ns)
+        mkTiedEdge (pitch, Music.Holds) = Just (Inner pitch, Inner pitch)
+        mkTiedEdge _ = Nothing
+
 
 spec :: Spec
 spec = do

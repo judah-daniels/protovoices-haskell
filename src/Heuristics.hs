@@ -1,9 +1,6 @@
 module Heuristics where
 
 import Common
-import Evaluator
-import HeuristicSearch
-import PBHModel
 
 import Debug.Trace
 import Common
@@ -42,13 +39,14 @@ import Prelude hiding
 import Control.Monad.State (evalState)
 import Control.Monad.Trans.Except (throwE)
 
+type State = SearchState (Edges SPitch) [Edge SPitch] (Notes SPitch) (PVLeftmost SPitch)
 
-testHeuristic
-  :: HarmonicProfileData
-  -> SearchState (Edges SPitch) [Edge SPitch] (Notes SPitch) (PVLeftmost SPitch)
+applyHeuristic
+  :: ( Maybe (PVLeftmost SPitch )-> State -> ExceptT String IO Float)
+  -> State 
   -> IO Float
-testHeuristic params state = do
-  res <- runExceptT score
+applyHeuristic heuristic state = do
+  res <- runExceptT $ heuristic op state
   case res of
     Left err -> do
       print err
@@ -64,133 +62,140 @@ testHeuristic params state = do
   remainingOps :: Float
   remainingOps = fromIntegral $ getPathLengthFromState state
 
-  score :: ExceptT String IO Float
-  score =
-    if isNothing op
-      then pure 100.0
-      else case fromJust op of
-        -- Freezing
-        -- no unfreeze if there are 3 open non boundary transition
-        LMDouble (LMDoubleFreezeLeft freezeOp) -> do
-          (parent, _, _, _) <- getParentDouble state
-          case applyFreeze freezeOp parent of
-            Left err -> throwError err
-            Right frozen -> pure 0.2
+-- ActionDouble (⋊,|{},{F5,C5,A3},|{F5-F5,C5-C5},{F5,C5,G4}) (LMDoubleSplitLeft regular:{}, passing:{}, ls:{}, rs:{[A4:LeftRepeat]<=A3,[C5:LeftRepeat]<=C5,[F3:LeftRepeat,F5:LeftRepeat]<=F5}, kl:{}, kr:{F5-F5,C5-C5}, pl:{}, pr:{})
+testOp =  
+  ActionDouble 
+    (Start, undefined,undefined, undefined, Stop) $
+    LMDoubleSplitLeft $ mkSplit $ do 
+      addToRight (c' nat) (c' nat) LeftRepeat True 
 
-        -- Spreading
-        -- Calculate for each chord possibility, the likelihood that they are all the same chord
-        -- Splitting Right
-        {-
-                                split:
-        ..=[_]----pl----[slc]-==----pr---[_]....
-              \cl      /     \          /cr
-               \      /       \        /
-                [slcl]----cm---[ slcr ]
-        -}
-        LMDouble (LMDoubleSpread spreadOp@(SpreadOp spreads edges)) -> do
-          (parentl, slc, parentr, _) <- getParentDouble state
-          case applySpread spreadOp parentl slc parentr of
-            Left err -> throwError err
-            Right (childl, slcl, childm, slcr, childr) -> do
-              lift $ print "Evaluating Spread operation:"
-              -- lift $ print (childl,slcl,childm,slcr,childr)
-              -- lift $ print (parentl, slc, parentr)
-              -- lift $ print "parent:"
-              let (root, chordType, cProb) = mostLikelyChordFromSlice params slc
-              -- lift $ print "left:"
-              -- lift $ print $ mostLikelyChordFromSlice params slcl
-              -- lift $ print "right:"
-              -- lift $ print $ mostLikelyChordFromSlice params slcr
-              let mu = sliceChordLogLikelihood params (mkLbl root chordType) (transformSlice slc)
-              let wu = sliceChordLogLikelihood params (mkLbl root chordType) (transformSlice slcl)
-              let ru = sliceChordLogLikelihood params (mkLbl root chordType) (transformSlice slcr)
-              let pu = mu + wu - ru - ru
-              lift $ print $ "mu: " <> show mu
-              lift $ print $ "val: " <> show pu
+testHeuristic :: HarmonicProfileData -> Maybe (PVLeftmost SPitch )-> State -> ExceptT String IO Float
+testHeuristic params op state =
+  if isNothing op
+    then pure 100.0
+    else case fromJust op of
+      -- Freezing
+      -- no unfreeze if there are 3 open non boundary transition
+      LMDouble (LMDoubleFreezeLeft freezeOp) -> do
+        (parent, _, _, _) <- getParentDouble state
+        case applyFreeze freezeOp parent of
+          Left err -> throwError err
+          Right frozen -> pure 0.2
 
-              pure 2.0
-             where
-              -- trace (show $ mostLikelyChordFromSlice params parent ) -2.0
+      -- Spreading
+      -- Calculate for each chord possibility, the likelihood that they are all the same chord
+      -- Splitting Right
+      {-
+                              split:
+      ..=[_]----pl----[slc]-==----pr---[_]....
+            \cl      /     \          /cr
+             \      /       \        /
+              [slcl]----cm---[ slcr ]
+      -}
+      LMDouble (LMDoubleSpread spreadOp@(SpreadOp spreads edges)) -> do
+        (parentl, slc, parentr, _) <- getParentDouble state
+        case applySpread spreadOp parentl slc parentr of
+          Left err -> throwError err
+          Right (childl, slcl, childm, slcr, childr) -> do
+            lift $ print "Evaluating Spread operation:"
+            -- lift $ print (childl,slcl,childm,slcr,childr)
+            -- lift $ print (parentl, slc, parentr)
+            -- lift $ print "parent:"
+            let (root, chordType, cProb) = mostLikelyChordFromSlice params slc
+            -- lift $ print "left:"
+            -- lift $ print $ mostLikelyChordFromSlice params slcl
+            -- lift $ print "right:"
+            -- lift $ print $ mostLikelyChordFromSlice params slcr
+            let mu = sliceChordLogLikelihood params (mkLbl root chordType) (transformSlice slc)
+            let wu = sliceChordLogLikelihood params (mkLbl root chordType) (transformSlice slcl)
+            let ru = sliceChordLogLikelihood params (mkLbl root chordType) (transformSlice slcr)
+            let pu = mu + wu - ru - ru
+            lift $ print $ "mu: " <> show mu
+            lift $ print $ "val: " <> show pu
 
-              mkLbl root chordType = ChordLabel chordType root (spc 0)
-              -- predChord = mostLikelyChord hpData parent
-              -- jointLogLikelihood =
-              --     sliceChordLogLikelihood childl
-              --   + sliceChordLogLikelihood childr
-              --   - sliceChordLogLikelihood predChord
+            pure 2.0
+           where
+            -- trace (show $ mostLikelyChordFromSlice params parent ) -2.0
 
-              -- jointLikelihood
-              go :: SpreadDirection -> Float
-              go = undefined
+            mkLbl root chordType = ChordLabel chordType root (spc 0)
+            -- predChord = mostLikelyChord hpData parent
+            -- jointLogLikelihood =
+            --     sliceChordLogLikelihood childl
+            --   + sliceChordLogLikelihood childr
+            --   - sliceChordLogLikelihood predChord
 
-        -- Freezing (Terminate)
-        -- numSlices From  SSFrozen with 1 or 1+ transitions
-        LMSingle (LMSingleFreeze freezeOp) -> do
-          parent <- getParentSingle state
-          case applyFreeze freezeOp parent of
-            Left err -> throwError err
-            Right frozen -> pure 0.2
+            -- jointLikelihood
+            go :: SpreadDirection -> Float
+            go = undefined
 
-        -- Splitting Only
-        {-
-                                        split:
-                               ..=[mS]--parent---end
-                                    cl\        /cr
-                                        [slc]
-        -}
-        LMSingle (LMSingleSplit splitOp) -> do
-          parent <- getParentSingle state
-          case applySplit splitOp parent of
-            Left err -> trace err undefined
-            Right (childl, slc, childr) -> pure 1.0
-        -- Splitting Left
-        {-
-                                        split:
-                               ..=[mS]--parent---[slcl]--tr--[slcr]...
-                                    cl\        /cr
-                                        [slc]
-        -}
-        LMDouble (LMDoubleSplitLeft splitOp) -> do
-          lift $ print "Splitting Left"
-          (parent, slcl, tr, slcr) <- getParentDouble state
-          case applySplit splitOp parent of
-            Left err -> trace err undefined
-            Right (childl, slice, childr) -> pure 2.0
+      -- Freezing (Terminate)
+      -- numSlices From  SSFrozen with 1 or 1+ transitions
+      LMSingle (LMSingleFreeze freezeOp) -> do
+        parent <- getParentSingle state
+        case applyFreeze freezeOp parent of
+          Left err -> throwError err
+          Right frozen -> pure 0.2
 
-        -- Splitting Right
-        {-
-                                        split:
-                ..=[mS]--tl---[slcl]---parent---[slcr]....
-                                 cl\           /cr
-                                    \         /
-                                      [ slc ]
-        -}
-        LMDouble (LMDoubleSplitRight splitOp) -> do
-          (tl, slcl, parent, slcr) <- getParentDouble state
-          case applySplit splitOp parent of
-            Left err -> throwError err
-            Right (childl, slice, childr) -> pure 1.5
-   where
-    getParentDouble state = case state of
-      SSFrozen _ -> throwError "ERRORMSG" -- SSFrozen can only be the frist state.
-      SSOpen open ops ->
-        case open of
-          Path tl slice (Path tr sm rst) -> pure (tContent tl, sContent slice, tContent tr, sContent sm) -- SSOpen only case is a split from  two open transitions.
-          Path tl slice (PathEnd _) -> throwError "illegal double spread" -- illegal?
-          PathEnd _ -> throwError "illegal double spread" -- SSOpen only case is a split from  two open transitions.
-      SSSemiOpen frozen (Slice midSlice) open ops ->
-        case open of -- From two open transitions only
-          Path tl slice (Path tr sm rst) -> pure (tContent tl, sContent slice, tContent tr, sContent sm) -- SSOpen only case is a split from  two open transitions.
-          Path tl slice (PathEnd tr) -> pure (tContent tl, sContent slice, tContent tr, undefined) -- SSOpen only case is a split from  two open transitions.
-          PathEnd tl -> throwError "This case I believe never occurs?"
+      -- Splitting Only
+      {-
+                                      split:
+                             ..=[mS]--parent---end
+                                  cl\        /cr
+                                      [slc]
+      -}
+      LMSingle (LMSingleSplit splitOp) -> do
+        parent <- getParentSingle state
+        case applySplit splitOp parent of
+          Left err -> trace err undefined
+          Right (childl, slc, childr) -> pure 1.0
+      -- Splitting Left
+      {-
+                                      split:
+                             ..=[mS]--parent---[slcl]--tr--[slcr]...
+                                  cl\        /cr
+                                      [slc]
+      -}
+      LMDouble (LMDoubleSplitLeft splitOp) -> do
+        lift $ print "Splitting Left"
+        (parent, slcl, tr, slcr) <- getParentDouble state
+        case applySplit splitOp parent of
+          Left err -> trace err undefined
+          Right (childl, slice, childr) -> pure 2.0
 
-    getParentSingle state = case state of
-      SSFrozen _ -> throwError "wtf" -- SSFrozen can only be the frist state.
-      SSOpen open ops ->
-        case open of
-          PathEnd parent -> pure $ tContent parent -- SSOpen only case is a split from  two open transitions.
-          _ -> throwError "Illegal single " -- illegal state
-      SSSemiOpen frozen (Slice midSlice) open ops ->
-        case open of -- From two open transitions only
-          PathEnd parent -> pure $ tContent parent
-          _ -> throwError "Illegal single" -- illegal state
+      -- Splitting Right
+      {-
+                                      split:
+              ..=[mS]--tl---[slcl]---parent---[slcr]....
+                               cl\           /cr
+                                  \         /
+                                    [ slc ]
+      -}
+      LMDouble (LMDoubleSplitRight splitOp) -> do
+        (tl, slcl, parent, slcr) <- getParentDouble state
+        case applySplit splitOp parent of
+          Left err -> throwError err
+          Right (childl, slice, childr) -> pure 1.5
+ where
+  getParentDouble state = case state of
+    SSFrozen _ -> throwError "ERRORMSG" -- SSFrozen can only be the frist state.
+    SSOpen open ops ->
+      case open of
+        Path tl slice (Path tr sm rst) -> pure (tContent tl, sContent slice, tContent tr, sContent sm) -- SSOpen only case is a split from  two open transitions.
+        Path tl slice (PathEnd _) -> throwError "illegal double spread" -- illegal?
+        PathEnd _ -> throwError "illegal double spread" -- SSOpen only case is a split from  two open transitions.
+    SSSemiOpen frozen (Slice midSlice) open ops ->
+      case open of -- From two open transitions only
+        Path tl slice (Path tr sm rst) -> pure (tContent tl, sContent slice, tContent tr, sContent sm) -- SSOpen only case is a split from  two open transitions.
+        Path tl slice (PathEnd tr) -> pure (tContent tl, sContent slice, tContent tr, undefined) -- SSOpen only case is a split from  two open transitions.
+        PathEnd tl -> throwError "This case I believe never occurs?"
+
+  getParentSingle state = case state of
+    SSFrozen _ -> throwError "wtf" -- SSFrozen can only be the frist state.
+    SSOpen open ops ->
+      case open of
+        PathEnd parent -> pure $ tContent parent -- SSOpen only case is a split from  two open transitions.
+        _ -> throwError "Illegal single " -- illegal state
+    SSSemiOpen frozen (Slice midSlice) open ops ->
+      case open of -- From two open transitions only
+        PathEnd parent -> pure $ tContent parent
+        _ -> throwError "Illegal single" -- illegal state
