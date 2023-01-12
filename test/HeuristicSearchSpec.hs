@@ -1,45 +1,46 @@
-module Main where
+module HeuristicSearchSpec where
 
-import           Common
-import           Data.Maybe               (catMaybes, mapMaybe)
-import           HeuristicParser
-import           Musicology.Core
-import           Musicology.Pitch.Spelled
-import           PVGrammar
-import           PVGrammar.Parse
-import           Test.Hspec
+import Common
+import Data.Maybe (catMaybes, mapMaybe)
+import HeuristicParser
+import Musicology.Core
+import Musicology.Pitch.Spelled
+import PBHModel
+import PVGrammar
+import PVGrammar.Parse
+import Test.Hspec
 
 pathFromSlices
-  :: Eval (Edges SPC) [Edge SPC] (Notes SPC) [SPC] (PVLeftmost SPC) 
-  -> [([(SPC, Bool)], Bool)] 
+  :: Eval (Edges SPC) [Edge SPC] (Notes SPC) [SPC] (PVLeftmost SPC)
+  -> [([(SPC, Bool)], Bool)]
   -> Path (Maybe [Edge SPC], Bool) (Slice (Notes SPC))
 pathFromSlices eval = reversePath . mkPath Nothing
-  where
-    mkPath 
-      :: Maybe [Edge SPC] 
-      -> [([(SPC, Bool)], Bool)] 
-      -> Path (Maybe [Edge SPC], Bool) (Slice (Notes SPC))
+ where
+  mkPath
+    :: Maybe [Edge SPC]
+    -> [([(SPC, Bool)], Bool)]
+    -> Path (Maybe [Edge SPC], Bool) (Slice (Notes SPC))
 
-    mkPath eLeft ((slice, boundary) : rst) = Path (eLeft, boundary) (Slice $ evalSlice' (map fst slice)) $ mkPath (Just $ getTiedEdges slice) rst
-    mkPath eLeft [] = PathEnd (Nothing, False)
+  mkPath eLeft ((slice, boundary) : rst) = Path (eLeft, boundary) (Slice $ evalSlice' (map fst slice)) $ mkPath (Just $ getTiedEdges slice) rst
+  mkPath eLeft [] = PathEnd (Nothing, False)
 
-    evalSlice' :: [SPC] -> Notes SPC
-    evalSlice' = evalSlice eval
+  evalSlice' :: [SPC] -> Notes SPC
+  evalSlice' = evalSlice eval
 
-    getTiedEdges :: [(SPC, Bool)] -> [Edge SPC]
-    getTiedEdges = mapMaybe mkTiedEdge
-      where
-        mkTiedEdge :: (SPC, Bool) -> Maybe (Edge SPC)
-        mkTiedEdge (_, False)    = Nothing
-        mkTiedEdge (pitch, True) = Just (Inner pitch, Inner pitch)
+  getTiedEdges :: [(SPC, Bool)] -> [Edge SPC]
+  getTiedEdges = mapMaybe mkTiedEdge
+   where
+    mkTiedEdge :: (SPC, Bool) -> Maybe (Edge SPC)
+    mkTiedEdge (_, False) = Nothing
+    mkTiedEdge (pitch, True) = Just (Inner pitch, Inner pitch)
 
 -- | The musical surface of a 321 sus progression as a sequence of slices
 slices321sus :: [([(SPC, Bool)], Bool)]
 slices321sus =
-  [ ([(e' nat, False), (c' nat, True)], True),
-    ([(d' nat, True), (c' nat, False)], False),
-    ([(d' nat, False), (b' nat, False)], False),
-    ([(c' nat, False)], False)
+  [ ([(e' nat, False), (c' nat, True)], True)
+  , ([(d' nat, True), (c' nat, False)], False)
+  , ([(d' nat, False), (b' nat, False)], False)
+  , ([(c' nat, False)], False)
   ]
 
 -- | The musical surface of a 321 sus progression as a sequence of slices and transitions, ready for parsing
@@ -50,11 +51,11 @@ path321sus =
       Path (Just [(Inner $ d' nat, Inner $ d' nat)], False) (Slice $ evalSlice' [d' nat, c' nat]) $
         Path (Just [(Inner $ c' nat, Inner $ c' nat)], False) (Slice $ evalSlice' [e' nat, c' nat]) $
           PathEnd (Nothing, True)
-  where
-    evalSlice' = evalSlice eval
+ where
+  evalSlice' = evalSlice eval
 
-    eval :: Eval (Edges SPC) [Edge SPC] (Notes SPC) [SPC] (PVLeftmost SPC)
-    eval = protoVoiceEvaluator
+  eval :: Eval (Edges SPC) [Edge SPC] (Notes SPC) [SPC] (PVLeftmost SPC)
+  eval = protoVoiceEvaluator
 
 main :: IO ()
 main = hspec pathFromSlicesSpec
