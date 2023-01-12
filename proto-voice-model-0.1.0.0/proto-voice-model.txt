@@ -746,15 +746,20 @@ instance GHC.Show.Show ns => GHC.Show.Show (HeuristicParser.Slice ns)
 
 module HeuristicSearch
 data HeuristicSearch s c
-HeuristicSearch :: Maybe s -> MinPrioHeap c s -> (s -> c) -> (s -> Bool) -> HeuristicSearch s c
+HeuristicSearch :: Maybe s -> MinPrioHeap c s -> (s -> IO c) -> (s -> Bool) -> HeuristicSearch s c
 [end] :: HeuristicSearch s c -> Maybe s
 [frontier] :: HeuristicSearch s c -> MinPrioHeap c s
-[heuristic] :: HeuristicSearch s c -> s -> c
+[heuristic] :: HeuristicSearch s c -> s -> IO c
 [goal] :: HeuristicSearch s c -> s -> Bool
-heuristicSearchInit :: Ord c => s -> (s -> c) -> (s -> Bool) -> HeuristicSearch s c
+heuristicSearchInit :: Ord c => s -> (s -> IO c) -> c -> (s -> Bool) -> HeuristicSearch s c
 
 -- | Entry point to the search algorithm
-heuristicSearch :: Show state => state -> (state -> [state]) -> (state -> Bool) -> (state -> Float) -> (state -> String) -> Maybe state
+heuristicSearch :: Show state => state -> (state -> [state]) -> (state -> Bool) -> (state -> IO Float) -> (state -> String) -> ExceptT String IO state
+getLowestCostState :: [(Float, state)] -> state
+popFromHeap :: HeapItem a b => Heap a b -> (b, Heap a b)
+genHeap :: Ord a => [(a, b)] -> MinPrioHeap a b
+insertHeapLimitedBy :: HeapItem pol item => Int -> item -> HeapT (Prio pol item) (Val pol item) -> HeapT (Prio pol item) (Val pol item)
+insertLimitedBy :: HeapItem pol item => Int -> item -> HeapT (Prio pol item) (Val pol item) -> HeapT (Prio pol item) (Val pol item)
 
 
 -- | A simple implementation of multisets as hash maps to counts. Supports
@@ -1111,13 +1116,22 @@ ChordLabel :: String -> SIC -> SPC -> ChordLabel
 -- | Provides a score measuring how much the slice matches the chord
 --   annoation
 evaluateSlice :: Notes SIC -> String -> HarmonicProfileData -> Double
+mostLikelyChordFromSlice :: HarmonicProfileData -> Notes SPitch -> (SIC, String, Double)
+transformSlice :: Notes SPitch -> Notes SIC
+transformPitch :: SPitch -> SIC
+maxi :: (Ord a, Num b, Enum b) => [a] -> (a, b)
 sliceChordLogLikelihoods :: HarmonicProfileData -> Notes SIC -> [[Double]]
+sliceChordWeightedLogLikelihoods :: HarmonicProfileData -> Notes SIC -> [[Double]]
+sliceChordWeightedLogLikelihood :: HarmonicProfileData -> ChordLabel -> Notes SIC -> Double
 sliceChordLogLikelihood :: HarmonicProfileData -> ChordLabel -> Notes SIC -> Double
 genSliceVector :: Notes SIC -> [Double]
 getOrnamentParams :: HarmonicProfileData -> [[Double]]
 getChordToneParams :: HarmonicProfileData -> [[Double]]
+getHarmonyParams :: HarmonicProfileData -> [Double]
+normaliseList :: Fractional a => [a] -> [a]
 evalPath :: (Show ns, Spelled ns) => Path (Edges ns) (Notes SPitch) -> [ChordLabel] -> HarmonicProfileData -> Double
 multinomialLogProb :: [Double] -> [Double] -> Double
+categoricalLogProb :: Int -> [Double] -> Double
 instance GHC.Show.Show PBHModel.Params
 instance GHC.Generics.Generic PBHModel.Params
 instance GHC.Show.Show PBHModel.HarmonicProfileData
@@ -1328,6 +1342,12 @@ instance GHC.Generics.Generic (PVGrammar.Parse.Elaboration a b c d)
 instance (GHC.Show.Show a, GHC.Show.Show b, GHC.Show.Show c, GHC.Show.Show d) => GHC.Show.Show (PVGrammar.Parse.Elaboration a b c d)
 instance (GHC.Classes.Ord a, GHC.Classes.Ord b, GHC.Classes.Ord c, GHC.Classes.Ord d) => GHC.Classes.Ord (PVGrammar.Parse.Elaboration a b c d)
 instance (GHC.Classes.Eq a, GHC.Classes.Eq b, GHC.Classes.Eq c, GHC.Classes.Eq d) => GHC.Classes.Eq (PVGrammar.Parse.Elaboration a b c d)
+
+module Heuristics
+type State = SearchState (Edges SPitch) [Edge SPitch] (Notes SPitch) (PVLeftmost SPitch)
+applyHeuristic :: (Maybe (PVLeftmost SPitch) -> State -> ExceptT String IO Float) -> State -> IO Float
+testOp :: ActionDouble ns tr (Split SPC) f h
+testHeuristic :: HarmonicProfileData -> Maybe (PVLeftmost SPitch) -> State -> ExceptT String IO Float
 
 
 -- | This module contains a simple (and musically rather naive)
