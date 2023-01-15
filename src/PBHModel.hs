@@ -157,6 +157,11 @@ sliceChordWeightedLogLikelihood hpData label notes = logLikelihood
   pHarmony = getHarmonyParams hpData
   chordTypes = chordtypes hpData
 
+chordIndexFromLabel :: HarmonicProfileData -> ChordLabel -> Maybe Int
+chordIndexFromLabel hpData label = elemIndex (chordType label) chordTypes
+  where 
+    chordTypes = chordtypes hpData
+
 sliceChordLogLikelihood :: HarmonicProfileData -> ChordLabel -> Notes SIC -> Double
 sliceChordLogLikelihood hpData label notes = logLikelihood
  where
@@ -170,6 +175,33 @@ genSliceVector (Notes notes) = myF <$> [0 .. 28]
  where
   myF i = fromIntegral $ MS.lookup (sic (i - 14)) notes
 
+ornamentLogLikelihood :: HarmonicProfileData -> ChordLabel -> SIC -> Double
+ornamentLogLikelihood hpData label note = logLikelihood
+ where
+  logLikelihood = categoricalLogProb notePos pOrnaments
+  pOrnaments = getOrnamentParams hpData !! fromMaybe undefined (chordIndexFromLabel hpData label)
+  notePos = sFifth note 
+
+chordToneLogLikelihood :: HarmonicProfileData -> ChordLabel -> SIC -> Double
+chordToneLogLikelihood hpData label note = logLikelihood
+ where
+  logLikelihood = categoricalLogProb notePos pChordTones
+  pChordTones = getChordToneParams hpData !! fromMaybe undefined (chordIndexFromLabel hpData label)
+  notePos = sFifth note 
+
+ornamentLogLikelihoodDouble :: HarmonicProfileData -> ChordLabel -> ChordLabel -> SIC -> Double
+ornamentLogLikelihoodDouble hpData lbll lblr note = logLikelihood
+ where
+  logLikelihood = categoricalLogProb notePos pOrnaments
+  pOrnaments = getOrnamentParams hpData !! fromMaybe undefined (chordIndexFromLabel hpData lbll)
+  notePos = sFifth note 
+
+chordToneLogLikelihoodDouble :: HarmonicProfileData -> ChordLabel -> ChordLabel -> SIC -> Double
+chordToneLogLikelihoodDouble hpData lbll lblr note = logLikelihood
+ where
+  logLikelihood = categoricalLogProb notePos pChordTones
+  pChordTones = getChordToneParams hpData !! fromMaybe undefined (chordIndexFromLabel hpData lblr)
+  notePos = sFifth note 
 -- Takes the MLE estimate of the dirchetlet distribution
 -- to get a categorical distribution for ornmanet probs...
 getOrnamentParams :: HarmonicProfileData -> [[Double]]
@@ -210,10 +242,6 @@ evalPath (Path _ (Notes slc) rst) (lbl : lbls) hpData = evaluateSlice slc' lbl' 
   -- chordRootNote is SPC
 
   slc' = Notes $ MS.map transformPitch slc
-   where
-    transformPitch
-      :: Music.SPitch -> SIC
-    transformPitch p = let q = spc (fifths p) in Music.pfrom q chordRootNote
 
 -- Calculates the probability density of a multinomial distribution at the given point
 multinomialLogProb :: [Double] -> [Double] -> Double

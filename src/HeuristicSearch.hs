@@ -1,3 +1,6 @@
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module HeuristicSearch where
@@ -14,7 +17,7 @@ import HeuristicParser (getPathFromState)
 data HeuristicSearch s c = HeuristicSearch
   { end :: Maybe s
   , frontier :: H.MinPrioHeap c s
-  , heuristic :: s -> IO c
+  , heuristic :: s -> ExceptT String IO c
   , goal :: s -> Bool
   }
 
@@ -30,13 +33,13 @@ heuristicSearchInit start heuristic' initCost goal' =
 heuristicSearch
   :: Show state
   => state -- starting state
-  -> (state -> [state]) -- get adjacent states
+  -> (state -> ExceptT String IO [state]) -- get adjacent states
   -> (state -> Bool) -- goal test
-  -> (state -> IO Float) -- heuristic
+  -> (state -> ExceptT String IO Double) -- heuristic
   -> (state -> String) -- showAction
   -> ExceptT String IO state -- output
 heuristicSearch initialState getNextStates isGoalState heuristic printOp = do
-  initCost <- lift $ heuristic initialState
+  initCost <- heuristic initialState
   search $ heuristicSearchInit initialState heuristic initCost isGoalState
  where
   search hs
@@ -48,13 +51,16 @@ heuristicSearch initialState getNextStates isGoalState heuristic printOp = do
         -- Find neighboring states and costs
         -- Build as heap
         -- let nextStatesHeap = H.empty
+        nextStates <- getNextStates nearestState
+
         nextStatesAndCosts <-
           let
             nextStateAndCost st = do
+              -- lift $ print "lol"
               h <- heuristic st
               pure (cost + h, st)
            in
-            lift $ mapM nextStateAndCost (getNextStates nearestState)
+            mapM nextStateAndCost nextStates
 
         let nextStatesHeap = genHeap nextStatesAndCosts
 
@@ -65,7 +71,7 @@ heuristicSearch initialState getNextStates isGoalState heuristic printOp = do
         -- Add lowest cost states
         -- Keeping a maximum of 5 states in the frontier at a time
         -- let newFrontier = foldr (insertLimitedBy 30) remainingQueue nextStatesAndCosts
-        let newFrontier = H.fromList . H.take 5 $ H.union nextStatesHeap remainingQueue
+        let newFrontier = H.fromList . H.take 50 $ H.union nextStatesHeap remainingQueue
 
         search $
           hs{frontier = newFrontier}
@@ -73,7 +79,7 @@ heuristicSearch initialState getNextStates isGoalState heuristic printOp = do
     -- Pop the node in the frontier with the lowest priority
     ((cost, nearestState), remainingQueue) = popFromHeap (frontier hs)
 
-getLowestCostState :: [(Float, state)] -> state
+getLowestCostState :: [(Double, state)] -> state
 getLowestCostState goalStates = snd $ maximumBy (comparing fst) goalStates
 
 popFromHeap :: H.HeapItem a b => H.Heap a b -> (b, H.Heap a b)

@@ -1,4 +1,11 @@
-module Spec where
+module Main where
+
+import Control.Exception (evaluate)
+import HeuristicSearchSpec
+import HeuristicSpec
+import PBHModelSpec
+import Test.Hspec
 
 main :: IO ()
-main = putStrLn "Test suite not yet implemented"
+main = hspec $ do
+  mostLikelyChordSpec

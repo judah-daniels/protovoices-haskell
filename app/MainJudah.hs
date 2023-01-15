@@ -227,7 +227,7 @@ runHeuristicSearch ::
   ) 
   => HarmonicProfileData 
   -> Eval (Edges ns) [Edge ns] (Notes ns) [ns] (PVLeftmost ns) 
-  -> (SearchState (Edges ns) [Edge ns] (Notes ns) (PVLeftmost ns) -> IO Float)
+  -> (SearchState (Edges ns) [Edge ns] (Notes ns) (PVLeftmost ns) -> ExceptT String IO Double)
   -> [InputSlice ns] 
   -> [ChordLabel] 
   -> IO (Path (Edges ns) (Notes ns), [PVLeftmost ns])

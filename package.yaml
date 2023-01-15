@@ -132,18 +132,8 @@ executables:
   #   - proto-voice-model
   #
 tests:
-  # proto-voice-model-test:
-  #   main:                Spec.hs
-  #   source-dirs:         test
-  #   ghc-options:
-  #   - -threaded
-  #   - -rtsopts
-  #   - -with-rtsopts=-N
-  #   dependencies:
-  #   - proto-voice-model
-  #     
-  heuristic-test:
-    main:                HeuristicSpec.hs
+  proto-voice-model-test:
+    main:                Spec.hs
     source-dirs:         test
     ghc-options:
     - -threaded
@@ -151,6 +141,25 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - proto-voice-model
+  #     
+  # heuristic-test:
+  #   main:                HeuristicSpec.hs
+  #   source-dirs:         test
+  #   ghc-options:
+  #   - -threaded
+  #   - -rtsopts
+  #   - -with-rtsopts=-N
+  #   dependencies:
+  #   - proto-voice-model
+  # pbh-test:
+  #   main:                PBHModelSpec.hs
+  #   source-dirs:         test
+  #   ghc-options:
+  #   - -threaded
+  #   - -rtsopts
+  #   - -with-rtsopts=-N
+  #   dependencies:
+  #   - proto-voice-model
   # heuristic-search-test:
   #   main:                HeuristicSearchSpec.hs
   #   source-dirs:         test

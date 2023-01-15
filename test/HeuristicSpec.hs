@@ -2,7 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-module Main where
+module HeuristicSpec where
 
 import Musicology.Core
 import Test.Hspec
@@ -61,6 +61,7 @@ main = do
   (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slicesTiny chordsTiny
   -- print $ testHeuristic params s 
   let res = evalPath finalPath chordsTiny params
+  -- let res = evalPath finalPath chords43 params
   -- let res = evalPath finalPath chords321sus hpData
   putStrLn $ "\nEvaluation score: " <> show res
   -- hspec pathFromSlicesSpec
@@ -87,6 +88,17 @@ testInput =
   [ ([(e' nat, Music.Holds), (c' nat, Music.Ends)], False),
     ([(e' nat, Music.Holds)], True),
     ([(e' nat, Music.Ends)], False)
+  ]
+
+slices43 :: [InputSlice SPitch]
+slices43 =
+  [ ([(c nat 3, Music.Holds), (g nat 4, Music.Holds),(c nat 4, Music.Holds), (f nat 4, Music.Ends)], True),
+    ([(c nat 3, Music.Ends), (g nat 4, Music.Ends),(c nat 4, Music.Ends), (e nat 4, Music.Ends)], False)
+  ]
+
+chords43 :: [ChordLabel]
+chords43 =
+  [ ChordLabel "M" (sic 1) (f' nat)
   ]
 
 slicesTiny :: [InputSlice SPitch]
@@ -129,7 +141,7 @@ runHeuristicSearch ::
   ) 
   => HarmonicProfileData 
   -> Eval (Edges ns) [Edge ns] (Notes ns) [ns] (PVLeftmost ns) 
-  -> (SearchState (Edges ns) [Edge ns] (Notes ns) (PVLeftmost ns) -> IO Float)
+  -> (SearchState (Edges ns) [Edge ns] (Notes ns) (PVLeftmost ns) -> ExceptT String IO Double)
   -> [InputSlice ns] 
   -> [ChordLabel] 
   -> IO (Path (Edges ns) (Notes ns), [PVLeftmost ns])
