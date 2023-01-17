@@ -105,7 +105,7 @@ showFrozen path = "⋊" <> go 2 path
 
 -- | Helper function for showing the open part of a piece.
 showOpen :: Show slc => Path (Trans es') slc -> String
-showOpen path = go 5 path <> "⋉"
+showOpen path = go 3 path <> "⋉"
  where
   go _ (PathEnd (Trans _ _ True)) = "⌿"
   go _ (PathEnd (Trans _ _ False)) = "-"

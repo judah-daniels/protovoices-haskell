@@ -23,7 +23,7 @@ import Data.Maybe
   )
 import Data.Vector qualified as V
 import Display
-import Evaluator
+-- import Evaluator
 import HeuristicParser
 import HeuristicSearch
 import PBHModel
@@ -56,6 +56,7 @@ main = do
   -- finalPath <- runHeuristicSearch protoVoiceEvaluator slices321sus chords321sus
   (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slices chords
 
+  mapM (putStrLn.show) chords 
   let res = evalPath finalPath chords params
   -- let res = evalPath finalPath chords321sus hpData
 

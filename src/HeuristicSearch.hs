@@ -71,7 +71,7 @@ heuristicSearch initialState getNextStates isGoalState heuristic printOp = do
         -- Add lowest cost states
         -- Keeping a maximum of 5 states in the frontier at a time
         -- let newFrontier = foldr (insertLimitedBy 30) remainingQueue nextStatesAndCosts
-        let newFrontier = H.fromList . H.take 50 $ H.union nextStatesHeap remainingQueue
+        let newFrontier = H.fromList . H.take 13 $ H.union nextStatesHeap remainingQueue
 
         search $
           hs{frontier = newFrontier}

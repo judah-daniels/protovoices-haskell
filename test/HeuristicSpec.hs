@@ -50,27 +50,37 @@ type InputSlice ns = ([(ns, Music.RightTied)], Bool)
 
 
 -- import Mus
-main :: IO ()
-main = do
-  -- finalPath <- runHeuristicSearch proitoVoiceEvaluator slices321sus chords321sus
-  -- slices <- slicesFromFile' "preprocessing/salamis.csv"
-  -- slices <- slicesFromFile' "preprocessing/salamisShortest.csv"
-  -- chords <- chordsFromFile "preprocessing/chords.csv"
-  -- chords <- chordsFromFile "preprocessing/chordsShortest.csv"
-  params <- loadParams "preprocessing/dcml_params.json"
-  (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slicesTiny chordsTiny
-  -- print $ testHeuristic params s 
-  let res = evalPath finalPath chordsTiny params
-  -- let res = evalPath finalPath chords43 params
-  -- let res = evalPath finalPath chords321sus hpData
-  putStrLn $ "\nEvaluation score: " <> show res
-  -- hspec pathFromSlicesSpec
+heuristicSpec :: Spec
+heuristicSpec = do
+  runIO $ do
+    -- finalPath <- runHeuristicSearch proitoVoiceEvaluator slices321sus chords321sus
+    -- slices <- slicesFromFile' "preprocessing/salamis.csv"
+    -- slices <- slicesFromFile' "preprocessing/salamisShortest.csv"
+    -- chords <- chordsFromFile "preprocessing/chords.csv"
+    -- chords <- chordsFromFile "preprocessing/chordsShortest.csv"
+    params <- loadParams "preprocessing/dcml_params.json"
+    (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slices65m chords65m
+    -- (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slices43 chords43
+    -- (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slices321sus chords321sus
+    -- (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slicesTiny chordsTiny
+
+    putStrLn $ show finalPath
+    -- print $ testHeuristic params s 
+    -- let res = evalPath finalPath chordsTiny params
+    let res = evalPath finalPath chords65m params
+    -- let res = evalPath finalPath chords321sus params
+    putStrLn $ "\nEvaluation score: " <> show res
+    -- hspec pathFromSlicesSpec
+  pure ()
 
 testOp =  
   ActionDouble 
     (Start, undefined,undefined, undefined, Stop) $
     LMDoubleSplitLeft $ mkSplit $ do 
       addToRight (c' nat) (c' nat) LeftRepeat True 
+
+
+
 
 ---------------------------------- -------------------------------- -------------------------------- |
 -- INPUTS FOR TESTING
@@ -83,6 +93,10 @@ path321sus =
       Path [d nat 4, b nat 4] [] $
         PathEnd [c nat 4]
 
+path43 =
+  Path [c nat 4, g nat 4, f nat 5] [(Inner $ c nat 4, Inner $ c nat 4), (Inner $ g nat 4, Inner $ g nat 4)] $
+    PathEnd [c nat 4, g nat 4, e nat 5] 
+
 testInput :: [InputSlice SPC]
 testInput =
   [ ([(e' nat, Music.Holds), (c' nat, Music.Ends)], False),
@@ -94,6 +108,17 @@ slices43 :: [InputSlice SPitch]
 slices43 =
   [ ([(c nat 3, Music.Holds), (g nat 4, Music.Holds),(c nat 4, Music.Holds), (f nat 4, Music.Ends)], True),
     ([(c nat 3, Music.Ends), (g nat 4, Music.Ends),(c nat 4, Music.Ends), (e nat 4, Music.Ends)], False)
+  ]
+
+slices65m :: [InputSlice SPitch]
+slices65m =
+  [ ([(b flt 3, Music.Holds), (c nat 4, Music.Holds),(d nat 4, Music.Holds), (f shp 4, Music.Ends)], True),
+    ([(a nat 3, Music.Ends), (c nat 4, Music.Ends),(d nat 4, Music.Ends), (f shp 4, Music.Ends)], False)
+  ]
+
+chords65m :: [ChordLabel]
+chords65m =
+  [ ChordLabel "Mm7" (sic 0) (d' nat)
   ]
 
 chords43 :: [ChordLabel]
@@ -195,6 +220,3 @@ pathFromSlices eval = reversePath . mkPath Nothing
         mkTiedEdge _ = Nothing
 
 
-spec :: Spec
-spec = do
-  pure ()

@@ -77,7 +77,7 @@ testHeuristic params op state =
         (_ , parent, _, _, _) <- getParentDouble state
         case applyFreeze freezeOp parent of
           Left err -> throwError err
-          Right frozen -> pure 0.2
+          Right frozen -> pure 0.1
 
       -- Spreading
       -- Calculate for each chord possibility, the likelihood that they are all the same chord
@@ -90,34 +90,37 @@ testHeuristic params op state =
               [slcl]----cm---[ slcr ]
       -}
       LMDouble (LMDoubleSpread spreadOp@(SpreadOp spreads edges)) -> do
-        -- (_,parentl, slc, parentr, _) <- case getParentDouble state of 
-        --   (_,_,Start,_,_) -> throwError "StartStop in middle of spread"
-        --   (_,_,Stop,_,_) -> throwError "StartStop in middle of spread"
-        --   (sl,parentl,Inner slc,parentr,sr) -> pure (sl,parentl,slc,parentr,sr)
-        -- case applySpread spreadOp parentl slc parentr of
-        --   Left err -> throwError err
-        --   Right (childl, slcl, childm, slcr, childr) -> do
-        --     lift $ print "Evaluating Spread operation:"
-        --     -- lift $ print (childl,slcl,childm,slcr,childr)
-        --     -- lift $ print (parentl, slc, parentr)
-        --     -- lift $ print "parent:"
-        --     let (root, chordType, cProb) = mostLikelyChordFromSlice params slc
-        --     -- lift $ print "left:"
-        --     -- lift $ print $ mostLikelyChordFromSlice params slcl
-        --     -- lift $ print "right:"
-        --     -- lift $ print $ mostLikelyChordFromSlice params slcr
-        --     let mu = sliceChordLogLikelihood params (mkLbl root chordType) (transformSlice slc)
-        --     let wu = sliceChordLogLikelihood params (mkLbl root chordType) (transformSlice slcl)
-        --     let ru = sliceChordLogLikelihood params (mkLbl root chordType) (transformSlice slcr)
-        --     let pu = mu + wu - ru - ru
-        --     lift $ print $ "mu: " <> show mu
-        --     lift $ print $ "val: " <> show pu
+        res <- getParentDouble state
+        (_,parentl, slc, parentr, _) <- case res of 
+          (_,_,Start,_,_) -> throwError "StartStop in middle of spread"
+          (_,_,Stop,_,_) -> throwError "StartStop in middle of spread"
+          (sl,parentl,Inner slc,parentr,sr) -> pure (sl,parentl,slc,parentr,sr)
+        case applySpread spreadOp parentl slc parentr of
+          Left err -> throwError err
+          Right (childl, slcl, childm, slcr, childr) -> do
+            lift $ print "Evaluating Spread operation:"
+            lift $ print (slcl,slc,slcr)
+            -- lift $ print (parentl, slc, parentr)
+            -- lift $ print "parent:"
+            let (root, chordType, cProb) = mostLikelyChordFromSlice params slc
+            -- lift $ print "left:"
+            -- lift $ print $ mostLikelyChordFromSlice params slcl
+            -- lift $ print "right:"
+            -- let (root, chordType, cProb) = mostLikelyChordFromSlice params ns in 
+            --                     pure $ Just (ChordLabel chordType (sic (root - 14)) (spc 0), cProb)
 
-            pure 2.0
+           -- lift $ print $ mostLikelyChordFromSlice params slcr
+            let mu = sliceChordLogLikelihood params (mkLbl root chordType) (transformSlice slc)
+            let wu = sliceChordLogLikelihood params (mkLbl root chordType) (transformSlice slcl)
+            let ru = sliceChordLogLikelihood params (mkLbl root chordType) (transformSlice slcr)
+            let score = wu + ru 
+            -- lift $ print $ "mu: " <> show mu
+            lift $ print $ "score: " <> show (1 - score)
+            pure $ 5 - score 
            where
             -- trace (show $ mostLikelyChordFromSlice params parent ) -2.0
 
-            mkLbl root chordType = ChordLabel chordType root (spc 0)
+            mkLbl root chordType = ChordLabel chordType (sic (root-14)) (spc 0)
             -- predChord = mostLikelyChord hpData parent
             -- jointLogLikelihood =
             --     sliceChordLogLikelihood childl
@@ -176,7 +179,8 @@ testHeuristic params op state =
                                     [ slc ]
       -}
       LMDouble (LMDoubleSplitRight splitOp) -> do
-        lift $ print "Splitting Right"
+        lift $ print "Evaluating a Double Split Right: "
+        lift $ putStrLn $ "State: " <> show state
         (_,_, slcl, parent, slcr) <- getParentDouble state
         scoreSplit splitOp parent slcl slcr
         -- case applySplit splitOp parent of
@@ -228,21 +232,24 @@ testHeuristic params op state =
     parent@(Edges topRegs topPassings) 
     slcl 
     slcr = do 
+      -- lift $ print $ "lblL"
       lblL <- case slcl of 
                 Start -> pure Nothing
                 Stop -> throwError "Stop on Left?"
                 Inner ns -> let (root, chordType, cProb) = mostLikelyChordFromSlice params ns in 
-                                pure $ Just (ChordLabel chordType root (spc 0), cProb)
+                                pure $ Just (ChordLabel chordType (sic 0) (spc (root - 14)), cProb)
 
+      -- lift $ print $ "lblR"
       lblR <- case slcr of 
                 Start -> throwError "Start on Right?"
                 Stop -> pure Nothing
                 Inner ns -> let (root, chordType, cProb) = mostLikelyChordFromSlice params ns in 
-                                pure $ Just (ChordLabel chordType root (spc 0), cProb)
+                                pure $ Just (ChordLabel chordType (sic 0) (spc (root - 14)), cProb)
 
-      lift $ print  lblL
-      lift $ print  lblR
-
+      
+      -- lift $ print  lblL
+      -- lift $ print  lblR
+      
       -- let (rootl, chordTypel, cProbl) = mostLikelyChordFromSlice params slcl
       -- let (rootr, chordTyper, cProbr) = mostLikelyChordFromSlice params slcr
       -- Get regular edges - sequential connection , either repitiion or neighbor
@@ -253,63 +260,61 @@ testHeuristic params op state =
 
 
       -- rs - Maps notes from the right parentSlice to the list of ornaments.
-      -- lift $ putStrLn $ "rs" <> show (allOrnaments rs)
-      -- lift $ putStrLn $ "ls" <> show (allOrnaments ls)
+      lift $ putStrLn $ "rs" <> show (allOrnaments rs)
+      lift $ putStrLn $ "ls" <> show (allOrnaments ls)
 
-      -- probsRS <- mapM (scoreLeftOrnament lblR) (allOrnaments rs)  
-      -- probsLS <- mapM (scoreRightOrnament lblL) (allOrnaments ls)  
-      -- probsRegs <- mapM (scoreRegs lblL lblR) (allRegs splitRegs)  
-      -- probsPassings <- mapM (scorePassing lblL lblR) (allPassings splitPassings)  
+      probsRS <- mapM (scoreLeftOrnament lblR) (allOrnaments rs)  
+      probsLS <- mapM (scoreRightOrnament lblL) (allOrnaments ls)  
+      probsRegs <- mapM (scoreRegs lblL lblR) (allRegs splitRegs)  
+      probsPassings <- mapM (scorePassing lblL lblR) (allPassings splitPassings)  
 
-      -- let aggregateProbs = probsRS <> probsLS <> probsRegs <> probsPassings
-      -- let score = sum aggregateProbs / fromIntegral (L.length aggregateProbs)
-      let score = 2.5
-      
       -- let notesL = collectNotes ls
       --     notesR = collectNotes rs
       --     notes = MS.unions [notesReg, notesPassing, notesL, notesR]
-      -- lift $ putStrLn $ "slcl: " <> show slcl
-      -- lift $ putStrLn $ "slcr: " <> show slcr
-      -- lift $ putStrLn $ "notes: " <> show (Notes notes)
-      -- lift $ putStrLn $ "notesL: " <> show (Notes notesL)
-      -- lift $ putStrLn $ "notesR: " <> show (Notes notesR)
-      -- lift $ putStrLn $ "passingL: " <> show leftPassings
-      -- lift $ putStrLn $ "passingR: " <> show rightPassings
-      -- lift $ putStrLn $ "passing: " <> show notesPassing
-      -- lift $ putStrLn $ "topRegs: " <> show topRegs
-      -- lift $ putStrLn $ "topPassings: " <> show topPassings
-      -- lift $ putStrLn $ "splitRegs: " <> show splitRegs
+      lift $ putStrLn $ "slcl: " <> show slcl
+      lift $ putStrLn $ "slcr: " <> show slcr
+      lift $ putStrLn $ "splitRegs: " <> show splitRegs
+      lift $ putStrLn $ "splitPassings: " <> show splitPassings
       -- lift $ putStrLn $ "parent: " <> show parent
       -- lift . print $ Edges keepl (MS.union leftPassings passl)
       -- lift . print $ Edges keepr (MS.union rightPassings passr)
-      -- lift $ putStrLn $ score
+      let aggregateProbs = probsRS <> probsLS <> probsRegs <> probsPassings
+
+      lift $ print $ aggregateProbs
+
+      let score = 1 - (sum aggregateProbs / fromIntegral (L.length aggregateProbs))
+      -- let score = 5.5
+      
+      lift $ putStrLn $ "score: " <> show score
       pure score
          where
           scoreRightOrnament Nothing (x,(n,orn)) = throwError "Right Ornament with no parent"
+          -- scoreRightOrnament (Just (lbl, prob)) (x,(n,orn)) = pure 0
           scoreRightOrnament (Just (lbl, prob)) (x,(n,orn)) = 
-            let (x',n') = (transformPitch x,transformPitch n) in case orn of 
+            let (x',n') = (transformPitch x,transformPitch n) in 
+                case orn of 
             RightNeighbor -> pure $ chordToneLogLikelihood params lbl x' + ornamentLogLikelihood params lbl n'
-            RightRepeat -> pure $ chordToneLogLikelihood params lbl x' + chordToneLogLikelihood params lbl n'
+            RightRepeat -> pure $ 1+ chordToneLogLikelihood params lbl x' + chordToneLogLikelihood params lbl n'
 
           scoreLeftOrnament Nothing (x,(n,orn)) = throwError "Left Ornament with no parent"
           scoreLeftOrnament (Just (lbl, prob)) (x,(n,orn)) = 
             let (x',n') = (transformPitch x,transformPitch n) in case orn of 
             LeftNeighbor -> pure $ chordToneLogLikelihood params lbl x' + ornamentLogLikelihood params lbl n'
-            LeftRepeat -> pure $ chordToneLogLikelihood params lbl x' + chordToneLogLikelihood params lbl n'
+            LeftRepeat -> pure $ 1 + chordToneLogLikelihood params lbl x' + chordToneLogLikelihood params lbl n'
 
           scoreRegs Nothing _ ((x,y),(n,orn)) = throwError "wtf man"
           scoreRegs _ Nothing ((x,y),(n,orn)) = throwError "wtf woman"
           scoreRegs (Just (lbll, probL)) (Just (lblr, probR)) ((Inner x,Inner y),(n,orn)) =
             let (x',y',n') = (transformPitch x,transformPitch y, transformPitch n) in case orn of 
-            FullNeighbor -> pure $ chordToneLogLikelihoodDouble params lbll lblr x' + ornamentLogLikelihoodDouble params lbll lblr n'
-            FullRepeat -> pure $ 2 * chordToneLogLikelihoodDouble params lbll lblr x' 
-            RootNote -> pure  2.0
-            LeftRepeatOfRight -> pure $ chordToneLogLikelihood params lblr y' + ornamentLogLikelihood params lblr n'
-            RightRepeatOfLeft -> pure $ chordToneLogLikelihood params lbll x' + ornamentLogLikelihood params lbll n'
+              FullNeighbor -> pure  $ chordToneLogLikelihoodDouble params lbll lblr x' + ornamentLogLikelihoodDouble params lbll lblr n'
+              FullRepeat -> pure $ chordToneLogLikelihoodDouble params lbll lblr x' 
+              RootNote -> pure  2.0
+              LeftRepeatOfRight -> pure $  chordToneLogLikelihood params lblr y' + ornamentLogLikelihood params lblr n'
+              RightRepeatOfLeft -> pure $ chordToneLogLikelihood params lbll x' + ornamentLogLikelihood params lbll n'
 
           scorePassing Nothing _ ((x,y),(n,orn)) = throwError "wtf man"
           scorePassing _ Nothing ((x,y),(n,orn)) = throwError "wtf man"
-          scorePassing (Just (lbll,probl)) (Just (lblr, probr)) ((x,y),(n,orn)) =
+          scorePassing (Just (lbll,probl)) (Just (lblr, probr)) ((x,y),(n,orn)) = 
             let (x',y',n') = (transformPitch x,transformPitch y, transformPitch n) in case orn of 
             PassingLeft ->  pure $ chordToneLogLikelihood params lbll x' + ornamentLogLikelihood params lblr n'
             PassingMid ->  pure $ chordToneLogLikelihoodDouble params lbll lblr y' + ornamentLogLikelihoodDouble params lbll lblr n'
