@@ -713,7 +713,7 @@ showFrozen :: Show slc => Path (Maybe es', Bool) slc -> String
 showOpen :: Show slc => Path (Trans es') slc -> String
 
 -- | Returns a list of possible next states given the current state.
-exploreStates :: forall es es' ns ns' s f h. (Show s, Show f, Show h, Show es, Show es', Show ns, Show ns') => Eval es es' ns ns' (Leftmost s f h) -> SearchState es es' ns (Leftmost s f h) -> [SearchState es es' ns (Leftmost s f h)]
+exploreStates :: forall es es' ns ns' s f h. (Show s, Show f, Show h, Show es, Show es', Show ns, Show ns') => Eval es es' ns ns' (Leftmost s f h) -> SearchState es es' ns (Leftmost s f h) -> ExceptT String IO [SearchState es es' ns (Leftmost s f h)]
 type Boundary = Bool
 heursiticSearchGoalTest :: SearchState es es' ns o -> Bool
 printPathFromState :: (Show es, Show ns) => SearchState es es' ns o -> String
@@ -746,16 +746,16 @@ instance GHC.Show.Show ns => GHC.Show.Show (HeuristicParser.Slice ns)
 
 module HeuristicSearch
 data HeuristicSearch s c
-HeuristicSearch :: Maybe s -> MinPrioHeap c s -> (s -> IO c) -> (s -> Bool) -> HeuristicSearch s c
+HeuristicSearch :: Maybe s -> MinPrioHeap c s -> (s -> ExceptT String IO c) -> (s -> Bool) -> HeuristicSearch s c
 [end] :: HeuristicSearch s c -> Maybe s
 [frontier] :: HeuristicSearch s c -> MinPrioHeap c s
-[heuristic] :: HeuristicSearch s c -> s -> IO c
+[heuristic] :: HeuristicSearch s c -> s -> ExceptT String IO c
 [goal] :: HeuristicSearch s c -> s -> Bool
-heuristicSearchInit :: Ord c => s -> (s -> IO c) -> c -> (s -> Bool) -> HeuristicSearch s c
+heuristicSearchInit :: Ord c => s -> (s -> ExceptT String IO c) -> c -> (s -> Bool) -> HeuristicSearch s c
 
 -- | Entry point to the search algorithm
-heuristicSearch :: Show state => state -> (state -> [state]) -> (state -> Bool) -> (state -> IO Float) -> (state -> String) -> ExceptT String IO state
-getLowestCostState :: [(Float, state)] -> state
+heuristicSearch :: Show state => state -> (state -> ExceptT String IO [state]) -> (state -> Bool) -> (state -> ExceptT String IO Double) -> (state -> String) -> ExceptT String IO state
+getLowestCostState :: [(Double, state)] -> state
 popFromHeap :: HeapItem a b => Heap a b -> (b, Heap a b)
 genHeap :: Ord a => [(a, b)] -> MinPrioHeap a b
 insertHeapLimitedBy :: HeapItem pol item => Int -> item -> HeapT (Prio pol item) (Val pol item) -> HeapT (Prio pol item) (Val pol item)
@@ -1116,20 +1116,27 @@ ChordLabel :: String -> SIC -> SPC -> ChordLabel
 -- | Provides a score measuring how much the slice matches the chord
 --   annoation
 evaluateSlice :: Notes SIC -> String -> HarmonicProfileData -> Double
-mostLikelyChordFromSlice :: HarmonicProfileData -> Notes SPitch -> (SIC, String, Double)
+mostLikelyChordFromSlice :: HarmonicProfileData -> Notes SPitch -> (Int, String, Double)
 transformSlice :: Notes SPitch -> Notes SIC
 transformPitch :: SPitch -> SIC
 maxi :: (Ord a, Num b, Enum b) => [a] -> (a, b)
-sliceChordLogLikelihoods :: HarmonicProfileData -> Notes SIC -> [[Double]]
-sliceChordWeightedLogLikelihoods :: HarmonicProfileData -> Notes SIC -> [[Double]]
-sliceChordWeightedLogLikelihood :: HarmonicProfileData -> ChordLabel -> Notes SIC -> Double
+sliceChordLogLikelihoods :: HarmonicProfileData -> Notes SPitch -> [(Double, Int, Int)]
+sliceChordWeightedLogLikelihoods :: HarmonicProfileData -> Notes SPitch -> [(Double, Int, Int)]
+allChords :: [[Double]] -> [(Double, Int, Int)]
+sliceChordWeightedLogLikelihood :: HarmonicProfileData -> String -> Notes SIC -> Double
+chordIndexFromLabel :: HarmonicProfileData -> String -> Maybe Int
 sliceChordLogLikelihood :: HarmonicProfileData -> ChordLabel -> Notes SIC -> Double
 genSliceVector :: Notes SIC -> [Double]
+ornamentLogLikelihood :: HarmonicProfileData -> ChordLabel -> SIC -> Double
+chordToneLogLikelihood :: HarmonicProfileData -> ChordLabel -> SIC -> Double
+ornamentLogLikelihoodDouble :: HarmonicProfileData -> ChordLabel -> ChordLabel -> SIC -> Double
+chordToneLogLikelihoodDouble :: HarmonicProfileData -> ChordLabel -> ChordLabel -> SIC -> Double
 getOrnamentParams :: HarmonicProfileData -> [[Double]]
 getChordToneParams :: HarmonicProfileData -> [[Double]]
 getHarmonyParams :: HarmonicProfileData -> [Double]
 normaliseList :: Fractional a => [a] -> [a]
 evalPath :: (Show ns, Spelled ns) => Path (Edges ns) (Notes SPitch) -> [ChordLabel] -> HarmonicProfileData -> Double
+transposeSlice :: SPC -> Notes SPitch -> Notes SIC
 multinomialLogProb :: [Double] -> [Double] -> Double
 categoricalLogProb :: Int -> [Double] -> Double
 instance GHC.Show.Show PBHModel.Params
@@ -1345,9 +1352,9 @@ instance (GHC.Classes.Eq a, GHC.Classes.Eq b, GHC.Classes.Eq c, GHC.Classes.Eq d
 
 module Heuristics
 type State = SearchState (Edges SPitch) [Edge SPitch] (Notes SPitch) (PVLeftmost SPitch)
-applyHeuristic :: (Maybe (PVLeftmost SPitch) -> State -> ExceptT String IO Float) -> State -> IO Float
+applyHeuristic :: (Maybe (PVLeftmost SPitch) -> State -> ExceptT String IO Double) -> State -> ExceptT String IO Double
 testOp :: ActionDouble ns tr (Split SPC) f h
-testHeuristic :: HarmonicProfileData -> Maybe (PVLeftmost SPitch) -> State -> ExceptT String IO Float
+testHeuristic :: HarmonicProfileData -> Maybe (PVLeftmost SPitch) -> State -> ExceptT String IO Double
 
 
 -- | This module contains a simple (and musically rather naive)
