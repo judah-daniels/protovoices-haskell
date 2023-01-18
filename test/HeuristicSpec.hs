@@ -58,19 +58,22 @@ heuristicSpec = do
     -- slices <- slicesFromFile' "preprocessing/salamisShortest.csv"
     -- chords <- chordsFromFile "preprocessing/chords.csv"
     -- chords <- chordsFromFile "preprocessing/chordsShortest.csv"
+    -- print $ pathFromSlices protoVoiceEvaluator slices65m 
     params <- loadParams "preprocessing/dcml_params.json"
-    (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slices65m chords65m
+    -- (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (testHeuristic params) slices65m chords65m
     -- (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slices43 chords43
     -- (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slices321sus chords321sus
     -- (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slicesTiny chordsTiny
+    (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slicesTiny' chordsTiny'
 
     -- encodeFile "outputs/ops.json" ops
 
 
-    putStrLn $ show finalPath
+    print finalPath
     -- print $ testHeuristic params s 
+    let res = evalPath finalPath chordsTiny' params
     -- let res = evalPath finalPath chordsTiny params
-    let res = evalPath finalPath chords65m params
+    -- let res = evalPath finalPath chords65m params
     -- let res = evalPath finalPath chords321sus params
     putStrLn $ "\nEvaluation score: " <> show res
     -- hspec pathFromSlicesSpec
@@ -115,10 +118,20 @@ slices43 =
 
 slices65m :: [InputSlice SPitch]
 slices65m =
-  [ ([(b flt 3, Music.Holds), (c nat 4, Music.Holds),(d nat 4, Music.Holds), (f shp 4, Music.Ends)], True),
+  [ ([(b flt 3, Music.Ends), (c nat 4, Music.Holds),(d nat 4, Music.Holds), (f shp 4, Music.Holds)], True),
     ([(a nat 3, Music.Ends), (c nat 4, Music.Ends),(d nat 4, Music.Ends), (f shp 4, Music.Ends)], False)
   ]
 
+slices65m' :: [InputSlice SPitch]
+slices65m' =
+  [ ([(b flt 3, Music.Ends), (c nat 4, Music.Ends),(d nat 4, Music.Ends), (f shp 4, Music.Ends)], True),
+    ([(a nat 3, Music.Ends), (c nat 4, Music.Ends),(d nat 4, Music.Ends), (f shp 4, Music.Ends)], False)
+  ]
+slices65m'' :: [InputSlice SPitch]
+slices65m'' =
+  [ ([(c shp 3, Music.Ends), (g nat 4, Music.Ends),(b nat 4, Music.Ends), (e flt 4, Music.Ends)], True),
+    ([(a nat 3, Music.Ends), (c nat 4, Music.Ends),(d nat 4, Music.Ends), (f shp 4, Music.Ends)], False)
+  ]
 chords65m :: [ChordLabel]
 chords65m =
   [ ChordLabel "Mm7" (sic 0) (d' nat)
@@ -127,6 +140,20 @@ chords65m =
 chords43 :: [ChordLabel]
 chords43 =
   [ ChordLabel "M" (sic 1) (f' nat)
+  ]
+
+
+slicesTiny' :: [InputSlice SPitch]
+slicesTiny' =
+  [ ([(b flt 3, Music.Ends), (c nat 4, Music.Holds),(d nat 4, Music.Holds), (f shp 4, Music.Holds)], True),
+    ([(a nat 3, Music.Ends), (c nat 4, Music.Ends),(d nat 4, Music.Ends), (f shp 4, Music.Ends)], False),
+    ([(g nat 3, Music.Ends), (b flt 3, Music.Ends),(d nat 4, Music.Ends), (g nat 4, Music.Ends)], True)
+  ]
+
+chordsTiny' :: [ChordLabel]
+chordsTiny' =
+  [ ChordLabel "Mm7" (sic 3) (f' nat),
+    ChordLabel "m" (sic 2) (f' nat)
   ]
 
 slicesTiny :: [InputSlice SPitch]
@@ -169,7 +196,7 @@ runHeuristicSearch ::
   ) 
   => HarmonicProfileData 
   -> Eval (Edges ns) [Edge ns] (Notes ns) [ns] (PVLeftmost ns) 
-  -> (SearchState (Edges ns) [Edge ns] (Notes ns) (PVLeftmost ns) -> ExceptT String IO Double)
+  -> ((Maybe (State ns), State ns) -> ExceptT String IO Double)
   -> [InputSlice ns] 
   -> [ChordLabel] 
   -> IO (Path (Edges ns) (Notes ns), [PVLeftmost ns])
@@ -203,23 +230,51 @@ pathFromSlices ::
   Eval (Edges ns) [Edge ns] (Notes ns) [ns] o ->
   [InputSlice ns] ->
   Path (Maybe [Edge ns], Bool) (Slice (Notes ns))
-pathFromSlices eval = reversePath . mkPath Nothing
+pathFromSlices eval = reversePath . mkPath False Nothing
   where
     mkPath ::
+      Bool ->
       Maybe [Edge ns] ->
       [InputSlice ns] ->
       Path (Maybe [Edge ns], Bool) (Slice (Notes ns))
 
-    mkPath eLeft ((slice, boundary) : rst) =
-      Path (eLeft, boundary) (Slice $ evalSlice eval (fst <$> slice)) $
-        mkPath (Just $ getTiedEdges slice) rst
-    mkPath eLeft [] = PathEnd (Nothing, True)
+    mkPath tie eLeft [] = PathEnd (eLeft, True)
+
+    mkPath tie eLeft ((slice, boundary) : rst) =
+      Path (eLeft, boundary) nextSlice $
+        mkPath False (Just $ getTiedEdges slice) rst
+          where 
+            nextSlice = Slice $ evalSlice eval (fst <$> slice)
+
 
     getTiedEdges :: [(ns, Music.RightTied)] -> [Edge ns]
     getTiedEdges = mapMaybe mkTiedEdge
       where
         mkTiedEdge :: (ns, Music.RightTied) -> Maybe (Edge ns)
-        mkTiedEdge (pitch, Music.Holds) = Just (Inner pitch, Inner pitch)
+        mkTiedEdge (p, Music.Holds) = Just (Inner p, Inner p)
         mkTiedEdge _ = Nothing
 
 
+-- -- | Converts salami slices (as returned by 'slicesFromFile') to a path as expected by parsers.
+-- slicesToPath
+--   :: (Interval i, Ord i, Eq i)
+--   => [[(Pitch i, Music.RightTied)]]
+--   -> Path [Pitch i] [Edge (Pitch i)]
+-- slicesToPath = go
+--  where
+--   -- normalizeTies (s : next : rest) = (fixTie <$> s)
+--   --   : normalizeTies (next : rest)
+--   --  where
+--   --   nextNotes = fst <$> next
+--   --   fixTie (p, t) = if p `L.elem` nextNotes then (p, t) else (p, Ends)
+--   -- normalizeTies [s] = [map (fmap $ const Ends) s]
+--   -- normalizeTies []  = []
+--   mkSlice = fmap fst
+--   mkEdges = mapMaybe mkEdge
+--    where
+--     mkEdge (_, Music.Ends) = Nothing
+--     mkEdge (p, Music.Holds) = Just (Inner p, Inner p)
+--   go [] = error "cannot construct path from empty list"
+--   go [notes] = PathEnd (mkSlice notes)
+--   go (notes : rest) = Path (mkSlice notes) (mkEdges notes) $ go rest
+--

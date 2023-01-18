@@ -69,11 +69,13 @@ mostLikelyChordSpec = do
     -- putStrLn $ "\nConsidering: " <> show (genSlice' ["D3", "F#4", "A5"])
     -- putStrLn $ showChordFromSlice params (genSlice' ["D3", "F#4", "A5"]) 
 
-    let slc = (genSlice' ["D3", "F#4", "A5"])
+    let slc = (genSlice' ["C#3", "F3", "B4", "G#7"])
     putStrLn $ "\nConsidering: " <> show slc
     let (r',f') = showChordFromSlice' params slc
     putStrLn $ "Transformed: " <> show (transposeSlice (spc (r'-14)) slc)
     putStrLn $ "Inferred: " <> f'
+
+      
     -- putStrLn $ showChordFromSlice params sliceFmaj'
     -- putStrLn $ showChordFromSlice params (genSlice' ["B3", "D#3", "F#4", "B5"])
 
@@ -115,12 +117,21 @@ mostLikelyChordSpec = do
       "BM" == showChordFromSlice params (genSlice' ["B3", "D#3", "F#4", "B5"])
     it "B major triad 2" $ 
       "BM" == showChordFromSlice params (genSlice' ["B3", "D#3", "F#5"])
-    it "F major triad 1" $ 
+    it "F♯ major triad" $ 
       "F♯M" == showChordFromSlice params (genSlice' ["F#3", "C#3", "A#4", "C#5"])
-    it "F major triad 2" $ 
+    it "E♭ major triad" $ 
       "E♭M" == showChordFromSlice params (genSlice' ["Eb3", "G3", "Bb4"])
     it "Db major triad 1" $ 
       "D♭M" == showChordFromSlice params (genSlice' ["Db3", "F3", "Ab4", "Db5"])
+    it "D64" $ 
+      "DMm7" == showChordFromSlice params (genSlice' ["D3", "F#3", "A4", "C4"])
+    it "F#64" $ 
+      "F♯Mm7" == showChordFromSlice params (genSlice' ["A#3", "F#3", "E4", "C#4"])
+    it "E64" $ 
+      "EMm7" == showChordFromSlice params (genSlice' ["E3", "G#3", "D4", "B4"])
+    it "C#Mm7" $ do
+      -- runIO $ print "f"
+      "C♯Mm7" == showChordFromSlice params (genSlice' ["C#3", "F3", "B4", "G#7"])
   pure ()
  
 showChordFromSlice' params slice = 

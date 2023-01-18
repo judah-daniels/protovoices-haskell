@@ -62,31 +62,31 @@ import System.Random.MWC.Probability (multinomial)
 
 -- | Provides a score measuring how much the slice matches the chord annoation
 --    p
-evaluateSlice :: Notes SIC -> String -> HarmonicProfileData -> Double
-evaluateSlice pitchClasses chordType hpData =
-  trace
-    ( "Evaluating Slice:"
-        <> "\n  Slice: "
-        <> show pitchClasses
-        <> "\n  Label: "
-        <> show chordType
-        <> "\n  Score: "
-        <> show (weightedlikelihoods !! chordTypeIndex)
-    )
-    -- <> "\nWeighted Likelihoods: " <> showList ((zip (chordtypes hpData) weightedlikelihoods)) "")
-    weightedlikelihoods
-    !! chordTypeIndex
-  where
-    -- Calculate Likelihoods of each chord type
-    chordToneParams = getChordToneParams hpData
-
-    valueVector = genSliceVector pitchClasses
-
-    likelihoods = exp . multinomialLogProb valueVector <$> chordToneParams
-
-    weightedlikelihoods = (/ maximum likelihoods) <$> likelihoods
-
-    chordTypeIndex = fromMaybe 0 $ elemIndex chordType (chordtypes hpData)
+-- evaluateSlice :: Notes SIC -> String -> HarmonicProfileData -> Double
+-- evaluateSlice pitchClasses chordType hpData =
+--   trace
+--     ( "Evaluating Slice:"
+--         <> "\n  Slice: "
+--         <> show pitchClasses
+--         <> "\n  Label: "
+--         <> show chordType
+--         <> "\n  Score: "
+--         <> show (weightedlikelihoods !! chordTypeIndex)
+--     )
+--     -- <> "\nWeighted Likelihoods: " <> showList ((zip (chordtypes hpData) weightedlikelihoods)) "")
+--     weightedlikelihoods
+--     !! chordTypeIndex
+--   where
+--     -- Calculate Likelihoods of each chord type
+--     chordToneParams = getChordToneParams hpData
+--
+--     valueVector = genSliceVector pitchClasses
+--
+--     likelihoods = exp . multinomialLogProb valueVector <$> chordToneParams
+--
+--     weightedlikelihoods = (/ maximum likelihoods) <$> likelihoods
+--
+--     chordTypeIndex = fromMaybe 0 $ elemIndex chordType (chordtypes hpData)
 
 -- genSliceVector :: Notes SIC -> [Double]
 -- genSliceVector (Notes notes) = myF <$> [0 .. 28]

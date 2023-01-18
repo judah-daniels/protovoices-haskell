@@ -17,7 +17,7 @@ import HeuristicParser (getPathFromState)
 data HeuristicSearch s c = HeuristicSearch
   { end :: Maybe s
   , frontier :: H.MinPrioHeap c s
-  , heuristic :: s -> ExceptT String IO c
+  , heuristic :: (Maybe s, s) -> ExceptT String IO c
   , goal :: s -> Bool
   }
 
@@ -35,17 +35,19 @@ heuristicSearch
   => state -- starting state
   -> (state -> ExceptT String IO [state]) -- get adjacent states
   -> (state -> Bool) -- goal test
-  -> (state -> ExceptT String IO Double) -- heuristic
+  -> ((Maybe state, state) -> ExceptT String IO Double) -- heuristic
   -> (state -> String) -- showAction
   -> ExceptT String IO state -- output
 heuristicSearch initialState getNextStates isGoalState heuristic printOp = do
-  initCost <- heuristic initialState
+  initCost <- heuristic (Nothing, initialState)
   search $ heuristicSearchInit initialState heuristic initCost isGoalState
  where
   search hs
     | H.null (frontier hs) = throwError "No Goal Found"
     | isGoalState nearestState = do pure nearestState
     | otherwise = do
+        lift $ putStrLn "___________________________________________________"
+        lift $ putStrLn "Frontier: "
         lift $ mapM_ print (frontier hs)
 
         -- Find neighboring states and costs
@@ -57,7 +59,7 @@ heuristicSearch initialState getNextStates isGoalState heuristic printOp = do
           let
             nextStateAndCost st = do
               -- lift $ print "lol"
-              h <- heuristic st
+              h <- heuristic (Just nearestState, st)
               pure (cost + h, st)
            in
             mapM nextStateAndCost nextStates
@@ -71,7 +73,7 @@ heuristicSearch initialState getNextStates isGoalState heuristic printOp = do
         -- Add lowest cost states
         -- Keeping a maximum of 5 states in the frontier at a time
         -- let newFrontier = foldr (insertLimitedBy 30) remainingQueue nextStatesAndCosts
-        let newFrontier = H.fromList . H.take 30 $ H.union nextStatesHeap remainingQueue
+        let newFrontier = H.fromList . H.take 10 $ H.union nextStatesHeap remainingQueue
 
         search $
           hs{frontier = newFrontier}

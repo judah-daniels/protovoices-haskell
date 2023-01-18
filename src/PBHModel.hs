@@ -23,6 +23,7 @@ import Numeric.Log (Log (..))
 import Numeric.SpecFunctions (logGamma)
 import PVGrammar
 import System.Random.MWC.Probability (multinomial)
+import GHC.Real (infinity)
 
 data HarmonicProfileData = HarmonicProfileData
   { params :: Params,
@@ -157,7 +158,7 @@ sliceChordWeightedLogLikelihoods hpData notes = allChords (map likelihoodsGivenR
 allChords :: [[Double]] -> [(Double, Int, Int)]
 allChords d = do
   (rootOffset, chordProbs) <- zip [0 ..] d
-  (chordTypeIndex, chordProb) <- zip [0] chordProbs
+  (chordTypeIndex, chordProb) <- zip [0 ..] chordProbs
   pure (chordProb, rootOffset, chordTypeIndex)
 
 -- chordTypeIndex = fromMaybe 0 $ elemIndex undefined chordTypes
@@ -204,9 +205,13 @@ sliceChordLogLikelihood hpData label notes = logLikelihood
     chordTypes = chordtypes hpData
 
 genSliceVector :: Notes SIC -> [Double]
-genSliceVector (Notes notes) = myF <$> [0 .. 28]
+genSliceVector (Notes notes) 
+  | sum res == fromIntegral (MS.size notes) = res 
+  -- Return empty list if any of the intervals are out of bound (eg. dddd4)
+  | otherwise = replicate 29 0
   where
-    myF i = fromIntegral $ MS.lookup (sic (i - 14)) notes
+    res = myF <$> [0 .. 28] :: [Double]
+    myF i = fromIntegral $ MS.lookup (sic (i - 14)) notes 
 
 ornamentLogLikelihood :: HarmonicProfileData -> ChordLabel -> SIC -> Double
 ornamentLogLikelihood hpData label note = logLikelihood
@@ -290,7 +295,9 @@ transposeSlice root (Notes slc) = Notes $ MS.map transformPitch slc
 
 -- Calculates the probability density of a multinomial distribution at the given point
 multinomialLogProb :: [Double] -> [Double] -> Double
-multinomialLogProb xs probs = logFactorialN + logPowers
+multinomialLogProb xs probs 
+  | n == 0 = - 100000000 
+  | otherwise = logFactorialN + logPowers
   where
     n = sum xs
     logFactorialN = logGamma $ n + 1
