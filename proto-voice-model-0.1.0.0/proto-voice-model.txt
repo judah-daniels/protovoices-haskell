@@ -746,15 +746,15 @@ instance GHC.Show.Show ns => GHC.Show.Show (HeuristicParser.Slice ns)
 
 module HeuristicSearch
 data HeuristicSearch s c
-HeuristicSearch :: Maybe s -> MinPrioHeap c s -> (s -> ExceptT String IO c) -> (s -> Bool) -> HeuristicSearch s c
+HeuristicSearch :: Maybe s -> MinPrioHeap c s -> ((Maybe s, s) -> ExceptT String IO c) -> (s -> Bool) -> HeuristicSearch s c
 [end] :: HeuristicSearch s c -> Maybe s
 [frontier] :: HeuristicSearch s c -> MinPrioHeap c s
-[heuristic] :: HeuristicSearch s c -> s -> ExceptT String IO c
+[heuristic] :: HeuristicSearch s c -> (Maybe s, s) -> ExceptT String IO c
 [goal] :: HeuristicSearch s c -> s -> Bool
-heuristicSearchInit :: Ord c => s -> (s -> ExceptT String IO c) -> c -> (s -> Bool) -> HeuristicSearch s c
+heuristicSearchInit :: Ord c => s -> ((Maybe s, s) -> ExceptT String IO c) -> c -> (s -> Bool) -> HeuristicSearch s c
 
 -- | Entry point to the search algorithm
-heuristicSearch :: Show state => state -> (state -> ExceptT String IO [state]) -> (state -> Bool) -> (state -> ExceptT String IO Double) -> (state -> String) -> ExceptT String IO state
+heuristicSearch :: Show state => state -> (state -> ExceptT String IO [state]) -> (state -> Bool) -> ((Maybe state, state) -> ExceptT String IO Double) -> (state -> String) -> ExceptT String IO state
 getLowestCostState :: [(Double, state)] -> state
 popFromHeap :: HeapItem a b => Heap a b -> (b, Heap a b)
 genHeap :: Ord a => [(a, b)] -> MinPrioHeap a b
@@ -1150,10 +1150,6 @@ instance Data.Aeson.Types.FromJSON.FromJSON PBHModel.Params
 
 module Evaluator
 
--- | Provides a score measuring how much the slice matches the chord
---   annoation p
-evaluateSlice :: Notes SIC -> String -> HarmonicProfileData -> Double
-
 
 -- | This module contains functions for the generative aspects of
 --   protovoice derivations:
@@ -1351,10 +1347,10 @@ instance (GHC.Classes.Ord a, GHC.Classes.Ord b, GHC.Classes.Ord c, GHC.Classes.O
 instance (GHC.Classes.Eq a, GHC.Classes.Eq b, GHC.Classes.Eq c, GHC.Classes.Eq d) => GHC.Classes.Eq (PVGrammar.Parse.Elaboration a b c d)
 
 module Heuristics
-type State = SearchState (Edges SPitch) [Edge SPitch] (Notes SPitch) (PVLeftmost SPitch)
-applyHeuristic :: (Maybe (PVLeftmost SPitch) -> State -> ExceptT String IO Double) -> State -> ExceptT String IO Double
+type State ns = SearchState (Edges ns) [Edge ns] (Notes ns) (PVLeftmost ns)
+applyHeuristic :: ((Maybe (State SPitch), State SPitch) -> ExceptT String IO Double) -> (Maybe (State SPitch), State SPitch) -> ExceptT String IO Double
 testOp :: ActionDouble ns tr (Split SPC) f h
-testHeuristic :: HarmonicProfileData -> Maybe (PVLeftmost SPitch) -> State -> ExceptT String IO Double
+testHeuristic :: HarmonicProfileData -> (Maybe (State SPitch), State SPitch) -> ExceptT String IO Double
 
 
 -- | This module contains a simple (and musically rather naive)
