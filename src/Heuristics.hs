@@ -67,13 +67,16 @@ testOp =
       addToRight (c' nat) (c' nat) LeftRepeat True 
 
 testHeuristic :: HarmonicProfileData -> Maybe (PVLeftmost SPitch )-> State -> ExceptT String IO Double
-testHeuristic params op state =
+testHeuristic params op state = do 
+  lift $ putStrLn "______________________________________________________"
   if isNothing op
     then pure 100.0
     else case fromJust op of
       -- Freezing
       -- no unfreeze if there are 3 open non boundary transition
       LMDouble (LMDoubleFreezeLeft freezeOp) -> do
+        lift $ putStrLn $ "Considering an unfreeze"
+        lift $ putStrLn $ "Resulting State: " <> show state
         (_ , parent, _, _, _) <- getParentDouble state
         case applyFreeze freezeOp parent of
           Left err -> throwError err
@@ -90,6 +93,7 @@ testHeuristic params op state =
               [slcl]----cm---[ slcr ]
       -}
       LMDouble (LMDoubleSpread spreadOp@(SpreadOp spreads edges)) -> do
+        lift $ putStrLn $ "Resulting State: " <> show state
         res <- getParentDouble state
         (_,parentl, slc, parentr, _) <- case res of 
           (_,_,Start,_,_) -> throwError "StartStop in middle of spread"
@@ -98,7 +102,7 @@ testHeuristic params op state =
         case applySpread spreadOp parentl slc parentr of
           Left err -> throwError err
           Right (childl, slcl, childm, slcr, childr) -> do
-            lift $ print "Evaluating Spread operation:"
+            lift $ putStrLn "Considering an unspread"
             lift $ print (slcl,slc,slcr)
             -- lift $ print (parentl, slc, parentr)
             -- lift $ print "parent:"
@@ -115,7 +119,7 @@ testHeuristic params op state =
             let ru = sliceChordLogLikelihood params (mkLbl root chordType) (transformSlice slcr)
             let score = wu + ru 
             -- lift $ print $ "mu: " <> show mu
-            lift $ print $ "score: " <> show (1 - score)
+            lift $ putStrLn $ "score: " <> show (1 - score)
             pure $ 5 - score 
            where
             -- trace (show $ mostLikelyChordFromSlice params parent ) -2.0
@@ -134,6 +138,8 @@ testHeuristic params op state =
       -- Freezing (Terminate)
       -- numSlices From  SSFrozen with 1 or 1+ transitions
       LMSingle (LMSingleFreeze freezeOp) -> do
+        lift $ putStrLn "Considering an unfreeze"
+        lift $ putStrLn $ "Resulting State: " <> show state
         (_, parent) <- getParentSingle state
         case applyFreeze freezeOp parent of
           Left err -> throwError err
@@ -147,8 +153,8 @@ testHeuristic params op state =
                                       [slc]
       -}
       LMSingle (LMSingleSplit splitOp) -> do
-        lift $ print "Evaluating a Single Split"
-        lift $ putStrLn $ "State: " <> show state
+        lift $ putStrLn "Considering a single unsplit"
+        lift $ putStrLn $ "Resulting State: " <> show state
         (slcl, parent) <- getParentSingle state
         scoreSplit splitOp parent slcl Stop
       -- Splitting Left
@@ -165,8 +171,8 @@ testHeuristic params op state =
                                       [slc]
       -}
       LMDouble (LMDoubleSplitLeft splitOp) -> do
-        lift $ print "Evaluating a Double Split Left"
-        lift $ putStrLn $ "State: " <> show state
+        lift $ putStrLn "Considering an unsplit left"
+        lift $ putStrLn $ "Resulting State: " <> show state
         (slcl, parent, slcr,_, _) <- getParentDouble state
         scoreSplit splitOp parent slcl slcr
 
@@ -177,11 +183,17 @@ testHeuristic params op state =
                                cl\           /cr
                                   \         /
                                     [ slc ]
+                                      split:
+              ..=x--tl---[slcl]---parent------x-
+                             cl\           /cr
+                                \         /
+                                  [ slc ]
       -}
       LMDouble (LMDoubleSplitRight splitOp) -> do
-        lift $ print "Evaluating a Double Split Right: "
-        lift $ putStrLn $ "State: " <> show state
+        lift $ putStrLn "Considering an unsplit right"
+        lift $ putStrLn $ "Resulting State: " <> show state
         (_,_, slcl, parent, slcr) <- getParentDouble state
+        -- (slcl, parent, slcr,_, _) <- getParentDouble state
         scoreSplit splitOp parent slcl slcr
         -- case applySplit splitOp parent of
         --   Left err -> throwError err
@@ -259,9 +271,6 @@ testHeuristic params op state =
 
 
 
-      -- rs - Maps notes from the right parentSlice to the list of ornaments.
-      lift $ putStrLn $ "rs" <> show (allOrnaments rs)
-      lift $ putStrLn $ "ls" <> show (allOrnaments ls)
 
       probsRS <- mapM (scoreLeftOrnament lblR) (allOrnaments rs)  
       probsLS <- mapM (scoreRightOrnament lblL) (allOrnaments ls)  
@@ -271,16 +280,27 @@ testHeuristic params op state =
       -- let notesL = collectNotes ls
       --     notesR = collectNotes rs
       --     notes = MS.unions [notesReg, notesPassing, notesL, notesR]
-      lift $ putStrLn $ "slcl: " <> show slcl
-      lift $ putStrLn $ "slcr: " <> show slcr
-      lift $ putStrLn $ "splitRegs: " <> show splitRegs
-      lift $ putStrLn $ "splitPassings: " <> show splitPassings
+      -- rs - Maps notes from the right parentSlice to the list of ornaments.
+
+
+      lift $ putStrLn $ "Left parent slice: " <> show slcl
+      lift $ putStrLn $ "Left slice ornaments:" <> showOps opLs
+      lift $ putStrLn $ "Right parent slice: " <> show slcr
+      lift $ putStrLn $ "Right slice ornaments:" <> showOps opRs
+      -- lift $ putStrLn $ "child slice: " <> show (getPathFromState state)
+
+      lift $ putStrLn $ "Regular edges: " <> show (toList splitRegs)
+      lift $ putStrLn $ "Passing edges: " <> show (toList splitPassings)
+      lift $ putStrLn $ "Keep ledges: " <> show (toList keepl)
+      lift $ putStrLn $ "Keep redges: " <> show (toList keepr)
+      lift $ putStrLn $ "Pass ledges: " <> show (MS.toList passl)
+      lift $ putStrLn $ "Pass redges: " <> show (MS.toList passr) 
       -- lift $ putStrLn $ "parent: " <> show parent
       -- lift . print $ Edges keepl (MS.union leftPassings passl)
       -- lift . print $ Edges keepr (MS.union rightPassings passr)
       let aggregateProbs = probsRS <> probsLS <> probsRegs <> probsPassings
 
-      lift $ print $ aggregateProbs
+      lift $ putStrLn $ "Operation scores: " <> show aggregateProbs
 
       let score = 1 - (sum aggregateProbs / fromIntegral (L.length aggregateProbs))
       -- let score = 5.5
@@ -288,6 +308,23 @@ testHeuristic params op state =
       lift $ putStrLn $ "score: " <> show score
       pure score
          where
+          -- showRightOrnament :: (a,(a,RightOrnament))
+          -- showRightOrnament (x,(n,orn))= show <> ""
+
+          opLs = showL <$> M.toList ls
+          opRs = showR <$> M.toList rs
+
+          showOps ops = "\n   " <>  L.intercalate "\n   " ops 
+
+          showEdge (p1, p2) = Music.showNotation p1 <> "-" <> Music.showNotation p2
+          showEdges ts = "{" <> L.intercalate "," (showEdge <$> toList ts) <> "}"
+          showChild (p, o) = Music.showNotation p <> ":" <> show o
+          showChildren cs = "[" <> L.intercalate "," (showChild <$> cs) <> "]"
+
+          showSplit (e, cs) = showEdge e <> "=>" <> showChildren cs
+          showL (p, lchilds) = Music.showNotation p <> "=>" <> showChildren lchilds
+          showR (p, rchilds) = showChildren rchilds <> "<=" <> Music.showNotation p
+
           scoreRightOrnament Nothing (x,(n,orn)) = throwError "Right Ornament with no parent"
           -- scoreRightOrnament (Just (lbl, prob)) (x,(n,orn)) = pure 0
           scoreRightOrnament (Just (lbl, prob)) (x,(n,orn)) = 
@@ -341,8 +378,6 @@ testHeuristic params op state =
             child <- children
             pure (parent, child)
 
-          showEdge (p1, p2) = Music.showNotation p1 <> "-" <> Music.showNotation p2
-          showEdges ts = "{" <> L.intercalate "," (showEdge <$> toList ts) <> "}"
 
           applyRegs top ops = do
             (top', notes) <- foldM (applyReg top) (top, MS.empty) $ allOps ops
@@ -396,7 +431,7 @@ testHeuristic params op state =
           singleChild (_, (note, _)) = note
           collectNotes ops = MS.fromList $ singleChild <$> allOps ops
   getParentDouble state = case state of
-    SSFrozen _ -> throwError "Illigal double operation" -- SSFrozen can only be the frist state.
+    SSFrozen _ -> throwError "Illegal double operation" -- SSFrozen can only be the frist state.
     SSOpen open ops ->
       case open of
         Path tl slice (Path tr sm rst) -> pure (Start, tContent tl, Inner $ sContent slice, tContent tr, Inner $ sContent sm) -- SSOpen only case is a split from  two open transitions.
