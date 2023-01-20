@@ -72,6 +72,8 @@ testHeuristic params (prevState, state) = do
              [] -> Nothing
              (x:_)-> Just x
   lift $ putStrLn "______________________________________________________"
+  lift $ putStrLn $ "Prev State: " <> show prevState
+  lift $ putStrLn $ "Next State: " <> show state
   if isNothing op
     then pure 100.0
     else case fromJust op of
@@ -79,7 +81,6 @@ testHeuristic params (prevState, state) = do
       -- no unfreeze if there are 3 open non boundary transition
       LMDouble (LMDoubleFreezeLeft freezeOp) -> do
         lift $ putStrLn $ "Considering an unfreeze"
-        lift $ putStrLn $ "Resulting State: " <> show state
         (_ , parent, _, _, _) <- getParentDouble state
         case applyFreeze freezeOp parent of
           Left err -> throwError err
@@ -96,7 +97,6 @@ testHeuristic params (prevState, state) = do
               [slcl]----cm---[ slcr ]
       -}
       LMDouble (LMDoubleSpread spreadOp@(SpreadOp spreads edges)) -> do
-        lift $ putStrLn $ "Resulting State: " <> show state
         res <- getParentDouble state
         (_,parentl, slc, parentr, _) <- case res of 
           (_,_,Start,_,_) -> throwError "StartStop in middle of spread"
@@ -142,7 +142,6 @@ testHeuristic params (prevState, state) = do
       -- numSlices From  SSFrozen with 1 or 1+ transitions
       LMSingle (LMSingleFreeze freezeOp) -> do
         lift $ putStrLn "Considering an unfreeze"
-        lift $ putStrLn $ "Resulting State: " <> show state
         (_, parent) <- getParentSingle state
         case applyFreeze freezeOp parent of
           Left err -> throwError err
@@ -157,7 +156,6 @@ testHeuristic params (prevState, state) = do
       -}
       LMSingle (LMSingleSplit splitOp) -> do
         lift $ putStrLn "Considering a single unsplit"
-        lift $ putStrLn $ "Resulting State: " <> show state
         (slcl, parent) <- getParentSingle state
         scoreSplit splitOp parent slcl slcl Stop
       -- Splitting Left
@@ -175,7 +173,6 @@ testHeuristic params (prevState, state) = do
       -}
       LMDouble (LMDoubleSplitLeft splitOp) -> do
         lift $ putStrLn "Considering an unsplit left"
-        lift $ putStrLn $ "Resulting State: " <> show state
         (child, sr) <- getParentSlices (fromJust prevState)
         (slcl, parent, slcr,_, _) <- getParentDouble state
         scoreSplit splitOp parent child slcl slcr
@@ -195,7 +192,6 @@ testHeuristic params (prevState, state) = do
       -}
       LMDouble (LMDoubleSplitRight splitOp) -> do
         lift $ putStrLn "Considering an unsplit right"
-        lift $ putStrLn $ "Resulting State: " <> show state
         (sl, child) <- getParentSlices (fromJust prevState)
         (_,_, slcl, parent, slcr) <- getParentDouble state
         -- (slcl, parent, slcr,_, _) <- getParentDouble state
@@ -270,18 +266,21 @@ testHeuristic params (prevState, state) = do
       -- rs - Maps notes from the right parentSlice to the list of ornaments.
 
 
-      lift $ putStrLn $ "Child slice: " <> show childSlice
-      -- lift $ putStrLn $ "Left slice ornaments:" <> showOps opLs
       lift $ putStrLn $ "Left parent slice: " <> show slcl
       lift $ putStrLn $ "Inferred Chord: " <> showLbl lblL
-      lift $ putStrLn $ "Left slice ornaments:" <> showOps opLs
       lift $ putStrLn $ "Right parent slice: " <> show slcr
       lift $ putStrLn $ "Inferred Chord: " <> showLbl lblR
+      lift $ putStrLn $ "Child slice: " <> show childSlice
+
+      lift $ putStrLn $ "Left slice ornaments:" <> showOps opLs 
+      lift $ putStrLn $ "scores: " <> show probsLS 
       lift $ putStrLn $ "Right slice ornaments:" <> showOps opRs
-      -- lift $ putStrLn $ "child slice: " <> show (getPathFromState state)
+      lift $ putStrLn $ "scores: " <> show probsRS 
 
       lift $ putStrLn $ "Regular edges: " <> show (toList splitRegs)
+      lift $ putStrLn $ "scores: " <> show probsRegs 
       lift $ putStrLn $ "Passing edges: " <> show (toList splitPassings)
+      lift $ putStrLn $ "scores: " <> show probsPassings 
       lift $ putStrLn $ "Keep ledges: " <> show (toList keepl)
       lift $ putStrLn $ "Keep redges: " <> show (toList keepr)
       lift $ putStrLn $ "Pass ledges: " <> show (MS.toList passl)
@@ -322,25 +321,25 @@ testHeuristic params (prevState, state) = do
           scoreRightOrnament Nothing (x,(n,orn)) = throwError "Right Ornament with no parent"
           -- scoreRightOrnament (Just (lbl, prob)) (x,(n,orn)) = pure 0
           scoreRightOrnament (Just (lbl, prob)) (x,(n,orn)) = do
-            lift $ putStrLn $ "Scoring a right ornament: " <> Music.showNotation n <> "<="<> Music.showNotation x
+            -- lift $ putStrLn $ "Scoring a right ornament: " <> Music.showNotation n <> "<="<> Music.showNotation x
             let (x',n') = (transformPitch x,transformPitch n) in case orn of 
               RightNeighbor -> do
-                  lift $ putStrLn $ "Left Neighbor" 
-                  lift $ putStrLn $ "LBL: " <> (showLbl (Just (lbl, prob)))
-                  lift $ putStrLn $ "Chord tone likelihood: " <> (show $ chordToneLogLikelihood params lbl x')
-                  lift $ putStrLn $ "Ornament tone likelihood: " <> (show $ ornamentLogLikelihood params lbl n' )
+                  -- lift $ putStrLn $ "Left Neighbor" 
+                  -- lift $ putStrLn $ "LBL: " <> (showLbl (Just (lbl, prob)))
+                  -- lift $ putStrLn $ "Chord tone likelihood: " <> (show $ chordToneLogLikelihood params lbl x')
+                  -- lift $ putStrLn $ "Ornament tone likelihood: " <> (show $ ornamentLogLikelihood params lbl n' )
                   pure $ chordToneLogLikelihood params lbl x' + ornamentLogLikelihood params lbl n'
               RightRepeat -> pure $ 1+ chordToneLogLikelihood params lbl x' + chordToneLogLikelihood params lbl n'
 
           scoreLeftOrnament Nothing (x,(n,orn)) = throwError "Left Ornament with no parent"
           scoreLeftOrnament (Just (lbl, prob)) (x,(n,orn)) = do
-            lift $ putStrLn $ "Scoring a left ornament: " <> Music.showNotation x <> "=>"<> Music.showNotation n
+            -- lift $ putStrLn $ "Scoring a left ornament: " <> Music.showNotation x <> "=>"<> Music.showNotation n
             let (x',n') = (transformPitch x,transformPitch n) in case orn of 
               LeftNeighbor -> do 
-                lift $ putStrLn $ "Left Neighbor" 
-                lift $ putStrLn $ "Chord tone likelihood: " <> (show $ chordToneLogLikelihood params lbl x')
-                lift $ putStrLn $ "LBL: " <> (showLbl (Just (lbl, prob)))
-                lift $ putStrLn $ "Ornament tone likelihood: " <> (show $ ornamentLogLikelihood params lbl n' )
+                -- lift $ putStrLn $ "Left Neighbor" 
+                -- lift $ putStrLn $ "Chord tone likelihood: " <> (show $ chordToneLogLikelihood params lbl x')
+                -- lift $ putStrLn $ "LBL: " <> (showLbl (Just (lbl, prob)))
+                -- lift $ putStrLn $ "Ornament tone likelihood: " <> (show $ ornamentLogLikelihood params lbl n' )
                 pure $ chordToneLogLikelihood params lbl n' + ornamentLogLikelihood params lbl x'
               LeftRepeat -> pure $ 1 + chordToneLogLikelihood params lbl x' + chordToneLogLikelihood params lbl n'
 

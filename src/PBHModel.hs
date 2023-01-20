@@ -184,7 +184,7 @@ sliceChordWeightedLogLikelihood hpData label notes =
     mlp = case multinomialLogProb valueVector pChordTones of 
             0 -> -100000
             x -> x
-    logLikelihood = clp + mlp
+    logLikelihood = clp + mlp --- PARAMETER
     valueVector = genSliceVector notes
     pChordTones = getChordToneParams hpData !! chordIndex
     chordIndex = fromJust $ chordIndexFromLabel hpData label -- fromMaybe undefined (elemIndex label chordTypes)
