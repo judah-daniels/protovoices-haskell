@@ -56,6 +56,7 @@ extra-deps:
   - musicology-musicxml
 - git: https://github.com/DCMLab/conjugate-haskell-programs.git
   commit: f2f48f7942605722494b2cd58be573b85dadc106
+- PSQueue-1.1.1@sha256:6a047401f39a437c6cf4f866fb9b8f4b53b465bc12ae78c91e5026a653794509
 
 # transitive deps
 #   for haskell-musicology stuff

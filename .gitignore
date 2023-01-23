@@ -1,4 +1,10 @@
 .stack-work/
+outputs/*
+dist-newstyle
+fourmolu.yaml
+.DS_Store
+.venv
+testdata/.mscbackup/
 *~
 *.aux
 *.log

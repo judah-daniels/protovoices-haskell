@@ -94,9 +94,9 @@ def get_chord_offset(numeral: str, globalkey_is_minor):
   numeral_to_interval_minor = {"I": 0, "II": 2, "III": 9, "IV": 5, "V":1, "VI":8, "VII":10}
 
   if globalkey_is_minor:
-    return int((numeral_to_interval_minor[numeral] + alteration) % 7)
+    return (numeral_to_interval_minor[numeral] + alteration) % 7
   else:
-    return int((numeral_to_interval_major[numeral] + alteration) % 7)
+    return (numeral_to_interval_major[numeral] + alteration) % 7
 
 
 def transform_chords_abs(df):

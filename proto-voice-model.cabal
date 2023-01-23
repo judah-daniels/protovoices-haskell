@@ -1,6 +1,6 @@
 cabal-version: 1.18
 
--- This file has been generated from package.yaml by hpack version 0.35.0.
+-- This file has been generated from package.yaml by hpack version 0.35.1.
 --
 -- see: https://github.com/sol/hpack
 
@@ -36,8 +36,10 @@ library
       Evaluator
       GreedyParser
       HeuristicParser
+      Heuristics
       HeuristicSearch
       Internal.MultiSet
+      PBHModel
       PVGrammar
       PVGrammar.Generate
       PVGrammar.Parse
@@ -56,14 +58,17 @@ library
     , conjugate-programs
     , containers
     , deepseq
+    , dirichlet
     , do-notation
     , filepath
     , filepattern
     , fin
     , hashable
+    , heap
     , hspec
     , indexed
     , log-domain
+    , math-functions
     , matplotlib
     , microlens
     , microlens-th
@@ -80,142 +85,6 @@ library
     , random
     , semirings
     , split
-    , statistics
-    , text
-    , transformers
-    , unordered-containers
-    , vector
-  default-language: GHC2021
-
-executable csvtest
-  main-is: app/MainCSVTest.hs
-  other-modules:
-      Paths_proto_voice_model
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
-  build-depends:
-      aeson
-    , base >=4.7 && <5
-    , bytestring
-    , cassava
-    , conjugate-programs
-    , containers
-    , deepseq
-    , do-notation
-    , filepath
-    , filepattern
-    , fin
-    , hashable
-    , hspec
-    , indexed
-    , log-domain
-    , matplotlib
-    , microlens
-    , microlens-th
-    , mtl
-    , musicology-core
-    , musicology-musicxml
-    , musicology-pitch
-    , mwc-probability
-    , mwc-random
-    , parallel
-    , pretty-simple
-    , primitive
-    , process
-    , proto-voice-model
-    , random
-    , semirings
-    , split
-    , statistics
-    , text
-    , transformers
-    , unordered-containers
-    , vector
-  default-language: GHC2021
-
-executable examples
-  main-is: app/MainExamples.hs
-  other-modules:
-      Paths_proto_voice_model
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
-  build-depends:
-      aeson
-    , base >=4.7 && <5
-    , bytestring
-    , cassava
-    , conjugate-programs
-    , containers
-    , deepseq
-    , do-notation
-    , filepath
-    , filepattern
-    , fin
-    , hashable
-    , hspec
-    , indexed
-    , log-domain
-    , matplotlib
-    , microlens
-    , microlens-th
-    , mtl
-    , musicology-core
-    , musicology-musicxml
-    , musicology-pitch
-    , mwc-probability
-    , mwc-random
-    , parallel
-    , pretty-simple
-    , primitive
-    , process
-    , proto-voice-model
-    , random
-    , semirings
-    , split
-    , statistics
-    , text
-    , transformers
-    , unordered-containers
-    , vector
-  default-language: GHC2021
-
-executable ismir2021
-  main-is: app/MainISMIR.hs
-  other-modules:
-      Paths_proto_voice_model
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
-  build-depends:
-      aeson
-    , base >=4.7 && <5
-    , bytestring
-    , cassava
-    , conjugate-programs
-    , containers
-    , deepseq
-    , do-notation
-    , filepath
-    , filepattern
-    , fin
-    , hashable
-    , hspec
-    , indexed
-    , log-domain
-    , matplotlib
-    , microlens
-    , microlens-th
-    , mtl
-    , musicology-core
-    , musicology-musicxml
-    , musicology-pitch
-    , mwc-probability
-    , mwc-random
-    , parallel
-    , pretty-simple
-    , primitive
-    , process
-    , proto-voice-model
-    , random
-    , semirings
-    , split
-    , statistics
     , text
     , transformers
     , unordered-containers
@@ -235,14 +104,17 @@ executable judah
     , conjugate-programs
     , containers
     , deepseq
+    , dirichlet
     , do-notation
     , filepath
     , filepattern
     , fin
     , hashable
+    , heap
     , hspec
     , indexed
     , log-domain
+    , math-functions
     , matplotlib
     , microlens
     , microlens-th
@@ -260,108 +132,19 @@ executable judah
     , random
     , semirings
     , split
-    , statistics
     , text
     , transformers
     , unordered-containers
     , vector
   default-language: GHC2021
 
-executable learn
-  main-is: app/MainLearning.hs
-  other-modules:
-      Paths_proto_voice_model
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
-  build-depends:
-      aeson
-    , base >=4.7 && <5
-    , bytestring
-    , cassava
-    , conjugate-programs
-    , containers
-    , deepseq
-    , do-notation
-    , filepath
-    , filepattern
-    , fin
-    , hashable
-    , hspec
-    , indexed
-    , log-domain
-    , matplotlib
-    , microlens
-    , microlens-th
-    , mtl
-    , musicology-core
-    , musicology-musicxml
-    , musicology-pitch
-    , mwc-probability
-    , mwc-random
-    , parallel
-    , pretty-simple
-    , primitive
-    , process
-    , proto-voice-model
-    , random
-    , semirings
-    , split
-    , statistics
-    , text
-    , transformers
-    , unordered-containers
-    , vector
-  default-language: GHC2021
-
-executable parse
-  main-is: app/MainParsing.hs
-  other-modules:
-      Paths_proto_voice_model
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
-  build-depends:
-      aeson
-    , base >=4.7 && <5
-    , bytestring
-    , cassava
-    , conjugate-programs
-    , containers
-    , deepseq
-    , do-notation
-    , filepath
-    , filepattern
-    , fin
-    , hashable
-    , hspec
-    , indexed
-    , log-domain
-    , matplotlib
-    , microlens
-    , microlens-th
-    , mtl
-    , musicology-core
-    , musicology-musicxml
-    , musicology-pitch
-    , mwc-probability
-    , mwc-random
-    , parallel
-    , pretty-simple
-    , primitive
-    , process
-    , proto-voice-model
-    , random
-    , semirings
-    , split
-    , statistics
-    , text
-    , transformers
-    , unordered-containers
-    , vector
-  default-language: GHC2021
-
-test-suite heuristic-search-test
+test-suite proto-voice-model-test
   type: exitcode-stdio-1.0
-  main-is: HeuristicSearchSpec.hs
+  main-is: Spec.hs
   other-modules:
-      Spec
+      HeuristicSearchSpec
+      HeuristicSpec
+      PBHModelSpec
       Paths_proto_voice_model
   hs-source-dirs:
       test
@@ -374,14 +157,17 @@ test-suite heuristic-search-test
     , conjugate-programs
     , containers
     , deepseq
+    , dirichlet
     , do-notation
     , filepath
     , filepattern
     , fin
     , hashable
+    , heap
     , hspec
     , indexed
     , log-domain
+    , math-functions
     , matplotlib
     , microlens
     , microlens-th
@@ -399,7 +185,6 @@ test-suite heuristic-search-test
     , random
     , semirings
     , split
-    , statistics
     , text
     , transformers
     , unordered-containers
