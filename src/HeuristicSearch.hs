@@ -46,19 +46,16 @@ heuristicSearch initialState getNextStates isGoalState heuristic printOp = do
     | H.null (frontier hs) = throwError "No Goal Found"
     | isGoalState nearestState = do pure nearestState
     | otherwise = do
-        -- lift $ putStrLn "___________________________________________________"
-        -- lift $ putStrLn "Frontier: "
-        -- lift $ mapM_ print (frontier hs)
+        lift $ putStrLn "___________________________________________________"
+        lift $ putStrLn "Frontier: "
+        lift $ mapM_ print (frontier hs)
 
         -- Find neighboring states and costs
-        -- Build as heap
-        -- let nextStatesHeap = H.empty
         nextStates <- getNextStates nearestState
 
         nextStatesAndCosts <-
           let
             nextStateAndCost st = do
-              -- lift $ print "lol"
               h <- heuristic (Just nearestState, st)
               pure (h + cost, st)
            in
@@ -72,8 +69,7 @@ heuristicSearch initialState getNextStates isGoalState heuristic printOp = do
         -- Add the new states to the frontier.
         -- Add lowest cost states
         -- Keeping a maximum of 5 states in the frontier at a time
-        -- let newFrontier = foldr (insertLimitedBy 30) remainingQueue nextStatesAndCosts
-        let newFrontier = H.fromList . H.take 2 $ H.union nextStatesHeap remainingQueue
+        let newFrontier = H.fromList . H.take 1 $ H.union nextStatesHeap remainingQueue
 
         search $
           hs{frontier = newFrontier}

@@ -96,6 +96,9 @@ evaluateSlice pitchClasses chordType hpData =
     valueVector = genSliceVector pitchClasses
 
     likelihoods = exp . multinomialLogProb valueVector <$> chordToneParams
+    -- likelihoods' = exp <$> ((multinomialLogProb valueVector <$> chordToneParams))
+
+    -- clp = categoricalLogProb chordTypeIndex pHarmony
 
     weightedlikelihoods = (/ maximum likelihoods) <$> likelihoods
 
@@ -227,18 +230,25 @@ chordToneLogLikelihood hpData label note = logLikelihood
     pChordTones = getChordToneParams hpData !! fromMaybe undefined (chordIndexFromLabel hpData (chordType label))
     notePos = 14 + sFifth note
 
+genMixture :: [Double] -> [Double] -> [Double]
+genMixture vec1 vec2 = (/ 2) <$> zipWith (+) vec1 vec2
+
 ornamentLogLikelihoodDouble :: HarmonicProfileData -> ChordLabel -> ChordLabel -> SIC -> Double
 ornamentLogLikelihoodDouble hpData lbll lblr note = logLikelihood
   where
-    logLikelihood = categoricalLogProb notePos pOrnaments
-    pOrnaments = getOrnamentParams hpData !! fromMaybe undefined (chordIndexFromLabel hpData (chordType lbll))
+    logLikelihood = categoricalLogProb notePos pOrnamentsm
+    pOrnamentsl = getOrnamentParams hpData !! fromMaybe undefined (chordIndexFromLabel hpData (chordType lbll))
+    pOrnamentsr = getOrnamentParams hpData !! fromMaybe undefined (chordIndexFromLabel hpData (chordType lblr))
+    pOrnamentsm = genMixture pOrnamentsl pOrnamentsr
     notePos = 14 + sFifth note
 
 chordToneLogLikelihoodDouble :: HarmonicProfileData -> ChordLabel -> ChordLabel -> SIC -> Double
 chordToneLogLikelihoodDouble hpData lbll lblr note = logLikelihood
   where
-    logLikelihood = categoricalLogProb notePos pChordTones
-    pChordTones = getChordToneParams hpData !! fromMaybe undefined (chordIndexFromLabel hpData (chordType lblr))
+    logLikelihood = categoricalLogProb notePos pChordTonesm
+    pChordTonesl = getChordToneParams hpData !! fromMaybe undefined (chordIndexFromLabel hpData (chordType lbll))
+    pChordTonesr = getChordToneParams hpData !! fromMaybe undefined (chordIndexFromLabel hpData (chordType lblr))
+    pChordTonesm = genMixture pChordTonesl pChordTonesr 
     notePos = 14 + sFifth note
 
 -- Takes the MLE estimate of the dirchetlet distribution
@@ -262,6 +272,10 @@ getHarmonyParams hpData = normaliseList pHarmony
 normaliseList :: (Fractional a) => [a] -> [a]
 normaliseList xs = (/ sum xs) <$> xs
 
+    -- Input is SPitch - Spelled Pitch Class eg F4
+    -- Key Is a SPC
+    -- rOffset is an SIC (interval)
+    -- chordRootNote is SPC
 evalPath ::
   (Show ns, Music.Spelled ns) =>
   Path (Edges ns) (Notes SPitch) ->
@@ -271,27 +285,23 @@ evalPath ::
 evalPath (PathEnd _) _ _ = 0
 evalPath (Path _ (Notes slc) rst) (lbl : lbls) hpData = evaluateSlice slc' lbl' hpData + evalPath rst lbls hpData
   where
-    -- Input is SPitch - Spelled Pitch Class eg F4
-    -- Key Is a SPC
-    -- rOffset is an SIC (interval)
-    -- chordRootNote is SPC
     key = keyCenter lbl
     rOffset = rootOffset lbl
-    lbl' = chordType lbl
     chordRootNote = key Music.+^ rOffset
 
+    lbl' = chordType lbl
     slc' = Notes $ MS.map transformPitch slc
       where
         transformPitch ::
           Music.SPitch -> SIC
-        transformPitch p = let q = Music.pc p in Music.pfrom q chordRootNote
+        transformPitch p = Music.pfrom (Music.pc p) chordRootNote
 
 transposeSlice :: SPC -> Notes SPitch -> Notes SIC
 transposeSlice root (Notes slc) = Notes $ MS.map transformPitch slc
   where
     transformPitch ::
       SPitch -> SIC
-    transformPitch p = let q = Music.pc p in Music.pfrom q root
+    transformPitch p = Music.pfrom (Music.pc p) root
 
 -- Calculates the probability density of a multinomial distribution at the given point
 multinomialLogProb :: [Double] -> [Double] -> Double

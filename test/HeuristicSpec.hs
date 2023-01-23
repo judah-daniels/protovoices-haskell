@@ -90,16 +90,16 @@ heuristicSpec = do
     -- (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (testHeuristic params) slices65m chords65m
     -- (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slices43 chords43
     -- (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slices321sus chords321sus
-    -- (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slicesTiny chordsTiny
-    (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slicesTiny' chordsTiny'
+    (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slicesTiny chordsTiny
+    -- (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slicesTiny' chordsTiny'
 
     -- encodeFile "outputs/ops.json" ops
 
 
     print finalPath
     -- print $ testHeuristic params s 
-    let res = evalPath finalPath chordsTiny' params
-    -- let res = evalPath finalPath chordsTiny params
+    -- let res = evalPath finalPath chordsTiny' params
+    let res = evalPath finalPath chordsTiny params
     -- let res = evalPath finalPath chords65m params
     -- let res = evalPath finalPath chords321sus params
     putStrLn $ "\nEvaluation score: " <> show res
