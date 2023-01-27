@@ -8,7 +8,7 @@ import Musicology.Core
 import Test.Hspec
 
 import Debug.Trace
-import Common
+import Common hiding (split)
 import Data.ByteString.Lazy qualified as BL
 import Control.Monad.Except (ExceptT,runExceptT, lift, throwError)
 import Data.Csv
@@ -24,7 +24,6 @@ import Data.Maybe
   )
 import Data.Vector qualified as V
 import Display
-import Evaluator
 import HeuristicParser
 import HeuristicSearch
 import PBHModel
@@ -45,27 +44,32 @@ import Prelude hiding
 import Control.Monad.State (evalState)
 import Control.Monad.Trans.Except (throwE)
 
+-- ([(Note, Tied?)], Start of new segment)
 type InputSlice ns = ([(ns, Music.RightTied)], Bool)
 
 fullParseSpec :: Spec 
 fullParseSpec = do 
   runIO $ do
     -- finalPath <- runHeuristicSearch proitoVoiceEvaluator slices321sus chords321sus
-    -- slices <- slicesFromFile' "preprocessing/salamis.csv"
-    slices <- slicesFromFile' "preprocessing/salamisShortest.csv"
-    -- chords <- chordsFromFile "preprocessing/chords.csv"
-    chords <- chordsFromFile "preprocessing/chordsShortest.csv"
+    slices <- slicesFromFile' "preprocessing/inputs/salamis.csv"
+    -- slices <- slicesFromFile' "preprocessing/inputs/salamisShortest.csv"
+    chords <- chordsFromFile "preprocessing/inputs/chords.csv"
+    -- chords <- chordsFromFile "preprocessing/inputs/chordsShortest.csv"
     -- print $ pathFromSlices protoVoiceEvaluator slices65m 
-    params <- loadParams "preprocessing/dcml_params.json"
+    params <- loadParams "preprocessing/inputs/dcml_params.json"
     -- (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (testHeuristic params) slices65m chords65m
     -- (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slices43 chords43
     -- (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slices321sus chords321sus
     -- (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slicesTiny chordsTiny
-    (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slices chords
+    -- (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slices chords
+    let sliceLengths = length . fst <$> slices 
+    mapM_ print slices
+    print sliceLengths
+    (finalPath, ops) <- runRandomSearch params protoVoiceEvaluator slices chords
 
     -- encodeFile "outputs/ops.json" ops
 
-    print finalPath
+    -- print finalPath
     -- print $ testHeuristic params s 
     let res = evalPath finalPath chords params
     -- let res = evalPath finalPath chordsTiny params
@@ -91,6 +95,7 @@ heuristicSpec = do
     -- (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slices43 chords43
     -- (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slices321sus chords321sus
     (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slicesTiny chordsTiny
+    -- (finalPath, ops) <- runRandomSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slicesTiny chordsTiny
     -- (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slicesTiny' chordsTiny'
 
     -- encodeFile "outputs/ops.json" ops
@@ -182,23 +187,89 @@ slicesFromFile' file = do
     Left err -> pure []
     Right (_, v) -> do
       let notes = fmap noteFromSalami (V.toList v)
-          segmentedNotes :: [[(SPitch, Music.RightTied, Bool, Bool)]]
-          segmentedNotes = splitWhen (\(_, _, newSeg, _) -> newSeg) notes
-          segmentedNotes' = (map . map) (\(s, t, _, n) -> (s, t, n)) segmentedNotes
-          -- segmentedSlices :: [(Slice, Bool)]
-          segmentedSlices = map ((map . map) (\(s, t, _) -> (s, t)) . splitWhen (\(_, _, newSlice) -> newSlice)) segmentedNotes'
-          b = output segmentedSlices
+      -- notes :: [(SPitch, Music.RightTied, NewSegment, NewSlice])
+      
+      -- segmentedNotes :: [[(SPitch, Music.RightTied, Bool, Bool)]]
+      -- let segmentedNotes = split (keepDelimsR $ whenElt (\(_, _, newSeg, _) -> newSeg)) notes
+      -- let segmentedNotes' = (map . map) (\(s, t, _, n) -> (s, t, n)) segmentedNotes
+      -- segmentedSlices :: [(Slice, Bool)]
+      -- let segmentedSlices = splitIntoSlices <$> segmentedNotes'
+      
+      -- let b = output segmentedSlices
+      let slices =
+            let 
+             splitNotes = split (keepDelimsL $ whenElt (\(_,_,_,newSlice) -> newSlice)) notes 
+            in (map . map) (\(s,t,newSeg,_) -> (s,t,newSeg)) splitNotes
+
+      let segmentedSlices = map addBoundary slices
+
+
+      --
+      -- segmentedNotes =  split (keepDelimsR $ whenElt ((\(_,_,newSeg) -> newSeg) . head )) slices
+      
+      -- segmentedSlice = (map . map . map ) (\(s , t , _) -> (s ,t)) segmentedNotes
+      -- b = output segmentedSlice
+
+      -- slices :: [(SPitch, Music.RightTied, NewSegment)]
+      -- segmentedNotes :: [[(SPitch, Music.RightTied, Bool, Bool)]]
+      -- segmentedNotes = Data.List.Split.split (keepDelimsR $ whenElt (\(_, _, newSeg, _) -> newSeg)) notes
+      -- segmentedNotes' = (map . map) (\(s, t, _, n) -> (s, t, n)) segmentedNotes
+      -- -- segmentedSlices :: [(Slice, Bool)]
+      -- segmentedSlices = map ((map . map) (\(s, t, _) -> (s, t)) . Data.List.Split.split (keepDelimsL $ whenElt (\(_, _, newSlice) -> newSlice))) segmentedNotes'
+      let b = segmentedSlices
+      -- pure b
       pure b
       where
+        addBoundary :: [(SPitch, Music.RightTied, Bool)] -> (Slice', Bool)
+        addBoundary [] = undefined 
+        addBoundary slc@((p, t, True):rst) = (dropLastOf3 <$> slc, True)
+        addBoundary slc@((p, t, False):rst) = (dropLastOf3 <$> slc, False)
+
+
+        dropLastOf3 (a,b,c) = (a,b)
+
         output :: [[[(SPitch, Music.RightTied)]]] -> [(Slice', Bool)]
         -- f :: [[a]] -> (a->b) -> [b]
         output = concatMap addBoundaries
+
+        splitIntoSlices :: [(SPitch, Music.RightTied, Bool)] -> [[(SPitch, Music.RightTied)]]
+        splitIntoSlices slices = (map . map) (\(s,t,_) -> (s,t)) $ split (keepDelimsR $ whenElt (\(_,_,newSlice) -> newSlice)) slices
 
         -- Assign boundary marker to first slice of each segment
         addBoundaries :: [[(SPitch, Music.RightTied)]] -> [(Slice', Bool)]
         addBoundaries [] = []
         addBoundaries (s : sx) = (s, True) : map (,False) sx
 
+        -- Assign boundary marker to first slice of each segment
+        -- addBoundaries' :: [[(SPitch, Music.RightTied, Bool)]] -> [(Slice', Bool)]
+        -- addBoundaries' [] = []
+        -- addBoundaries' (s : sx) = (s, True) : map (,False) sx
+
+--
+-- slicesFromFile' :: FilePath -> IO [(Slice', Bool)]
+-- slicesFromFile' file = do
+--   txt <- BL.readFile file
+--   case decodeByName txt of
+--     Left err -> pure []
+--     Right (_, v) -> do
+--       let notes = fmap noteFromSalami (V.toList v)
+--           segmentedNotes :: [[(SPitch, Music.RightTied, Bool, Bool)]]
+--           segmentedNotes = splitWhen (\(_, _, newSeg, _) -> newSeg) notes
+--           segmentedNotes' = (map . map) (\(s, t, _, n) -> (s, t, n)) segmentedNotes
+--           -- segmentedSlices :: [(Slice, Bool)]
+--           segmentedSlices = map ((map . map) (\(s, t, _) -> (s, t)) . splitWhen (\(_, _, newSlice) -> newSlice)) segmentedNotes'
+--           b = output segmentedSlices
+--       pure b
+--       where
+--         output :: [[[(SPitch, Music.RightTied)]]] -> [(Slice', Bool)]
+--         -- f :: [[a]] -> (a->b) -> [b]
+--         output = concatMap addBoundaries
+--
+--         -- Assign boundary marker to first slice of each segment
+--         addBoundaries :: [[(SPitch, Music.RightTied)]] -> [(Slice', Bool)]
+--         addBoundaries [] = []
+--         addBoundaries (s : sx) = (s, True) : map (,False) sx
+--
 -- Parse a salami note as output from the python salalmis package.
 noteFromSalami :: SalamiNote -> (SPitch, Music.RightTied, Bool, Bool)
 noteFromSalami s = (sPitch, tied, newSegment, newSlice)
@@ -206,7 +277,7 @@ noteFromSalami s = (sPitch, tied, newSegment, newSlice)
     newSegment = _new_segment s
     newSlice = _new_slice s
     tied = _tied s
-    sPitch = Data.Maybe.fromMaybe (c nat 0) (Music.readNotation $ _pitch s) -- Refactor to deal with maybe
+    sPitch = Data.Maybe.fromJust (Music.readNotation $ _pitch s) -- Refactor to deal with maybe
 --
 
 ---------------------------------- -------------------------------- -------------------------------- |
@@ -306,6 +377,45 @@ chords321sus =
     ChordLabel "M" (sic 1) (c' nat),
     ChordLabel "M" (sic 0) (c' nat)
   ]
+
+runRandomSearch ::
+  ( Music.HasPitch ns,
+    Eq (Music.IntervalOf ns),
+    Data.Hashable.Hashable ns,
+    Ord ns,
+    Show ns,
+    Music.Notation ns
+  ) 
+  => HarmonicProfileData 
+  -> Eval (Edges ns) [Edge ns] (Notes ns) [ns] (PVLeftmost ns) 
+  -> [InputSlice ns] 
+  -> [ChordLabel] 
+  -> IO (Path (Edges ns) (Notes ns), [PVLeftmost ns])
+runRandomSearch params eval inputSlices chordLabels = do
+  let initialState = SSFrozen $ pathFromSlices eval inputSlices
+  res <- runExceptT (randomSearch initialState getNeighboringStates goalTest (showOp . getOpsFromState))
+  finalState <- case res of 
+    Left err -> do 
+      print err
+      return undefined
+    Right s -> pure s
+
+  let p = fromMaybe undefined $ getPathFromState finalState
+  let ops = getOpsFromState finalState
+
+  pure (p, ops)
+  where
+    showOp [] = ""
+    showOp (x:_) = case x of
+     LMDouble y -> show y
+     LMSingle y -> show y
+
+    getNeighboringStates = exploreStates eval
+
+    -- The goal is to find a state with a slice for each chord label.
+    goalTest (SSOpen p _) = pathLen p - 1 == length chordLabels
+    goalTest _ = False
+
 -----
 runHeuristicSearch ::
   ( Music.HasPitch ns,

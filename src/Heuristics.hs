@@ -24,7 +24,6 @@ import Data.Maybe
   )
 import Data.Vector qualified as V
 import Display
-import Evaluator
 import HeuristicParser
 import HeuristicSearch
 import PBHModel

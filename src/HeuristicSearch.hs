@@ -14,12 +14,33 @@ import Data.Ord
 import Debug.Trace
 import HeuristicParser (getPathFromState)
 
+import Data.Aeson.KeyMap (singleton)
+import System.Random (initStdGen)
+import System.Random.Stateful
+  ( StatefulGen
+  , newIOGenM
+  , uniformRM
+  )
+
 data HeuristicSearch s c = HeuristicSearch
   { end :: Maybe s
   , frontier :: H.MinPrioHeap c s
   , heuristic :: (Maybe s, s) -> ExceptT String IO c
   , goal :: s -> Bool
   }
+
+data RandomSearch s = RandomSearch
+  { rsEnd :: Maybe s
+  , rsHead :: s
+  , rsGoal :: s -> Bool
+  }
+
+randomSearchInit start goal =
+  RandomSearch
+    { rsEnd = Nothing
+    , rsHead = start
+    , rsGoal = goal
+    }
 
 heuristicSearchInit start heuristic' initCost goal' =
   HeuristicSearch
@@ -99,3 +120,49 @@ insertHeapLimitedBy n item heap
 insertLimitedBy n item heap
   | H.size heap >= n = let heap' = (fromMaybe undefined $ H.viewTail heap) in H.insert item heap'
   | otherwise = H.insert item heap
+
+-- | Entry point to the search algorithm
+randomSearch
+  :: Show state
+  => state -- starting state
+  -> (state -> ExceptT String IO [state]) -- get adjacent states
+  -> (state -> Bool) -- goal test
+  -> (state -> String) -- showAction
+  -> ExceptT String IO state -- output
+randomSearch initialState getNextStates isGoalState printOp = do
+  gen <- lift initStdGen
+  mgen <- lift $ newIOGenM gen
+  search mgen $ randomSearchInit initialState isGoalState
+ where
+  search g hs
+    -- \| (hs ) = throwError "No Goal Found"
+    | isGoalState nearestState = do pure nearestState
+    | otherwise = do
+        lift $ putStrLn "___________________________________________________"
+        lift $ putStrLn "Head: "
+        lift $ print (rsHead hs)
+
+        -- Find neighboring states and costs
+        nextStates <- getNextStates nearestState
+
+        case nextStates of
+          [] -> pure nearestState
+          xs -> do
+            newHead <- do
+              res <- pickRandom g nextStates
+              case res of
+                Nothing -> throwError "No Goal found"
+                Just s -> pure s
+            search g $
+              hs{rsHead = newHead}
+   where
+    -- Pop the node in the frontier with the lowest priority
+    nearestState = rsHead hs
+
+-- ((cost, nearestState), remainingQueue) = popFromHeap (frontier hs)
+
+pickRandom :: StatefulGen g m => g -> [slc] -> m (Maybe slc)
+pickRandom _ [] = pure Nothing
+pickRandom gen xs = do
+  i <- uniformRM (0, length xs - 1) gen
+  pure $ Just $ xs !! i

@@ -228,14 +228,16 @@ exploreStates eval state = do
                     SSSemiOpen frozen (Slice midSlice) (PathEnd parent) (LMSingle op : ops)
 
       -- More than two open transitions
-      Path topenl (Slice sopenl) (Path topenm (Slice sopenr) rstOpen) ->
+      Path topenl@(Trans _ _ topenlBoundary) (Slice sopenl) (Path topenm@(Trans _ _ topenmBoundary) (Slice sopenr) rstOpen) -> do
+        let allowUnfreeze = topenlBoundary || topenmBoundary
         let doubleActions = (Right <$> collectDoubles (Inner midSlice) topenl sopenl topenm sopenr rstOpen) :: [Either (ActionDouble ns es s f h) (ActionDouble ns es s f h)]
          in case frozen of
               PathEnd tfrozen -> do
                 lift $ putStrLn "2+ Open Transitions, 1 frozen transition Left: \n"
                 pure $ genState <$> (doubleActions <> unfreezeActions)
                where
-                unfreezeActions = Left <$> collectUnfreezeLeft Start tfrozen midSlice topenl (Inner sopenl)
+                unfreezeActions = Left <$> (if allowUnfreeze then collectUnfreezeLeft Start tfrozen midSlice topenl (Inner sopenl) else [])
+                -- unfreezeActions = Left <$> collectUnfreezeLeft Start tfrozen midSlice topenl (Inner sopenl)
                 genState action = case action of
                   Left (ActionDouble (_, unfrozen, _, _, _) op) ->
                     SSOpen (Path unfrozen (Slice midSlice) open) (LMDouble op : ops)
@@ -245,7 +247,8 @@ exploreStates eval state = do
                 lift $ putStrLn "2+ Open Transitions, 1+ frozen transition left:\n"
                 pure $ genState <$> (doubleActions <> unfreezeActions)
                where
-                unfreezeActions = Left <$> collectUnfreezeLeft (Inner sfrozen) tfrozen midSlice topenl (Inner sopenl)
+                unfreezeActions = Left <$> (if allowUnfreeze then collectUnfreezeLeft (Inner sfrozen) tfrozen midSlice topenl (Inner sopenl) else [])
+                -- unfreezeActions = Left <$>
                 genState action = case action of
                   Left (ActionDouble (_, unfrozen, _, _, _) op) ->
                     SSSemiOpen rstFrozen (Slice sfrozen) (Path unfrozen (Slice midSlice) open) (LMDouble op : ops)

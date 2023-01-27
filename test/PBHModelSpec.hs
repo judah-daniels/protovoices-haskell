@@ -20,7 +20,6 @@ import Data.Maybe
   )
 import Data.Ord
 import Data.Vector qualified as V
-import Evaluator
 import HeuristicParser
 import HeuristicSearch
 import Heuristics
