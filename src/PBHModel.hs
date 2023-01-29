@@ -84,10 +84,11 @@ evaluateSlice pitchClasses chordType hpData =
         <> "\n  Label: "
         <> show chordType
         <> "\n  Score: "
-        <> show (weightedlikelihoods !! chordTypeIndex)
+        <> show (likelihoods !! chordTypeIndex)
     )
     -- <> "\nWeighted Likelihoods: " <> showList ((zip (chordtypes hpData) weightedlikelihoods)) "")
-    weightedlikelihoods
+    -- weightedlikelihoods
+    likelihoods
     !! chordTypeIndex
   where
     -- Calculate Likelihoods of each chord type
@@ -95,12 +96,12 @@ evaluateSlice pitchClasses chordType hpData =
 
     valueVector = genSliceVector pitchClasses
 
-    likelihoods = exp . multinomialLogProb valueVector <$> chordToneParams
+    likelihoods = multinomialLogProb valueVector <$> chordToneParams
     -- likelihoods' = exp <$> ((multinomialLogProb valueVector <$> chordToneParams))
 
     -- clp = categoricalLogProb chordTypeIndex pHarmony
 
-    weightedlikelihoods = (/ maximum likelihoods) <$> likelihoods
+    -- weightedlikelihoods = (/ maximum likelihoods) <$> likelihoods
 
     chordTypeIndex = fromMaybe undefined $ elemIndex chordType (chordtypes hpData)
 
@@ -283,7 +284,8 @@ evalPath ::
   HarmonicProfileData ->
   Double
 evalPath (PathEnd _) _ _ = 0
-evalPath (Path _ (Notes slc) rst) (lbl : lbls) hpData = evaluateSlice slc' lbl' hpData + evalPath rst lbls hpData
+evalPath _ [] _ = trace "WARNING: Chords don't line up with parsed slices." 0
+evalPath (Path _ (Notes slc) rst) (lbl : lbls) hpData = trace (show slc' <> show lbl')  $ evaluateSlice slc' lbl' hpData + evalPath rst lbls hpData
   where
     key = keyCenter lbl
     rOffset = rootOffset lbl

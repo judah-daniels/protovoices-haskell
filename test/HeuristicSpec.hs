@@ -51,10 +51,10 @@ fullParseSpec :: Spec
 fullParseSpec = do 
   runIO $ do
     -- finalPath <- runHeuristicSearch proitoVoiceEvaluator slices321sus chords321sus
-    slices <- slicesFromFile' "preprocessing/inputs/salamis.csv"
-    -- slices <- slicesFromFile' "preprocessing/inputs/salamisShortest.csv"
-    chords <- chordsFromFile "preprocessing/inputs/chords.csv"
-    -- chords <- chordsFromFile "preprocessing/inputs/chordsShortest.csv"
+    -- slices <- slicesFromFile' "preprocessing/inputs/salamis.csv"
+    slices <- slicesFromFile' "preprocessing/inputs/salamisShort.csv"
+    -- chords <- chordsFromFile "preprocessing/inputs/chords.csv"
+    chords <- chordsFromFile "preprocessing/inputs/chordsShort.csv"
     -- print $ pathFromSlices protoVoiceEvaluator slices65m 
     params <- loadParams "preprocessing/inputs/dcml_params.json"
     -- (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (testHeuristic params) slices65m chords65m
@@ -66,6 +66,8 @@ fullParseSpec = do
     mapM_ print slices
     print sliceLengths
     (finalPath, ops) <- runRandomSearch params protoVoiceEvaluator slices chords
+    mapM_ print ops
+    -- print finalPath
 
     -- encodeFile "outputs/ops.json" ops
 
@@ -76,6 +78,8 @@ fullParseSpec = do
     -- let res = evalPath finalPath chords65m params
     -- let res = evalPath finalPath chords321sus params
     putStrLn $ "\nEvaluation score: " <> show res
+
+    -- print chords
     -- hspec pathFromSlicesSpec
   pure ()
 
@@ -170,7 +174,9 @@ chordsFromFile :: FilePath -> IO [ChordLabel]
 chordsFromFile file = do
   txt <- BL.readFile file
   case decodeByName txt of
-    Left err -> pure []
+    Left err -> do 
+      print err
+      pure []
     Right (_, v) -> do
       pure $ fmap parseChordLabel (V.toList v)
   where
@@ -188,20 +194,17 @@ slicesFromFile' file = do
     Right (_, v) -> do
       let notes = fmap noteFromSalami (V.toList v)
       -- notes :: [(SPitch, Music.RightTied, NewSegment, NewSlice])
-      
-      -- segmentedNotes :: [[(SPitch, Music.RightTied, Bool, Bool)]]
-      -- let segmentedNotes = split (keepDelimsR $ whenElt (\(_, _, newSeg, _) -> newSeg)) notes
-      -- let segmentedNotes' = (map . map) (\(s, t, _, n) -> (s, t, n)) segmentedNotes
-      -- segmentedSlices :: [(Slice, Bool)]
-      -- let segmentedSlices = splitIntoSlices <$> segmentedNotes'
-      
-      -- let b = output segmentedSlices
+ 
       let slices =
             let 
              splitNotes = split (keepDelimsL $ whenElt (\(_,_,_,newSlice) -> newSlice)) notes 
             in (map . map) (\(s,t,newSeg,_) -> (s,t,newSeg)) splitNotes
 
-      let segmentedSlices = map addBoundary slices
+      -- let segmentedSlices = map addBoundary slices
+      let segmentedSlices = case map addBoundary slices of 
+                              (x, _):rst -> (x, True):rst
+                              [] -> []
+      
 
 
       --

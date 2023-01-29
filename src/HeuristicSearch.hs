@@ -121,15 +121,19 @@ insertLimitedBy n item heap
   | H.size heap >= n = let heap' = (fromMaybe undefined $ H.viewTail heap) in H.insert item heap'
   | otherwise = H.insert item heap
 
--- | Entry point to the search algorithm
-randomSearch
+{- | Entry point to the search algorithm
+Picks random choice from a split or spread operation
+-}
+randomSampleFromSegmentSearch
+  -- Just take a input slices.
+
   :: Show state
   => state -- starting state
   -> (state -> ExceptT String IO [state]) -- get adjacent states
   -> (state -> Bool) -- goal test
   -> (state -> String) -- showAction
   -> ExceptT String IO state -- output
-randomSearch initialState getNextStates isGoalState printOp = do
+randomSampleFromSegmentSearch initialState getNextStates isGoalState printOp = do
   gen <- lift initStdGen
   mgen <- lift $ newIOGenM gen
   search mgen $ randomSearchInit initialState isGoalState
@@ -144,9 +148,51 @@ randomSearch initialState getNextStates isGoalState printOp = do
 
         -- Find neighboring states and costs
         nextStates <- getNextStates nearestState
+        lift $ putStrLn $ "Considering " <> show (length nextStates) <> " states"
 
         case nextStates of
-          [] -> pure nearestState
+          [] -> throwError "Parse Stuck! Perhaps the number of chords and segments are not the same?"
+          xs -> do
+            newHead <- do
+              res <- pickRandom g nextStates
+              case res of
+                Nothing -> throwError "No Goal found"
+                Just s -> pure s
+            search g $
+              hs{rsHead = newHead}
+   where
+    -- Pop the node in the frontier with the lowest priority
+    nearestState = rsHead hs
+
+{- | Entry point to the search algorithm
+Picks random choice from a split or spread operation
+-}
+randomChoiceSearch
+  :: Show state
+  => state -- starting state
+  -> (state -> ExceptT String IO [state]) -- get adjacent states
+  -> (state -> Bool) -- goal test
+  -> (state -> String) -- showAction
+  -> ExceptT String IO state -- output
+randomChoiceSearch initialState getNextStates isGoalState printOp = do
+  gen <- lift initStdGen
+  mgen <- lift $ newIOGenM gen
+  search mgen $ randomSearchInit initialState isGoalState
+ where
+  search g hs
+    -- \| (hs ) = throwError "No Goal Found"
+    | isGoalState nearestState = do pure nearestState
+    | otherwise = do
+        lift $ putStrLn "___________________________________________________"
+        lift $ putStrLn "Head: "
+        lift $ print (rsHead hs)
+
+        -- Find neighboring states and costs
+        nextStates <- getNextStates nearestState
+        lift $ putStrLn $ "Considering " <> show (length nextStates) <> " states"
+
+        case nextStates of
+          [] -> throwError "Parse Stuck! Perhaps the number of chords and segments are not the same?"
           xs -> do
             newHead <- do
               res <- pickRandom g nextStates

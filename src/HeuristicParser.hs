@@ -94,7 +94,7 @@ instance (Show ns, Show o) => Show (SearchState es es' ns o) where
 
 -- | Helper function for showing the frozen part of a piece.
 showFrozen :: Show slc => Path (Maybe es', Bool) slc -> String
-showFrozen path = "⋊" <> go 5 path
+showFrozen path = "⋊" <> go 10 path
  where
   go _ (PathEnd (_, True)) = "≠"
   go _ (PathEnd (_, False)) = "="
@@ -105,7 +105,7 @@ showFrozen path = "⋊" <> go 5 path
 
 -- | Helper function for showing the open part of a piece.
 showOpen :: Show slc => Path (Trans es') slc -> String
-showOpen path = go 5 path <> "⋉"
+showOpen path = go 15 path <> "⋉"
  where
   go _ (PathEnd (Trans _ _ True)) = "⌿"
   go _ (PathEnd (Trans _ _ False)) = "-"
