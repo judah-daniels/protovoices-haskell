@@ -9,6 +9,7 @@ import Common
 import Control.Monad.Except (ExceptT, lift, throwError)
 import Data.Foldable
 import qualified Data.Heap as H
+import qualified Data.List as L
 import Data.Maybe (fromMaybe)
 import Data.Ord
 import Debug.Trace
@@ -22,33 +23,33 @@ import System.Random.Stateful
   , uniformRM
   )
 
+-- data HeuristicSearch s c = HeuristicSearch
+--   { end :: Maybe s
+--   , frontier :: eap c s
+--   , heuristic :: (Maybe s, s) -> ExceptT String IO c
+--   , goal :: s -> Bool
+--   }
+
 data HeuristicSearch s c = HeuristicSearch
-  { end :: Maybe s
-  , frontier :: H.MinPrioHeap c s
+  { frontier :: [(c, s)]
   , heuristic :: (Maybe s, s) -> ExceptT String IO c
   , goal :: s -> Bool
   }
 
-data RandomSearch s = RandomSearch
-  { rsEnd :: Maybe s
-  , rsHead :: s
-  , rsGoal :: s -> Bool
-  }
-
-randomSearchInit start goal =
-  RandomSearch
-    { rsEnd = Nothing
-    , rsHead = start
-    , rsGoal = goal
-    }
-
 heuristicSearchInit start heuristic' initCost goal' =
   HeuristicSearch
-    { end = Nothing
-    , frontier = H.singleton (initCost, start)
+    { frontier = [(initCost, start)]
     , heuristic = heuristic'
     , goal = goal'
     }
+
+-- heuristicSearchInit start heuristic' initCost goal' =
+--   HeuristicSearch
+--     { end = Nothing
+--     , frontier = H.singleton (initCost, start)
+--     , heuristic = heuristic'
+--     , goal = goal'
+--     }
 
 -- | Entry point to the search algorithm
 heuristicSearch
@@ -64,40 +65,112 @@ heuristicSearch initialState getNextStates isGoalState heuristic printOp = do
   search $ heuristicSearchInit initialState heuristic initCost isGoalState
  where
   search hs
-    | H.null (frontier hs) = throwError "No Goal Found"
-    | isGoalState nearestState = do pure nearestState
+    | null open = throwError "No Goal Found"
+    | any (isGoalState . snd) open = pure . snd . head . filter (isGoalState . snd) $ open
     | otherwise = do
         lift $ putStrLn "___________________________________________________"
         lift $ putStrLn "Frontier: "
-        lift $ mapM_ print (frontier hs)
+        lift $ mapM_ print open
 
         -- Find neighboring states and costs
-        nextStates <- getNextStates nearestState
+        nextStates <- foldlM getNextStatesAndCosts [] open
 
-        nextStatesAndCosts <-
-          let
-            nextStateAndCost st = do
-              h <- heuristic (Just nearestState, st)
-              pure (h + cost, st)
-           in
-            mapM nextStateAndCost nextStates
+        -- nextStatesAndCosts <-
+        --   let
+        --     nextStateAndCost st = do
+        --       h <- heuristic (Just nearestState, st)
+        --       pure (h + cost, st)
+        --    in
+        --     mapM nextStateAndCost nextStates
 
-        let nextStatesHeap = genHeap nextStatesAndCosts
+        -- let nextStatesHeap = genHeap nextStatesAndCosts
 
         -- Determine if any of these neighboring states are goal states
-        let goalStates = filter (isGoalState . snd) nextStatesAndCosts
+        -- let goalStates = filter (isGoalState . snd) nextStates
 
         -- Add the new states to the frontier.
         -- Add lowest cost states
         -- Keeping a maximum of 5 states in the frontier at a time
-        let newFrontier = H.fromList . H.take 1 $ H.union nextStatesHeap remainingQueue
+        let newFrontier = take 5 nextStates
+        --   H.fromList
+        --   . H.take 1
+        --   $ H.union nextStatesHeap remainingQueue
 
         search $
           hs{frontier = newFrontier}
    where
-    -- Pop the node in the frontier with the lowest priority
-    ((cost, nearestState), remainingQueue) = popFromHeap (frontier hs)
+    open = frontier hs
+    getNextStatesAndCosts xs (cost, state) = do
+      nextStates <- getNextStates state
+      res <- mapM go nextStates
+      pure $ foldr (L.insertBy (comparing fst)) xs res
+     where
+      go newState = do
+        h <- heuristic (Just state, newState)
+        pure (cost + h, newState)
 
+-- where
+-- genNextStatesAndCosts
+
+-- pure undefined
+
+--   newStates <- getNextStates state
+--   pure $ mapM (\newState -> pure (cost + heuristic (Just state, newState), newState)) newStates
+-- getNextStateAndCost cost state = do
+--   newCost <- heuristic
+
+-- Pop the node in the frontier with the lowest priority
+-- ((cost, nearestState), remainingQueue) = popFromHeap (frontier hs)
+
+--
+-- -- | Entry point to the search algorithm
+-- heuristicSearch
+--   :: Show state
+--   => state -- starting state
+--   -> (state -> ExceptT String IO [state]) -- get adjacent states
+--   -> (state -> Bool) -- goal test
+--   -> ((Maybe state, state) -> ExceptT String IO Double) -- heuristic
+--   -> (state -> String) -- showAction
+--   -> ExceptT String IO state -- output
+-- heuristicSearch initialState getNextStates isGoalState heuristic printOp = do
+--   initCost <- heuristic (Nothing, initialState)
+--   search $ heuristicSearchInit initialState heuristic initCost isGoalState
+--  where
+--   search hs
+--     | H.null (frontier hs) = throwError "No Goal Found"
+--     | isGoalState nearestState = do pure nearestState
+--     | otherwise = do
+--         lift $ putStrLn "___________________________________________________"
+--         lift $ putStrLn "Frontier: "
+--         lift $ mapM_ print (frontier hs)
+--
+--         -- Find neighboring states and costs
+--         nextStates <- getNextStates nearestState
+--
+--         nextStatesAndCosts <-
+--           let
+--             nextStateAndCost st = do
+--               h <- heuristic (Just nearestState, st)
+--               pure (h + cost, st)
+--            in
+--             mapM nextStateAndCost nextStates
+--
+--         let nextStatesHeap = genHeap nextStatesAndCosts
+--
+--         -- Determine if any of these neighboring states are goal states
+--         let goalStates = filter (isGoalState . snd) nextStatesAndCosts
+--
+--         -- Add the new states to the frontier.
+--         -- Add lowest cost states
+--         -- Keeping a maximum of 5 states in the frontier at a time
+--         let newFrontier = H.fromList . H.take 1 $ H.union nextStatesHeap remainingQueue
+--
+--         search $
+--           hs{frontier = newFrontier}
+--    where
+--     -- Pop the node in the frontier with the lowest priority
+--     ((cost, nearestState), remainingQueue) = popFromHeap (frontier hs)
+--
 getLowestCostState :: [(Double, state)] -> state
 getLowestCostState goalStates = snd $ maximumBy (comparing fst) goalStates
 
@@ -120,95 +193,3 @@ insertHeapLimitedBy n item heap
 insertLimitedBy n item heap
   | H.size heap >= n = let heap' = (fromMaybe undefined $ H.viewTail heap) in H.insert item heap'
   | otherwise = H.insert item heap
-
-{- | Entry point to the search algorithm
-Picks random choice from a split or spread operation
--}
-randomSampleFromSegmentSearch
-  -- Just take a input slices.
-
-  :: Show state
-  => state -- starting state
-  -> (state -> ExceptT String IO [state]) -- get adjacent states
-  -> (state -> Bool) -- goal test
-  -> (state -> String) -- showAction
-  -> ExceptT String IO state -- output
-randomSampleFromSegmentSearch initialState getNextStates isGoalState printOp = do
-  gen <- lift initStdGen
-  mgen <- lift $ newIOGenM gen
-  search mgen $ randomSearchInit initialState isGoalState
- where
-  search g hs
-    -- \| (hs ) = throwError "No Goal Found"
-    | isGoalState nearestState = do pure nearestState
-    | otherwise = do
-        lift $ putStrLn "___________________________________________________"
-        lift $ putStrLn "Head: "
-        lift $ print (rsHead hs)
-
-        -- Find neighboring states and costs
-        nextStates <- getNextStates nearestState
-        lift $ putStrLn $ "Considering " <> show (length nextStates) <> " states"
-
-        case nextStates of
-          [] -> throwError "Parse Stuck! Perhaps the number of chords and segments are not the same?"
-          xs -> do
-            newHead <- do
-              res <- pickRandom g nextStates
-              case res of
-                Nothing -> throwError "No Goal found"
-                Just s -> pure s
-            search g $
-              hs{rsHead = newHead}
-   where
-    -- Pop the node in the frontier with the lowest priority
-    nearestState = rsHead hs
-
-{- | Entry point to the search algorithm
-Picks random choice from a split or spread operation
--}
-randomChoiceSearch
-  :: Show state
-  => state -- starting state
-  -> (state -> ExceptT String IO [state]) -- get adjacent states
-  -> (state -> Bool) -- goal test
-  -> (state -> String) -- showAction
-  -> ExceptT String IO state -- output
-randomChoiceSearch initialState getNextStates isGoalState printOp = do
-  gen <- lift initStdGen
-  mgen <- lift $ newIOGenM gen
-  search mgen $ randomSearchInit initialState isGoalState
- where
-  search g hs
-    -- \| (hs ) = throwError "No Goal Found"
-    | isGoalState nearestState = do pure nearestState
-    | otherwise = do
-        lift $ putStrLn "___________________________________________________"
-        lift $ putStrLn "Head: "
-        lift $ print (rsHead hs)
-
-        -- Find neighboring states and costs
-        nextStates <- getNextStates nearestState
-        lift $ putStrLn $ "Considering " <> show (length nextStates) <> " states"
-
-        case nextStates of
-          [] -> throwError "Parse Stuck! Perhaps the number of chords and segments are not the same?"
-          xs -> do
-            newHead <- do
-              res <- pickRandom g nextStates
-              case res of
-                Nothing -> throwError "No Goal found"
-                Just s -> pure s
-            search g $
-              hs{rsHead = newHead}
-   where
-    -- Pop the node in the frontier with the lowest priority
-    nearestState = rsHead hs
-
--- ((cost, nearestState), remainingQueue) = popFromHeap (frontier hs)
-
-pickRandom :: StatefulGen g m => g -> [slc] -> m (Maybe slc)
-pickRandom _ [] = pure Nothing
-pickRandom gen xs = do
-  i <- uniformRM (0, length xs - 1) gen
-  pure $ Just $ xs !! i

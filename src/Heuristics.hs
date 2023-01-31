@@ -84,7 +84,7 @@ testHeuristic params (prevState, state) = do
         (_ , parent, _, _, _) <- getParentDouble state
         case applyFreeze freezeOp parent of
           Left err -> throwError err
-          Right frozen -> pure 8
+          Right frozen -> pure 0
 
       -- Spreading
       -- Calculate for each chord possibility, the likelihood that they are all the same chord
@@ -156,7 +156,7 @@ testHeuristic params (prevState, state) = do
       -- numSlices From  SSFrozen with 1 or 1+ transitions
       LMSingle (LMSingleFreeze freezeOp) -> do
         lift $ putStrLn "Considering an unfreeze"
-        pure 0.5
+        pure 0
 
       -- Splitting Only
       {-

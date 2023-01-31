@@ -75,8 +75,40 @@ data ChordLabel = ChordLabel
   deriving (Generic, Show)
 
 -- | Provides a score measuring how much the slice matches the chord annoation
-evaluateSlice :: Notes SIC -> String -> HarmonicProfileData -> Double
-evaluateSlice pitchClasses chordType hpData =
+scoreSegment' :: HarmonicProfileData -> Notes SIC -> String -> Double
+scoreSegment' hpData pitchClasses chordType = mlp + clp
+  where
+    -- Calculate Likelihoods of each chord type
+    chordToneParams = getChordToneParams hpData
+
+    valueVector = genSliceVector pitchClasses
+
+    mlp = (multinomialLogProb valueVector <$> chordToneParams )!! chordTypeIndex
+
+    clp = categoricalLogProb chordTypeIndex (getChordToneParams hpData !! chordTypeIndex)
+
+    chordTypeIndex = fromMaybe undefined $ elemIndex chordType (chordtypes hpData)
+
+-- | Provides a score measuring how much the slice matches the chord annoation
+scoreSegment :: HarmonicProfileData -> Notes SIC -> String -> Double
+scoreSegment hpData pitchClasses chordType = mlp
+  where
+    -- Calculate Likelihoods of each chord type
+    chordToneParams = getChordToneParams hpData
+
+    valueVector = genSliceVector pitchClasses
+
+    mlp = (multinomialLogProb valueVector <$> chordToneParams ) !! chordTypeIndex
+    -- likelihoods' = exp <$> ((multinomialLogProb valueVector <$> chordToneParams))
+
+    -- clp = categoricalLogProb chordTypeIndex pHarmony
+
+    -- weightedlikelihoods = (/ maximum likelihoods) <$> likelihoods
+
+    chordTypeIndex = fromMaybe undefined $ elemIndex chordType (chordtypes hpData)
+-- | Provides a score measuring how much the slice matches the chord annoation
+evaluateSlice :: HarmonicProfileData -> Notes SIC -> String -> Double
+evaluateSlice hpData pitchClasses chordType =
   trace
     ( "Evaluating Slice:"
         <> "\n  Slice: "
@@ -273,19 +305,31 @@ getHarmonyParams hpData = normaliseList pHarmony
 normaliseList :: (Fractional a) => [a] -> [a]
 normaliseList xs = (/ sum xs) <$> xs
 
-    -- Input is SPitch - Spelled Pitch Class eg F4
-    -- Key Is a SPC
-    -- rOffset is an SIC (interval)
-    -- chordRootNote is SPC
+
+scoreSegments 
+  :: HarmonicProfileData 
+  -> (Notes SPitch -> ChordLabel -> Double)
+  -> [Notes SPitch]
+  -> [ChordLabel]
+  -> Double
+scoreSegments hpData scoreSegment segments labels = 
+  let 
+    scores = zipWith scoreSegment segments labels 
+  in 
+    sum scores / fromIntegral (length scores)
+
+
+
+
+
 evalPath ::
-  (Show ns, Music.Spelled ns) =>
-  Path (Edges ns) (Notes SPitch) ->
+  Path es (Notes SPitch) ->
   [ChordLabel] ->
   HarmonicProfileData ->
   Double
 evalPath (PathEnd _) _ _ = 0
 evalPath _ [] _ = trace "WARNING: Chords don't line up with parsed slices." 0
-evalPath (Path _ (Notes slc) rst) (lbl : lbls) hpData = trace (show slc' <> show lbl')  $ evaluateSlice slc' lbl' hpData + evalPath rst lbls hpData
+evalPath (Path _ (Notes slc) rst) (lbl : lbls) hpData = trace (show slc' <> show lbl')  $ evaluateSlice hpData slc' lbl' + evalPath rst lbls hpData
   where
     key = keyCenter lbl
     rOffset = rootOffset lbl
