@@ -64,13 +64,13 @@ fullParseSpec = do
     -- (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slices43 chords43
     -- (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slices321sus chords321sus
     -- (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slicesTiny chordsTiny
-    -- (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slices chords
+    (finalPath'', ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slices chords
     finalPath <- runRandomSampleSearch chords
 
     -- let sliceLengths = length . fst <$> slices 
     -- mapM_ print slices
     -- print sliceLengths
-    -- (finalPath, ops) <- runRandomSearch params protoVoiceEvaluator slices chords
+    (finalPath', ops) <- runRandomSearch params protoVoiceEvaluator slices chords
     -- mapM_ print ops
     -- print finalPath
 
@@ -78,13 +78,17 @@ fullParseSpec = do
 
     -- print finalPath
     -- print $ testHeuristic params s 
-    let pathScore = evalPath finalPath chords params 
+    let pathScore = scoreSegments params (scoreSegment params) (pathBetweens finalPath) chords 
+    let pathScore' = scoreSegments params (scoreSegment params) (pathBetweens finalPath') chords 
+    let pathScore'' = scoreSegments params (scoreSegment params) (pathBetweens finalPath'') chords 
        
 
     -- let res = evalPath finalPath chordsTiny params
     -- let res = evalPath finalPath chords65m params
     -- let res = evalPath finalPath chords321sus params
     putStrLn $ "\nEvaluation score: " <> show pathScore
+    putStrLn $ "\nEvaluation score': " <> show pathScore'
+    putStrLn $ "\nEvaluation score': " <> show pathScore''
 
     -- print chords
     -- hspec pathFromSlicesSpec
@@ -116,7 +120,7 @@ heuristicSpec = do
     -- print $ testHeuristic params s 
     -- let res = evalPath finalPath chordsTiny' params
     -- let res = evalPath finalPath chordsTiny params
-    let res = scoreSegments (pathBetweens finalPath) chordsTiny params
+    let res = scoreSegments params (scoreSegment params) (pathBetweens finalPath) chordsTiny 
     -- let res = evalPath finalPath chords65m params
     -- let res = evalPath finalPath chords321sus params
     putStrLn $ "\nEvaluation score: " <> show res

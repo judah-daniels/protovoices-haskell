@@ -58,11 +58,11 @@ loadParams file = do
           hpData
             { params = (params hpData) 
               { params_p_chordtones = 
-                  (map . map) (+ 5) (params_p_chordtones (params hpData)),
+                  (map . map) (+ 1) (params_p_chordtones (params hpData)),
                 params_p_ornaments = 
-                  (map . map) (+ 5) (params_p_ornaments (params hpData)),
+                  (map . map) (+ 1) (params_p_ornaments (params hpData)),
                 params_p_harmony = 
-                  map (+ 5) (params_p_harmony (params hpData))
+                  map (+ 1) (params_p_harmony (params hpData))
               }
             }
     Nothing -> error "JSON parameter file not found or corrupted"
@@ -74,38 +74,69 @@ data ChordLabel = ChordLabel
   }
   deriving (Generic, Show)
 
+-- Take the average score given a score function that takes slices and chord labels
+scoreSegments 
+  :: HarmonicProfileData 
+  -> (Notes SPitch -> ChordLabel -> Double)
+  -> [Notes SPitch]
+  -> [ChordLabel]
+  -> Double
+scoreSegments hpData scoreSegment segments labels = 
+  let 
+    scores = zipWith scoreSegment segments labels 
+  in 
+    sum scores / fromIntegral (length scores)
+
 -- | Provides a score measuring how much the slice matches the chord annoation
-scoreSegment' :: HarmonicProfileData -> Notes SIC -> String -> Double
-scoreSegment' hpData pitchClasses chordType = mlp + clp
+scoreSegment' :: HarmonicProfileData -> Notes SPitch -> ChordLabel -> Double
+scoreSegment' hpData (Notes slc) lbl = mlp + clp
   where
+    key = keyCenter lbl
+    rOffset = rootOffset lbl
+    chordRootNote = key Music.+^ rOffset
+
+    lbl' = chordType lbl
+    slc' = Notes $ MS.map transformPitch slc
+      where
+        transformPitch ::
+          Music.SPitch -> SIC
+        transformPitch p = Music.pfrom (Music.pc p) chordRootNote
     -- Calculate Likelihoods of each chord type
     chordToneParams = getChordToneParams hpData
 
-    valueVector = genSliceVector pitchClasses
-
-    mlp = (multinomialLogProb valueVector <$> chordToneParams )!! chordTypeIndex
-
-    clp = categoricalLogProb chordTypeIndex (getChordToneParams hpData !! chordTypeIndex)
-
-    chordTypeIndex = fromMaybe undefined $ elemIndex chordType (chordtypes hpData)
-
--- | Provides a score measuring how much the slice matches the chord annoation
-scoreSegment :: HarmonicProfileData -> Notes SIC -> String -> Double
-scoreSegment hpData pitchClasses chordType = mlp
-  where
-    -- Calculate Likelihoods of each chord type
-    chordToneParams = getChordToneParams hpData
-
-    valueVector = genSliceVector pitchClasses
+    valueVector = genSliceVector slc'
 
     mlp = (multinomialLogProb valueVector <$> chordToneParams ) !! chordTypeIndex
-    -- likelihoods' = exp <$> ((multinomialLogProb valueVector <$> chordToneParams))
 
-    -- clp = categoricalLogProb chordTypeIndex pHarmony
+    clp = categoricalLogProb chordTypeIndex pChordTones
 
-    -- weightedlikelihoods = (/ maximum likelihoods) <$> likelihoods
+    pChordTones = getChordToneParams hpData !! fromJust (chordIndexFromLabel hpData lbl')
 
-    chordTypeIndex = fromMaybe undefined $ elemIndex chordType (chordtypes hpData)
+    chordTypeIndex = fromMaybe undefined $ elemIndex lbl' (chordtypes hpData)
+
+-- | Provides a score measuring how much the slice matches the chord annoation
+scoreSegment :: HarmonicProfileData -> Notes SPitch -> ChordLabel -> Double
+scoreSegment hpData (Notes slc) lbl = mlp
+  where
+    key = keyCenter lbl
+    rOffset = rootOffset lbl
+    chordRootNote = key Music.+^ rOffset
+
+    lbl' = chordType lbl
+    slc' = Notes $ MS.map transformPitch slc
+      where
+        transformPitch ::
+          Music.SPitch -> SIC
+        transformPitch p = Music.pfrom (Music.pc p) chordRootNote
+    -- Calculate Likelihoods of each chord type
+    chordToneParams = getChordToneParams hpData
+
+    valueVector = genSliceVector slc'
+
+    mlp = (multinomialLogProb valueVector <$> chordToneParams ) !! chordTypeIndex
+
+    chordTypeIndex = fromMaybe undefined $ elemIndex lbl' (chordtypes hpData)
+
 -- | Provides a score measuring how much the slice matches the chord annoation
 evaluateSlice :: HarmonicProfileData -> Notes SIC -> String -> Double
 evaluateSlice hpData pitchClasses chordType =
@@ -284,6 +315,10 @@ chordToneLogLikelihoodDouble hpData lbll lblr note = logLikelihood
     pChordTonesm = genMixture pChordTonesl pChordTonesr 
     notePos = 14 + sFifth note
 
+---- -- -- -- -- -- -- -- -- -- -- --
+  -- EXTRACTING INFO FROM THE HARMONIC PROFILES
+---- -- -- -- -- -- -- -- -- -- -- --
+
 -- Takes the MLE estimate of the dirchetlet distribution
 -- to get a categorical distribution for ornmanet probs...
 getOrnamentParams :: HarmonicProfileData -> [[Double]]
@@ -305,21 +340,9 @@ getHarmonyParams hpData = normaliseList pHarmony
 normaliseList :: (Fractional a) => [a] -> [a]
 normaliseList xs = (/ sum xs) <$> xs
 
-
-scoreSegments 
-  :: HarmonicProfileData 
-  -> (Notes SPitch -> ChordLabel -> Double)
-  -> [Notes SPitch]
-  -> [ChordLabel]
-  -> Double
-scoreSegments hpData scoreSegment segments labels = 
-  let 
-    scores = zipWith scoreSegment segments labels 
-  in 
-    sum scores / fromIntegral (length scores)
-
-
-
+---- -- -- -- -- -- -- -- -- -- -- --
+  -- EXTRACTING INFO FROM THE HARMONIC PROFILES
+---- -- -- -- -- -- -- -- -- -- -- --
 
 
 evalPath ::

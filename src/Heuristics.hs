@@ -81,11 +81,11 @@ testHeuristic params (prevState, state) = do
       -- no unfreeze if there are 3 open non boundary transition
       LMDouble (LMDoubleFreezeLeft freezeOp) -> do
         lift $ putStrLn "Considering an unfreeze"
-        (_ , parent, _, _, _) <- getParentDouble state
-        case applyFreeze freezeOp parent of
-          Left err -> throwError err
-          Right frozen -> pure 0
+        pure 0 
 
+      LMSingle (LMSingleFreeze freezeOp) -> do
+        lift $ putStrLn "Considering an unfreeze"
+        pure 0
       -- Spreading
       -- Calculate for each chord possibility, the likelihood that they are all the same chord
       -- Splitting Right
@@ -102,61 +102,15 @@ testHeuristic params (prevState, state) = do
         lift $ putStrLn "Considering an unspread"
         res <- getParentDouble (fromJust prevState)
         (_,childl, slcl, childr, slcr) <- case res of 
-          (_,_,Start,_,_) -> throwError "StartStop in left of spread"
+          (sl,childl,Inner slc,childr,Inner sr) -> pure (sl,childl,slc,childr,sr)
+          (_,_,Start,_,_) -> throwError "StartStop in spread"
           (_,_,Stop,_,_) -> throwError "StartStop in left of spread"
           (_,_,_,_,Start) -> throwError "StartStop in right of spread"
           (_,_,_,_,Stop) -> throwError "StartStop in right of spread"
-          (sl,childl,Inner slc,childr,Inner sr) -> pure (sl,childl,slc,childr,sr)
 
         scoreSpread slcl slcr spreadOp 
-
-      -- LMDouble (LMDoubleSpread spreadOp@(SpreadOp spreads edges)) -> do
-      --   res <- getParentDouble (fromJust prevState)
-      --   (_,parentl, slcl, parentr, slcr) <- case res of 
-      --     (_,_,Start,_,_) -> throwError "StartStop in middle of spread"
-      --     (_,_,Stop,_,_) -> throwError "StartStop in middle of spread"
-      --     (sl,parentl,Inner slc,parentr,sr) -> pure (sl,parentl,slc,parentr,sr)
-      --   case applySpread spreadOp parentl slc parentr of
-      --     Left err -> throwError err
-      --     Right (childl, slcl, childm, slcr, childr) -> do
-      --       lift $ putStrLn "Considering an unspread"
-      --       lift $ print (slcl,slc,slcr)
-      --       -- lift $ print (parentl, slc, parentr)
-      --       -- lift $ print "parent:"
-      --       let (root, chordType, cProb) = mostLikelyChordFromSlice params slc
-      --       -- lift $ print "left:"
-      --       -- lift $ print $ mostLikelyChordFromSlice params slcl
-      --       -- lift $ print "right:"
-      --       -- let (root, chordType, cProb) = mostLikelyChordFromSlice params ns in 
-      --       --                     pure $ Just (ChordLabel chordType (sic (root - 14)) (spc 0), cProb)
-      --
-      --      -- lift $ print $ mostLikelyChordFromSlice params slcr
-      --       let mu = sliceChordLogLikelihood params (mkLbl root chordType) (transformSlice slc)
-      --       let wu = sliceChordLogLikelihood params (mkLbl root chordType) (transformSlice slcl)
-      --       let ru = sliceChordLogLikelihood params (mkLbl root chordType) (transformSlice slcr)
-      --       let score = wu + ru 
-      --       -- lift $ print $ "mu: " <> show mu
-      --       lift $ putStrLn $ "score: " <> show (1 - score)
-      --       pure $ 5 - score 
-      --      where
-      --       -- trace (show $ mostLikelyChordFromSlice params parent ) -2.0
-      --
-      --       mkLbl root chordType = ChordLabel chordType (sic (root-14)) (spc 0)
-      --       -- predChord = mostLikelyChord hpData parent
-      --       -- jointLogLikelihood =
-      --       --     sliceChordLogLikelihood childl
-      --       --   + sliceChordLogLikelihood childr
-      --       --   - sliceChordLogLikelihood predChord
-      --
-      --       -- jointLikelihood
-      --       go :: SpreadDirection -> Double
-      --       go = undefined
-      --
       -- Freezing (Terminate)
       -- numSlices From  SSFrozen with 1 or 1+ transitions
-      LMSingle (LMSingleFreeze freezeOp) -> do
-        lift $ putStrLn "Considering an unfreeze"
-        pure 0
 
       -- Splitting Only
       {-
