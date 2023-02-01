@@ -746,12 +746,11 @@ instance GHC.Show.Show ns => GHC.Show.Show (HeuristicParser.Slice ns)
 
 module HeuristicSearch
 data HeuristicSearch s c
-HeuristicSearch :: Maybe s -> MinPrioHeap c s -> ((Maybe s, s) -> ExceptT String IO c) -> (s -> Bool) -> HeuristicSearch s c
-[end] :: HeuristicSearch s c -> Maybe s
-[frontier] :: HeuristicSearch s c -> MinPrioHeap c s
+HeuristicSearch :: [(c, s)] -> ((Maybe s, s) -> ExceptT String IO c) -> (s -> Bool) -> HeuristicSearch s c
+[frontier] :: HeuristicSearch s c -> [(c, s)]
 [heuristic] :: HeuristicSearch s c -> (Maybe s, s) -> ExceptT String IO c
 [goal] :: HeuristicSearch s c -> s -> Bool
-heuristicSearchInit :: Ord c => s -> ((Maybe s, s) -> ExceptT String IO c) -> c -> (s -> Bool) -> HeuristicSearch s c
+heuristicSearchInit :: s -> ((Maybe s, s) -> ExceptT String IO c) -> c -> (s -> Bool) -> HeuristicSearch s c
 
 -- | Entry point to the search algorithm
 heuristicSearch :: Show state => state -> (state -> ExceptT String IO [state]) -> (state -> Bool) -> ((Maybe state, state) -> ExceptT String IO Double) -> (state -> String) -> ExceptT String IO state
@@ -1112,10 +1111,19 @@ ChordLabel :: String -> SIC -> SPC -> ChordLabel
 [chordType] :: ChordLabel -> String
 [rootOffset] :: ChordLabel -> SIC
 [keyCenter] :: ChordLabel -> SPC
+scoreSegments :: HarmonicProfileData -> (Notes SPitch -> ChordLabel -> Double) -> [Notes SPitch] -> [ChordLabel] -> Double
 
 -- | Provides a score measuring how much the slice matches the chord
 --   annoation
-evaluateSlice :: Notes SIC -> String -> HarmonicProfileData -> Double
+scoreSegment' :: HarmonicProfileData -> Notes SPitch -> ChordLabel -> Double
+
+-- | Provides a score measuring how much the slice matches the chord
+--   annoation
+scoreSegment :: HarmonicProfileData -> Notes SPitch -> ChordLabel -> Double
+
+-- | Provides a score measuring how much the slice matches the chord
+--   annoation
+evaluateSlice :: HarmonicProfileData -> Notes SIC -> String -> Double
 mostLikelyChordFromSlice :: HarmonicProfileData -> Notes SPitch -> (Int, String, Double)
 transformSlice :: Notes SPitch -> Notes SIC
 transformPitch :: SPitch -> SIC
@@ -1129,13 +1137,14 @@ sliceChordLogLikelihood :: HarmonicProfileData -> ChordLabel -> Notes SIC -> Dou
 genSliceVector :: Notes SIC -> [Double]
 ornamentLogLikelihood :: HarmonicProfileData -> ChordLabel -> SIC -> Double
 chordToneLogLikelihood :: HarmonicProfileData -> ChordLabel -> SIC -> Double
+genMixture :: [Double] -> [Double] -> [Double]
 ornamentLogLikelihoodDouble :: HarmonicProfileData -> ChordLabel -> ChordLabel -> SIC -> Double
 chordToneLogLikelihoodDouble :: HarmonicProfileData -> ChordLabel -> ChordLabel -> SIC -> Double
 getOrnamentParams :: HarmonicProfileData -> [[Double]]
 getChordToneParams :: HarmonicProfileData -> [[Double]]
 getHarmonyParams :: HarmonicProfileData -> [Double]
 normaliseList :: Fractional a => [a] -> [a]
-evalPath :: (Show ns, Spelled ns) => Path (Edges ns) (Notes SPitch) -> [ChordLabel] -> HarmonicProfileData -> Double
+evalPath :: Path es (Notes SPitch) -> [ChordLabel] -> HarmonicProfileData -> Double
 transposeSlice :: SPC -> Notes SPitch -> Notes SIC
 multinomialLogProb :: [Double] -> [Double] -> Double
 categoricalLogProb :: Int -> [Double] -> Double
@@ -1147,8 +1156,6 @@ instance GHC.Show.Show PBHModel.ChordLabel
 instance GHC.Generics.Generic PBHModel.ChordLabel
 instance Data.Aeson.Types.FromJSON.FromJSON PBHModel.HarmonicProfileData
 instance Data.Aeson.Types.FromJSON.FromJSON PBHModel.Params
-
-module Evaluator
 
 
 -- | This module contains functions for the generative aspects of
@@ -1469,6 +1476,25 @@ instance GHC.Generics.Generic (PVGrammar.Prob.Simple.PVParamsInner f)
 instance (GHC.Show.Show (f Inference.Conjugate.Beta), GHC.Show.Show (f Inference.Conjugate.Beta), GHC.Show.Show (f Inference.Conjugate.Beta), GHC.Show.Show (f (Inference.Conjugate.Dirichlet 3)), GHC.Show.Show (f Inference.Conjugate.Beta)) => GHC.Show.Show (PVGrammar.Prob.Simple.PVParamsInner f)
 instance GHC.Generics.Generic (PVGrammar.Prob.Simple.PVParamsOuter f)
 instance GHC.Show.Show (f Inference.Conjugate.Beta) => GHC.Show.Show (PVGrammar.Prob.Simple.PVParamsOuter f)
+
+module RandomChoiceSearch
+data RandomSearch s
+RandomSearch :: s -> (s -> Bool) -> RandomSearch s
+[rsHead] :: RandomSearch s -> s
+[rsGoal] :: RandomSearch s -> s -> Bool
+randomSearchInit :: s -> (s -> Bool) -> RandomSearch s
+
+-- | Entry point to the search algorithm Picks random choice from a split
+--   or spread operation Skewed towards splits.
+randomChoiceSearch :: Show state => state -> (state -> ExceptT String IO [state]) -> (state -> Bool) -> (state -> String) -> ExceptT String IO state
+pickRandom :: StatefulGen g m => g -> [slc] -> m (Maybe slc)
+
+module RandomSampleParser
+
+-- | Generates a path of random notes for the given number of segments
+randomSamplePath :: Int -> IO (Path () (Notes SPitch))
+genSlice :: StatefulGen g IO => g -> IO (Notes SPitch)
+pickRandom :: StatefulGen g m => g -> [slc] -> m (Maybe slc)
 
 
 -- | <i>This module is deprecated, use <a>Scoring.FunTyped</a> instead.</i>
