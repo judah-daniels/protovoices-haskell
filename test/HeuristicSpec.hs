@@ -24,7 +24,6 @@ import Data.Maybe
   )
 import Data.Vector qualified as V
 import Display
-import HeuristicParser
 import RandomChoiceSearch
 import RandomSampleParser
 import HeuristicSearch
@@ -46,6 +45,7 @@ import Prelude hiding
 import Control.Monad.State (evalState)
 import Control.Monad.Trans.Except (throwE)
 import qualified Internal.MultiSet as MS
+import HeuristicParser 
 
 -- ([(Note, Tied?)], Start of new segment)
 type InputSlice ns = ([(ns, Music.RightTied)], Bool)
@@ -64,7 +64,12 @@ fullParseSpec = do
     -- (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slices43 chords43
     -- (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slices321sus chords321sus
     -- (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slicesTiny chordsTiny
-    (finalPath'', ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slices chords
+    let wrap = 
+          let 
+            wrapSlice' ns = let (r,l,p) = mostLikelyChordFromSlice params ns in SliceWrapped ns (mkLbl r l) p
+          in 
+            SliceWrapper wrapSlice'
+    (finalPath'', ops) <- runHeuristicSearch params protoVoiceEvaluator wrap (applyHeuristic (testHeuristic params)) slices chords
     finalPath <- runRandomSampleSearch chords
 
     -- let sliceLengths = length . fst <$> slices 
@@ -78,17 +83,17 @@ fullParseSpec = do
 
     -- print finalPath
     -- print $ testHeuristic params s 
-    let pathScore = scoreSegments params (scoreSegment params) (pathBetweens finalPath) chords 
-    let pathScore' = scoreSegments params (scoreSegment params) (pathBetweens finalPath') chords 
-    let pathScore'' = scoreSegments params (scoreSegment params) (pathBetweens finalPath'') chords 
+    let pathScore = scoreSegments params (scoreSegment' params) (pathBetweens finalPath) chords 
+    let pathScore' = scoreSegments params (scoreSegment' params) (pathBetweens finalPath') chords 
+    let pathScore'' = scoreSegments params (scoreSegment' params) (pathBetweens finalPath'') chords 
        
 
     -- let res = evalPath finalPath chordsTiny params
     -- let res = evalPath finalPath chords65m params
     -- let res = evalPath finalPath chords321sus params
-    putStrLn $ "\nEvaluation score: " <> show pathScore
-    putStrLn $ "\nEvaluation score': " <> show pathScore'
-    putStrLn $ "\nEvaluation score': " <> show pathScore''
+    putStrLn $ "\nRandom score: " <> show pathScore
+    putStrLn $ "\nRandom Choice score': " <> show pathScore'
+    putStrLn $ "\nHeuristic score': " <> show pathScore''
 
     -- print chords
     -- hspec pathFromSlicesSpec
@@ -109,7 +114,14 @@ heuristicSpec = do
     -- (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (testHeuristic params) slices65m chords65m
     -- (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slices43 chords43
     -- (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slices321sus chords321sus
-    (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slicesTiny chordsTiny
+    -- wrapper :: SliceWrapper ns
+    let wrap = 
+          let 
+            wrapSlice' ns = let (r,l,p) = mostLikelyChordFromSlice params ns in SliceWrapped ns (ChordLabel l (sic 0) (spc $ r - 14)) p
+          in 
+            SliceWrapper wrapSlice'
+
+    (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator wrap (applyHeuristic (testHeuristic params)) slices43 chords43
     -- (finalPath, ops) <- runRandomSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slicesTiny chordsTiny
     -- (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slicesTiny' chordsTiny'
 
@@ -120,7 +132,7 @@ heuristicSpec = do
     -- print $ testHeuristic params s 
     -- let res = evalPath finalPath chordsTiny' params
     -- let res = evalPath finalPath chordsTiny params
-    let res = scoreSegments params (scoreSegment params) (pathBetweens finalPath) chordsTiny 
+    let res = scoreSegments params (scoreSegment params) (pathBetweens finalPath) chords43
     -- let res = evalPath finalPath chords65m params
     -- let res = evalPath finalPath chords321sus params
     putStrLn $ "\nEvaluation score: " <> show res
@@ -366,7 +378,7 @@ runRandomSearch ::
   -> [ChordLabel] 
   -> IO (Path (Edges ns) (Notes ns), [PVLeftmost ns])
 runRandomSearch params eval inputSlices chordLabels = do
-  let initialState = SSFrozen $ pathFromSlices eval inputSlices
+  let initialState = SSFrozen $ pathFromSlices eval idWrapper inputSlices
   res <- runExceptT (randomChoiceSearch initialState getNeighboringStates goalTest (showOp . getOpsFromState))
   finalState <- case res of 
     Left err -> do 
@@ -384,7 +396,7 @@ runRandomSearch params eval inputSlices chordLabels = do
      LMDouble y -> show y
      LMSingle y -> show y
 
-    getNeighboringStates = exploreStates eval
+    getNeighboringStates = exploreStates idWrapper eval
 
     -- The goal is to find a state with a slice for each chord label.
     goalTest (SSOpen p _) = pathLen p - 1 == length chordLabels
@@ -401,12 +413,13 @@ runHeuristicSearch ::
   ) 
   => HarmonicProfileData 
   -> Eval (Edges ns) [Edge ns] (Notes ns) [ns] (PVLeftmost ns) 
+  -> SliceWrapper (Notes ns)
   -> ((Maybe (State ns), State ns) -> ExceptT String IO Double)
   -> [InputSlice ns] 
   -> [ChordLabel] 
   -> IO (Path (Edges ns) (Notes ns), [PVLeftmost ns])
-runHeuristicSearch params eval heuristic inputSlices chordLabels = do
-  let initialState = SSFrozen $ pathFromSlices eval inputSlices
+runHeuristicSearch params eval wrap heuristic inputSlices chordLabels = do
+  let initialState = SSFrozen $ pathFromSlices eval wrap inputSlices
   res <- runExceptT (heuristicSearch initialState getNeighboringStates goalTest heuristic (showOp . getOpsFromState))
   finalState <- case res of 
     Left err -> do 
@@ -424,7 +437,7 @@ runHeuristicSearch params eval heuristic inputSlices chordLabels = do
      LMDouble y -> show y
      LMSingle y -> show y
 
-    getNeighboringStates = exploreStates eval
+    getNeighboringStates = exploreStates wrap eval
 
     -- The goal is to find a state with a slice for each chord label.
     goalTest (SSOpen p _) = pathLen p - 1 == length chordLabels
@@ -433,15 +446,16 @@ runHeuristicSearch params eval heuristic inputSlices chordLabels = do
 pathFromSlices ::
   forall ns o.
   Eval (Edges ns) [Edge ns] (Notes ns) [ns] o ->
+  SliceWrapper (Notes ns) ->
   [InputSlice ns] ->
-  Path (Maybe [Edge ns], Bool) (Slice (Notes ns))
-pathFromSlices eval = reversePath . mkPath False Nothing
+  Path (Maybe [Edge ns], Bool) (SliceWrapped (Notes ns))
+pathFromSlices eval wrap = reversePath . mkPath False Nothing
   where
     mkPath ::
       Bool ->
       Maybe [Edge ns] ->
       [InputSlice ns] ->
-      Path (Maybe [Edge ns], Bool) (Slice (Notes ns))
+      Path (Maybe [Edge ns], Bool) (SliceWrapped (Notes ns))
 
     mkPath tie eLeft [] = PathEnd (eLeft, True)
 
@@ -449,7 +463,7 @@ pathFromSlices eval = reversePath . mkPath False Nothing
       Path (eLeft, boundary) nextSlice $
         mkPath False (Just $ getTiedEdges slice) rst
           where 
-            nextSlice = Slice $ evalSlice eval (fst <$> slice)
+            nextSlice = wrapSlice wrap $ evalSlice eval (fst <$> slice)
 
 
     getTiedEdges :: [(ns, Music.RightTied)] -> [Edge ns]

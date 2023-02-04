@@ -9,7 +9,8 @@ import Test.Hspec
 main :: IO ()
 main = hspec $ do
   -- mostLikelyChordSpec
-  -- heuristicSpec
-  fullParseSpec
+  heuristicSpec
+
+-- fullParseSpec
 
 --

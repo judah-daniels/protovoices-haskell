@@ -81,11 +81,11 @@ testHeuristic params (prevState, state) = do
       -- no unfreeze if there are 3 open non boundary transition
       LMDouble (LMDoubleFreezeLeft freezeOp) -> do
         lift $ putStrLn "Considering an unfreeze"
-        pure 0 
+        pure 0.3
 
       LMSingle (LMSingleFreeze freezeOp) -> do
         lift $ putStrLn "Considering an unfreeze"
-        pure 0
+        pure 0.3
       -- Spreading
       -- Calculate for each chord possibility, the likelihood that they are all the same chord
       -- Splitting Right
@@ -108,7 +108,8 @@ testHeuristic params (prevState, state) = do
           (_,_,_,_,Start) -> throwError "StartStop in right of spread"
           (_,_,_,_,Stop) -> throwError "StartStop in right of spread"
 
-        scoreSpread slcl slcr spreadOp 
+        pure 30000
+        -- scoreSpread slcl slcr spreadOp 
       -- Freezing (Terminate)
       -- numSlices From  SSFrozen with 1 or 1+ transitions
 
@@ -188,14 +189,18 @@ testHeuristic params (prevState, state) = do
       (sl:sr:rst) -> pure (Inner sl,Inner sr)
       _ -> throwError "How can you even unsplit if there arent two slices? Confusion"
 
-  scoreSpread slcl slcr spreadOp@(SpreadOp spreads edges) = do 
+  scoreSpread (SliceWrapped slcl lblL probL ) (SliceWrapped slcr lblR probR) spreadOp@(SpreadOp spreads edges) = do 
     lift $ putStrLn "Considering an unspread"
     let slc = Notes $ MS.fromList $ HM.keys spreads
     lift $ print (slcl,slc,slcr)
     -- lift $ print (parentl, slc, parentr)
     -- lift $ print "parent:"
-    let (root, chordType, cProb) = mostLikelyChordFromSlice params slc
-    let lbl = mkLbl root chordType
+    -- let (root, chordType, cProb) = mostLikelyChordFromSlice params slc
+    --
+
+    -- let lbl = mkLbl root chordType
+    let lbl = lblL
+
 
     let mu = sliceChordLogLikelihood params lbl (transformSlice slc)
     let wu = sliceChordLogLikelihood params lbl (transformSlice slcl)
@@ -203,7 +208,7 @@ testHeuristic params (prevState, state) = do
 
     let score = 5 - (wu + ru)
     lift $ putStrLn $ "score: " <> show (1 - score)
-    pure $ 5 - score 
+    pure $ 1 - score 
    where
     -- trace (show $ mostLikelyChordFromSlice params parent ) -2.0
 
@@ -218,6 +223,15 @@ testHeuristic params (prevState, state) = do
     go :: SpreadDirection -> Double
     go = undefined
 
+  scoreSplit
+   :: (Music.Notation n,  Show a) 
+   => Split SPitch 
+   -> Edges n
+   -> a 
+   -> StartStop (SliceWrapped (Notes n))
+   -> StartStop (SliceWrapped (Notes n))
+   -> ExceptT String IO Double
+  scoreSplit' = undefined
   scoreSplit 
     splitOp@(SplitOp splitRegs splitPassings ls rs keepl keepr passl passr) 
     parent@(Edges topRegs topPassings) 
@@ -228,15 +242,17 @@ testHeuristic params (prevState, state) = do
       lblL <- case slcl of 
                 Start -> pure Nothing
                 Stop -> throwError "Stop on Left?"
-                Inner ns -> let (root, chordType, cProb) = mostLikelyChordFromSlice params ns in 
-                                pure $ Just (ChordLabel chordType (sic 0) (spc (root - 14)), cProb)
+                Inner (SliceWrapped (Notes _) lbl prob) -> pure $ Just (lbl, prob)
+                  --let (root, chordType, cProb) = mostLikelyChordFromSlice params ns in 
+                             --   pure $ Just (ChordLabel chordType (sic 0) (spc (root - 14)), cProb)
 
       -- lift $ print $ "lblR"
       lblR <- case slcr of 
                 Start -> throwError "Start on Right?"
                 Stop -> pure Nothing
-                Inner ns -> let (root, chordType, cProb) = mostLikelyChordFromSlice params ns in 
-                                pure $ Just (ChordLabel chordType (sic 0) (spc (root - 14)), cProb)
+                Inner (SliceWrapped (Notes _) lbl prob) -> pure $ Just (lbl, prob)
+                  --let (root, chordType, cProb) = mostLikelyChordFromSlice params ns in 
+                             --   pure $ Just (ChordLabel chordType (sic 0) (spc (root - 14)), cProb)
 
       probsRS <- mapM (scoreLeftOrnament lblR) (allOrnaments rs)  
       probsLS <- mapM (scoreRightOrnament lblL) (allOrnaments ls)  
@@ -302,7 +318,7 @@ testHeuristic params (prevState, state) = do
                   -- lift $ putStrLn $ "Chord tone likelihood: " <> (show $ chordToneLogLikelihood params lbl x')
                   -- lift $ putStrLn $ "Ornament tone likelihood: " <> (show $ ornamentLogLikelihood params lbl n' )
                   pure $ chordToneLogLikelihood params lbl x' + ornamentLogLikelihood params lbl n'
-              RightRepeat -> pure $ 1 + chordToneLogLikelihood params lbl x' + chordToneLogLikelihood params lbl n'
+              RightRepeat -> pure $ 9 + chordToneLogLikelihood params lbl x' + chordToneLogLikelihood params lbl n'
 
           scoreLeftOrnament Nothing (x,(n,orn)) = throwError "Left Ornament with no parent"
           scoreLeftOrnament (Just (lbl, prob)) (x,(n,orn)) = do
@@ -313,26 +329,26 @@ testHeuristic params (prevState, state) = do
                 -- lift $ putStrLn $ "Chord tone likelihood: " <> (show $ chordToneLogLikelihood params lbl x')
                 -- lift $ putStrLn $ "LBL: " <> (showLbl (Just (lbl, prob)))
                 -- lift $ putStrLn $ "Ornament tone likelihood: " <> (show $ ornamentLogLikelihood params lbl n' )
-                pure $ chordToneLogLikelihood params lbl n' + ornamentLogLikelihood params lbl x'
-              LeftRepeat -> pure $ 1 + chordToneLogLikelihood params lbl x' + chordToneLogLikelihood params lbl n'
+                pure $ chordToneLogLikelihood params lbl n' + ornamentLogLikelihood params lbl x'  
+              LeftRepeat -> pure $ 9 + chordToneLogLikelihood params lbl x' + chordToneLogLikelihood params lbl n'
 
           scoreRegs Nothing _ ((x,y),(n,orn)) = throwError "wtf man"
           scoreRegs _ Nothing ((x,y),(n,orn)) = throwError "wtf woman"
-          scoreRegs (Just (lbll, probL)) (Just (lblr, probR)) ((Inner x,Inner y),(n,orn)) =
-            let (x',y',n') = (transformPitch x,transformPitch y, transformPitch n) in case orn of 
-              FullNeighbor -> pure  $ chordToneLogLikelihoodDouble params lbll lblr x' + ornamentLogLikelihoodDouble params lbll lblr n'
-              FullRepeat -> pure $ chordToneLogLikelihoodDouble params lbll lblr x' 
-              RootNote -> pure  2.0
-              LeftRepeatOfRight -> pure $  chordToneLogLikelihood params lblr y' + ornamentLogLikelihood params lblr n'
-              RightRepeatOfLeft -> pure $ chordToneLogLikelihood params lbll x' + ornamentLogLikelihood params lbll n'
+          scoreRegs (Just (lbll, probL)) (Just (lblr, probR)) ((Inner x,Inner y),(n,orn)) = pure 1000
+            -- let (x',y',n') = (transformPitch x,transformPitch y, transformPitch n) in case orn of 
+            --   FullNeighbor -> pure  $ chordToneLogLikelihoodDouble params lbll lblr x' + ornamentLogLikelihoodDouble params lbll lblr n'
+            --   FullRepeat -> pure $ chordToneLogLikelihoodDouble params lbll lblr x' 
+            --   RootNote -> pure  2.0
+            --   LeftRepeatOfRight -> pure $  chordToneLogLikelihood params lblr y' + ornamentLogLikelihood params lblr n'
+            --   RightRepeatOfLeft -> pure $ chordToneLogLikelihood params lbll x' + ornamentLogLikelihood params lbll n'
 
           scorePassing Nothing _ ((x,y),(n,orn)) = throwError "wtf man"
           scorePassing _ Nothing ((x,y),(n,orn)) = throwError "wtf man"
-          scorePassing (Just (lbll,probl)) (Just (lblr, probr)) ((x,y),(n,orn)) = 
-            let (x',y',n') = (transformPitch x,transformPitch y, transformPitch n) in case orn of 
-            PassingLeft ->  pure $ chordToneLogLikelihood params lbll x' + ornamentLogLikelihood params lblr n'
-            PassingMid ->  pure $ chordToneLogLikelihoodDouble params lbll lblr y' + ornamentLogLikelihoodDouble params lbll lblr n'
-            PassingRight ->  pure $ chordToneLogLikelihood params lblr y' + ornamentLogLikelihood params lblr n'
+          scorePassing (Just (lbll,probl)) (Just (lblr, probr)) ((x,y),(n,orn)) = pure 1000
+            -- let (x',y',n') = (transformPitch x,transformPitch y, transformPitch n) in case orn of 
+            -- PassingLeft ->  pure $ chordToneLogLikelihood params lbll x' + ornamentLogLikelihood params lblr n'
+            -- PassingMid ->  pure $ chordToneLogLikelihoodDouble params lbll lblr y' + ornamentLogLikelihoodDouble params lbll lblr n'
+            -- PassingRight ->  pure $ chordToneLogLikelihood params lblr y' + ornamentLogLikelihood params lblr n'
 
           allOrnaments :: M.Map a [b] -> [(a,b)]
           allOrnaments ornamentSet = do
@@ -381,13 +397,13 @@ testHeuristic params (prevState, state) = do
     SSFrozen _ -> throwError "Illegal double operation" -- SSFrozen can only be the frist state.
     SSOpen open ops ->
       case open of
-        Path tl slice (Path tr sm rst) -> pure (Start, tContent tl, Inner $ sContent slice, tContent tr, Inner $ sContent sm) -- SSOpen only case is a split from  two open transitions.
-        Path tl slice (PathEnd tr) -> pure (Start, tContent tl, Inner $ sContent slice, tContent tr, Stop) 
+        Path tl slice (Path tr sm rst) -> pure (Start, tContent tl, Inner slice, tContent tr, Inner sm) -- SSOpen only case is a split from  two open transitions.
+        Path tl slice (PathEnd tr) -> pure (Start, tContent tl, Inner slice, tContent tr, Stop) 
         PathEnd _ -> throwError "illegal double operation" -- SSOpen only case is a split from  two open transitions.
-    SSSemiOpen frozen (Slice midSlice) open ops ->
+    SSSemiOpen frozen midSlice open ops ->
       case open of -- From two open transitions only
-        Path tl slice (Path tr sm rst) -> pure (Inner midSlice, tContent tl, Inner $ sContent slice, tContent tr, Inner $ sContent sm) -- SSOpen only case is a split from  two open transitions.
-        Path tl slice (PathEnd tr) -> pure (Inner midSlice, tContent tl, Inner $ sContent slice, tContent tr, Stop) -- SSOpen only case is a split from  two open transitions.
+        Path tl slice (Path tr sm rst) -> pure (Inner midSlice, tContent tl, Inner slice, tContent tr, Inner sm) -- SSOpen only case is a split from  two open transitions.
+        Path tl slice (PathEnd tr) -> pure (Inner midSlice, tContent tl, Inner slice, tContent tr, Stop) -- SSOpen only case is a split from  two open transitions.
         PathEnd tl -> throwError "Illegal double operation in the SSSemiOpen case"
 
   getParentSingle state = case state of
@@ -396,7 +412,7 @@ testHeuristic params (prevState, state) = do
       case open of
         PathEnd parent -> pure (Start, tContent parent) -- SSOpen only case is a split from  two open transitions.
         _ -> throwError "Illegal single " -- illegal state
-    SSSemiOpen frozen (Slice midSlice) open ops ->
+    SSSemiOpen frozen midSlice open ops ->
       case open of -- From two open transitions only
         PathEnd parent -> pure (Inner midSlice, tContent parent)
         _ -> throwError "Illegal single" -- illegal state

@@ -72,7 +72,9 @@ data ChordLabel = ChordLabel
     rootOffset :: SIC,
     keyCenter :: SPC
   }
-  deriving (Generic, Show)
+  deriving (Generic, Show, Eq)
+    
+mkLbl root chordType = ChordLabel chordType (sic (root-14)) (spc 0)
 
 -- Take the average score given a score function that takes slices and chord labels
 scoreSegments 

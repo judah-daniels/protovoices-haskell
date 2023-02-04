@@ -66,11 +66,14 @@ heuristicSearch initialState getNextStates isGoalState heuristic printOp = do
  where
   search hs
     | null open = throwError "No Goal Found"
-    | any (isGoalState . snd) open = pure . snd . head . filter (isGoalState . snd) $ open
+    | not $ null goalStates = pure . snd . head $ goalStates
     | otherwise = do
         lift $ putStrLn "___________________________________________________"
         lift $ putStrLn "Frontier: "
         lift $ mapM_ print open
+        lift $ putStrLn "___________________________________________________"
+        lift $ putStrLn "___________________________________________________"
+        lift $ putStrLn "___________________________________________________"
 
         -- Find neighboring states and costs
         nextStates <- foldlM getNextStatesAndCosts [] open
@@ -91,7 +94,7 @@ heuristicSearch initialState getNextStates isGoalState heuristic printOp = do
         -- Add the new states to the frontier.
         -- Add lowest cost states
         -- Keeping a maximum of 5 states in the frontier at a time
-        let newFrontier = take 5 nextStates
+        let newFrontier = take 6 nextStates
         --   H.fromList
         --   . H.take 1
         --   $ H.union nextStatesHeap remainingQueue
@@ -100,6 +103,7 @@ heuristicSearch initialState getNextStates isGoalState heuristic printOp = do
           hs{frontier = newFrontier}
    where
     open = frontier hs
+    goalStates = filter (isGoalState . snd) open
     getNextStatesAndCosts xs (cost, state) = do
       nextStates <- getNextStates state
       res <- mapM go nextStates
