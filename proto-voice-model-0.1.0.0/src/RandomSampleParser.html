@@ -34,72 +34,72 @@
 </span><span id="line-34"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
 </span><span id="line-35"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Common.html#Path"><span class="hs-identifier hs-type">Path</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="PVGrammar.html#Notes"><span class="hs-identifier hs-type">Notes</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">SPitch</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
 </span><span id="line-36"></span><span id="randomSamplePath"><span class="annot"><span class="annottext">randomSamplePath :: Int -&gt; IO (Path () (Notes SPitch))
-</span><a href="RandomSampleParser.html#randomSamplePath"><span class="hs-identifier hs-var hs-var">randomSamplePath</span></a></span></span><span> </span><span id="local-6989586621679482482"><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679482482"><span class="hs-identifier hs-var">numSegments</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-37"></span><span>  </span><span id="local-6989586621679482481"><span class="annot"><span class="annottext">StdGen
-</span><a href="#local-6989586621679482481"><span class="hs-identifier hs-var">gen</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *). MonadIO m =&gt; m StdGen
+</span><a href="RandomSampleParser.html#randomSamplePath"><span class="hs-identifier hs-var hs-var">randomSamplePath</span></a></span></span><span> </span><span id="local-6989586621679482691"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679482691"><span class="hs-identifier hs-var">numSegments</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-37"></span><span>  </span><span id="local-6989586621679482690"><span class="annot"><span class="annottext">StdGen
+</span><a href="#local-6989586621679482690"><span class="hs-identifier hs-var">gen</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *). MonadIO m =&gt; m StdGen
 </span><span class="hs-identifier hs-var">initStdGen</span></span><span>
-</span><span id="line-38"></span><span>  </span><span id="local-6989586621679482480"><span class="annot"><span class="annottext">IOGenM StdGen
-</span><a href="#local-6989586621679482480"><span class="hs-identifier hs-var">mgen</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span>  </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) g. MonadIO m =&gt; g -&gt; m (IOGenM g)
+</span><span id="line-38"></span><span>  </span><span id="local-6989586621679482689"><span class="annot"><span class="annottext">IOGenM StdGen
+</span><a href="#local-6989586621679482689"><span class="hs-identifier hs-var">mgen</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span>  </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) g. MonadIO m =&gt; g -&gt; m (IOGenM g)
 </span><span class="hs-identifier hs-var">newIOGenM</span></span><span> </span><span class="annot"><span class="annottext">StdGen
-</span><a href="#local-6989586621679482481"><span class="hs-identifier hs-var">gen</span></a></span><span>
+</span><a href="#local-6989586621679482690"><span class="hs-identifier hs-var">gen</span></a></span><span>
 </span><span id="line-39"></span><span>  </span><span class="annot"><span class="annottext">forall {t} {g}.
 (Eq t, Num t, StatefulGen g IO) =&gt;
 g -&gt; t -&gt; IO (Path () (Notes SPitch))
-</span><a href="#local-6989586621679482479"><span class="hs-identifier hs-var">genPath</span></a></span><span> </span><span class="annot"><span class="annottext">IOGenM StdGen
-</span><a href="#local-6989586621679482480"><span class="hs-identifier hs-var">mgen</span></a></span><span> </span><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679482482"><span class="hs-identifier hs-var">numSegments</span></a></span><span>
+</span><a href="#local-6989586621679482688"><span class="hs-identifier hs-var">genPath</span></a></span><span> </span><span class="annot"><span class="annottext">IOGenM StdGen
+</span><a href="#local-6989586621679482689"><span class="hs-identifier hs-var">mgen</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679482691"><span class="hs-identifier hs-var">numSegments</span></a></span><span>
 </span><span id="line-40"></span><span> </span><span class="hs-keyword">where</span><span>
-</span><span id="line-41"></span><span>  </span><span id="local-6989586621679482479"><span class="annot"><span class="annottext">genPath :: g -&gt; t -&gt; IO (Path () (Notes SPitch))
-</span><a href="#local-6989586621679482479"><span class="hs-identifier hs-var hs-var">genPath</span></a></span></span><span> </span><span id="local-6989586621679482465"><span class="annot"><span class="annottext">g
-</span><a href="#local-6989586621679482465"><span class="hs-identifier hs-var">mgen</span></a></span></span><span> </span><span class="annot"><span class="annottext">t
+</span><span id="line-41"></span><span>  </span><span id="local-6989586621679482688"><span class="annot"><span class="annottext">genPath :: g -&gt; t -&gt; IO (Path () (Notes SPitch))
+</span><a href="#local-6989586621679482688"><span class="hs-identifier hs-var hs-var">genPath</span></a></span></span><span> </span><span id="local-6989586621679482674"><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679482674"><span class="hs-identifier hs-var">mgen</span></a></span></span><span> </span><span class="annot"><span class="annottext">t
 </span><span class="hs-number">0</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
 </span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall around between. around -&gt; Path around between
 </span><a href="Common.html#PathEnd"><span class="hs-identifier hs-var">PathEnd</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
-</span><span id="line-42"></span><span>  </span><span class="annot"><a href="#local-6989586621679482479"><span class="hs-identifier hs-var">genPath</span></a></span><span> </span><span id="local-6989586621679482463"><span class="annot"><span class="annottext">g
-</span><a href="#local-6989586621679482463"><span class="hs-identifier hs-var">mgen</span></a></span></span><span> </span><span id="local-6989586621679482462"><span class="annot"><span class="annottext">t
-</span><a href="#local-6989586621679482462"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span> </span><span>
-</span><span id="line-43"></span><span>    </span><span id="local-6989586621679482461"><span class="annot"><span class="annottext">Path () (Notes SPitch)
-</span><a href="#local-6989586621679482461"><span class="hs-identifier hs-var">rst</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">g -&gt; t -&gt; IO (Path () (Notes SPitch))
-</span><a href="#local-6989586621679482479"><span class="hs-identifier hs-var">genPath</span></a></span><span> </span><span class="annot"><span class="annottext">g
-</span><a href="#local-6989586621679482463"><span class="hs-identifier hs-var">mgen</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">t
-</span><a href="#local-6989586621679482462"><span class="hs-identifier hs-var">n</span></a></span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span id="line-42"></span><span>  </span><span class="annot"><a href="#local-6989586621679482688"><span class="hs-identifier hs-var">genPath</span></a></span><span> </span><span id="local-6989586621679482672"><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679482672"><span class="hs-identifier hs-var">mgen</span></a></span></span><span> </span><span id="local-6989586621679482671"><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679482671"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span> </span><span>
+</span><span id="line-43"></span><span>    </span><span id="local-6989586621679482670"><span class="annot"><span class="annottext">Path () (Notes SPitch)
+</span><a href="#local-6989586621679482670"><span class="hs-identifier hs-var">rst</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">g -&gt; t -&gt; IO (Path () (Notes SPitch))
+</span><a href="#local-6989586621679482688"><span class="hs-identifier hs-var">genPath</span></a></span><span> </span><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679482672"><span class="hs-identifier hs-var">mgen</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679482671"><span class="hs-identifier hs-var">n</span></a></span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
 </span><span class="hs-glyph hs-var">-</span></span><span class="annot"><span class="annottext">t
 </span><span class="hs-number">1</span></span><span class="hs-special">)</span><span>
-</span><span id="line-44"></span><span>    </span><span id="local-6989586621679482460"><span class="annot"><span class="annottext">Notes SPitch
-</span><a href="#local-6989586621679482460"><span class="hs-identifier hs-var">slc</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall g. StatefulGen g IO =&gt; g -&gt; IO (Notes SPitch)
+</span><span id="line-44"></span><span>    </span><span id="local-6989586621679482669"><span class="annot"><span class="annottext">Notes SPitch
+</span><a href="#local-6989586621679482669"><span class="hs-identifier hs-var">slc</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall g. StatefulGen g IO =&gt; g -&gt; IO (Notes SPitch)
 </span><a href="RandomSampleParser.html#genSlice"><span class="hs-identifier hs-var">genSlice</span></a></span><span> </span><span class="annot"><span class="annottext">g
-</span><a href="#local-6989586621679482463"><span class="hs-identifier hs-var">mgen</span></a></span><span>
+</span><a href="#local-6989586621679482672"><span class="hs-identifier hs-var">mgen</span></a></span><span>
 </span><span id="line-45"></span><span>    </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
 </span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall around between.
 around -&gt; between -&gt; Path around between -&gt; Path around between
 </span><a href="Common.html#Path"><span class="hs-identifier hs-var">Path</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Notes SPitch
-</span><a href="#local-6989586621679482460"><span class="hs-identifier hs-var">slc</span></a></span><span> </span><span class="annot"><span class="annottext">Path () (Notes SPitch)
-</span><a href="#local-6989586621679482461"><span class="hs-identifier hs-var">rst</span></a></span><span>
+</span><a href="#local-6989586621679482669"><span class="hs-identifier hs-var">slc</span></a></span><span> </span><span class="annot"><span class="annottext">Path () (Notes SPitch)
+</span><a href="#local-6989586621679482670"><span class="hs-identifier hs-var">rst</span></a></span><span>
 </span><span id="line-46"></span><span>
-</span><span id="line-47"></span><span id="local-6989586621679482543"><span class="annot"><a href="RandomSampleParser.html#genSlice"><span class="hs-identifier hs-type">genSlice</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">StatefulGen</span></span><span> </span><span class="annot"><a href="#local-6989586621679482543"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679482543"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="PVGrammar.html#Notes"><span class="hs-identifier hs-type">Notes</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">SPitch</span></span><span class="hs-special">)</span></span><span>
+</span><span id="line-47"></span><span id="local-6989586621679482752"><span class="annot"><a href="RandomSampleParser.html#genSlice"><span class="hs-identifier hs-type">genSlice</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">StatefulGen</span></span><span> </span><span class="annot"><a href="#local-6989586621679482752"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679482752"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="PVGrammar.html#Notes"><span class="hs-identifier hs-type">Notes</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">SPitch</span></span><span class="hs-special">)</span></span><span>
 </span><span id="line-48"></span><span id="genSlice"><span class="annot"><span class="annottext">genSlice :: forall g. StatefulGen g IO =&gt; g -&gt; IO (Notes SPitch)
-</span><a href="RandomSampleParser.html#genSlice"><span class="hs-identifier hs-var hs-var">genSlice</span></a></span></span><span> </span><span id="local-6989586621679482428"><span class="annot"><span class="annottext">g
-</span><a href="#local-6989586621679482428"><span class="hs-identifier hs-var">gen</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span> </span><span>
-</span><span id="line-49"></span><span>  </span><span id="local-6989586621679482427"><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679482427"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall a g (m :: * -&gt; *).
+</span><a href="RandomSampleParser.html#genSlice"><span class="hs-identifier hs-var hs-var">genSlice</span></a></span></span><span> </span><span id="local-6989586621679482637"><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679482637"><span class="hs-identifier hs-var">gen</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span> </span><span>
+</span><span id="line-49"></span><span>  </span><span id="local-6989586621679482636"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679482636"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall a g (m :: * -&gt; *).
 (UniformRange a, StatefulGen g m) =&gt;
 (a, a) -&gt; g -&gt; m a
 </span><span class="hs-identifier hs-var">uniformRM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
 </span><span class="hs-number">2</span></span><span class="hs-glyph">::</span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Int
 </span><span class="hs-number">5</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">g
-</span><a href="#local-6989586621679482428"><span class="hs-identifier hs-var">gen</span></a></span><span>
-</span><span id="line-50"></span><span>  </span><span id="local-6989586621679482426"><span class="annot"><span class="annottext">[SPitch]
-</span><a href="#local-6989586621679482426"><span class="hs-identifier hs-var">notes</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) (m :: * -&gt; *) a b.
+</span><a href="#local-6989586621679482637"><span class="hs-identifier hs-var">gen</span></a></span><span>
+</span><span id="line-50"></span><span>  </span><span id="local-6989586621679482635"><span class="annot"><span class="annottext">[SPitch]
+</span><a href="#local-6989586621679482635"><span class="hs-identifier hs-var">notes</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) (m :: * -&gt; *) a b.
 (Traversable t, Monad m) =&gt;
 (a -&gt; m b) -&gt; t a -&gt; m (t b)
 </span><span class="hs-identifier hs-var">mapM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall {m :: * -&gt; *} {g} {p}. StatefulGen g m =&gt; g -&gt; p -&gt; m SPitch
-</span><a href="#local-6989586621679482424"><span class="hs-identifier hs-var">genNote</span></a></span><span> </span><span class="annot"><span class="annottext">g
-</span><a href="#local-6989586621679482428"><span class="hs-identifier hs-var">gen</span></a></span><span class="hs-special">)</span><span>  </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679482633"><span class="hs-identifier hs-var">genNote</span></a></span><span> </span><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679482637"><span class="hs-identifier hs-var">gen</span></a></span><span class="hs-special">)</span><span>  </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Int
 </span><span class="hs-number">1</span></span><span class="hs-glyph">..</span><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679482427"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">]</span><span>
+</span><a href="#local-6989586621679482636"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">]</span><span>
 </span><span id="line-51"></span><span>  </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
 </span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall n. MultiSet n -&gt; Notes n
@@ -108,30 +108,30 @@ around -&gt; between -&gt; Path around between -&gt; Path around between
 (Foldable t, Eq a, Hashable a) =&gt;
 t a -&gt; MultiSet a
 </span><a href="Internal.MultiSet.html#fromList"><span class="hs-identifier hs-var">MS.fromList</span></a></span><span> </span><span class="annot"><span class="annottext">[SPitch]
-</span><a href="#local-6989586621679482426"><span class="hs-identifier hs-var">notes</span></a></span><span>
+</span><a href="#local-6989586621679482635"><span class="hs-identifier hs-var">notes</span></a></span><span>
 </span><span id="line-52"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span>
-</span><span id="line-53"></span><span>    </span><span id="local-6989586621679482424"><span class="annot"><span class="annottext">genNote :: g -&gt; p -&gt; m SPitch
-</span><a href="#local-6989586621679482424"><span class="hs-identifier hs-var hs-var">genNote</span></a></span></span><span> </span><span id="local-6989586621679482411"><span class="annot"><span class="annottext">g
-</span><a href="#local-6989586621679482411"><span class="hs-identifier hs-var">gen</span></a></span></span><span> </span><span class="annot"><span class="annottext">p
+</span><span id="line-53"></span><span>    </span><span id="local-6989586621679482633"><span class="annot"><span class="annottext">genNote :: g -&gt; p -&gt; m SPitch
+</span><a href="#local-6989586621679482633"><span class="hs-identifier hs-var hs-var">genNote</span></a></span></span><span> </span><span id="local-6989586621679482620"><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679482620"><span class="hs-identifier hs-var">gen</span></a></span></span><span> </span><span class="annot"><span class="annottext">p
 </span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span> </span><span>
-</span><span id="line-54"></span><span>      </span><span id="local-6989586621679482410"><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679482410"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall a g (m :: * -&gt; *).
+</span><span id="line-54"></span><span>      </span><span id="local-6989586621679482619"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679482619"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall a g (m :: * -&gt; *).
 (UniformRange a, StatefulGen g m) =&gt;
 (a, a) -&gt; g -&gt; m a
 </span><span class="hs-identifier hs-var">uniformRM</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">-</span><span class="annot"><span class="annottext">Int
 </span><span class="hs-number">7</span></span><span class="hs-special">,</span><span class="annot"><span class="annottext">Int
 </span><span class="hs-number">7</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">g
-</span><a href="#local-6989586621679482411"><span class="hs-identifier hs-var">gen</span></a></span><span>
+</span><a href="#local-6989586621679482620"><span class="hs-identifier hs-var">gen</span></a></span><span>
 </span><span id="line-55"></span><span>      </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
 </span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; SPitch
 </span><span class="hs-identifier hs-var">spelledp</span></span><span> </span><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679482410"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679482410"><span class="hs-identifier hs-var">i</span></a></span><span>
+</span><a href="#local-6989586621679482619"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679482619"><span class="hs-identifier hs-var">i</span></a></span><span>
 </span><span id="line-56"></span><span>   </span><span>
 </span><span id="line-57"></span><span>
 </span><span id="line-58"></span><span>
-</span><span id="line-59"></span><span id="local-6989586621679482516"><span id="local-6989586621679482517"><span id="local-6989586621679482518"><span class="annot"><a href="RandomSampleParser.html#pickRandom"><span class="hs-identifier hs-type">pickRandom</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">StatefulGen</span></span><span> </span><span class="annot"><a href="#local-6989586621679482518"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679482517"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679482518"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679482516"><span class="hs-identifier hs-type">slc</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679482517"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679482516"><span class="hs-identifier hs-type">slc</span></a></span><span class="hs-special">)</span></span></span></span><span>
+</span><span id="line-59"></span><span id="local-6989586621679482725"><span id="local-6989586621679482726"><span id="local-6989586621679482727"><span class="annot"><a href="RandomSampleParser.html#pickRandom"><span class="hs-identifier hs-type">pickRandom</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">StatefulGen</span></span><span> </span><span class="annot"><a href="#local-6989586621679482727"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679482726"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679482727"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679482725"><span class="hs-identifier hs-type">slc</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679482726"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679482725"><span class="hs-identifier hs-type">slc</span></a></span><span class="hs-special">)</span></span></span></span><span>
 </span><span id="line-60"></span><span id="pickRandom"><span class="annot"><span class="annottext">pickRandom :: forall g (m :: * -&gt; *) slc.
 StatefulGen g m =&gt;
 g -&gt; [slc] -&gt; m (Maybe slc)
@@ -139,26 +139,26 @@ g -&gt; [slc] -&gt; m (Maybe slc)
 </span><span class="hs-identifier">_</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
 </span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">forall a. Maybe a
 </span><span class="hs-identifier hs-var">Nothing</span></span><span>
-</span><span id="line-61"></span><span class="annot"><a href="RandomSampleParser.html#pickRandom"><span class="hs-identifier hs-var">pickRandom</span></a></span><span> </span><span id="local-6989586621679482395"><span class="annot"><span class="annottext">g
-</span><a href="#local-6989586621679482395"><span class="hs-identifier hs-var">gen</span></a></span></span><span> </span><span id="local-6989586621679482394"><span class="annot"><span class="annottext">[slc]
-</span><a href="#local-6989586621679482394"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-62"></span><span>  </span><span id="local-6989586621679482393"><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679482393"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall a g (m :: * -&gt; *).
+</span><span id="line-61"></span><span class="annot"><a href="RandomSampleParser.html#pickRandom"><span class="hs-identifier hs-var">pickRandom</span></a></span><span> </span><span id="local-6989586621679482604"><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679482604"><span class="hs-identifier hs-var">gen</span></a></span></span><span> </span><span id="local-6989586621679482603"><span class="annot"><span class="annottext">[slc]
+</span><a href="#local-6989586621679482603"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-62"></span><span>  </span><span id="local-6989586621679482602"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679482602"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall a g (m :: * -&gt; *).
 (UniformRange a, StatefulGen g m) =&gt;
 (a, a) -&gt; g -&gt; m a
 </span><span class="hs-identifier hs-var">uniformRM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
 </span><span class="hs-number">0</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Int
 </span><span class="hs-identifier hs-var">length</span></span><span> </span><span class="annot"><span class="annottext">[slc]
-</span><a href="#local-6989586621679482394"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><a href="#local-6989586621679482603"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
 </span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Int
 </span><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">g
-</span><a href="#local-6989586621679482395"><span class="hs-identifier hs-var">gen</span></a></span><span>
+</span><a href="#local-6989586621679482604"><span class="hs-identifier hs-var">gen</span></a></span><span>
 </span><span id="line-63"></span><span>  </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
 </span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a. a -&gt; Maybe a
 </span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[slc]
-</span><a href="#local-6989586621679482394"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. [a] -&gt; Int -&gt; a
+</span><a href="#local-6989586621679482603"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. [a] -&gt; Int -&gt; a
 </span><span class="hs-operator hs-var">!!</span></span><span> </span><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679482393"><span class="hs-identifier hs-var">i</span></a></span><span>
+</span><a href="#local-6989586621679482602"><span class="hs-identifier hs-var">i</span></a></span><span>
 </span><span id="line-64"></span></pre></body></html>

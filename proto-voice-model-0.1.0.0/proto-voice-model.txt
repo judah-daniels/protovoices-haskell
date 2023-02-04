@@ -630,136 +630,6 @@ instance (GHC.Show.Show slc, GHC.Show.Show tr, GHC.Show.Show s, GHC.Show.Show f)
 instance (GHC.Show.Show slc, GHC.Show.Show tr, GHC.Show.Show s, GHC.Show.Show f, GHC.Show.Show h) => GHC.Show.Show (GreedyParser.ActionDouble slc tr s f h)
 instance (GHC.Show.Show slc, GHC.Show.Show o) => GHC.Show.Show (GreedyParser.GreedyState tr tr' slc o)
 
-module HeuristicParser
-newtype Slice ns
-Slice :: ns -> Slice ns
-[sContent] :: Slice ns -> ns
-data Trans es
-Trans :: !es -> !Bool -> !Boundary -> Trans es
-[tContent] :: Trans es -> !es
-[t2nd] :: Trans es -> !Bool
-[tBoundary] :: Trans es -> !Boundary
-
--- | The state of the search between steps. Generally, the current
---   reduction consists of frozen transitions between the ⋊ and the current
---   location and open transitions between the current location and ⋉.
---   
---   <pre>
---   ⋊==[1]==[2]==[3]——[4]——[5]——⋉
---     └ frozen  ┘  | └   open  ┘
---               midSlice (current position)
---   
---   frozen:   ==[2]==[1]==
---   midSlice: [3]
---   open:     ——[4]——[5]——
---   </pre>
---   
---   This is the <a>SSSemiOpen</a> case: The slice at the current pointer
---   (<tt>[3]</tt>) is represented as an individual slice
---   (<tt>_ssMidSlice</tt>). The frozen part is represented by a
---   <a>Path</a> of frozen transitions (<tt>tr'</tt>) and slices
---   (<tt>slc</tt>). <b>in reverse direction</b>, i.e. from
---   <tt>midslice</tt> back to ⋊ (excluding ⋊). The open part is a
---   <a>Path</a> of open transitions (<tt>tr</tt>) and slices
---   (<tt>slc</tt>) in forward direction from <tt>midSlice</tt> up to ⋉.
---   
---   There are two special cases. All transitions can be frozen
---   (<a>SSFrozen</a>), in which case state only contains the backward
---   <a>Path</a> of frozen transitions (excluding ⋊ and ⋉):
---   
---   <pre>
---   ⋊==[1]==[2]==[3]==⋉
---                      └ current position
---   represented as: ==[3]==[2]==[1]==
---   </pre>
---   
---   Or all transitions can be open (<a>SSOpen</a>), in which case the
---   state is just the forward path of open transitions:
---   
---   <pre>
---   ⋊——[1]——[2]——[3]——⋉
---   └ current position
---   represented as: ——[1]——[2]——[3]——
---   </pre>
---   
---   The open and semiopen case additionally have a list of operations in
---   generative order.
---   
---   Types: es' : Unparsed/frozen transitions es : Unfrozen transitions ns
---   : Evaluated slice content o : Operation type
---   
---   The state of the search between steps
-data SearchState es es' ns o
-SSFrozen :: !Path (Maybe es', Bool) (Slice ns) -> SearchState es es' ns o
-SSSemiOpen :: !Path (Maybe es', Bool) (Slice ns) -> !Slice ns -> !Path (Trans es) (Slice ns) -> ![o] -> SearchState es es' ns o
-
--- | frozen transitions and slices from current point leftward
-[_ssFrozen] :: SearchState es es' ns o -> !Path (Maybe es', Bool) (Slice ns)
-
--- | the slice at the current posision between gsFrozen and gsOpen
-[_ssMidSlice] :: SearchState es es' ns o -> !Slice ns
-
--- | non-frozen transitions and slices from current point rightward
-[_ssOpen] :: SearchState es es' ns o -> !Path (Trans es) (Slice ns)
-
--- | derivation from current reduction to original surface
-[_ssDeriv] :: SearchState es es' ns o -> ![o]
-SSOpen :: !Path (Trans es) (Slice ns) -> ![o] -> SearchState es es' ns o
-
--- | Helper function for showing the frozen part of a piece.
-showFrozen :: Show slc => Path (Maybe es', Bool) slc -> String
-
--- | Helper function for showing the open part of a piece.
-showOpen :: Show slc => Path (Trans es') slc -> String
-
--- | Returns a list of possible next states given the current state.
-exploreStates :: forall es es' ns ns' s f h. (Show s, Show f, Show h, Show es, Show es', Show ns, Show ns') => Eval es es' ns ns' (Leftmost s f h) -> SearchState es es' ns (Leftmost s f h) -> ExceptT String IO [SearchState es es' ns (Leftmost s f h)]
-type Boundary = Bool
-heursiticSearchGoalTest :: SearchState es es' ns o -> Bool
-printPathFromState :: (Show es, Show ns) => SearchState es es' ns o -> String
-getOpsFromState :: SearchState es es' ns o -> [o]
-getPathLengthFromState :: SearchState es es' ns o -> Int
-getPathFromState :: SearchState es es' ns o -> Maybe (Path es ns)
-
--- | A parsing action (reduction step) with a single parent transition.
---   Combines the parent elements with a single-transition derivation
---   operation.
-data ActionSingle ns tr s f
-ActionSingle :: (StartStop ns, Trans tr, StartStop ns) -> LeftmostSingle s f -> ActionSingle ns tr s f
-
--- | A parsing action (reduction step) with two parent transitions.
---   Combines the parent elements with a double-transition derivation
---   operation.
-data ActionDouble ns tr s f h
-ActionDouble :: (StartStop ns, Trans tr, ns, Trans tr, StartStop ns) -> LeftmostDouble s f h -> ActionDouble ns tr s f h
-
--- | An alias that combines <a>ActionSingle</a> and <a>ActionDouble</a>,
---   representing all possible reduction steps.
-type Action slc tr s f h = Either (ActionSingle slc tr s f) (ActionDouble slc tr s f h)
-instance GHC.Classes.Eq ns => GHC.Classes.Eq (HeuristicParser.Slice ns)
-instance GHC.Classes.Eq es => GHC.Classes.Eq (HeuristicParser.Trans es)
-instance (GHC.Show.Show ns, GHC.Show.Show tr, GHC.Show.Show s, GHC.Show.Show f) => GHC.Show.Show (HeuristicParser.ActionSingle ns tr s f)
-instance (GHC.Show.Show ns, GHC.Show.Show tr, GHC.Show.Show s, GHC.Show.Show f, GHC.Show.Show h) => GHC.Show.Show (HeuristicParser.ActionDouble ns tr s f h)
-instance (GHC.Show.Show ns, GHC.Show.Show o) => GHC.Show.Show (HeuristicParser.SearchState es es' ns o)
-instance GHC.Show.Show es => GHC.Show.Show (HeuristicParser.Trans es)
-instance GHC.Show.Show ns => GHC.Show.Show (HeuristicParser.Slice ns)
-
-module HeuristicSearch
-data HeuristicSearch s c
-HeuristicSearch :: [(c, s)] -> ((Maybe s, s) -> ExceptT String IO c) -> (s -> Bool) -> HeuristicSearch s c
-[frontier] :: HeuristicSearch s c -> [(c, s)]
-[heuristic] :: HeuristicSearch s c -> (Maybe s, s) -> ExceptT String IO c
-[goal] :: HeuristicSearch s c -> s -> Bool
-heuristicSearchInit :: s -> ((Maybe s, s) -> ExceptT String IO c) -> c -> (s -> Bool) -> HeuristicSearch s c
-
--- | Entry point to the search algorithm
-heuristicSearch :: Show state => state -> (state -> ExceptT String IO [state]) -> (state -> Bool) -> ((Maybe state, state) -> ExceptT String IO Double) -> (state -> String) -> ExceptT String IO state
-getLowestCostState :: [(Double, state)] -> state
-popFromHeap :: HeapItem a b => Heap a b -> (b, Heap a b)
-genHeap :: Ord a => [(a, b)] -> MinPrioHeap a b
-insertHeapLimitedBy :: HeapItem pol item => Int -> item -> HeapT (Prio pol item) (Val pol item) -> HeapT (Prio pol item) (Val pol item)
-insertLimitedBy :: HeapItem pol item => Int -> item -> HeapT (Prio pol item) (Val pol item) -> HeapT (Prio pol item) (Val pol item)
-
 
 -- | A simple implementation of multisets as hash maps to counts. Supports
 --   just what is needed for protovoice slices.
@@ -1111,6 +981,7 @@ ChordLabel :: String -> SIC -> SPC -> ChordLabel
 [chordType] :: ChordLabel -> String
 [rootOffset] :: ChordLabel -> SIC
 [keyCenter] :: ChordLabel -> SPC
+mkLbl :: Int -> String -> ChordLabel
 scoreSegments :: HarmonicProfileData -> (Notes SPitch -> ChordLabel -> Double) -> [Notes SPitch] -> [ChordLabel] -> Double
 
 -- | Provides a score measuring how much the slice matches the chord
@@ -1152,10 +1023,152 @@ instance GHC.Show.Show PBHModel.Params
 instance GHC.Generics.Generic PBHModel.Params
 instance GHC.Show.Show PBHModel.HarmonicProfileData
 instance GHC.Generics.Generic PBHModel.HarmonicProfileData
+instance GHC.Classes.Eq PBHModel.ChordLabel
 instance GHC.Show.Show PBHModel.ChordLabel
 instance GHC.Generics.Generic PBHModel.ChordLabel
 instance Data.Aeson.Types.FromJSON.FromJSON PBHModel.HarmonicProfileData
 instance Data.Aeson.Types.FromJSON.FromJSON PBHModel.Params
+
+module HeuristicParser
+newtype Slice ns
+Slice :: ns -> Slice ns
+[sContent] :: Slice ns -> ns
+data SliceWrapped ns
+SliceWrapped :: ns -> ChordLabel -> Double -> SliceWrapped ns
+[sWContent] :: SliceWrapped ns -> ns
+[sLbl] :: SliceWrapped ns -> ChordLabel
+[sLblProb] :: SliceWrapped ns -> Double
+newtype SliceWrapper ns
+SliceWrapper :: (ns -> SliceWrapped ns) -> SliceWrapper ns
+[wrapSlice] :: SliceWrapper ns -> ns -> SliceWrapped ns
+idWrapper :: SliceWrapper ns
+data Trans es
+Trans :: !es -> !Bool -> !Boundary -> Trans es
+[tContent] :: Trans es -> !es
+[t2nd] :: Trans es -> !Bool
+[tBoundary] :: Trans es -> !Boundary
+
+-- | The state of the search between steps. Generally, the current
+--   reduction consists of frozen transitions between the ⋊ and the current
+--   location and open transitions between the current location and ⋉.
+--   
+--   <pre>
+--   ⋊==[1]==[2]==[3]——[4]——[5]——⋉
+--     └ frozen  ┘  | └   open  ┘
+--               midSlice (current position)
+--   
+--   frozen:   ==[2]==[1]==
+--   midSlice: [3]
+--   open:     ——[4]——[5]——
+--   </pre>
+--   
+--   This is the <a>SSSemiOpen</a> case: The slice at the current pointer
+--   (<tt>[3]</tt>) is represented as an individual slice
+--   (<tt>_ssMidSlice</tt>). The frozen part is represented by a
+--   <a>Path</a> of frozen transitions (<tt>tr'</tt>) and slices
+--   (<tt>slc</tt>). <b>in reverse direction</b>, i.e. from
+--   <tt>midslice</tt> back to ⋊ (excluding ⋊). The open part is a
+--   <a>Path</a> of open transitions (<tt>tr</tt>) and slices
+--   (<tt>slc</tt>) in forward direction from <tt>midSlice</tt> up to ⋉.
+--   
+--   There are two special cases. All transitions can be frozen
+--   (<a>SSFrozen</a>), in which case state only contains the backward
+--   <a>Path</a> of frozen transitions (excluding ⋊ and ⋉):
+--   
+--   <pre>
+--   ⋊==[1]==[2]==[3]==⋉
+--                      └ current position
+--   represented as: ==[3]==[2]==[1]==
+--   </pre>
+--   
+--   Or all transitions can be open (<a>SSOpen</a>), in which case the
+--   state is just the forward path of open transitions:
+--   
+--   <pre>
+--   ⋊——[1]——[2]——[3]——⋉
+--   └ current position
+--   represented as: ——[1]——[2]——[3]——
+--   </pre>
+--   
+--   The open and semiopen case additionally have a list of operations in
+--   generative order.
+--   
+--   Types: es' : Unparsed/frozen transitions es : Unfrozen transitions ns
+--   : Evaluated slice content o : Operation type
+--   
+--   The state of the search between steps
+data SearchState es es' ns o
+SSFrozen :: !Path (Maybe es', Bool) (SliceWrapped ns) -> SearchState es es' ns o
+SSSemiOpen :: !Path (Maybe es', Bool) (SliceWrapped ns) -> !SliceWrapped ns -> !Path (Trans es) (SliceWrapped ns) -> ![o] -> SearchState es es' ns o
+
+-- | frozen transitions and slices from current point leftward
+[_ssFrozen] :: SearchState es es' ns o -> !Path (Maybe es', Bool) (SliceWrapped ns)
+
+-- | the slice at the current posision between gsFrozen and gsOpen
+[_ssMidSlice] :: SearchState es es' ns o -> !SliceWrapped ns
+
+-- | non-frozen transitions and slices from current point rightward
+[_ssOpen] :: SearchState es es' ns o -> !Path (Trans es) (SliceWrapped ns)
+
+-- | derivation from current reduction to original surface
+[_ssDeriv] :: SearchState es es' ns o -> ![o]
+SSOpen :: !Path (Trans es) (SliceWrapped ns) -> ![o] -> SearchState es es' ns o
+
+-- | Helper function for showing the frozen part of a piece.
+showFrozen :: Show slc => Path (Maybe es', Bool) slc -> String
+
+-- | Helper function for showing the open part of a piece.
+showOpen :: Show slc => Path (Trans es') slc -> String
+
+-- | Returns a list of possible next states given the current state.
+exploreStates :: forall es es' ns ns' s f h. (Show s, Show f, Show h, Show es, Show es', Show ns, Show ns') => SliceWrapper ns -> Eval es es' ns ns' (Leftmost s f h) -> SearchState es es' ns (Leftmost s f h) -> ExceptT String IO [SearchState es es' ns (Leftmost s f h)]
+type Boundary = Bool
+heursiticSearchGoalTest :: SearchState es es' ns o -> Bool
+printPathFromState :: (Show es, Show ns) => SearchState es es' ns o -> String
+getOpsFromState :: SearchState es es' ns o -> [o]
+getPathLengthFromState :: SearchState es es' ns o -> Int
+getPathFromState :: SearchState es es' ns o -> Maybe (Path es ns)
+
+-- | A parsing action (reduction step) with a single parent transition.
+--   Combines the parent elements with a single-transition derivation
+--   operation.
+data ActionSingle ns tr s f
+ActionSingle :: (StartStop ns, Trans tr, StartStop ns) -> LeftmostSingle s f -> ActionSingle ns tr s f
+
+-- | A parsing action (reduction step) with two parent transitions.
+--   Combines the parent elements with a double-transition derivation
+--   operation.
+data ActionDouble ns tr s f h
+ActionDouble :: (StartStop ns, Trans tr, ns, Trans tr, StartStop ns) -> LeftmostDouble s f h -> ActionDouble ns tr s f h
+
+-- | An alias that combines <a>ActionSingle</a> and <a>ActionDouble</a>,
+--   representing all possible reduction steps.
+type Action slc tr s f h = Either (ActionSingle slc tr s f) (ActionDouble slc tr s f h)
+instance GHC.Classes.Eq ns => GHC.Classes.Eq (HeuristicParser.Slice ns)
+instance GHC.Classes.Eq ns => GHC.Classes.Eq (HeuristicParser.SliceWrapped ns)
+instance GHC.Classes.Eq es => GHC.Classes.Eq (HeuristicParser.Trans es)
+instance (GHC.Show.Show ns, GHC.Show.Show tr, GHC.Show.Show s, GHC.Show.Show f) => GHC.Show.Show (HeuristicParser.ActionSingle ns tr s f)
+instance (GHC.Show.Show ns, GHC.Show.Show tr, GHC.Show.Show s, GHC.Show.Show f, GHC.Show.Show h) => GHC.Show.Show (HeuristicParser.ActionDouble ns tr s f h)
+instance (GHC.Show.Show ns, GHC.Show.Show o) => GHC.Show.Show (HeuristicParser.SearchState es es' ns o)
+instance GHC.Show.Show es => GHC.Show.Show (HeuristicParser.Trans es)
+instance GHC.Show.Show ns => GHC.Show.Show (HeuristicParser.SliceWrapped ns)
+instance GHC.Show.Show ns => GHC.Show.Show (HeuristicParser.Slice ns)
+
+module HeuristicSearch
+data HeuristicSearch s c
+HeuristicSearch :: [(c, s)] -> ((Maybe s, s) -> ExceptT String IO c) -> (s -> Bool) -> HeuristicSearch s c
+[frontier] :: HeuristicSearch s c -> [(c, s)]
+[heuristic] :: HeuristicSearch s c -> (Maybe s, s) -> ExceptT String IO c
+[goal] :: HeuristicSearch s c -> s -> Bool
+heuristicSearchInit :: s -> ((Maybe s, s) -> ExceptT String IO c) -> c -> (s -> Bool) -> HeuristicSearch s c
+
+-- | Entry point to the search algorithm
+heuristicSearch :: Show state => state -> (state -> ExceptT String IO [state]) -> (state -> Bool) -> ((Maybe state, state) -> ExceptT String IO Double) -> (state -> String) -> ExceptT String IO state
+getLowestCostState :: [(Double, state)] -> state
+popFromHeap :: HeapItem a b => Heap a b -> (b, Heap a b)
+genHeap :: Ord a => [(a, b)] -> MinPrioHeap a b
+insertHeapLimitedBy :: HeapItem pol item => Int -> item -> HeapT (Prio pol item) (Val pol item) -> HeapT (Prio pol item) (Val pol item)
+insertLimitedBy :: HeapItem pol item => Int -> item -> HeapT (Prio pol item) (Val pol item) -> HeapT (Prio pol item) (Val pol item)
 
 
 -- | This module contains functions for the generative aspects of
