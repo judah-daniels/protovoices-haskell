@@ -977,16 +977,16 @@ Params :: [Double] -> [[Double]] -> [[Double]] -> [Double] -> [Double] -> Double
 -- | Load the paramaters from the JSON
 loadParams :: FilePath -> IO HarmonicProfileData
 data ChordLabel
-ChordLabel :: String -> SIC -> SPC -> ChordLabel
+ChordLabel :: String -> SPC -> ChordLabel
 [chordType] :: ChordLabel -> String
-[rootOffset] :: ChordLabel -> SIC
-[keyCenter] :: ChordLabel -> SPC
+[rootNote] :: ChordLabel -> SPC
 mkLbl :: Int -> String -> ChordLabel
 scoreSegments :: HarmonicProfileData -> (Notes SPitch -> ChordLabel -> Double) -> [Notes SPitch] -> [ChordLabel] -> Double
 
 -- | Provides a score measuring how much the slice matches the chord
 --   annoation
 scoreSegment' :: HarmonicProfileData -> Notes SPitch -> ChordLabel -> Double
+transposeNote :: Pitch SIC -> SPitch -> SIC
 
 -- | Provides a score measuring how much the slice matches the chord
 --   annoation
@@ -995,28 +995,25 @@ scoreSegment :: HarmonicProfileData -> Notes SPitch -> ChordLabel -> Double
 -- | Provides a score measuring how much the slice matches the chord
 --   annoation
 evaluateSlice :: HarmonicProfileData -> Notes SIC -> String -> Double
-mostLikelyChordFromSlice :: HarmonicProfileData -> Notes SPitch -> (Int, String, Double)
-transformSlice :: Notes SPitch -> Notes SIC
-transformPitch :: SPitch -> SIC
+mostLikelyChordFromSlice :: HarmonicProfileData -> Notes SPitch -> (SPC, String, Double)
 maxi :: (Ord a, Num b, Enum b) => [a] -> (a, b)
-sliceChordLogLikelihoods :: HarmonicProfileData -> Notes SPitch -> [(Double, Int, Int)]
-sliceChordWeightedLogLikelihoods :: HarmonicProfileData -> Notes SPitch -> [(Double, Int, Int)]
-allChords :: [[Double]] -> [(Double, Int, Int)]
+allChords :: [[Double]] -> [(Double, SPC, Int)]
 sliceChordWeightedLogLikelihood :: HarmonicProfileData -> String -> Notes SIC -> Double
 chordIndexFromLabel :: HarmonicProfileData -> String -> Maybe Int
 sliceChordLogLikelihood :: HarmonicProfileData -> ChordLabel -> Notes SIC -> Double
+allIntervals :: [SIC]
+allNotes :: [SPC]
+sliceChordWeightedLogLikelihoods :: HarmonicProfileData -> Notes SPitch -> [(Double, SPC, Int)]
 genSliceVector :: Notes SIC -> [Double]
 ornamentLogLikelihood :: HarmonicProfileData -> ChordLabel -> SIC -> Double
 chordToneLogLikelihood :: HarmonicProfileData -> ChordLabel -> SIC -> Double
 genMixture :: [Double] -> [Double] -> [Double]
-ornamentLogLikelihoodDouble :: HarmonicProfileData -> ChordLabel -> ChordLabel -> SIC -> Double
-chordToneLogLikelihoodDouble :: HarmonicProfileData -> ChordLabel -> ChordLabel -> SIC -> Double
+ornamentLogLikelihoodDouble :: HarmonicProfileData -> ChordLabel -> ChordLabel -> SPitch -> Double
+chordToneLogLikelihoodDouble :: HarmonicProfileData -> ChordLabel -> ChordLabel -> SPitch -> Double
 getOrnamentParams :: HarmonicProfileData -> [[Double]]
 getChordToneParams :: HarmonicProfileData -> [[Double]]
 getHarmonyParams :: HarmonicProfileData -> [Double]
 normaliseList :: Fractional a => [a] -> [a]
-evalPath :: Path es (Notes SPitch) -> [ChordLabel] -> HarmonicProfileData -> Double
-transposeSlice :: SPC -> Notes SPitch -> Notes SIC
 multinomialLogProb :: [Double] -> [Double] -> Double
 categoricalLogProb :: Int -> [Double] -> Double
 instance GHC.Show.Show PBHModel.Params
@@ -1042,6 +1039,7 @@ newtype SliceWrapper ns
 SliceWrapper :: (ns -> SliceWrapped ns) -> SliceWrapper ns
 [wrapSlice] :: SliceWrapper ns -> ns -> SliceWrapped ns
 idWrapper :: SliceWrapper ns
+type Boundary = Bool
 data Trans es
 Trans :: !es -> !Bool -> !Boundary -> Trans es
 [tContent] :: Trans es -> !es
@@ -1122,7 +1120,6 @@ showOpen :: Show slc => Path (Trans es') slc -> String
 
 -- | Returns a list of possible next states given the current state.
 exploreStates :: forall es es' ns ns' s f h. (Show s, Show f, Show h, Show es, Show es', Show ns, Show ns') => SliceWrapper ns -> Eval es es' ns ns' (Leftmost s f h) -> SearchState es es' ns (Leftmost s f h) -> ExceptT String IO [SearchState es es' ns (Leftmost s f h)]
-type Boundary = Bool
 heursiticSearchGoalTest :: SearchState es es' ns o -> Bool
 printPathFromState :: (Show es, Show ns) => SearchState es es' ns o -> String
 getOpsFromState :: SearchState es es' ns o -> [o]
@@ -1140,10 +1137,6 @@ ActionSingle :: (StartStop ns, Trans tr, StartStop ns) -> LeftmostSingle s f -> 
 --   operation.
 data ActionDouble ns tr s f h
 ActionDouble :: (StartStop ns, Trans tr, ns, Trans tr, StartStop ns) -> LeftmostDouble s f h -> ActionDouble ns tr s f h
-
--- | An alias that combines <a>ActionSingle</a> and <a>ActionDouble</a>,
---   representing all possible reduction steps.
-type Action slc tr s f h = Either (ActionSingle slc tr s f) (ActionDouble slc tr s f h)
 instance GHC.Classes.Eq ns => GHC.Classes.Eq (HeuristicParser.Slice ns)
 instance GHC.Classes.Eq ns => GHC.Classes.Eq (HeuristicParser.SliceWrapped ns)
 instance GHC.Classes.Eq es => GHC.Classes.Eq (HeuristicParser.Trans es)
@@ -1505,9 +1498,23 @@ pickRandom :: StatefulGen g m => g -> [slc] -> m (Maybe slc)
 module RandomSampleParser
 
 -- | Generates a path of random notes for the given number of segments
-randomSamplePath :: Int -> IO (Path () (Notes SPitch))
+randomSamplePath :: Int -> IO (Path (Edges SPitch) (Notes SPitch))
 genSlice :: StatefulGen g IO => g -> IO (Notes SPitch)
 pickRandom :: StatefulGen g m => g -> [slc] -> m (Maybe slc)
+
+module FileHandling
+type InputSlice ns = ([(ns, RightTied)], Bool)
+pathFromSlices :: forall ns o. Eval (Edges ns) [Edge ns] (Notes ns) [ns] o -> SliceWrapper (Notes ns) -> [InputSlice ns] -> Path (Maybe [Edge ns], Bool) (SliceWrapped (Notes ns))
+
+-- | Loads slices from filepath
+slicesFromFile' :: FilePath -> IO [(Slice', Bool)]
+
+-- | Loads chord annotations from filepath
+chordsFromFile :: FilePath -> IO [ChordLabel]
+instance Data.Csv.Conversion.FromNamedRecord FileHandling.ChordLabel'
+instance Data.Csv.Conversion.FromNamedRecord FileHandling.SalamiNote
+instance Data.Csv.Conversion.FromField Musicology.Core.RightTied
+instance Data.Csv.Conversion.FromField GHC.Types.Bool
 
 
 -- | <i>This module is deprecated, use <a>Scoring.FunTyped</a> instead.</i>
