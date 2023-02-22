@@ -81,11 +81,11 @@ testHeuristic params (prevState, state) = do
       -- no unfreeze if there are 3 open non boundary transition
       LMDouble (LMDoubleFreezeLeft freezeOp) -> do
         lift $ putStrLn "Considering an unfreeze"
-        pure 0.3
+        pure 5.3
 
       LMSingle (LMSingleFreeze freezeOp) -> do
         lift $ putStrLn "Considering an unfreeze"
-        pure 0.3
+        pure 5.3
       -- Spreading
       -- Calculate for each chord possibility, the likelihood that they are all the same chord
       -- Splitting Right
@@ -122,6 +122,7 @@ testHeuristic params (prevState, state) = do
       -}
       LMSingle (LMSingleSplit splitOp) -> do
         lift $ putStrLn "Considering a single unsplit"
+        -- (child, sr)
         (slcl, parent) <- getParentSingle state
         scoreSplit splitOp parent slcl slcl Stop
 
@@ -161,16 +162,8 @@ testHeuristic params (prevState, state) = do
         lift $ putStrLn "Considering an unsplit right"
         (sl, child) <- getParentSlices (fromJust prevState)
         (_,_, slcl, parent, slcr) <- getParentDouble state
-        -- (slcl, parent, slcr,_, _) <- getParentDouble state
         scoreSplit splitOp parent child slcl slcr
-        -- case applySplit splitOp parent of
-        --   Left err -> throwError err
-        --   Right (childl, slice, childr) -> do
-        --     let thetaL = mostLikelyChordFromSlice params slcl
-        --     -- let thetaR = mostLikelyChordFromSlice params slcr
-        --     -- lift $ print thetaL
-        --     -- lift $ print thetaR
-        --     pure 0.4
+
  where
       -- Scoring Split
       {-
@@ -202,9 +195,9 @@ testHeuristic params (prevState, state) = do
     let lbl = lblL
 
 
-    let mu = sliceChordLogLikelihood params lbl (transformSlice slc)
-    let wu = sliceChordLogLikelihood params lbl (transformSlice slcl)
-    let ru = sliceChordLogLikelihood params lbl (transformSlice slcr)
+    let mu = sliceChordLogLikelihood params lbl slc
+    let wu = sliceChordLogLikelihood params lbl slcl
+    let ru = sliceChordLogLikelihood params lbl slcr
 
     let score = 5 - (wu + ru)
     lift $ putStrLn $ "score: " <> show (1 - score)
@@ -212,7 +205,7 @@ testHeuristic params (prevState, state) = do
    where
     -- trace (show $ mostLikelyChordFromSlice params parent ) -2.0
 
-    mkLbl root chordType = ChordLabel chordType (sic (root-14)) (spc 0)
+    mkLbl root chordType = ChordLabel chordType (spc (root-14))
     -- predChord = mostLikelyChord hpData parent
     -- jointLogLikelihood =
     --     sliceChordLogLikelihood childl
@@ -283,7 +276,7 @@ testHeuristic params (prevState, state) = do
 
       lift $ putStrLn $ "Operation scores: " <> show aggregateProbs
 
-      let score = 1 - (sum aggregateProbs / fromIntegral (L.length aggregateProbs))
+      let score = -1 - (sum aggregateProbs / fromIntegral (L.length aggregateProbs))
       
       lift $ putStrLn $ "score: " <> show score
       pure score
@@ -296,7 +289,7 @@ testHeuristic params (prevState, state) = do
 
           showLbl :: Maybe (ChordLabel, Double) -> String
           showLbl Nothing = "N/A"
-          showLbl (Just (lbl, prob)) = Music.showNotation (keyCenter lbl) <> chordType lbl <> ", Prob: " <> show prob
+          showLbl (Just (lbl, prob)) = Music.showNotation (rootNote lbl) <> chordType lbl <> ", Prob: " <> show prob
           showOps ops = "\n   " <>  L.intercalate "\n   " ops 
 
           showEdge (p1, p2) = Music.showNotation p1 <> "-" <> Music.showNotation p2
@@ -308,47 +301,73 @@ testHeuristic params (prevState, state) = do
           showL (p, lchilds) = Music.showNotation p <> "=>" <> showChildren lchilds
           showR (p, rchilds) = showChildren rchilds <> "<=" <> Music.showNotation p
 
-          scoreRightOrnament Nothing (x,(n,orn)) = throwError "Right Ornament with no parent"
-          scoreRightOrnament (Just (lbl, prob)) (x,(n,orn)) = do
-            -- lift $ putStrLn $ "Scoring a right ornament: " <> Music.showNotation n <> "<="<> Music.showNotation x
-            let (x',n') = (transformPitch x,transformPitch n) in case orn of 
-              RightNeighbor -> do
-                  -- lift $ putStrLn $ "Left Neighbor" 
-                  -- lift $ putStrLn $ "LBL: " <> (showLbl (Just (lbl, prob)))
-                  -- lift $ putStrLn $ "Chord tone likelihood: " <> (show $ chordToneLogLikelihood params lbl x')
-                  -- lift $ putStrLn $ "Ornament tone likelihood: " <> (show $ ornamentLogLikelihood params lbl n' )
-                  pure $ chordToneLogLikelihood params lbl x' + ornamentLogLikelihood params lbl n'
-              RightRepeat -> pure $ 9 + chordToneLogLikelihood params lbl x' + chordToneLogLikelihood params lbl n'
 
-          scoreLeftOrnament Nothing (x,(n,orn)) = throwError "Left Ornament with no parent"
-          scoreLeftOrnament (Just (lbl, prob)) (x,(n,orn)) = do
-            -- lift $ putStrLn $ "Scoring a left ornament: " <> Music.showNotation x <> "=>"<> Music.showNotation n
-            let (x',n') = (transformPitch x,transformPitch n) in case orn of 
+          scoreRightOrnament 
+            :: Maybe (ChordLabel, Double) 
+            -> (SPitch, (SPitch, RightOrnament)) 
+            -> ExceptT String IO Double
+          scoreRightOrnament Nothing (n,(x,orn)) = throwError "Right Ornament with no parent"
+          scoreRightOrnament (Just (lbl@(ChordLabel chordLbl root), prob)) (n,(x,orn)) = do
+            lift $ putStrLn ""
+            lift $ putStrLn $ "Scoring a right ornament: " <> Music.showNotation n <> "<="<> Music.showNotation x
+            let (n', x') = (transposeNote root n, transposeNote root x) in case orn of 
+              RightNeighbor -> do
+                  lift $ putStrLn "Right Neighbor" 
+                  lift $ putStrLn $ "LBL: " <> showLbl (Just (lbl, prob))
+                  lift $ putStrLn $ "Chord tone likelihood: " <> show (chordToneLogLikelihood params lbl n')
+                  lift $ putStrLn $ "Ornament tone likelihood: " <> show (ornamentLogLikelihood params lbl x')
+                  pure $ chordToneLogLikelihood params lbl n' + ornamentLogLikelihood params lbl x'
+              RightRepeat -> do
+                lift $ putStrLn "Right Repeat" 
+                lift $ putStrLn $ "LBL: " <> showLbl (Just (lbl, prob))
+                lift $ putStrLn $ "Chord tone likelihood: " <> show (chordToneLogLikelihood params lbl n')
+                pure $ 2 * chordToneLogLikelihood params lbl n' 
+
+          scoreLeftOrnament 
+            :: Maybe (ChordLabel, Double) 
+            -> (SPitch, (SPitch, LeftOrnament)) 
+            -> ExceptT String IO Double
+          scoreLeftOrnament Nothing (n,(x,orn)) = throwError "Left Ornament with no parent"
+          -- scoreLeftOrnament (Just (lbl, prob)) (n,(x,orn)) = do
+          scoreLeftOrnament (Just (lbl@(ChordLabel chordLbl root), prob)) (n,(x,orn)) = do
+            lift $ putStrLn ""
+            lift $ putStrLn $ "Scoring a left ornament: " <> Music.showNotation x <> "=>"<> Music.showNotation n
+            let (n', x') = (transposeNote root n, transposeNote root x) in case orn of 
               LeftNeighbor -> do 
-                -- lift $ putStrLn $ "Left Neighbor" 
-                -- lift $ putStrLn $ "Chord tone likelihood: " <> (show $ chordToneLogLikelihood params lbl x')
-                -- lift $ putStrLn $ "LBL: " <> (showLbl (Just (lbl, prob)))
-                -- lift $ putStrLn $ "Ornament tone likelihood: " <> (show $ ornamentLogLikelihood params lbl n' )
+                lift $ putStrLn "Left Neighbor" 
+                lift $ putStrLn $ "LBL: " <> showLbl (Just (lbl, prob))
+                lift $ putStrLn $ "Chord tone likelihood: " <> show (chordToneLogLikelihood params lbl n')
+                lift $ putStrLn $ "Ornament tone likelihood: " <> show (ornamentLogLikelihood params lbl x')
                 pure $ chordToneLogLikelihood params lbl n' + ornamentLogLikelihood params lbl x'  
-              LeftRepeat -> pure $ 9 + chordToneLogLikelihood params lbl x' + chordToneLogLikelihood params lbl n'
+              LeftRepeat -> do 
+                lift $ putStrLn "Left Repeat" 
+                lift $ putStrLn $ "LBL: " <> showLbl (Just (lbl, prob))
+                lift $ putStrLn $ "Chord tone likelihood: " <> show (chordToneLogLikelihood params lbl n')
+                pure $ 2 * chordToneLogLikelihood params lbl n' 
 
           scoreRegs Nothing _ ((x,y),(n,orn)) = throwError "wtf man"
           scoreRegs _ Nothing ((x,y),(n,orn)) = throwError "wtf woman"
-          scoreRegs (Just (lbll, probL)) (Just (lblr, probR)) ((Inner x,Inner y),(n,orn)) = pure 1000
-            -- let (x',y',n') = (transformPitch x,transformPitch y, transformPitch n) in case orn of 
-            --   FullNeighbor -> pure  $ chordToneLogLikelihoodDouble params lbll lblr x' + ornamentLogLikelihoodDouble params lbll lblr n'
-            --   FullRepeat -> pure $ chordToneLogLikelihoodDouble params lbll lblr x' 
-            --   RootNote -> pure  2.0
-            --   LeftRepeatOfRight -> pure $  chordToneLogLikelihood params lblr y' + ornamentLogLikelihood params lblr n'
-            --   RightRepeatOfLeft -> pure $ chordToneLogLikelihood params lbll x' + ornamentLogLikelihood params lbll n'
+          scoreRegs (Just (lbll@(ChordLabel chordlbll rootl), probL)) (Just (lblr@(ChordLabel chordlblr rootr), probR)) ((Inner nl,Inner nr),(x,orn)) = 
+            let (nl',nr') = (transposeNote rootl nl,transposeNote rootr nr) in case orn of 
+              FullNeighbor -> pure $ 
+                (chordToneLogLikelihood params lbll nl' + chordToneLogLikelihood params lblr nr') / 2 
+                + ornamentLogLikelihoodDouble params lbll lblr x
+              FullRepeat -> pure $ 
+                (chordToneLogLikelihood params lbll nl' + chordToneLogLikelihood params lblr nr') / 2 
+                + chordToneLogLikelihoodDouble params lbll lblr x 
+              RootNote -> pure 0.2
+              LeftRepeatOfRight -> pure $ -100
+                -- chordToneLogLikelihood params lblr nr' 
+              RightRepeatOfLeft -> pure $ -100
+                -- chordToneLogLikelihood params lbll nl'
 
           scorePassing Nothing _ ((x,y),(n,orn)) = throwError "wtf man"
           scorePassing _ Nothing ((x,y),(n,orn)) = throwError "wtf man"
-          scorePassing (Just (lbll,probl)) (Just (lblr, probr)) ((x,y),(n,orn)) = pure 1000
-            -- let (x',y',n') = (transformPitch x,transformPitch y, transformPitch n) in case orn of 
-            -- PassingLeft ->  pure $ chordToneLogLikelihood params lbll x' + ornamentLogLikelihood params lblr n'
-            -- PassingMid ->  pure $ chordToneLogLikelihoodDouble params lbll lblr y' + ornamentLogLikelihoodDouble params lbll lblr n'
-            -- PassingRight ->  pure $ chordToneLogLikelihood params lblr y' + ornamentLogLikelihood params lblr n'
+          scorePassing (Just (lbll@(ChordLabel chordlbll rootl), probL)) (Just (lblr@(ChordLabel chordlblr rootr), probR)) ((nl, nr),(x,orn)) = 
+            let (nl',nr') = (transposeNote rootl nl,transposeNote rootr nr) in case orn of 
+            PassingLeft ->  pure $ ornamentLogLikelihood params lblr (transposeNote rootl x)
+            PassingMid ->  pure $ ornamentLogLikelihoodDouble params lbll lblr x
+            PassingRight ->  pure $ ornamentLogLikelihood params lblr (transposeNote rootr x)
 
           allOrnaments :: M.Map a [b] -> [(a,b)]
           allOrnaments ornamentSet = do

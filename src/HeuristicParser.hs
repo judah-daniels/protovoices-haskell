@@ -3,10 +3,9 @@
 module HeuristicParser where
 
 import Common
-import Control.Monad.Except
-import Data.Bifunctor
-import Data.Maybe
-import Debug.Trace
+import Control.Monad.Except (ExceptT, lift, throwError)
+import Data.Bifunctor (second)
+import Data.Maybe (Maybe, catMaybes, fromJust, mapMaybe, maybeToList)
 import PBHModel
 
 newtype Slice ns = Slice
@@ -30,6 +29,8 @@ instance Show ns => Show (Slice ns) where
 
 instance Show ns => Show (SliceWrapped ns) where
   show (SliceWrapped ns _ _) = show ns
+
+type Boundary = Bool
 
 data Trans es = Trans
   { tContent :: !es
@@ -248,16 +249,19 @@ exploreStates wrap eval state = do
       Path topenl@(Trans _ _ topenlBoundary) sopenl (Path topenm@(Trans _ _ topenmBoundary) sopenr rstOpen) -> do
         let allowUnfreeze = topenlBoundary || topenmBoundary
         let doubleActions =
-              ( Right
-                  <$> collectDoubles
-                    (Inner $ sWContent midSlice)
-                    topenl
-                    (sWContent sopenl)
-                    topenm
-                    (sWContent sopenr)
-                    (second sWContent rstOpen)
-              )
-                :: [Either (ActionDouble ns es s f h) (ActionDouble ns es s f h)]
+              if not topenlBoundary && topenmBoundary
+                then []
+                else
+                  ( Right
+                      <$> collectDoubles
+                        (Inner $ sWContent midSlice)
+                        topenl
+                        (sWContent sopenl)
+                        topenm
+                        (sWContent sopenr)
+                        (second sWContent rstOpen)
+                  )
+                    :: [Either (ActionDouble ns es s f h) (ActionDouble ns es s f h)]
          in case frozen of
               PathEnd tfrozen -> do
                 lift $ putStrLn "2+ Open Transitions, 1 frozen transition Left: \n"
@@ -417,11 +421,6 @@ exploreStates wrap eval state = do
     rightUnsplits = collectUnsplitRight sstart tl sl tm sr tr send
     unspreads = collectUnspreads sstart tl sl tm sr tr send
 
-type Boundary = Bool
-
--- Keep in mind we start at the very end of the piece to parse.
--- Everytime we thaw a transition we send it the evaluator. Set t2nd upon an unspread, for use later for splits.
-
 heursiticSearchGoalTest
   :: SearchState es es' ns o
   -> Bool
@@ -497,6 +496,3 @@ data ActionDouble ns tr s f h
       (LeftmostDouble s f h)
       -- ^ double-transition operation
   deriving (Show)
-
--- | An alias that combines 'ActionSingle' and 'ActionDouble', representing all possible reduction steps.
-type Action slc tr s f h = Either (ActionSingle slc tr s f) (ActionDouble slc tr s f h)

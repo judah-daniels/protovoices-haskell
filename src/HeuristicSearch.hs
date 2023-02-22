@@ -71,6 +71,8 @@ heuristicSearch initialState getNextStates isGoalState heuristic printOp = do
         lift $ putStrLn "___________________________________________________"
         lift $ putStrLn "Frontier: "
         lift $ mapM_ print open
+        lift $ putStrLn "Goals: "
+        lift $ mapM_ print goalStates
         lift $ putStrLn "___________________________________________________"
         lift $ putStrLn "___________________________________________________"
         lift $ putStrLn "___________________________________________________"
@@ -94,7 +96,7 @@ heuristicSearch initialState getNextStates isGoalState heuristic printOp = do
         -- Add the new states to the frontier.
         -- Add lowest cost states
         -- Keeping a maximum of 5 states in the frontier at a time
-        let newFrontier = take 6 nextStates
+        let newFrontier = take 12 nextStates
         --   H.fromList
         --   . H.take 1
         --   $ H.union nextStatesHeap remainingQueue

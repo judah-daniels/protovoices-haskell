@@ -13,6 +13,7 @@ import PVGrammar
 
 import Internal.MultiSet qualified as MS
 import Data.Foldable
+import Data.HashSet as S
 import qualified Data.Heap as H
 import qualified Data.List as L
 import Data.Maybe (fromMaybe)
@@ -32,17 +33,17 @@ import System.Random.Stateful
 -}
 randomSamplePath
   :: Int
-  -> IO (Path () (Notes SPitch))
+  -> IO (Path (Edges SPitch) (Notes SPitch))
 randomSamplePath numSegments = do
   gen <- initStdGen
   mgen <-  newIOGenM gen
   genPath mgen numSegments
  where
-  genPath mgen 0 = pure $ PathEnd ()
+  genPath mgen 0 = pure $ PathEnd (Edges S.empty MS.empty)
   genPath mgen n = do 
     rst <- genPath mgen (n-1)
     slc <- genSlice mgen
-    pure $ Path () slc rst
+    pure $ Path (Edges S.empty MS.empty) slc rst
 
 genSlice :: StatefulGen g IO => g -> IO (Notes SPitch)
 genSlice gen = do 

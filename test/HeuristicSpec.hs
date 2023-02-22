@@ -11,6 +11,7 @@ import Debug.Trace
 import Common hiding (split)
 import Data.ByteString.Lazy qualified as BL
 import Control.Monad.Except (ExceptT,runExceptT, lift, throwError)
+import Data.HashSet qualified as S
 import Data.Csv
 import Data.List.Split
 import Data.Hashable
@@ -26,6 +27,7 @@ import Data.Vector qualified as V
 import Display
 import RandomChoiceSearch
 import RandomSampleParser
+import FileHandling
 import HeuristicSearch
 import PBHModel
 import Language.Haskell.DoNotation
@@ -47,239 +49,166 @@ import Control.Monad.Trans.Except (throwE)
 import qualified Internal.MultiSet as MS
 import HeuristicParser 
 
--- ([(Note, Tied?)], Start of new segment)
-type InputSlice ns = ([(ns, Music.RightTied)], Bool)
-
 fullParseSpec :: Spec 
 fullParseSpec = do 
   runIO $ do
+    params <- loadParams "preprocessing/dcml_params.json"
+    print params
+    -- slices <- slicesFromFile' "preprocessing/inputs/slices1short.csv"
+    -- print slices
+    -- chords <- chordsFromFile "preprocessing/inputs/chords1short.csv"
+    -- let wrap = SliceWrapper $ \ns -> let (r,l,p) = mostLikelyChordFromSlice params ns in SliceWrapped ns (ChordLabel l r) p
+    --
+    -- scores <- evaluateSearches 
+    --
+    --     [ runHeuristicSearch params protoVoiceEvaluator wrap (applyHeuristic (testHeuristic params))
+    --     -- [ runRandomSearch params protoVoiceEvaluator
+    --     -- , runRandomSampleSearch 
+    --     ]
+    --     (scoreSegments params (scoreSegment' params))
+    --     slices 
+    --     chords
+    --
+    -- print scores
+  pure ()
+
+evaluateSearches
+  :: forall bs 
+  .  [[InputSlice SPitch] -> [ChordLabel] -> IO (Path bs (Notes SPitch))]
+  -> ([Notes SPitch] -> [ChordLabel] -> Double)
+  -> [InputSlice SPitch]
+  -> [ChordLabel] 
+  -> IO [Double]
+evaluateSearches algos scorer inputSlices chordLabels =
+   mapM 
+     (\algo -> do
+         resultingPath <- algo inputSlices chordLabels 
+         let slices = pathBetweens resultingPath
+         pure $ scorer slices chordLabels
+       ) 
+       algos
+  
+
+evaluateSearch 
+  :: ([InputSlice SPitch] -> [ChordLabel] -> IO (Path (Edges SPitch) (Notes SPitch)))
+  -> ([Notes SPitch] -> [ChordLabel] -> Double)
+  -> [InputSlice SPitch]
+  -> [ChordLabel] 
+  -> IO Double
+evaluateSearch algo scorer inputSlices chordLabels = do 
+   resultingPath <- algo inputSlices chordLabels 
+   let slices = pathBetweens resultingPath
+   let score = scorer slices chordLabels
+   pure score
+  
+-- import Mus
+heuristicSpec :: Spec
+heuristicSpec = do
+  runIO $ do
+    params <- loadParams "preprocessing/dcml_params.json"
+    let wrap = SliceWrapper $ \ns -> let (r,l,p) = mostLikelyChordFromSlice params ns in SliceWrapped ns (ChordLabel l r) p
+    slices <- slicesFromFile' "preprocessing/salamisShortest.csv"
+    chords <- chordsFromFile "preprocessing/chordsShortest.csv"
+    -- finalPath <- runHeuristicSearch proitoVoiceEvaluator slices321sus chords321sus
+    -- (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slices321sus chords321sus
+    -- slices <- slicesFromFile' "preprocessing/salamis.csv"
+    -- chords <- chordsFromFile "preprocessing/chords.csv"
+    -- print $ pathFromSlices protoVoiceEvaluator slices65m 
+    -- (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (testHeuristic params) slices65m chords65m
+    -- (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slices43 chords43
+
+    finalPath' <- runRandomSearch params protoVoiceEvaluator slices65m chords65m
+    finalPath <- runHeuristicSearch params protoVoiceEvaluator wrap (applyHeuristic (testHeuristic params)) slices65m chords65m
+    -- (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slicesTiny' chordsTiny'
+
+    -- encodeFile "outputs/ops.json" ops
+    --
     -- finalPath <- runHeuristicSearch proitoVoiceEvaluator slices321sus chords321sus
     -- slices <- slicesFromFile' "preprocessing/inputs/salamis.csv"
-    slices <- slicesFromFile' "preprocessing/inputs/salamisShort.csv"
     -- chords <- chordsFromFile "preprocessing/inputs/chords.csv"
-    chords <- chordsFromFile "preprocessing/inputs/chordsShort.csv"
     -- print $ pathFromSlices protoVoiceEvaluator slices65m 
-    params <- loadParams "preprocessing/inputs/dcml_params.json"
     -- (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (testHeuristic params) slices65m chords65m
     -- (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slices43 chords43
     -- (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slices321sus chords321sus
     -- (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slicesTiny chordsTiny
-    let wrap = 
-          let 
-            wrapSlice' ns = let (r,l,p) = mostLikelyChordFromSlice params ns in SliceWrapped ns (mkLbl r l) p
-          in 
-            SliceWrapper wrapSlice'
-    (finalPath'', ops) <- runHeuristicSearch params protoVoiceEvaluator wrap (applyHeuristic (testHeuristic params)) slices chords
-    finalPath <- runRandomSampleSearch chords
+    -- (finalPath'', ops) <- runHeuristicSearch params protoVoiceEvaluator wrap (applyHeuristic (testHeuristic params)) slices chords
+    -- (finalPath'', ops) <- runHeuristicSearch params protoVoiceEvaluator wrap (applyHeuristic (testHeuristic params)) slices chords
+    -- (finalPath'', ops) <- runHeuristicSearch params protoVoiceEvaluator wrap (applyHeuristic (testHeuristic params)) slices chords
+    -- (finalPath'', ops) <- runHeuristicSearch params protoVoiceEvaluator wrap (applyHeuristic (testHeuristic params)) slices43 chords43
+    -- finalPath'' <- runHeuristicSearch params protoVoiceEvaluator wrap (applyHeuristic (testHeuristic params)) slicesTiny chordsTiny
+    -- finalPath <- runRandomSampleSearch chords
 
     -- let sliceLengths = length . fst <$> slices 
     -- mapM_ print slices
     -- print sliceLengths
-    (finalPath', ops) <- runRandomSearch params protoVoiceEvaluator slices chords
+    -- (finalPath', ops) <- runRandomSearch params protoVoiceEvaluator slices chords
     -- mapM_ print ops
-    -- print finalPath
+
+
+    -- print finalPath''
 
     -- encodeFile "outputs/ops.json" ops
 
     -- print finalPath
     -- print $ testHeuristic params s 
-    let pathScore = scoreSegments params (scoreSegment' params) (pathBetweens finalPath) chords 
-    let pathScore' = scoreSegments params (scoreSegment' params) (pathBetweens finalPath') chords 
-    let pathScore'' = scoreSegments params (scoreSegment' params) (pathBetweens finalPath'') chords 
+    -- let pathScore = scoreSegments params (scoreSegment' params) (pathBetweens finalPath) chords 
+    -- let pathScore' = scoreSegments params (scoreSegment' params) (pathBetweens finalPath') chords 
+    -- let pathScore'' = scoreSegments params (scoreSegment' params) (pathBetweens finalPath'') chords43
+    -- let pathScore'' = scoreSegments params (scoreSegment' params) (pathBetweens finalPath'') chordsTiny
        
 
     -- let res = evalPath finalPath chordsTiny params
     -- let res = evalPath finalPath chords65m params
     -- let res = evalPath finalPath chords321sus params
-    putStrLn $ "\nRandom score: " <> show pathScore
-    putStrLn $ "\nRandom Choice score': " <> show pathScore'
-    putStrLn $ "\nHeuristic score': " <> show pathScore''
+    -- putStrLn $ "\nRandom score: " <> show pathScore
+    -- putStrLn $ "\nRandom Choice score: " <> show pathScore'
+    -- putStrLn $ "\nHeuristic score': " <> show pathScore''
 
     -- print chords
     -- hspec pathFromSlicesSpec
-  pure ()
-
-
--- import Mus
-heuristicSpec :: Spec
-heuristicSpec = do
-  runIO $ do
-    -- finalPath <- runHeuristicSearch proitoVoiceEvaluator slices321sus chords321sus
-    -- slices <- slicesFromFile' "preprocessing/salamis.csv"
-    -- slices <- slicesFromFile' "preprocessing/salamisShortest.csv"
-    -- chords <- chordsFromFile "preprocessing/chords.csv"
-    -- chords <- chordsFromFile "preprocessing/chordsShortest.csv"
-    -- print $ pathFromSlices protoVoiceEvaluator slices65m 
-    params <- loadParams "preprocessing/dcml_params.json"
-    -- (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (testHeuristic params) slices65m chords65m
-    -- (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slices43 chords43
-    -- (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slices321sus chords321sus
-    -- wrapper :: SliceWrapper ns
-    let wrap = 
-          let 
-            wrapSlice' ns = let (r,l,p) = mostLikelyChordFromSlice params ns in SliceWrapped ns (ChordLabel l (sic 0) (spc $ r - 14)) p
-          in 
-            SliceWrapper wrapSlice'
-
-    (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator wrap (applyHeuristic (testHeuristic params)) slices43 chords43
-    -- (finalPath, ops) <- runRandomSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slicesTiny chordsTiny
-    -- (finalPath, ops) <- runHeuristicSearch params protoVoiceEvaluator (applyHeuristic (testHeuristic params)) slicesTiny' chordsTiny'
-
-    -- encodeFile "outputs/ops.json" ops
 
 
     print finalPath
+    print finalPath'
     -- print $ testHeuristic params s 
     -- let res = evalPath finalPath chordsTiny' params
     -- let res = evalPath finalPath chordsTiny params
-    let res = scoreSegments params (scoreSegment params) (pathBetweens finalPath) chords43
+    let res = scoreSegments params (scoreSegment params) (pathBetweens finalPath) chords65m
+    let res' = scoreSegments params (scoreSegment params) (pathBetweens finalPath') chords65m
     -- let res = evalPath finalPath chords65m params
     -- let res = evalPath finalPath chords321sus params
     putStrLn $ "\nEvaluation score: " <> show res
+    putStrLn $ "\nEvaluation score random: " <> show res'
     -- hspec pathFromSlicesSpec
   pure ()
+
 
 testOp =  
   ActionDouble 
     (Start, undefined,undefined, undefined, Stop) $
     LMDoubleSplitLeft $ mkSplit $ do 
       addToRight (c' nat) (c' nat) LeftRepeat True 
-
--- -- ---------------------------------- -------------------------------- --------------------------------
--- Reading Data from Files
-
-instance FromField Music.RightTied where
-  parseField s = case s of
-    "True" -> pure Music.Holds
-    _ -> pure Music.Ends
-
-instance FromField Bool where
-  parseField s = case s of
-    "True" -> pure True
-    _ -> pure False
-
--- | Data Structure for parsing individual notes
-data SalamiNote = SalamiNote
-  { _new_segment :: !Bool,
-    _new_slice :: !Bool,
-    _pitch :: !String,
-    _tied :: !Music.RightTied
-  }
-
--- | Data Structure for parsing chord labels
-data ChordLabel' = ChordLabel'
-  { _segment_id' :: !Int,
-    _chordtype :: !String,
-    _rootoffset :: !Int,
-    _globalkey :: !String
-  }
-
-instance FromNamedRecord SalamiNote where
-  parseNamedRecord r =
-    SalamiNote
-      <$> r .: "new_segment"
-      <*> r .: "new_slice"
-      <*> r .: "pitch"
-      <*> r .: "tied"
-
-instance FromNamedRecord ChordLabel' where
-  parseNamedRecord r =
-    ChordLabel'
-      <$> r .: "segment_id"
-      <*> r .: "chord_type"
-      <*> r .: "rootoffset"
-      <*> r .: "globalkey"
-
--- | Data type for a chord Label. TODO specialise this datatype.
-type Chord = String
-
--- | Loads chord annotations from filepath
-chordsFromFile :: FilePath -> IO [ChordLabel]
-chordsFromFile file = do
-  txt <- BL.readFile file
-  case decodeByName txt of
-    Left err -> do 
-      print err
-      pure []
-    Right (_, v) -> do
-      pure $ fmap parseChordLabel (V.toList v)
-  where
-    parseChordLabel r = ChordLabel (_chordtype r) (Music.sic $ _rootoffset r) (fromMaybe undefined (Music.readNotation $ _globalkey r))
-
--- | Datatype for a slice
-type Slice' = [(SPitch, Music.RightTied)]
-
--- | Loads slices from filepath
-slicesFromFile' :: FilePath -> IO [(Slice', Bool)]
-slicesFromFile' file = do
-  txt <- BL.readFile file
-  case decodeByName txt of
-    Left err -> pure []
-    Right (_, v) -> do
-      let notes = fmap noteFromSalami (V.toList v)
-      -- notes :: [(SPitch, Music.RightTied, NewSegment, NewSlice])
-      let slices =
-            let 
-             splitNotes = split (keepDelimsL $ whenElt (\(_,_,_,newSlice) -> newSlice)) notes 
-            in (map . map) (\(s,t,newSeg,_) -> (s,t,newSeg)) splitNotes
-
-      -- let segmentedSlices = map addBoundary slices
-      let segmentedSlices = case map addBoundary slices of 
-                              (x, _):rst -> (x, True):rst
-                              [] -> []
-      
-      pure segmentedSlices
-      where
-        addBoundary :: [(SPitch, Music.RightTied, Bool)] -> (Slice', Bool)
-        addBoundary [] = undefined 
-        addBoundary slc@((p, t, True):rst) = (dropLastOf3 <$> slc, True)
-        addBoundary slc@((p, t, False):rst) = (dropLastOf3 <$> slc, False)
-
-
-        dropLastOf3 (a,b,c) = (a,b)
-
-        output :: [[[(SPitch, Music.RightTied)]]] -> [(Slice', Bool)]
-        -- f :: [[a]] -> (a->b) -> [b]
-        output = concatMap addBoundaries
-
-        splitIntoSlices :: [(SPitch, Music.RightTied, Bool)] -> [[(SPitch, Music.RightTied)]]
-        splitIntoSlices slices = (map . map) (\(s,t,_) -> (s,t)) $ split (keepDelimsR $ whenElt (\(_,_,newSlice) -> newSlice)) slices
-
-        -- Assign boundary marker to first slice of each segment
-        addBoundaries :: [[(SPitch, Music.RightTied)]] -> [(Slice', Bool)]
-        addBoundaries [] = []
-        addBoundaries (s : sx) = (s, True) : map (,False) sx
-
--- Parse a salami note as output from the python salalmis package.
-noteFromSalami :: SalamiNote -> (SPitch, Music.RightTied, Bool, Bool)
-noteFromSalami s = (sPitch, tied, newSegment, newSlice)
-  where
-    newSegment = _new_segment s
-    newSlice = _new_slice s
-    tied = _tied s
-    sPitch = Data.Maybe.fromJust (Music.readNotation $ _pitch s) -- Refactor to deal with maybe
-
 ---------------------------------- -------------------------------- -------------------------------- |
 -- INPUTS FOR TESTING
 --
 -- The musical surface from Figure 4 as a sequence of slices and transitions.
 -- Can be used as an input for parsing.
-path321sus =
-  Path [e nat 4, c nat 4] [(Inner $ c nat 4, Inner $ c nat 4)] $
-    Path [d nat 4, c nat 4] [(Inner $ d nat 4, Inner $ d nat 4)] $
-      Path [d nat 4, b nat 4] [] $
-        PathEnd [c nat 4]
-
-path43 =
-  Path [c nat 4, g nat 4, f nat 5] [(Inner $ c nat 4, Inner $ c nat 4), (Inner $ g nat 4, Inner $ g nat 4)] $
-    PathEnd [c nat 4, g nat 4, e nat 5] 
-
-testInput :: [InputSlice SPC]
-testInput =
-  [ ([(e' nat, Music.Holds), (c' nat, Music.Ends)], False),
-    ([(e' nat, Music.Holds)], True),
-    ([(e' nat, Music.Ends)], False)
-  ]
+-- path321sus =
+--   Path [e nat 4, c nat 4] [(Inner $ c nat 4, Inner $ c nat 4)] $
+--     Path [d nat 4, c nat 4] [(Inner $ d nat 4, Inner $ d nat 4)] $
+--       Path [d nat 4, b nat 4] [] $
+--         PathEnd [c nat 4]
+--
+-- path43 =
+--   Path [c nat 4, g nat 4, f nat 5] [(Inner $ c nat 4, Inner $ c nat 4), (Inner $ g nat 4, Inner $ g nat 4)] $
+--     PathEnd [c nat 4, g nat 4, e nat 5] 
+--
+-- testInput :: [InputSlice SPC]
+-- testInput =
+--   [ ([(e' nat, Music.Holds), (c' nat, Music.Ends)], False),
+--     ([(e' nat, Music.Holds)], True),
+--     ([(e' nat, Music.Ends)], False)
+--   ]
 
 slices43 :: [InputSlice SPitch]
 slices43 =
@@ -292,7 +221,7 @@ slices65m =
   [ ([(b flt 3, Music.Ends), (c nat 4, Music.Holds),(d nat 4, Music.Holds), (f shp 4, Music.Holds)], True),
     ([(a nat 3, Music.Ends), (c nat 4, Music.Ends),(d nat 4, Music.Ends), (f shp 4, Music.Ends)], False)
   ]
-
+--
 slices65m' :: [InputSlice SPitch]
 slices65m' =
   [ ([(b flt 3, Music.Ends), (c nat 4, Music.Ends),(d nat 4, Music.Ends), (f shp 4, Music.Ends)], True),
@@ -305,12 +234,12 @@ slices65m'' =
   ]
 chords65m :: [ChordLabel]
 chords65m =
-  [ ChordLabel "Mm7" (sic 0) (d' nat)
+  [ ChordLabel "Mm7" (d' nat)
   ]
 
 chords43 :: [ChordLabel]
 chords43 =
-  [ ChordLabel "M" (sic 1) (f' nat)
+  [ ChordLabel "M" (c' nat)
   ]
 
 
@@ -323,8 +252,8 @@ slicesTiny' =
 
 chordsTiny' :: [ChordLabel]
 chordsTiny' =
-  [ ChordLabel "Mm7" (sic 3) (f' nat),
-    ChordLabel "m" (sic 2) (f' nat)
+  [ ChordLabel "Mm7" (d' nat),
+    ChordLabel "m" (g' nat)
   ]
 
 slicesTiny :: [InputSlice SPitch]
@@ -338,9 +267,9 @@ slicesTiny =
 
 chordsTiny :: [ChordLabel]
 chordsTiny =
-  [ ChordLabel "M" (sic 1) (f' nat),
-    ChordLabel "Mm7" (sic 3) (f' nat),
-    ChordLabel "m" (sic 2) (f' nat)
+  [ ChordLabel "M" (c' nat),
+    ChordLabel "Mm7" (d' nat),
+    ChordLabel "m" (g' nat)
   ]
 slices321sus :: [InputSlice SPitch]
 slices321sus =
@@ -352,15 +281,16 @@ slices321sus =
 
 chords321sus :: [ChordLabel]
 chords321sus =
-  [ ChordLabel "M" (sic 0) (c' nat),
-    ChordLabel "M" (sic 1) (c' nat),
-    ChordLabel "M" (sic 0) (c' nat)
+  [ ChordLabel "M" (c' nat),
+    ChordLabel "M" (g' nat),
+    ChordLabel "M" (c' nat)
   ]
 
 runRandomSampleSearch 
-  :: [ChordLabel] 
-  -> IO (Path () (Notes SPitch))
-runRandomSampleSearch chordLabels = do
+  :: forall bs . bs 
+  -> [ChordLabel] 
+  -> IO (Path (Edges SPitch) (Notes SPitch))
+runRandomSampleSearch _ chordLabels = do
   randomSamplePath (length chordLabels)
 
 
@@ -376,7 +306,7 @@ runRandomSearch ::
   -> Eval (Edges ns) [Edge ns] (Notes ns) [ns] (PVLeftmost ns) 
   -> [InputSlice ns] 
   -> [ChordLabel] 
-  -> IO (Path (Edges ns) (Notes ns), [PVLeftmost ns])
+  -> IO (Path (Edges ns) (Notes ns))
 runRandomSearch params eval inputSlices chordLabels = do
   let initialState = SSFrozen $ pathFromSlices eval idWrapper inputSlices
   res <- runExceptT (randomChoiceSearch initialState getNeighboringStates goalTest (showOp . getOpsFromState))
@@ -389,7 +319,7 @@ runRandomSearch params eval inputSlices chordLabels = do
   let p = fromMaybe undefined $ getPathFromState finalState
   let ops = getOpsFromState finalState
 
-  pure (p, ops)
+  pure p
   where
     showOp [] = ""
     showOp (x:_) = case x of
@@ -417,7 +347,7 @@ runHeuristicSearch ::
   -> ((Maybe (State ns), State ns) -> ExceptT String IO Double)
   -> [InputSlice ns] 
   -> [ChordLabel] 
-  -> IO (Path (Edges ns) (Notes ns), [PVLeftmost ns])
+  -> IO (Path (Edges ns) (Notes ns))
 runHeuristicSearch params eval wrap heuristic inputSlices chordLabels = do
   let initialState = SSFrozen $ pathFromSlices eval wrap inputSlices
   res <- runExceptT (heuristicSearch initialState getNeighboringStates goalTest heuristic (showOp . getOpsFromState))
@@ -427,10 +357,11 @@ runHeuristicSearch params eval wrap heuristic inputSlices chordLabels = do
       return undefined
     Right s -> pure s
 
-  let p = fromMaybe undefined $ getPathFromState finalState
+  let p = fromJust $ getPathFromState finalState
   let ops = getOpsFromState finalState
 
-  pure (p, ops)
+  -- pure (p, ops)
+  pure p
   where
     showOp [] = ""
     showOp (x:_) = case x of
@@ -442,34 +373,3 @@ runHeuristicSearch params eval wrap heuristic inputSlices chordLabels = do
     -- The goal is to find a state with a slice for each chord label.
     goalTest (SSOpen p _) = pathLen p - 1 == length chordLabels
     goalTest _ = False
-
-pathFromSlices ::
-  forall ns o.
-  Eval (Edges ns) [Edge ns] (Notes ns) [ns] o ->
-  SliceWrapper (Notes ns) ->
-  [InputSlice ns] ->
-  Path (Maybe [Edge ns], Bool) (SliceWrapped (Notes ns))
-pathFromSlices eval wrap = reversePath . mkPath False Nothing
-  where
-    mkPath ::
-      Bool ->
-      Maybe [Edge ns] ->
-      [InputSlice ns] ->
-      Path (Maybe [Edge ns], Bool) (SliceWrapped (Notes ns))
-
-    mkPath tie eLeft [] = PathEnd (eLeft, True)
-
-    mkPath tie eLeft ((slice, boundary) : rst) =
-      Path (eLeft, boundary) nextSlice $
-        mkPath False (Just $ getTiedEdges slice) rst
-          where 
-            nextSlice = wrapSlice wrap $ evalSlice eval (fst <$> slice)
-
-
-    getTiedEdges :: [(ns, Music.RightTied)] -> [Edge ns]
-    getTiedEdges = mapMaybe mkTiedEdge
-      where
-        mkTiedEdge :: (ns, Music.RightTied) -> Maybe (Edge ns)
-        mkTiedEdge (p, Music.Holds) = Just (Inner p, Inner p)
-        mkTiedEdge _ = Nothing
-

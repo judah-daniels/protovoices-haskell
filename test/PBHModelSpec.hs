@@ -56,34 +56,37 @@ mostLikelyChordSpec = do
     let chordTypes = chordtypes params
     -- let chordTypes = chordtypes params
 
-    -- showChordFromSlice params (genSlice' ["F3", "C3", "A4", "C5"])
     putStrLn $ "\nConsidering: " <> show sliceFmaj'
-    let (r, f) = showChordFromSlice' params sliceFmaj'
-    putStrLn $ "Transformed: " <> show (transposeSlice (spc $ r - 14) sliceFmaj')
-    putStrLn $ "Inferred: " <> f
+    putStrLn $ showChordFromSlice params sliceFmaj'
+    let d = fromJust $ genSlice ["D3", "F#3", "A#4"]
+    putStrLn $ "\nConsidering: " <> show d
+    putStrLn $ showChordFromSlice params d
+    -- p
+    -- let (r, f) = showChordFromSlice' params sliceFmaj'
+    -- putStrLn $ "Transformed: " <> show (transposeSlice (spc $ r - 14) sliceFmaj')
+    -- putStrLn $ "Inferred: " <> f
     -- notes' = transposeSlice (spc root) notes
-
     -- putStrLn $ showChordFromSlice params (genSlice' ["D3", "D3", "F#4", "A5"])
 
     -- putStrLn $ "\nConsidering: " <> show (genSlice' ["D3", "F#4", "A5"])
-    -- putStrLn $ showChordFromSlice params (genSlice' ["D3", "F#4", "A5"])
+    -- putStrLn $ ghowChordFromSlice params (genSlice' ["D3", "F#4", "A5"])
 
-    let slc = genSlice' ["C#3", "F3", "B4", "G#7"]
-    putStrLn $ "\nConsidering: " <> show slc
-    let (r', f') = showChordFromSlice' params slc
-    putStrLn $ "Transformed: " <> show (transposeSlice (spc (r' - 14)) slc)
-    putStrLn $ "Inferred: " <> f'
+    -- let slc = genSlice' ["C#3", "F3", "B4", "G#7"]
+    -- putStrLn $ "\nConsidering: " <> show slc
+    -- let (r', f') = showChordFromSlice' params slc
+    -- putStrLn $ "Transformed: " <> show (transposeSlice (spc (r' - 14)) slc)
+    -- putStrLn $ "Inferred: " <> f'
 
     -- putStrLn $ showChordFromSlice params sliceFmaj'
     -- putStrLn $ showChordFromSlice params (genSlice' ["B3", "D#3", "F#4", "B5"])
 
     -- putStrLn $ "Considering: " <> show (genSlice' ["B3", "D#3", "F#4", "B5"])
     -- putStrLn $ showChordFromSlice params (genSlice' ["B3", "D#3", "F#4", "B5"])
-    let logLikelihoods = (reverse . sort $ sliceChordWeightedLogLikelihoods params slc)
-    let prettyLogLikelihoods = map (\(p, r, t) -> show p <> ": " <> (showNotation $ spc (r - 14)) <> chordTypes !! t) logLikelihoods
+    -- let logLikelihoods = (reverse . sort $ sliceChordWeightedLogLikelihoods params slc)
+    -- let prettyLogLikelihoods = map (\(p, r, t) -> show p <> ": " <> (showNotation $ spc (r - 14)) <> chordTypes !! t) logLikelihoods
 
-    putStrLn $ showChordFromSlice params (genSlice' ["Db3", "F3", "Ab4", "Db5"])
-    mapM_ putStrLn (take 20 prettyLogLikelihoods)
+    -- putStrLn $ showChordFromSlice params (genSlice' ["Db3", "F3", "Ab4", "Db5"])
+    -- mapM_ putStrLn (take 20 prettyLogLikelihoods)
   -- let lll = reverse . sort $ sliceChordLogLikelihoods params (sliceFmaj')
   -- let rrr = map (\(p,r,t)-> show p <> ": " <> (showNotation $ spc (r-14)) <> chordTypes !! t) lll
   -- print sliceFmaj'
@@ -94,11 +97,11 @@ mostLikelyChordSpec = do
   -- print sliceFmaj'
   -- mapM_ (putStrLn) (take 6 rrr)
 
-  --     slc' = Notes $ Internal.MultiSet.map transformPitch (slc)
-  --       where
-  --         transformPitch ::
-  --           Music.SPitch -> SIC
-  --         transformPitch p = let q = spc (fifths p) in Music.pfrom q chordRootNote
+      -- slc' = Notes $ Internal.MultiSet.map transformPitch (slc)
+      --   where
+      --     transformPitch ::
+      --       Music.SPitch -> SIC
+      --     transformPitch p = let q = spc (fifths p) in Music.pfrom q chordRootNote
 
   describe "Inferring Major Chord labels" $ do
     it "F major triad 1" $
@@ -143,19 +146,19 @@ mostLikelyChordSpec = do
       "Cm" == showChordFromSlice params (genSlice' ["C3", "G3", "Eb4", "Eb7"])
 
   -- Note this should definitely be a mixture model
-  describe "Infering Aug Chord labels" $ do
-    it "D+" $
-      showChordFromSlice params (genSlice' ["D3", "F#3", "A#4"]) `elem` ["D+","F♯+", "A♯+"]
-    it "C+" $
-      showChordFromSlice params (genSlice' ["C3", "E3", "G#4"]) `elem` ["C+","G♯+", "E♯+"]
+  -- describe "Infering Aug Chord labels" $ do
+  --   it "D+" $
+  --     showChordFromSlice params (genSlice' ["D3", "F#3", "A#4"]) `elem` ["D+","F♯+", "A♯+"]
+  --   it "C+" $
+  --     showChordFromSlice params (genSlice' ["C3", "E3", "G#4"]) `elem` ["C+","G♯+", "E♯+"]
 
 showChordFromSlice' params slice =
   let (root, chordType, prob) = mostLikelyChordFromSlice params slice
-   in (root, showNotation (spc (root - 14)) <> chordType)
+   in (root, showNotation root <> chordType)
 
 showChordFromSlice params slice =
   let (root, chordType, prob) = mostLikelyChordFromSlice params slice
-   in showNotation (spc (root - 14)) <> chordType
+   in showNotation root <> chordType
 
 -- mostLikelyChordFromSlice' :: HarmonicProfileData -> Notes SPitch -> (SIC, String, Double)
 -- mostLikelyChordFromSlice' hpData (Notes slc) = (sic root, chordtypes hpData !! chordTypeIndex, p)
