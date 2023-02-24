@@ -53,23 +53,24 @@ fullParseSpec :: Spec
 fullParseSpec = do 
   runIO $ do
     params <- loadParams "preprocessing/dcml_params.json"
-    print params
-    -- slices <- slicesFromFile' "preprocessing/inputs/slices1short.csv"
+    -- print params
+    slices <- slicesFromFile' "preprocessing/inputs/slices1.csv"
     -- print slices
-    -- chords <- chordsFromFile "preprocessing/inputs/chords1short.csv"
-    -- let wrap = SliceWrapper $ \ns -> let (r,l,p) = mostLikelyChordFromSlice params ns in SliceWrapped ns (ChordLabel l r) p
-    --
-    -- scores <- evaluateSearches 
-    --
-    --     [ runHeuristicSearch params protoVoiceEvaluator wrap (applyHeuristic (testHeuristic params))
-    --     -- [ runRandomSearch params protoVoiceEvaluator
-    --     -- , runRandomSampleSearch 
-    --     ]
-    --     (scoreSegments params (scoreSegment' params))
-    --     slices 
-    --     chords
-    --
-    -- print scores
+    chords <- chordsFromFile "preprocessing/inputs/chords1.csv"
+    -- print chords
+    let wrap = SliceWrapper $ \ns -> let (r,l,p) = mostLikelyChordFromSlice params ns in SliceWrapped ns (ChordLabel l r) p
+
+    scores <- evaluateSearches 
+
+        -- [ runHeuristicSearch params protoVoiceEvaluator wrap (applyHeuristic (testHeuristic params))
+        [ runRandomSearch params protoVoiceEvaluator
+        -- , runRandomSampleSearch 
+        ]
+        (scoreSegments params (scoreSegment' params))
+        slices 
+        chords
+
+    print scores
   pure ()
 
 evaluateSearches
