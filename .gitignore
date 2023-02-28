@@ -5,6 +5,9 @@ fourmolu.yaml
 .DS_Store
 .venv
 testdata/.mscbackup/
+.DS_Store
+*.lock
+__pycache__
 *~
 *.aux
 *.log

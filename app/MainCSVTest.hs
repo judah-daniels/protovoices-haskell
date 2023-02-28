@@ -5,7 +5,6 @@
 
 import Common
 import Data.Hashable
-import Evaluator
 import HeuristicParser
 import HeuristicSearch
 import PBHModel
@@ -50,7 +49,6 @@ import System.Random.Stateful
   )
 
 import Control.Monad.Trans.Class (lift)
-import Evaluator
 import HeuristicParser (printPathFromState)
 
 instance FromField Music.RightTied where

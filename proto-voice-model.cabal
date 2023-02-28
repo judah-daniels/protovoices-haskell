@@ -33,7 +33,7 @@ library
       ChartParser
       Common
       Display
-      Evaluator
+      FileHandling
       GreedyParser
       HeuristicParser
       Heuristics
@@ -44,6 +44,8 @@ library
       PVGrammar.Generate
       PVGrammar.Parse
       PVGrammar.Prob.Simple
+      RandomChoiceSearch
+      RandomSampleParser
       Scoring.Deprecated.Flat
       Scoring.FunTyped
   other-modules:
@@ -85,6 +87,7 @@ library
     , random
     , semirings
     , split
+    , streamly
     , text
     , transformers
     , unordered-containers
@@ -132,6 +135,7 @@ executable judah
     , random
     , semirings
     , split
+    , streamly
     , text
     , transformers
     , unordered-containers
@@ -142,6 +146,7 @@ test-suite proto-voice-model-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
+      EvaluationSpec
       HeuristicSearchSpec
       HeuristicSpec
       PBHModelSpec
@@ -185,6 +190,7 @@ test-suite proto-voice-model-test
     , random
     , semirings
     , split
+    , streamly
     , text
     , transformers
     , unordered-containers

@@ -7,6 +7,7 @@ import Control.Monad.Except (ExceptT, lift, throwError)
 import Data.Bifunctor (second)
 import Data.Maybe (Maybe, catMaybes, fromJust, mapMaybe, maybeToList)
 import PBHModel
+import Data.HashMap.Strict qualified as HM
 
 newtype Slice ns = Slice
   { sContent :: ns
@@ -111,7 +112,7 @@ instance (Show ns, Show o) => Show (SearchState es es' ns o) where
 
 -- | Helper function for showing the frozen part of a piece.
 showFrozen :: Show slc => Path (Maybe es', Bool) slc -> String
-showFrozen path = "⋊" <> go 10 path
+showFrozen path = "⋊" <> go 4 path
  where
   go _ (PathEnd (_, True)) = "≠"
   go _ (PathEnd (_, False)) = "="
@@ -122,7 +123,7 @@ showFrozen path = "⋊" <> go 10 path
 
 -- | Helper function for showing the open part of a piece.
 showOpen :: Show slc => Path (Trans es') slc -> String
-showOpen path = go 15 path <> "⋉"
+showOpen path = go 4 path <> "⋉"
  where
   go _ (PathEnd (Trans _ _ True)) = "⌿"
   go _ (PathEnd (Trans _ _ False)) = "-"
@@ -169,7 +170,6 @@ exploreStates wrap eval state = do
     -- Case: Every transition is unfrozen
     SSOpen open ops -> reductions
      where
-      reductions :: ExceptT String IO [SearchState es es' ns (Leftmost s f h)]
       reductions = case open of
         -- A single transition - No operations
         PathEnd _ -> do
@@ -181,22 +181,17 @@ exploreStates wrap eval state = do
           pure $ genState <$> actions
          where
           actions = collectUnsplitSingle Start tl (sWContent slice) tr Stop
-          genState (ActionSingle (sl, top, sr) op) = SSOpen (PathEnd top) (LMSingle op : ops)
+          genState (ActionSingle (sl, top, sr) op) =
+            SSOpen (PathEnd top) (LMSingle op : ops)
 
-        -- Three open transitions: mergeleft mergeRight or verticalise
+        -- Three open transitions: unsplitLeft, unsplitRight, or unspread (double ops)
         Path tl sl (Path tm sr rst) -> do
           lift $ putStrLn "3+ Open transitions:"
           pure $ genState <$> actions
          where
           actions = collectDoubles Start tl (sWContent sl) tm (sWContent sr) (second sWContent rst)
           genState (ActionDouble (_, topl, tops, topr, _) op) =
-            SSOpen
-              ( Path
-                  topl
-                  (wrapSlice wrap tops)
-                  (pathSetHead rst topr)
-              )
-              (LMDouble op : ops)
+            SSOpen (Path topl (wrapSlice wrap tops) (pathSetHead rst topr)) (LMDouble op : ops)
 
     -- Mid Parse
     --
@@ -209,7 +204,7 @@ exploreStates wrap eval state = do
                 lift $ putStrLn "1 Open Transition, 1 frozen transition: \n"
                 pure $ genState <$> actions
                where
-                actions = collectUnfreezeLeft Start tfrozen (sWContent midSlice) topen Stop
+                actions = collectUnfreezeLeft Start tfrozen (sWContent midSlice) topen Stop True
                 genState (ActionDouble (sl, tl, slice, tr, st) op) =
                   SSOpen
                     (Path tl (wrapSlice wrap slice) (PathEnd tr))
@@ -218,19 +213,22 @@ exploreStates wrap eval state = do
                 lift $ putStrLn "1 Open Transition, 1+ frozen transition: \n"
                 pure $ genState <$> actions
                where
-                actions = collectUnfreezeLeft (Inner $ sWContent sfrozen) tfrozen (sWContent midSlice) topen Stop
+                actions = collectUnfreezeLeft (Inner $ sWContent sfrozen) tfrozen (sWContent midSlice) topen Stop True
                 genState (ActionDouble (sl, tl, slice, tr, st) op) =
                   SSSemiOpen rstFrozen sfrozen (Path tl midSlice open) (LMDouble op : ops)
 
             -- Two Open transitions: unfreeze or unsplit single
-            Path topenl sopen (PathEnd topenr) ->
+            Path topenl sopen (PathEnd topenr@(Trans _ _ topenrBoundary)) -> do
               let unsplitActions = Right <$> collectUnsplitSingle (Inner $ sWContent midSlice) topenl (sWContent sopen) topenr Stop
                in case frozen of
                     PathEnd tfrozen -> do
                       lift $ putStrLn "2 Open Transitions, 1 frozen transition: \n"
                       pure $ genState <$> (unfreezeActions <> unsplitActions)
                      where
-                      unfreezeActions = Left <$> collectUnfreezeLeft Start tfrozen (sWContent midSlice) topenl Stop
+                      unfreezeActions =
+                        Left
+                          <$> collectUnfreezeLeft Start tfrozen (sWContent midSlice) topenl Stop topenrBoundary
+
                       genState action = case action of
                         Left (ActionDouble (_, unfrozen, _, _, _) op) ->
                           SSOpen (Path unfrozen midSlice open) (LMDouble op : ops)
@@ -240,7 +238,9 @@ exploreStates wrap eval state = do
                       lift $ putStrLn "2 Open Transitions, 1+ frozen transitions: \n"
                       pure $ genState <$> (unfreezeActions <> unsplitActions)
                      where
-                      unfreezeActions = Left <$> collectUnfreezeLeft (Inner $ sWContent sfrozen) tfrozen (sWContent midSlice) topenl (Inner (sWContent sopen))
+                      unfreezeActions =
+                        Left
+                          <$> collectUnfreezeLeft (Inner $ sWContent sfrozen) tfrozen (sWContent midSlice) topenl (Inner (sWContent sopen)) topenrBoundary
                       genState action = case action of
                         Left (ActionDouble (_, unfrozen, _, _, _) op) ->
                           SSSemiOpen rstFrozen sfrozen (Path unfrozen midSlice open) (LMDouble op : ops)
@@ -248,30 +248,24 @@ exploreStates wrap eval state = do
                           SSSemiOpen frozen midSlice (PathEnd parent) (LMSingle op : ops)
 
             -- More than two open transitions
-            Path topenl@(Trans _ _ topenlBoundary) sopenl (Path topenm@(Trans _ _ topenmBoundary) sopenr rstOpen) -> do
-              let allowUnfreeze = True
+            Path topenl sopenl (Path topenm@(Trans _ _ topenmBoundary) sopenr rstOpen) -> do
               let doubleActions =
-                    -- if not topenlBoundary && topenmBoundary
-                    -- then []
-                    -- else
-                    ( Right
-                        <$> collectDoubles
-                          (Inner $ sWContent midSlice)
-                          topenl
-                          (sWContent sopenl)
-                          topenm
-                          (sWContent sopenr)
-                          (second sWContent rstOpen)
-                    )
-                      :: [Either (ActionDouble ns es s f h) (ActionDouble ns es s f h)]
+                    Right
+                      <$> collectDoubles
+                        (Inner $ sWContent midSlice)
+                        topenl
+                        (sWContent sopenl)
+                        topenm
+                        (sWContent sopenr)
+                        (second sWContent rstOpen)
                in case frozen of
                     PathEnd tfrozen -> do
                       lift $ putStrLn "2+ Open Transitions, 1 frozen transition Left: \n"
                       pure $ genState <$> (doubleActions <> unfreezeActions)
                      where
-                      -- unfreezeActions = undefined
-                      unfreezeActions = Left <$> (if allowUnfreeze then collectUnfreezeLeft Start tfrozen (sWContent midSlice) topenl (Inner $ sWContent sopenl) else []) :: [Either (ActionDouble ns es s f h) (ActionDouble ns es s f h)]
-                      -- unfreezeActions = Left <$> collectUnfreezeLeft Start tfrozen midSlice topenl (Inner sopenl)
+                      unfreezeActions =
+                        Left <$> collectUnfreezeLeft Start tfrozen (sWContent midSlice) topenl (Inner $ sWContent sopenl) topenmBoundary
+
                       genState action = case action of
                         Left (ActionDouble (_, unfrozen, _, _, _) op) ->
                           SSOpen (Path unfrozen midSlice open) (LMDouble op : ops)
@@ -281,8 +275,9 @@ exploreStates wrap eval state = do
                       lift $ putStrLn "2+ Open Transitions, 1+ frozen transition left:\n"
                       pure $ genState <$> (doubleActions <> unfreezeActions)
                      where
-                      unfreezeActions = Left <$> collectUnfreezeLeft (Inner $ sWContent sfrozen) tfrozen (sWContent midSlice) topenl (Inner $ sWContent sopenl)
-                      -- unfreezeActions = Left <$>
+                      unfreezeActions =
+                        Left <$> collectUnfreezeLeft Start tfrozen (sWContent midSlice) topenl (Inner $ sWContent sopenl) topenmBoundary
+
                       genState action = case action of
                         Left (ActionDouble (_, unfrozen, _, _, _) op) ->
                           SSSemiOpen rstFrozen sfrozen (Path unfrozen midSlice open) (LMDouble op : ops)
@@ -310,18 +305,18 @@ exploreStates wrap eval state = do
     -> ns
     -> Trans es
     -> StartStop ns
+    -> Boundary
     -> [ActionDouble ns es s f h]
-  collectUnfreezeLeft sl (tl, tlBoundary) sm (Trans tr _ trBoundary) sr =
-    -- if tlBoundary && not trBoundary
-    -- then []
-    -- else
-    mapMaybe
-      getAction
-      (evalUnfreeze eval sl tl (Inner sm) False)
+  collectUnfreezeLeft sFrozen (tFrozen, frozenBoundary) sl (Trans tl _ tlBoundary) sr trBoundary
+    | allowUnfreeze frozenBoundary tlBoundary trBoundary =
+        mapMaybe
+          getAction
+          (evalUnfreeze eval sFrozen tFrozen (Inner sl) False)
+    | otherwise = []
    where
     getAction (thawed, op) = case op of
       LMDouble dop ->
-        Just $ ActionDouble (sl, Trans thawed False tlBoundary, sm, Trans tr False trBoundary, sr) dop
+        Just $ ActionDouble (sFrozen, Trans thawed False frozenBoundary, sl, Trans tl False tlBoundary, sr) dop
       LMSingle _ -> Nothing
 
   collectUnsplitSingle
@@ -399,14 +394,12 @@ exploreStates wrap eval state = do
          -> StartStop ns
          -> [ActionDouble ns es s f h]
        )
-  collectUnspreads sstart (Trans tl _ tlBoundary) sl (Trans tm _ tmBoundary) sr (Trans tr _ trBoundary) send
-    | tmBoundary = []
-    | otherwise = catMaybes $ do
-        -- List
-        (sTop, op) <- maybeToList $ evalUnspreadMiddle eval (sl, tm, sr)
-        lTop <- evalUnspreadLeft eval (tl, sl) sTop
-        rTop <- evalUnspreadRight eval (sr, tr) sTop
-        pure $ getAction lTop sTop rTop op
+  collectUnspreads sstart (Trans tl _ tlBoundary) sl (Trans tm _ tmBoundary) sr (Trans tr _ trBoundary) send =
+    catMaybes $ do
+      (sTop, op) <- maybeToList $ evalUnspreadMiddle eval (sl, tm, sr)
+      lTop <- evalUnspreadLeft eval (tl, sl) sTop
+      rTop <- evalUnspreadRight eval (sr, tr) sTop
+      pure $ getAction lTop sTop rTop op
    where
     -- pure $ getAction $ evalUnsplit eval (Inner sl) tm sr tr send RightOfTwo
     getAction lTop sTop rTop op = case op of
@@ -417,14 +410,33 @@ exploreStates wrap eval state = do
             (sstart, Trans lTop False tlBoundary, sTop, Trans rTop True trBoundary, send)
             dop
 
-  collectDoubles sstart tl sl tm sr rst = leftUnsplits <> rightUnsplits <> unspreads
+  collectDoubles sstart tl@(Trans _ _ tlBoundary) sl tm@(Trans _ _ tmBoundary) sr rst = leftUnsplits <> rightUnsplits <> unspreads
    where
-    (tr, send) = case rst of
+    (tr@(Trans _ _ trBoundary), send) = case rst of
       PathEnd t -> (t, Stop)
       Path t s _ -> (t, Inner s)
-    leftUnsplits = collectUnsplitLeft sstart tl sl tm sr tr send
-    rightUnsplits = collectUnsplitRight sstart tl sl tm sr tr send
-    unspreads = collectUnspreads sstart tl sl tm sr tr send
+    leftUnsplits
+      | tlBoundary || tmBoundary = []
+      | otherwise = collectUnsplitLeft sstart tl sl tm sr tr send
+    rightUnsplits
+      | tmBoundary || trBoundary = []
+      | otherwise = collectUnsplitRight sstart tl sl tm sr tr send
+    unspreads
+      | tmBoundary = []
+      | otherwise = collectUnspreads sstart tl sl tm sr tr send
+
+{-
+ > freeze left:
+ > ...=[]—f—[]—l—[]—r-...
+ > ...=[]=f=[]—l—[]—r-...
+ >
+-}
+-- Defines if an unfreeze is allowed given the boundaries of the frozen transition, and of the nearest two neighboring transistions
+
+allowUnfreeze
+  :: Bool -> Bool -> Bool -> Bool
+allowUnfreeze frozenBoundary lBoundary rBoundary =
+  rBoundary || not (lBoundary || frozenBoundary)
 
 heursiticSearchGoalTest
   :: SearchState es es' ns o

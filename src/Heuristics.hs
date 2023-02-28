@@ -189,11 +189,8 @@ testHeuristic params (prevState, state) = do
     -- lift $ print (parentl, slc, parentr)
     -- lift $ print "parent:"
     -- let (root, chordType, cProb) = mostLikelyChordFromSlice params slc
-    --
 
-    -- let lbl = mkLbl root chordType
     let lbl = lblL
-
 
     let mu = sliceChordLogLikelihood params lbl slc
     let wu = sliceChordLogLikelihood params lbl slcl
