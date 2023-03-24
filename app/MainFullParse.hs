@@ -42,35 +42,121 @@ import System.Exit
 -- COMAND LINE ARGUMENT HANDLING
 parseArgs ["-h"] = usage >> exit
 parseArgs ["-v"] = version >> exit
-parseArgs [chordsFile, slicesFile, jsonFile, algoName] = pure (chordsFile, slicesFile, jsonFile, algoName) -- concat `fmap` mapM readFile fs
+parseArgs [chordsFile, slicesFile, jsonFile, algoName] = pure (chordsFile, slicesFile, jsonFile, read algoName) -- concat `fmap` mapM readFile fs
 parseArgs _ = usage >> exit
 
+data ParseAlgo 
+  = RandomParse
+  | RandomParseSBS
+  | RandomSample 
+  | Heuristic1 
+  | HeuristicSBS1 
+  | All
+  deriving (Read, Show, Eq)
+
 usage = putStrLn 
-  "\nUsage: parseFullPieces [-vh] chordsFile slicesFile jsonFile {RandomParse, RandomParseSBS, RandomSample, Heuristic1, HeuristicSBS1, all} \n\
-   \   -v: Show Version \n\
-   \   -h: Show Help \n\
+  "\nUsage: parseFullPieces [-vh] chordsFile slicesFile jsonFile {RandomParse, RandomParseSBS, RandomSample, Heuristic1, HeuristicSBS1, All} \n\
+   \   -v:         Show Version \n\
+   \   -h:         Show Help \n\
    \   chordsFile: Path containing a csv file with the chord labels \n\
    \   slicesFile: Path containing a csv file with slices corresponding to the chord labels \n\
-   \   jsonFile: Path were the json output of results should be created \n\
-   \   {..}: Choose which algorithm to run. \"all\" runs all algorithms and returns results in an agregated\
-   \ json file with the name of each algorithm\n"
+   \   jsonFile:   Output path for results \n\
+   \   {..}:       Choose which algorithm to run. \"all\" runs all algorithms and returns results in an aggregated\
+   \ json file\n"
 version = putStrLn "Version 0.1"
 exit = exitSuccess
 die = exitWith (ExitFailure 1)
 
-
 main :: IO ()
--- main = Log.withStdoutLogging fullPieceExperiment 
-main = Log.withStdoutLogging perSegmentExperiment 
+main = Log.withStdoutLogging $ do 
+  params <- loadParams "preprocessing/dcml_params.json"
+  (chordsFile, slicesFile, jsonFile, algo) <- getArgs >>= parseArgs
+  chords <- chordsFromFile chordsFile
+  slices <- slicesFromFile' slicesFile
+
+  let runAlgo = case algo of 
+              RandomParse -> runRandomParse protoVoiceEvaluator 
+              RandomParseSBS -> runRandomParseSBS 
+              RandomSample -> runRandomSample 
+              Heuristic1 -> runHeuristic1 params 
+              HeuristicSBS1 -> runHeuristicSBS1 params 
+              All -> runAllAlgos params 
+   in runAlgo chords slices jsonFile 
+
+  pure ()
+    
+{- | Runs a random search through the entire piece
+     This can get stuck due to combinatoral blowup. 
+     This can also reach a deadend
+-}
+runRandomParse 
+  :: Eval (Edges SPitch) [Edge SPitch] (Notes SPitch) [SPitch] (PVLeftmost SPitch)
+  -> [ChordLabel] 
+  -> [InputSlice SPitch] 
+  -> String 
+  -> IO ()
+runRandomParse eval chords inputSlices jsonFile = Log.timedLog "Running Random Parse" $ do 
+  let initialState = SSFrozen $ pathFromSlices eval idWrapper inputSlices
+  res <- runExceptT 
+    (randomChoiceSearch initialState (exploreStates idWrapper eval) (goalTest chords) (showOp . getOpsFromState))
+
+  finalState <- case res of
+    Left err -> do
+      print err
+      return undefined
+    Right s -> pure s
+
+  -- let p = fromJust $ getPathFromState finalState
+  -- let ops = getOpsFromState finalState
+  pure ()
+  
+
+{- | Runs a random search within each segment
+-}
+runRandomParseSBS :: [ChordLabel] -> [InputSlice SPitch] -> String -> IO ()
+runRandomParseSBS chordsFile slicesFile jsonFile = do 
+  pure ()
+
+{- | Samples random notes for every segment, without looking at the segment itself 
+-}
+runRandomSample :: [ChordLabel] -> [InputSlice SPitch] -> String -> IO ()
+runRandomSample chordsFile slicesFile jsonFile = do 
+  pure ()
+
+{- | Samples random notes from each segment
+-}
+runRandomSampleSBS :: [ChordLabel] -> [InputSlice SPitch] -> String -> IO ()
+runRandomSampleSBS chordsFile slicesFile jsonFile = do 
+  pure ()
+
+
+{- | Uses a beam search, using chordtone and ornamentation probabilities as a score
+-}
+runHeuristic1 :: HarmonicProfileData -> [ChordLabel] -> [InputSlice SPitch] -> String -> IO ()
+runHeuristic1 params chordsFile slicesFile jsonFile = do 
+  pure ()
+
+{- | Uses a beam search, using chordtone and ornamentation probabilities as a score, but running separately for each segment
+-}
+runHeuristicSBS1 :: HarmonicProfileData -> [ChordLabel] -> [InputSlice SPitch] -> String -> IO ()
+runHeuristicSBS1 params chordsFile slicesFile jsonFile = do 
+  pure ()
+
+runAllAlgos :: HarmonicProfileData -> [ChordLabel] -> [InputSlice SPitch] -> String -> IO ()
+runAllAlgos params chordsFile slicesFile jsonFile = do 
+  pure ()
+
+
+
 
 
 
 
 -- Run 3 search algorithms on the inputs given
-fullPieceExperiment :: IO ()
-fullPieceExperiment = Log.withStdoutLogging $ do
+fullPieceExperiment :: String -> String -> String -> IO ()
+fullPieceExperiment chordsFile slicesFile jsonFile = Log.withStdoutLogging $ do
   Log.log "Running Full Parse"
-  (chordsFile, slicesFile, jsonFile, algoName) <- getArgs >>= parseArgs
+  -- (chordsFile, slicesFile, jsonFile, _) <- getArgs >>= parseArgs
   params <- loadParams "preprocessing/dcml_params.json"
   chords <- chordsFromFile chordsFile
   print chordsFile
@@ -96,10 +182,10 @@ fullPieceExperiment = Log.withStdoutLogging $ do
   writeMapToJson scores jsonFile
 
 -- Run 3 search algorithms on the inputs given
-perSegmentExperiment :: IO ()
-perSegmentExperiment = Log.withStdoutLogging $ do
+perSegmentExperiment :: String -> String -> String -> IO ()
+perSegmentExperiment chordsFile slicesFile jsonFile = Log.withStdoutLogging $ do
   Log.log "Running Segment by Segment Experiment"
-  (chordsFile, slicesFile, jsonFile, algoName) <- getArgs >>= parseArgs
+  -- (chordsFile, slicesFile, jsonFile, _) <- getArgs >>= parseArgs
   params <- loadParams "preprocessing/dcml_params.json"
   chords <- chordsFromFile chordsFile
   print chordsFile
@@ -189,7 +275,7 @@ runRandomSearch
   -> IO (Path (Edges ns) (Notes ns))
 runRandomSearch params eval inputSlices chordLabels = do
   let initialState = SSFrozen $ pathFromSlices eval idWrapper inputSlices
-  res <- runExceptT (randomChoiceSearch initialState getNeighboringStates goalTest (showOp . getOpsFromState))
+  res <- runExceptT (randomChoiceSearch initialState getNeighboringStates (goalTest chordLabels) (showOp . getOpsFromState))
   finalState <- case res of
     Left err -> do
       print err
@@ -207,10 +293,6 @@ runRandomSearch params eval inputSlices chordLabels = do
     LMSingle y -> show y
 
   getNeighboringStates = exploreStates idWrapper eval
-
-  -- The goal is to find a state with a slice for each chord label.
-  goalTest (SSOpen p _) = pathLen p - 1 == length chordLabels
-  goalTest _ = False
 
 -----
 runHeuristicSearch
@@ -230,7 +312,7 @@ runHeuristicSearch
   -> IO (Path (Edges ns) (Notes ns))
 runHeuristicSearch params eval wrap heuristic inputSlices chordLabels = do
   let initialState = SSFrozen $ pathFromSlices eval wrap inputSlices
-  res <- runExceptT (heuristicSearch initialState getNeighboringStates goalTest heuristic (showOp . getOpsFromState))
+  res <- runExceptT (heuristicSearch initialState getNeighboringStates (goalTest chordLabels) heuristic (showOp . getOpsFromState))
   finalState <- case res of
     Left err -> do
       Log.warn $ T.pack err
@@ -256,9 +338,6 @@ runHeuristicSearch params eval wrap heuristic inputSlices chordLabels = do
 
   getNeighboringStates = exploreStates wrap eval
 
-  -- The goal is to find a state with a slice for each chord label.
-  goalTest (SSOpen p _) = pathLen p - 1 == length chordLabels
-  goalTest _ = False
 
 runHeuristicSearchSingleSegments
   :: ( Music.HasPitch ns
@@ -321,10 +400,6 @@ runHeuristicSearchSingleSegments params eval wrap heuristic inputSlices chordLab
 
   getNeighboringStates = exploreStates wrap eval
 
-  -- One Slice only
-  goalTest (SSOpen p _) | pathLen p == 2 = True
-  goalTest _ = False
-
 runHeuristicSearchSingleSegment 
   :: ( Music.HasPitch ns
      , Eq (Music.IntervalOf ns)
@@ -342,7 +417,7 @@ runHeuristicSearchSingleSegment
   -> IO (SliceWrapped (Notes ns))
 runHeuristicSearchSingleSegment params eval wrap heuristic inputSlices chordLabel = Log.timedLog (T.pack ("Running search on segment: \n" ++ unlines (show <$> inputSlices))) $ do
   let initialState = SSFrozen $ pathFromSlices eval wrap inputSlices
-  res <- runExceptT (heuristicSearch initialState getNeighboringStates goalTest heuristic (showOp . getOpsFromState))
+  res <- runExceptT (heuristicSearch initialState getNeighboringStates goalTestSBS heuristic (showOp . getOpsFromState))
   finalState <- case res of
     Left err -> do
       Log.errorL $ T.pack err
@@ -366,13 +441,19 @@ runHeuristicSearchSingleSegment params eval wrap heuristic inputSlices chordLabe
   -- pure []
 
  where
-  showOp [] = ""
-  showOp (x : _) = case x of
-    LMDouble y -> show y
-    LMSingle y -> show y
-
   getNeighboringStates = exploreStates wrap eval
 
-  -- One Slice only
-  goalTest (SSOpen p _) | pathLen p == 2 = True
-  goalTest _ = False
+
+
+showOp [] = ""
+showOp (x : _) = case x of
+  LMDouble y -> show y
+  LMSingle y -> show y
+
+-- One Slice only
+goalTestSBS (SSOpen p _) | pathLen p == 2 = True
+goalTestSBS _ = False
+
+-- The goal is to find a state with a slice for each chord label.
+goalTest chordLabels (SSOpen p _) = pathLen p - 1 == length chordLabels
+goalTest chordlabels _ = False
