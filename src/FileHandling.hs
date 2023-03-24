@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts #-}
+
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -9,6 +9,8 @@ module FileHandling
   , slicesFromFile'
   , chordsFromFile
   , writeMapToJson
+  , writeJSONToFile
+  , writeResultsToJSON
   , splitSlicesIntoSegments
   ) where
 
@@ -23,7 +25,7 @@ import Common hiding (split)
 import Data.ByteString.Lazy qualified as BL
 import Data.Map.Strict qualified as M
 import Control.Monad.Except (ExceptT,runExceptT, lift, throwError)
-import Data.Csv
+import Data.Csv ((.:), parseField, decodeByName, parseNamedRecord, parseRecord, FromField, FromNamedRecord, FromRecord)
 import Data.List.Split
 import Data.Hashable
 import Data.Maybe
@@ -58,9 +60,10 @@ import Control.Monad.State (evalState)
 import Control.Monad.Trans.Except (throwE)
 import qualified Internal.MultiSet as MS
 import HeuristicParser 
-import Data.Aeson (JSONPath)
+import Data.Aeson (JSONPath, (.=))
 import Data.Aeson qualified as A
 import Data.Aeson.Encoding 
+import GHC.Generics
 
 
 
@@ -267,5 +270,38 @@ writeMapToJson dict fileName = do
   -- closeFile fileHandle
 
 
+-- data ParseResults = ParseResults 
+--   { _slices :: [Notes SPitch] 
+--   , _chords :: [ChordLabel] 
+--   , _path :: Maybe (Path (Notes SPitch) (Edges SPitch)) 
+--   , _labelAccuracy :: Double 
+--   , _labelLikelihood :: Double
+--   } deriving (Show, Generic, A.ToJSON , A.FromJSON)
+
+writeResultsToJSON 
+  :: [Notes SPitch]
+  -> [ChordLabel]
+  -> Maybe (Path (Edges SPitch) (Notes SPitch))
+  -> Double
+  -> Double
+  -> A.Value
+writeResultsToJSON slices chords pathMaybe accuracy likelihood 
+  = A.object  
+    [ "Slices" .= ((\(Notes x) -> show <$> MS.toList x) <$> slices)
+    , "ChordLabels" .= (show <$> chords)
+    -- , "Path" .= pathMaybe
+    , "Accuracy" .= accuracy
+    , "Likelihood" .= likelihood]
+
+
+
+writeJSONToFile :: A.ToJSON a =>  FilePath -> a -> IO ()
+writeJSONToFile filePath v = BL.writeFile filePath (A.encode v)
+
+-- dict fileName = do 
+  -- fileHandle <- openFile fileName
+  -- let json = A.toJSON (M.fromList dict)
+  -- Log.debug $ T.pack . show $ json
+  -- closeFile fileHandle
 
 

@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveAnyClass #-}
+
 module PBHModel where
 
 -- TODO( HarmonicProfileData
@@ -33,7 +35,7 @@ data ChordLabel = ChordLabel
   deriving (Generic, Eq)
 
 instance Show ChordLabel where 
-  show (ChordLabel lbl root) = show $ Music.showNotation root <> lbl
+  show (ChordLabel lbl root) = Music.showNotation root <> lbl
     
 
 mkLbl rootInt chordType = ChordLabel chordType (spc (rootInt-14))

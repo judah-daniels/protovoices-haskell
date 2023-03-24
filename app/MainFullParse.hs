@@ -38,6 +38,7 @@ import Test.Hspec
 
 import System.Environment
 import System.Exit
+import Data.Aeson qualified as A 
 
 -- COMAND LINE ARGUMENT HANDLING
 parseArgs ["-h"] = usage >> exit
@@ -67,21 +68,27 @@ version = putStrLn "Version 0.1"
 exit = exitSuccess
 die = exitWith (ExitFailure 1)
 
+data AlgoResult = AlgoResult [Notes SPitch] [ChordLabel] (Maybe (Path (Edges SPitch) (Notes SPitch)) ) Double Double
+   deriving (Show)
+
 main :: IO ()
 main = Log.withStdoutLogging $ do 
   params <- loadParams "preprocessing/dcml_params.json"
   (chordsFile, slicesFile, jsonFile, algo) <- getArgs >>= parseArgs
-  chords <- chordsFromFile chordsFile
-  slices <- slicesFromFile' slicesFile
+  inputChords <- chordsFromFile chordsFile
+  inputSlices <- slicesFromFile' slicesFile
 
-  let runAlgo = case algo of 
-              RandomParse -> runRandomParse protoVoiceEvaluator 
-              RandomParseSBS -> runRandomParseSBS 
-              RandomSample -> runRandomSample 
-              Heuristic1 -> runHeuristic1 params 
-              HeuristicSBS1 -> runHeuristicSBS1 params 
-              All -> runAllAlgos params 
-   in runAlgo chords slices jsonFile 
+  res <- let runAlgo = case algo of 
+              RandomParse -> runRandomParse protoVoiceEvaluator
+              -- RandomParseSBS -> runRandomParseSBS 
+              -- RandomSample -> runRandomSample p
+              -- Heuristic1 -> runHeuristic1 params 
+              -- HeuristicSBS1 -> runHeuristicSBS1 params 
+              -- All -> runAllAlgos params 
+   in runAlgo params inputChords inputSlices jsonFile 
+
+  case res of 
+    AlgoResult sl ch pa ac li -> writeJSONToFile jsonFile $ writeResultsToJSON sl ch pa ac li 
 
   pure ()
     
@@ -91,11 +98,12 @@ main = Log.withStdoutLogging $ do
 -}
 runRandomParse 
   :: Eval (Edges SPitch) [Edge SPitch] (Notes SPitch) [SPitch] (PVLeftmost SPitch)
+  -> HarmonicProfileData
   -> [ChordLabel] 
   -> [InputSlice SPitch] 
   -> String 
-  -> IO ()
-runRandomParse eval chords inputSlices jsonFile = Log.timedLog "Running Random Parse" $ do 
+  -> IO AlgoResult
+runRandomParse eval params chords inputSlices jsonFile = Log.timedLog "Running Random Parse" $ do 
   let initialState = SSFrozen $ pathFromSlices eval idWrapper inputSlices
   res <- runExceptT 
     (randomChoiceSearch initialState (exploreStates idWrapper eval) (goalTest chords) (showOp . getOpsFromState))
@@ -106,46 +114,68 @@ runRandomParse eval chords inputSlices jsonFile = Log.timedLog "Running Random P
       return undefined
     Right s -> pure s
 
-  -- let p = fromJust $ getPathFromState finalState
+  let path = fromJust $ getPathFromState finalState
+  let slices = pathBetweens path
+
+  let scorer = scoreSegments params (scoreSegment' params)
+  let score = scorer slices chords
+
+  let wrap = SliceWrapper $ \ns -> let (r, l, p) = mostLikelyChordFromSlice params ns in SliceWrapped ns (ChordLabel l r) p
+  
+  let chordGuesses =  sLbl <$> (wrapSlice wrap <$> slices)
+  
+  pure $ AlgoResult slices chordGuesses Nothing score score 
+
+  -- writeJSONToFile jsonFile $ writeResultsToJSON slices chords (getPathFromState finalState) 43 3 
+
+  -- writeMapToJson scores jsonFile
+  
+-- writeMapToJson :: [(String, Double)] -> FilePath -> IO ()
+-- writeMapToJson dict fileName = do 
+--   -- fileHandle <- openFile fileName
+--   let json = A.toJSON (M.fromList dict)
+--   Log.debug $ T.pack . show $ json
+--   BL.writeFile fileName (A.encode json)
+--   -- closeFile fileHandle
+
   -- let ops = getOpsFromState finalState
-  pure ()
   
 
 {- | Runs a random search within each segment
 -}
-runRandomParseSBS :: [ChordLabel] -> [InputSlice SPitch] -> String -> IO ()
-runRandomParseSBS chordsFile slicesFile jsonFile = do 
-  pure ()
-
-{- | Samples random notes for every segment, without looking at the segment itself 
--}
-runRandomSample :: [ChordLabel] -> [InputSlice SPitch] -> String -> IO ()
-runRandomSample chordsFile slicesFile jsonFile = do 
-  pure ()
-
-{- | Samples random notes from each segment
--}
-runRandomSampleSBS :: [ChordLabel] -> [InputSlice SPitch] -> String -> IO ()
-runRandomSampleSBS chordsFile slicesFile jsonFile = do 
-  pure ()
-
-
-{- | Uses a beam search, using chordtone and ornamentation probabilities as a score
--}
-runHeuristic1 :: HarmonicProfileData -> [ChordLabel] -> [InputSlice SPitch] -> String -> IO ()
-runHeuristic1 params chordsFile slicesFile jsonFile = do 
-  pure ()
-
-{- | Uses a beam search, using chordtone and ornamentation probabilities as a score, but running separately for each segment
--}
-runHeuristicSBS1 :: HarmonicProfileData -> [ChordLabel] -> [InputSlice SPitch] -> String -> IO ()
-runHeuristicSBS1 params chordsFile slicesFile jsonFile = do 
-  pure ()
-
-runAllAlgos :: HarmonicProfileData -> [ChordLabel] -> [InputSlice SPitch] -> String -> IO ()
-runAllAlgos params chordsFile slicesFile jsonFile = do 
-  pure ()
-
+-- runRandomParseSBS :: [ChordLabel] -> [InputSlice SPitch] -> String -> IO ()
+-- runRandomParseSBS chordsFile slicesFile jsonFile = do 
+--   pure ()
+--
+-- {- | Samples random notes for every segment, without looking at the segment itself 
+-- -}
+-- runRandomSample :: [ChordLabel] -> [InputSlice SPitch] -> String -> IO ()
+-- runRandomSample chordsFile slicesFile jsonFile = do 
+--   pure ()
+--
+-- {- | Samples random notes from each segment
+-- -}
+-- runRandomSampleSBS :: [ChordLabel] -> [InputSlice SPitch] -> String -> IO ()
+-- runRandomSampleSBS chordsFile slicesFile jsonFile = do 
+--   pure ()
+--
+--
+-- {- | Uses a beam search, using chordtone and ornamentation probabilities as a score
+-- -}
+-- runHeuristic1 :: HarmonicProfileData -> [ChordLabel] -> [InputSlice SPitch] -> String -> IO ()
+-- runHeuristic1 params chordsFile slicesFile jsonFile = do 
+--   pure ()
+--
+-- {- | Uses a beam search, using chordtone and ornamentation probabilities as a score, but running separately for each segment
+-- -}
+-- runHeuristicSBS1 :: HarmonicProfileData -> [ChordLabel] -> [InputSlice SPitch] -> String -> IO ()
+-- runHeuristicSBS1 params chordsFile slicesFile jsonFile = do 
+--   pure ()
+--
+-- runAllAlgos :: HarmonicProfileData -> [ChordLabel] -> [InputSlice SPitch] -> String -> IO ()
+-- runAllAlgos params chordsFile slicesFile jsonFile = do 
+--   pure ()
+--
 
 
 
@@ -217,8 +247,8 @@ perSegmentExperiment chordsFile slicesFile jsonFile = Log.withStdoutLogging $ do
   --     chords
 
   let scores = [("Seg by Seg", score),("nemjef", 88)]
-  -- print jsonFile
   writeMapToJson scores jsonFile
+  -- print jsonFile
 
   pure ()
 
