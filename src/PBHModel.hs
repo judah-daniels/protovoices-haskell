@@ -1,5 +1,3 @@
-{-# LANGUAGE DeriveAnyClass #-}
-
 module PBHModel where
 
 -- TODO( HarmonicProfileData
@@ -86,13 +84,13 @@ loadParams file = do
 -- Take the average score given a score function that takes slices and chord labels
 scoreSegments 
   :: HarmonicProfileData 
-  -> (Notes SPitch -> ChordLabel -> Double)
+  -> (HarmonicProfileData -> Notes SPitch -> ChordLabel -> Double)
   -> [Notes SPitch]
   -> [ChordLabel]
   -> Double
-scoreSegments hpData scoreSegment segments labels = 
+scoreSegments params scoreSegment segments labels = 
   let 
-    scores = zipWith scoreSegment segments labels 
+    scores = zipWith (scoreSegment params) segments labels 
   in 
     sum scores / fromIntegral (length scores)
 

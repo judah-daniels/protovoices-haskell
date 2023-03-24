@@ -24,7 +24,7 @@ data SliceWrapped ns = SliceWrapped
 
 newtype SliceWrapper ns = SliceWrapper {wrapSlice :: ns -> SliceWrapped ns}
 idWrapper :: SliceWrapper ns
-idWrapper = SliceWrapper{wrapSlice = \n -> SliceWrapped n undefined 1}
+idWrapper = SliceWrapper {wrapSlice = \n -> SliceWrapped n undefined 1}
 
 
 instance Show ns => Show (Slice ns) where

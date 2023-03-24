@@ -39,7 +39,6 @@ import Data.Maybe
 import Data.Vector qualified as V
 import Display
 import RandomChoiceSearch
-import RandomSampleParser
 import HeuristicSearch
 import PBHModel
 import Language.Haskell.DoNotation
