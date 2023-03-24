@@ -5,6 +5,10 @@
 
 module HeuristicSearch where
 
+-- LOGGING
+import qualified Data.Text as T
+import Control.Logging qualified as Log
+
 import Common
 import Control.Monad.Except (ExceptT, lift, throwError)
 import Data.Foldable
@@ -66,17 +70,17 @@ heuristicSearch initialState getNextStates isGoalState heuristic printOp = do
  where
   search hs
     | null open = throwError "No Goal Found"
-    | not $ null goalStates = pure . snd . head $ goalStates
+    | not $ null goalStates = pure . Log.traceL (T.pack (show . snd . head $ goalStates)) . snd . head $ goalStates
     | otherwise = do
-        lift $ putStrLn "___________________________________________________"
-        lift $ putStrLn "Frontier: "
-        lift $ mapM_ print open
-        lift $ putStrLn "Goals: "
-        lift $ mapM_ print goalStates
-        lift $ putStrLn "___________________________________________________"
-        lift $ putStrLn "___________________________________________________"
-        lift $ putStrLn "___________________________________________________"
-
+        lift $ Log.log $ T.pack (show open )
+        -- lift $ putStrLn "___________________________________________________"
+        -- lift $ putStrLn "Frontier: "
+        -- lift $ mapM_ print open
+        -- lift $ putStrLn "Goals: "
+        -- lift $ mapM_ print goalStates
+        -- lift $ putStrLn "___________________________________________________"
+        -- lift $ putStrLn "___________________________________________________"
+        -- lift $ putStrLn "___________________________________________________
         -- Find neighboring states and costs
         nextStates <- foldlM getNextStatesAndCosts [] open
 
@@ -108,12 +112,30 @@ heuristicSearch initialState getNextStates isGoalState heuristic printOp = do
     goalStates = filter (isGoalState . snd) open
     getNextStatesAndCosts xs (cost, state) = do
       nextStates <- getNextStates state
-      res <- mapM go nextStates
-      pure $ foldr (L.insertBy (comparing fst)) xs res
+      statesAndCosts <- mapM go nextStates
+
+      Log.timedLog (T.pack $ "Finding the minimum 12 of " ++ show (length nextStates)) $ pure $ minElems 12 [] statesAndCosts
+      -- pure $ foldr (insertBy (comparing fst)) xs res
+      -- pure $ foldr (:) xs res
      where
       go newState = do
         h <- heuristic (Just state, newState)
         pure (cost + h, newState)
+      
+      -- minElems :: Int -> Int -> (Ordering xs) -> [xs] -> [xs]  -> [xs]
+      --
+      minElems 0 mins [] = mins
+      minElems 0 (m:mins) (x:rst)
+        | fst x < fst m = minElems 0 (ins x mins) rst 
+        | otherwise = minElems 0 (m:mins) rst
+      minElems n mins (x:rst) = minElems (n-1) (ins x mins) rst
+      minElems n mins [] = mins
+
+      ins = L.insertBy ((flip . comparing) fst)
+  -- | fst x < fst m = minElems 0 (L.insertBy ((flip . comparing) fst) x mins) rst
+  -- | otherwise = minElems 0 mins rst
+
+      
 
 -- where
 -- genNextStatesAndCosts

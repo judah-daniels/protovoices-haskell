@@ -1,49 +1,39 @@
 module Heuristics where
 
-import Debug.Trace
+-- LOGGING
+import Control.Logging qualified as Log
+import qualified Data.Text as T
+
 import Common
-import Data.ByteString.Lazy qualified as BL
-import Control.Monad.Except (ExceptT,runExceptT, lift, throwError)
-import Data.HashSet qualified as S
-import Data.Csv
-import Data.List.Split
-import Data.Foldable (toList)
-import Control.Monad (foldM)
-import Data.Hashable
-import Internal.MultiSet qualified as MS
-import Data.HashMap.Strict qualified as HM
-import Data.List qualified as L
-import Data.Map qualified as M
-import Data.Maybe
-  ( catMaybes,
-    isNothing,
-    fromMaybe,
-    fromJust,
-    mapMaybe,
-    maybeToList,
-  )
-import Data.Vector qualified as V
-import Display
-import HeuristicParser
-import HeuristicSearch
-import PBHModel
-import Language.Haskell.DoNotation
-import Musicology.Core qualified as Music
-import Musicology.Pitch.Spelled
 import PVGrammar hiding
   ( slicesFromFile,
   )
 import PVGrammar.Generate
 import PVGrammar.Parse
-import Prelude hiding
-  ( Monad (..),
-    lift,
-    pure,
-  )
-import Control.Monad.State (evalState)
-import Control.Monad.Trans.Except (throwE)
+import Internal.MultiSet qualified as MS
+
+import Prelude hiding ( Monad (..), lift, pure,)
+import Control.Monad.Except (ExceptT,runExceptT, lift, throwError)
+import Language.Haskell.DoNotation
+import Control.Monad (foldM)
+
+import Data.HashMap.Strict qualified as HM
+import Data.List qualified as L
+import Data.HashSet qualified as S
+import Data.Map qualified as M
+import Data.ByteString.Lazy qualified as BL
+import Data.Vector qualified as V
+import Data.Maybe ( isNothing, fromJust)
+
+import Musicology.Core qualified as Music
+import Musicology.Pitch.Spelled
+
+import PBHModel
+import HeuristicParser
+import HeuristicSearch
 
 type State ns = SearchState (Edges ns) [Edge ns] (Notes ns) (PVLeftmost ns)
+
 
 applyHeuristic
   :: ((Maybe (State SPitch), State SPitch) -> ExceptT String IO Double)
@@ -71,21 +61,21 @@ testHeuristic params (prevState, state) = do
   let op = case getOpsFromState state of 
              [] -> Nothing
              (x:_)-> Just x
-  lift $ putStrLn "______________________________________________________"
-  lift $ putStrLn $ "Prev State: " <> show prevState
-  lift $ putStrLn $ "Next State: " <> show state
+  -- lift $ putStrLn "______________________________________________________"
+  -- lift $ putStrLn $ "Prev State: " <> show prevState
+  -- lift $ putStrLn $ "Next State: " <> show state
+  --
   if isNothing op
     then pure 100.0
     else case fromJust op of
       -- Freezing
       -- no unfreeze if there are 3 open non boundary transition
       LMDouble (LMDoubleFreezeLeft freezeOp) -> do
-        lift $ putStrLn "Considering an unfreeze"
-        pure 5.3
+        pure 0
 
       LMSingle (LMSingleFreeze freezeOp) -> do
-        lift $ putStrLn "Considering an unfreeze"
-        pure 5.3
+        pure 0
+
       -- Spreading
       -- Calculate for each chord possibility, the likelihood that they are all the same chord
       -- Splitting Right
@@ -99,17 +89,18 @@ testHeuristic params (prevState, state) = do
       -}
 
       LMDouble (LMDoubleSpread spreadOp) -> do
-        lift $ putStrLn "Considering an unspread"
+        -- lift $ putStrLn "Considering an unspread"
         res <- getParentDouble (fromJust prevState)
         (_,childl, slcl, childr, slcr) <- case res of 
           (sl,childl,Inner slc,childr,Inner sr) -> pure (sl,childl,slc,childr,sr)
-          (_,_,Start,_,_) -> throwError "StartStop in spread"
+          (_,_,Start,_,_) -> throwError "StartStop left of in spread"
           (_,_,Stop,_,_) -> throwError "StartStop in left of spread"
           (_,_,_,_,Start) -> throwError "StartStop in right of spread"
           (_,_,_,_,Stop) -> throwError "StartStop in right of spread"
 
-        pure 30000
-        -- scoreSpread slcl slcr spreadOp 
+        -- pure 30000
+        scoreSpread slcl slcr spreadOp 
+
       -- Freezing (Terminate)
       -- numSlices From  SSFrozen with 1 or 1+ transitions
 
@@ -121,10 +112,12 @@ testHeuristic params (prevState, state) = do
                                       [slc]
       -}
       LMSingle (LMSingleSplit splitOp) -> do
-        lift $ putStrLn "Considering a single unsplit"
+        -- lift $ putStrLn "Considering a single unsplit"
         -- (child, sr)
         (slcl, parent) <- getParentSingle state
-        scoreSplit splitOp parent slcl slcl Stop
+        -- (slcl, parent, slcr,_, _) <- getParentDouble state
+        pure 5
+        -- scoreSplit splitOp parent slcl slcl Stop
 
       -- Splitting Left
       {-
@@ -133,16 +126,11 @@ testHeuristic params (prevState, state) = do
                                   cl\        /cr
                                       [slc]
       -}
-      {-
-                                      split:
-                                ⋊=---parent---[slcr]--_--[_]...
-                                  cl\        /cr
-                                      [slc]
-      -}
       LMDouble (LMDoubleSplitLeft splitOp) -> do
-        lift $ putStrLn "Considering an unsplit left"
+        -- lift $ putStrLn "Considering an unsplit left"
         (child, sr) <- getParentSlices (fromJust prevState)
         (slcl, parent, slcr,_, _) <- getParentDouble state
+        -- pure 5
         scoreSplit splitOp parent child slcl slcr
 
       -- Splitting Right
@@ -159,9 +147,10 @@ testHeuristic params (prevState, state) = do
                                   [ slc ]
       -}
       LMDouble (LMDoubleSplitRight splitOp) -> do
-        lift $ putStrLn "Considering an unsplit right"
+        -- lift $ putStrLn "Considering an unsplit right"
         (sl, child) <- getParentSlices (fromJust prevState)
         (_,_, slcl, parent, slcr) <- getParentDouble state
+        -- pure 5
         scoreSplit splitOp parent child slcl slcr
 
  where
@@ -182,22 +171,22 @@ testHeuristic params (prevState, state) = do
       (sl:sr:rst) -> pure (Inner sl,Inner sr)
       _ -> throwError "How can you even unsplit if there arent two slices? Confusion"
 
+  scoreSpread
+   :: (Music.Notation n) 
+   => SliceWrapped (Notes n)
+   -> SliceWrapped (Notes n)
+   -> Spread SPitch 
+   -> ExceptT String IO Double
   scoreSpread (SliceWrapped slcl lblL probL ) (SliceWrapped slcr lblR probR) spreadOp@(SpreadOp spreads edges) = do 
-    lift $ putStrLn "Considering an unspread"
+    -- lift $ putStrLn "Considering an unspread"
     let slc = Notes $ MS.fromList $ HM.keys spreads
-    lift $ print (slcl,slc,slcr)
-    -- lift $ print (parentl, slc, parentr)
-    -- lift $ print "parent:"
-    -- let (root, chordType, cProb) = mostLikelyChordFromSlice params slc
+    -- lift $ print (slcl,slc,slcr)
+    -- let wu = sliceChordLogLikelihood params lblL slc
+    -- let ru = sliceChordLogLikelihood params lblR slc
 
-    let lbl = lblL
-
-    let mu = sliceChordLogLikelihood params lbl slc
-    let wu = sliceChordLogLikelihood params lbl slcl
-    let ru = sliceChordLogLikelihood params lbl slcr
-
-    let score = 5 - (wu + ru)
-    lift $ putStrLn $ "score: " <> show (1 - score)
+    -- let score = 5 - (wu + ru)
+    let score = - 4
+    -- lift $ putStrLn $ "score: " <> show (1 - score)
     pure $ 1 - score 
    where
     -- trace (show $ mostLikelyChordFromSlice params parent ) -2.0
@@ -228,54 +217,46 @@ testHeuristic params (prevState, state) = do
     childSlice
     slcl 
     slcr = do 
-      -- lift $ print $ "lblL"
       lblL <- case slcl of 
                 Start -> pure Nothing
                 Stop -> throwError "Stop on Left?"
                 Inner (SliceWrapped (Notes _) lbl prob) -> pure $ Just (lbl, prob)
-                  --let (root, chordType, cProb) = mostLikelyChordFromSlice params ns in 
-                             --   pure $ Just (ChordLabel chordType (sic 0) (spc (root - 14)), cProb)
-
-      -- lift $ print $ "lblR"
       lblR <- case slcr of 
                 Start -> throwError "Start on Right?"
                 Stop -> pure Nothing
                 Inner (SliceWrapped (Notes _) lbl prob) -> pure $ Just (lbl, prob)
-                  --let (root, chordType, cProb) = mostLikelyChordFromSlice params ns in 
-                             --   pure $ Just (ChordLabel chordType (sic 0) (spc (root - 14)), cProb)
 
       probsRS <- mapM (scoreLeftOrnament lblR) (allOrnaments rs)  
       probsLS <- mapM (scoreRightOrnament lblL) (allOrnaments ls)  
       probsRegs <- mapM (scoreRegs lblL lblR) (allRegs splitRegs)  
       probsPassings <- mapM (scorePassing lblL lblR) (allPassings splitPassings)  
 
-      lift $ putStrLn $ "Left parent slice: " <> show slcl
-      lift $ putStrLn $ "Inferred Chord: " <> showLbl lblL
-      lift $ putStrLn $ "Right parent slice: " <> show slcr
-      lift $ putStrLn $ "Inferred Chord: " <> showLbl lblR
-      lift $ putStrLn $ "Child slice: " <> show childSlice
-
-      lift $ putStrLn $ "Left slice ornaments:" <> showOps opLs 
-      lift $ putStrLn $ "scores: " <> show probsLS 
-      lift $ putStrLn $ "Right slice ornaments:" <> showOps opRs
-      lift $ putStrLn $ "scores: " <> show probsRS 
-
-      lift $ putStrLn $ "Regular edges: " <> show (toList splitRegs)
-      lift $ putStrLn $ "scores: " <> show probsRegs 
-      lift $ putStrLn $ "Passing edges: " <> show (toList splitPassings)
-      lift $ putStrLn $ "scores: " <> show probsPassings 
-      lift $ putStrLn $ "Keep ledges: " <> show (toList keepl)
-      lift $ putStrLn $ "Keep redges: " <> show (toList keepr)
-      lift $ putStrLn $ "Pass ledges: " <> show (MS.toList passl)
-      lift $ putStrLn $ "Pass redges: " <> show (MS.toList passr) 
-
+      -- lift $ putStrLn $ "Left parent slice: " <> show slcl
+      -- lift $ putStrLn $ "Inferred Chord: " <> showLbl lblL
+      -- lift $ putStrLn $ "Right parent slice: " <> show slcr
+      -- lift $ putStrLn $ "Inferred Chord: " <> showLbl lblR
+      -- lift $ putStrLn $ "Child slice: " <> show childSlice
+      --
+      -- lift $ putStrLn $ "Left slice ornaments:" <> showOps opLs 
+      -- lift $ putStrLn $ "scores: " <> show probsLS 
+      -- lift $ putStrLn $ "Right slice ornaments:" <> showOps opRs
+      -- lift $ putStrLn $ "scores: " <> show probsRS 
+      --
+      -- lift $ putStrLn $ "Regular edges: " <> show (toList splitRegs)
+      -- lift $ putStrLn $ "scores: " <> show probsRegs 
+      -- lift $ putStrLn $ "Passing edges: " <> show (toList splitPassings)
+      -- lift $ putStrLn $ "scores: " <> show probsPassings 
+      -- lift $ putStrLn $ "Keep ledges: " <> show (toList keepl)
+      -- lift $ putStrLn $ "Keep redges: " <> show (toList keepr)
+      -- lift $ putStrLn $ "Pass ledges: " <> show (MS.toList passl)
+      -- lift $ putStrLn $ "Pass redges: " <> show (MS.toList passr) 
+      --
       let aggregateProbs = probsRS <> probsLS <> probsRegs <> probsPassings
 
-      lift $ putStrLn $ "Operation scores: " <> show aggregateProbs
+      -- lift $ putStrLn $ "Operation scores: " <> show aggregateProbs
 
       let score = -1 - (sum aggregateProbs / fromIntegral (L.length aggregateProbs))
-      
-      lift $ putStrLn $ "score: " <> show score
+      -- lift $ putStrLn $ "score: " <> show score
       pure score
          where
           -- showRightOrnament :: (a,(a,RightOrnament))
@@ -290,7 +271,7 @@ testHeuristic params (prevState, state) = do
           showOps ops = "\n   " <>  L.intercalate "\n   " ops 
 
           showEdge (p1, p2) = Music.showNotation p1 <> "-" <> Music.showNotation p2
-          showEdges ts = "{" <> L.intercalate "," (showEdge <$> toList ts) <> "}"
+          showEdges ts = "{" <> L.intercalate "," (showEdge <$> S.toList ts) <> "}"
           showChild (p, o) = Music.showNotation p <> ":" <> show o
           showChildren cs = "[" <> L.intercalate "," (showChild <$> cs) <> "]"
 
@@ -305,19 +286,19 @@ testHeuristic params (prevState, state) = do
             -> ExceptT String IO Double
           scoreRightOrnament Nothing (n,(x,orn)) = throwError "Right Ornament with no parent"
           scoreRightOrnament (Just (lbl@(ChordLabel chordLbl root), prob)) (n,(x,orn)) = do
-            lift $ putStrLn ""
-            lift $ putStrLn $ "Scoring a right ornament: " <> Music.showNotation n <> "<="<> Music.showNotation x
+            -- lift $ putStrLn ""
+            -- lift $ putStrLn $ "Scoring a right ornament: " <> Music.showNotation n <> "<="<> Music.showNotation x
             let (n', x') = (transposeNote root n, transposeNote root x) in case orn of 
               RightNeighbor -> do
-                  lift $ putStrLn "Right Neighbor" 
-                  lift $ putStrLn $ "LBL: " <> showLbl (Just (lbl, prob))
-                  lift $ putStrLn $ "Chord tone likelihood: " <> show (chordToneLogLikelihood params lbl n')
-                  lift $ putStrLn $ "Ornament tone likelihood: " <> show (ornamentLogLikelihood params lbl x')
+                  -- lift $ putStrLn "Right Neighbor" 
+                  -- lift $ putStrLn $ "LBL: " <> showLbl (Just (lbl, prob))
+                  -- lift $ putStrLn $ "Chord tone likelihood: " <> show (chordToneLogLikelihood params lbl n')
+                  -- lift $ putStrLn $ "Ornament tone likelihood: " <> show (ornamentLogLikelihood params lbl x')
                   pure $ chordToneLogLikelihood params lbl n' + ornamentLogLikelihood params lbl x'
               RightRepeat -> do
-                lift $ putStrLn "Right Repeat" 
-                lift $ putStrLn $ "LBL: " <> showLbl (Just (lbl, prob))
-                lift $ putStrLn $ "Chord tone likelihood: " <> show (chordToneLogLikelihood params lbl n')
+                -- lift $ putStrLn "Right Repeat" 
+                -- lift $ putStrLn $ "LBL: " <> showLbl (Just (lbl, prob))
+                -- lift $ putStrLn $ "Chord tone likelihood: " <> show (chordToneLogLikelihood params lbl n')
                 pure $ 2 * chordToneLogLikelihood params lbl n' 
 
           scoreLeftOrnament 
@@ -325,25 +306,23 @@ testHeuristic params (prevState, state) = do
             -> (SPitch, (SPitch, LeftOrnament)) 
             -> ExceptT String IO Double
           scoreLeftOrnament Nothing (n,(x,orn)) = throwError "Left Ornament with no parent"
-          -- scoreLeftOrnament (Just (lbl, prob)) (n,(x,orn)) = do
-          scoreLeftOrnament (Just (lbl@(ChordLabel chordLbl root), prob)) (n,(x,orn)) = do
-            lift $ putStrLn ""
-            lift $ putStrLn $ "Scoring a left ornament: " <> Music.showNotation x <> "=>"<> Music.showNotation n
+          scoreLeftOrnament (Just (lbl@(ChordLabel _ root), prob)) (n,(x,orn)) = do
+            -- lift $ putStrLn $ "Scoring a left ornament: " <> Music.showNotation x <> "=>"<> Music.showNotation n
             let (n', x') = (transposeNote root n, transposeNote root x) in case orn of 
               LeftNeighbor -> do 
-                lift $ putStrLn "Left Neighbor" 
-                lift $ putStrLn $ "LBL: " <> showLbl (Just (lbl, prob))
-                lift $ putStrLn $ "Chord tone likelihood: " <> show (chordToneLogLikelihood params lbl n')
-                lift $ putStrLn $ "Ornament tone likelihood: " <> show (ornamentLogLikelihood params lbl x')
+                -- lift $ putStrLn "Left Neighbor" 
+                -- lift $ putStrLn $ "LBL: " <> showLbl (Just (lbl, prob))
+                -- lift $ putStrLn $ "Chord tone likelihood: " <> show (chordToneLogLikelihood params lbl n')
+                -- lift $ putStrLn $ "Ornament tone likelihood: " <> show (ornamentLogLikelihood params lbl x')
                 pure $ chordToneLogLikelihood params lbl n' + ornamentLogLikelihood params lbl x'  
               LeftRepeat -> do 
-                lift $ putStrLn "Left Repeat" 
-                lift $ putStrLn $ "LBL: " <> showLbl (Just (lbl, prob))
-                lift $ putStrLn $ "Chord tone likelihood: " <> show (chordToneLogLikelihood params lbl n')
+                -- lift $ putStrLn "Left Repeat" 
+                -- lift $ putStrLn $ "LBL: " <> showLbl (Just (lbl, prob))
+                -- lift $ putStrLn $ "Chord tone likelihood: " <> show (chordToneLogLikelihood params lbl n')
                 pure $ 2 * chordToneLogLikelihood params lbl n' 
 
-          scoreRegs Nothing _ ((x,y),(n,orn)) = throwError "wtf man"
-          scoreRegs _ Nothing ((x,y),(n,orn)) = throwError "wtf woman"
+          scoreRegs Nothing _ ((x,y),(n,orn)) = throwError "Attempted to score a regular edge without a chord label"
+          scoreRegs _ Nothing ((x,y),(n,orn)) = throwError "Attempted to score a regular edge without a chord label"
           scoreRegs (Just (lbll@(ChordLabel chordlbll rootl), probL)) (Just (lblr@(ChordLabel chordlblr rootr), probR)) ((Inner nl,Inner nr),(x,orn)) = 
             let (nl',nr') = (transposeNote rootl nl,transposeNote rootr nr) in case orn of 
               FullNeighbor -> pure $ 
@@ -352,19 +331,17 @@ testHeuristic params (prevState, state) = do
               FullRepeat -> pure $ 
                 (chordToneLogLikelihood params lbll nl' + chordToneLogLikelihood params lblr nr') / 2 
                 + chordToneLogLikelihoodDouble params lbll lblr x 
-              RootNote -> pure 0.2
-              LeftRepeatOfRight -> pure $ -100
-                -- chordToneLogLikelihood params lblr nr' 
-              RightRepeatOfLeft -> pure $ -100
-                -- chordToneLogLikelihood params lbll nl'
+              RootNote -> pure 0
+              LeftRepeatOfRight -> pure $ chordToneLogLikelihood params lblr nr' 
+              RightRepeatOfLeft -> pure $ chordToneLogLikelihood params lblr nl'
 
-          scorePassing Nothing _ ((x,y),(n,orn)) = throwError "wtf man"
-          scorePassing _ Nothing ((x,y),(n,orn)) = throwError "wtf man"
+          scorePassing Nothing _ ((x,y),(n,orn)) = throwError "Attempted to score a passing edge without a chord label"
+          scorePassing _ Nothing ((x,y),(n,orn)) = throwError "Attempted to score a passing edge without a chord label"
           scorePassing (Just (lbll@(ChordLabel chordlbll rootl), probL)) (Just (lblr@(ChordLabel chordlblr rootr), probR)) ((nl, nr),(x,orn)) = 
             let (nl',nr') = (transposeNote rootl nl,transposeNote rootr nr) in case orn of 
-            PassingLeft ->  pure $ ornamentLogLikelihood params lblr (transposeNote rootl x)
-            PassingMid ->  pure $ ornamentLogLikelihoodDouble params lbll lblr x
-            PassingRight ->  pure $ ornamentLogLikelihood params lblr (transposeNote rootr x)
+            PassingLeft ->  pure $ ornamentLogLikelihood params lblr (transposeNote rootl x) + chordToneLogLikelihood params lblr nr'
+            PassingMid ->  pure $ ornamentLogLikelihoodDouble params lbll lblr x + (chordToneLogLikelihood params lblr nr' + chordToneLogLikelihood params lblr nl') / 2
+            PassingRight ->  pure $ ornamentLogLikelihood params lblr (transposeNote rootr x) + chordToneLogLikelihood params lbll nl'
 
           allOrnaments :: M.Map a [b] -> [(a,b)]
           allOrnaments ornamentSet = do

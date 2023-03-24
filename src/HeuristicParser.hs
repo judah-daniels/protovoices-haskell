@@ -3,6 +3,7 @@
 module HeuristicParser where
 
 import Common
+
 import Control.Monad.Except (ExceptT, lift, throwError)
 import Data.Bifunctor (second)
 import Data.Maybe (Maybe, catMaybes, fromJust, mapMaybe, maybeToList)
@@ -24,6 +25,7 @@ data SliceWrapped ns = SliceWrapped
 newtype SliceWrapper ns = SliceWrapper {wrapSlice :: ns -> SliceWrapped ns}
 idWrapper :: SliceWrapper ns
 idWrapper = SliceWrapper{wrapSlice = \n -> SliceWrapped n undefined 1}
+
 
 instance Show ns => Show (Slice ns) where
   show (Slice ns) = show ns
@@ -148,20 +150,20 @@ exploreStates
   -> SearchState es es' ns (Leftmost s f h)
   -> ExceptT String IO [SearchState es es' ns (Leftmost s f h)]
 exploreStates wrap eval state = do
-  lift $ putStrLn "_________________________________________________________"
-  lift $ putStrLn $ "\n Exploring state: " <> show state <> "\n"
+  -- lift $ putStrLn "_________________________________________________________"
+  -- lift $ putStrLn $ "\n Exploring state: " <> show state <> "\n"
   case state of
     SSFrozen frozen -> case frozen of
       -- Only one trasition: we unfreeze and terminate
       PathEnd t -> do
-        lift $ putStrLn "1 frozen transition: "
+        -- lift $ putStrLn "1 frozen transition: "
         pure $ genState <$> actions
        where
         actions = collectUnfreezeSingle Start t Stop True
         genState (ActionSingle (sl, top, sr) op) = SSOpen (PathEnd top) [LMSingle op]
       -- Multiple transitions: unfreeze first and continue
       Path t slice rest -> do
-        lift $ putStrLn "1+ frozen transitions only:"
+        -- lift $ putStrLn "1+ frozen transitions only:"
         pure $ genState <$> actions
        where
         actions = collectUnfreezeSingle Start t (Inner $ sWContent slice) True
@@ -173,11 +175,11 @@ exploreStates wrap eval state = do
       reductions = case open of
         -- A single transition - No operations
         PathEnd _ -> do
-          lift $ putStrLn "0 Frozen, 1 open: No operations\n"
+          -- lift $ putStrLn "0 Frozen, 1 open: No operations\n"
           pure []
         -- Two open transitions: unsplit single
         Path tl slice (PathEnd tr) -> do
-          lift $ putStrLn "2 open transitions only: \n"
+          -- lift $ putStrLn "2 open transitions only: \n"
           pure $ genState <$> actions
          where
           actions = collectUnsplitSingle Start tl (sWContent slice) tr Stop
@@ -186,7 +188,7 @@ exploreStates wrap eval state = do
 
         -- Three open transitions: unsplitLeft, unsplitRight, or unspread (double ops)
         Path tl sl (Path tm sr rst) -> do
-          lift $ putStrLn "3+ Open transitions:"
+          -- lift $ putStrLn "3+ Open transitions:"
           pure $ genState <$> actions
          where
           actions = collectDoubles Start tl (sWContent sl) tm (sWContent sr) (second sWContent rst)
@@ -201,7 +203,7 @@ exploreStates wrap eval state = do
             -- Only one open transition: unfreeze
             PathEnd topen -> case frozen of
               PathEnd tfrozen -> do
-                lift $ putStrLn "1 Open Transition, 1 frozen transition: \n"
+                -- lift $ putStrLn "1 Open Transition, 1 frozen transition: \n"
                 pure $ genState <$> actions
                where
                 actions = collectUnfreezeLeft Start tfrozen (sWContent midSlice) topen Stop True
@@ -210,7 +212,7 @@ exploreStates wrap eval state = do
                     (Path tl (wrapSlice wrap slice) (PathEnd tr))
                     (LMDouble op : ops)
               Path tfrozen sfrozen rstFrozen -> do
-                lift $ putStrLn "1 Open Transition, 1+ frozen transition: \n"
+                -- lift $ putStrLn "1 Open Transition, 1+ frozen transition: \n"
                 pure $ genState <$> actions
                where
                 actions = collectUnfreezeLeft (Inner $ sWContent sfrozen) tfrozen (sWContent midSlice) topen Stop True
@@ -222,7 +224,7 @@ exploreStates wrap eval state = do
               let unsplitActions = Right <$> collectUnsplitSingle (Inner $ sWContent midSlice) topenl (sWContent sopen) topenr Stop
                in case frozen of
                     PathEnd tfrozen -> do
-                      lift $ putStrLn "2 Open Transitions, 1 frozen transition: \n"
+                      -- lift $ putStrLn "2 Open Transitions, 1 frozen transition: \n"
                       pure $ genState <$> (unfreezeActions <> unsplitActions)
                      where
                       unfreezeActions =
@@ -235,7 +237,7 @@ exploreStates wrap eval state = do
                         Right (ActionSingle (parentL, parent, parentR) op) ->
                           SSSemiOpen frozen midSlice (PathEnd parent) (LMSingle op : ops) -- change midSlice?
                     Path tfrozen sfrozen rstFrozen -> do
-                      lift $ putStrLn "2 Open Transitions, 1+ frozen transitions: \n"
+                      -- lift $ putStrLn "2 Open Transitions, 1+ frozen transitions: \n"
                       pure $ genState <$> (unfreezeActions <> unsplitActions)
                      where
                       unfreezeActions =
@@ -260,7 +262,7 @@ exploreStates wrap eval state = do
                         (second sWContent rstOpen)
                in case frozen of
                     PathEnd tfrozen -> do
-                      lift $ putStrLn "2+ Open Transitions, 1 frozen transition Left: \n"
+                      -- lift $ putStrLn "2+ Open Transitions, 1 frozen transition Left: \n"
                       pure $ genState <$> (doubleActions <> unfreezeActions)
                      where
                       unfreezeActions =
@@ -272,7 +274,7 @@ exploreStates wrap eval state = do
                         Right (ActionDouble (_, topl, tops, topr, _) op) ->
                           SSSemiOpen frozen midSlice (Path topl (wrapSlice wrap tops) (pathSetHead rstOpen topr)) (LMDouble op : ops)
                     Path tfrozen sfrozen rstFrozen -> do
-                      lift $ putStrLn "2+ Open Transitions, 1+ frozen transition left:\n"
+                      -- lift $ putStrLn "2+ Open Transitions, 1+ frozen transition left:\n"
                       pure $ genState <$> (doubleActions <> unfreezeActions)
                      where
                       unfreezeActions =
@@ -485,6 +487,21 @@ getPathFromState s = case s of
   transformPath (PathEnd t) = PathEnd (tContent t)
   transformPath (Path t s rst) = Path (tContent t) (sWContent s) $ transformPath rst
 
+
+-- Get path from state, keeping chord label information
+getPathFromState'
+  :: SearchState es es' ns o
+  -> Maybe (Path es (SliceWrapped ns))
+getPathFromState' s = case s of
+  SSOpen p d -> Just $ transformPath p
+  SSSemiOpen p m f d -> Just $ transformPath f
+  SSFrozen p -> Nothing
+ where
+  transformPath
+    :: Path (Trans es) (SliceWrapped ns)
+    -> Path es (SliceWrapped ns) 
+  transformPath (PathEnd t) = PathEnd (tContent t)
+  transformPath (Path t s rst) = Path (tContent t) s $ transformPath rst
 -- * Parsing Actions
 
 {- | A parsing action (reduction step) with a single parent transition.

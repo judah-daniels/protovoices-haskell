@@ -23,6 +23,7 @@ import Data.Maybe
     mapMaybe,
     maybeToList,
   )
+import Data.List qualified as L
 import Data.Vector qualified as V
 import Display
 import RandomChoiceSearch
@@ -50,70 +51,26 @@ import qualified Internal.MultiSet as MS
 import Data.Map.Strict qualified as M
 import HeuristicParser 
 
-protoVoiceEvaluatorLimitedSize
-  :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n)
-  => Int 
-  -> Eval (Edges n) (t (Edge n)) (Notes n) (t2 n) (PVLeftmost n)
-protoVoiceEvaluatorLimitedSize n = Eval filterUnspreadM filterUnspreadL filterUnspreadR filterSplit t s
- where
-  (Eval vm vl vr mg t s) = protoVoiceEvaluator
-  singleChild (note, (_, _)) = note
-  allOps opset = do
-    (parent, children) <- M.toList opset
-    child <- children
-    pure (parent, child)
-
-  collectNotes ops = MS.fromList $ singleChild <$> allOps ops
-
-  filterUnspreadL (tr, slc) slc'@(Notes parent) = filter ok $ vl (tr, slc) slc' 
-    where 
-      ok (Edges reg pass) = MS.size parent <= n 
-
-  filterUnspreadR (slc, tr) slc'@(Notes parent) = filter ok $ vr (slc, tr) slc'
-    where 
-      ok (Edges reg pass) = MS.size parent <= n
-
-  filterUnspreadM (sl, tm, sr) = do 
-    v <- vm (sl, tm, sr) 
-    ok v
-    where 
-      ok (Notes ns, v) 
-        |  MS.size ns < n = Just (Notes ns, v)
-        |  otherwise = Nothing
-
-  filterSplit l lt mid rt r typ = filter ok $ mg l lt mid rt r typ
-    where 
-      ok (_, LMSplitLeft op) = notTooBig op
-      ok (_, LMSplitOnly op) = notTooBig op
-      ok (_, LMSplitRight op) = notTooBig op
-      ok _ = False
-
-      notTooBig (SplitOp regs pass rs ls _ _ _ _) = True
-
--- j
---         let notesL = collectNotes ls
---             notesR = collectNotes rs
---             notes = MS.unions [notesL, notesR]
---          in 
---             MS.size notes < n
     
 
 fullParseSpec :: Spec 
 fullParseSpec = do 
   runIO $ do
     params <- loadParams "preprocessing/dcml_params.json"
-    -- print params
-    slices <- slicesFromFile' "preprocessing/inputs/slices1.csv"
-    -- print slices
-    chords <- chordsFromFile "preprocessing/inputs/chords1.csv"
-    -- print chords
+    -- slices <- slicesFromFile' "preprocessing/inputs/slices/n01op18-1_03.csv"
+    -- chords <- chordsFromFile "preprocessing/inputs/chords/n01op18-1_03.csv"
+    -- slices <- slicesFromFile' "preprocessing/inputs/slices/n01op18-1_04.csv"
+    -- chords <- chordsFromFile "preprocessing/inputs/chords/n01op18-1_04.csv"
+    slices <- slicesFromFile' "preprocessing/inputs/slices/slices1short.csv"
+    chords <- chordsFromFile "preprocessing/inputs/chords/chords1short.csv"
     let wrap = SliceWrapper $ \ns -> let (r,l,p) = mostLikelyChordFromSlice params ns in SliceWrapped ns (ChordLabel l r) p
 
     scores <- evaluateSearches 
 
-        -- [ runHeuristicSearch params protoVoiceEvaluator wrap (applyHeuristic (testHeuristic params))
-        [ runRandomSearch params (protoVoiceEvaluatorLimitedSize 20)
-        -- , runRandomSampleSearch 
+        [ 
+        runHeuristicSearch params protoVoiceEvaluator wrap (applyHeuristic (testHeuristic params))
+        ,runRandomSearch params (protoVoiceEvaluatorLimitedSize 10)
+        , runRandomSampleSearch 
         ]
         (scoreSegments params (scoreSegment' params))
         slices 
@@ -233,11 +190,11 @@ heuristicSpec = do
   pure ()
 
 
-testOp =  
-  ActionDouble 
-    (Start, undefined,undefined, undefined, Stop) $
-    LMDoubleSplitLeft $ mkSplit $ do 
-      addToRight (c' nat) (c' nat) LeftRepeat True 
+-- testOp =  
+--   ActionDouble 
+--     (Start, undefined,undefined, undefined, Stop) $
+--     LMDoubleSplitLeft $ mkSplit $ do 
+--       addToRight (c' nat) (c' nat) LeftRepeat True 
 ---------------------------------- -------------------------------- -------------------------------- |
 -- INPUTS FOR TESTING
 --
@@ -404,10 +361,18 @@ runHeuristicSearch params eval wrap heuristic inputSlices chordLabels = do
   finalState <- case res of 
     Left err -> do 
       print err
+      print "something went wrong"
       return undefined
     Right s -> pure s
 
   let p = fromJust $ getPathFromState finalState
+  print p
+
+  -- Chord Guesses for evaluation with other model
+  let chordGuesses = sLbl <$> pathBetweens (fromJust $ getPathFromState' finalState)
+  mapM_ (\(ChordLabel lbl root) -> putStrLn $ showNotation root <> lbl) chordGuesses
+
+
   let ops = getOpsFromState finalState
 
   -- pure (p, ops)

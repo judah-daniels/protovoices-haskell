@@ -8,13 +8,20 @@ module FileHandling
   , pathFromSlices
   , slicesFromFile'
   , chordsFromFile
+  , writeMapToJson
+  , splitSlicesIntoSegments
   ) where
 
 import Musicology.Core
 
+-- LOGGING
+import qualified Data.Text as T
+import Control.Logging qualified as Log
+
 import Debug.Trace
 import Common hiding (split)
 import Data.ByteString.Lazy qualified as BL
+import Data.Map.Strict qualified as M
 import Control.Monad.Except (ExceptT,runExceptT, lift, throwError)
 import Data.Csv
 import Data.List.Split
@@ -51,6 +58,9 @@ import Control.Monad.State (evalState)
 import Control.Monad.Trans.Except (throwE)
 import qualified Internal.MultiSet as MS
 import HeuristicParser 
+import Data.Aeson (JSONPath)
+import Data.Aeson qualified as A
+import Data.Aeson.Encoding 
 
 
 
@@ -124,7 +134,9 @@ chordsFromFile file = do
         rootOffset' :: SIC
         rootOffset' = Music.sic $ _rootoffset r
         globalKey' :: SPC
-        globalKey' = fromJust (Music.readNotation $ _globalkey r)
+        globalKey' = case Music.readNotation $ _globalkey r of 
+                       Just note -> note
+                       Nothing -> Log.errorL  ( T.concat ["Can't Read notation of global key from " , T.pack file, " key: ", T.pack $ _globalkey r ])
 
 -- | Datatype for a slice
 type Slice' = [(SPitch, Music.RightTied)]
@@ -179,6 +191,40 @@ noteFromSalami s = (sPitch, tied, newSegment, newSlice)
     tied = _tied s
     sPitch = Data.Maybe.fromJust (Music.readNotation $ _pitch s) -- Refactor to deal with maybe
 
+splitSlicesIntoSegments ::
+  forall ns o.
+  Eval (Edges ns) [Edge ns] (Notes ns) [ns] o ->
+  SliceWrapper (Notes ns) ->
+  [InputSlice ns] ->
+  [[InputSlice ns]]
+splitSlicesIntoSegments eval wrap = split (dropInitBlank . keepDelimsL $ whenElt snd) 
+-- type InputSlice ns = ([(ns, Music.RightTied)], Bool)
+  --
+  --
+  -- reversePath . mkPath False Nothing
+  -- where
+  --   mkPath ::
+  --     Bool ->
+  --     Maybe [Edge ns] ->
+  --     [InputSlice ns] ->
+  --     Path (Maybe [Edge ns], Bool) (SliceWrapped (Notes ns))
+  --
+  --   mkPath tie eLeft [] = PathEnd (eLeft, True)
+  --
+  --   mkPath tie eLeft ((slice, boundary) : rst) =
+  --     Path (eLeft, boundary) nextSlice $
+  --       mkPath False (Just $ getTiedEdges slice) rst
+  --         where 
+  --           nextSlice = wrapSlice wrap $ evalSlice eval (fst <$> slice)
+  --
+  --
+  --   getTiedEdges :: [(ns, Music.RightTied)] -> [Edge ns]
+  --   getTiedEdges = mapMaybe mkTiedEdge
+  --     where
+  --       mkTiedEdge :: (ns, Music.RightTied) -> Maybe (Edge ns)k
+  --       mkTiedEdge (p, Music.Holds) = Just (Inner p, Inner p)
+  --       mkTiedEdge _ = Nothing
+  --
 
 pathFromSlices ::
   forall ns o.
@@ -209,4 +255,17 @@ pathFromSlices eval wrap = reversePath . mkPath False Nothing
         mkTiedEdge :: (ns, Music.RightTied) -> Maybe (Edge ns)
         mkTiedEdge (p, Music.Holds) = Just (Inner p, Inner p)
         mkTiedEdge _ = Nothing
+
+---- Writing Data to JSONPath
+
+writeMapToJson :: [(String, Double)] -> FilePath -> IO ()
+writeMapToJson dict fileName = do 
+  -- fileHandle <- openFile fileName
+  let json = A.toJSON (M.fromList dict)
+  Log.debug $ T.pack . show $ json
+  BL.writeFile fileName (A.encode json)
+  -- closeFile fileHandle
+
+
+
 

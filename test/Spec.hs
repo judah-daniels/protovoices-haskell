@@ -2,6 +2,7 @@ module Main where
 
 import Control.Exception (evaluate)
 import EvaluationSpec
+import FileHandlingSpec
 import HeuristicSearchSpec
 import HeuristicSpec
 import PBHModelSpec
@@ -11,7 +12,8 @@ main :: IO ()
 main = hspec $ do
   -- mostLikelyChordSpec
 
-  fullParseSpec
+  -- fullParseSpec
+  fileHandlingSpec
 
 -- evaluationSpec
 

@@ -26,6 +26,18 @@ import System.Random.MWC.Probability (multinomial)
 import GHC.Real (infinity)
 import GHC.Float (double2Int)
 
+data ChordLabel = ChordLabel
+  { chordType :: String,
+    rootNote :: SPC
+  }
+  deriving (Generic, Eq)
+
+instance Show ChordLabel where 
+  show (ChordLabel lbl root) = show $ Music.showNotation root <> lbl
+    
+
+mkLbl rootInt chordType = ChordLabel chordType (spc (rootInt-14))
+
 data HarmonicProfileData = HarmonicProfileData
   { params :: Params,
     chordtypes :: [String]
@@ -68,13 +80,6 @@ loadParams file = do
             }
     Nothing -> error "JSON parameter file not found or corrupted"
 
-data ChordLabel = ChordLabel
-  { chordType :: String,
-    rootNote :: SPC
-  }
-  deriving (Generic, Show, Eq)
-    
-mkLbl rootInt chordType = ChordLabel chordType (spc (rootInt-14))
 
 -- Take the average score given a score function that takes slices and chord labels
 scoreSegments 
@@ -402,3 +407,7 @@ multinomialLogProb xs probs
 -- Calculates the probability density of a multinomial distribution at the given point
 categoricalLogProb :: Int -> [Double] -> Double
 categoricalLogProb x probs = log $ probs !! x
+
+-- TODO @@@
+-- categoricalLogProb :: Int -> Vector Double -> Double
+-- categoricalLogProb x probs = log $ probs !! x
