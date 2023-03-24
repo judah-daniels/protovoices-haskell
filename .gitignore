@@ -8,6 +8,10 @@ testdata/.mscbackup/
 .DS_Store
 *.lock
 __pycache__
+preprocessing/inputs/*
+preprocessing/inputs/
+preprocessing/temp/*
+preprocessing/temp/
 *~
 *.aux
 *.log
