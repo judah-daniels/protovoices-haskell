@@ -14,7 +14,7 @@ import Data.Maybe
     mapMaybe,
     maybeToList,
   )
-import Control.Monad.Except (ExceptT,runExceptT, lift, throwError, zipWithM)
+import Control.Monad.Except (ExceptT,runExceptT, forM, lift, throwError, zipWithM)
 import Data.Hashable
 
 -- LOGGING
@@ -40,21 +40,45 @@ import System.Environment
 import System.Exit
 import Data.Aeson qualified as A 
 
+
+data Options = Options 
+  {
+   _inputPath :: String, 
+   _outputPath :: String,
+   _iterations :: Int
+  }
+
 -- COMAND LINE ARGUMENT HANDLING
-parseArgs ["-h"] = usage >> exit
-parseArgs ["-v"] = version >> exit
-parseArgs [chordsFile, slicesFile, jsonFile, algoName] = pure (chordsFile, slicesFile, jsonFile, read algoName) -- concat `fmap` mapM readFile fs
-parseArgs _ = usage >> exit
+parseArgs _ ["-h"] = usage >> exit
+parseArgs _ ["-v"] = version >> exit
+parseArgs options ("-i":inputPath:rst) = parseArgs (options {_inputPath=inputPath}) rst 
+parseArgs options ("-o":outputPath:rst) = parseArgs (options {_outputPath=outputPath}) rst 
+parseArgs options ("-n":numIterations:rst) = parseArgs (options {_iterations=read numIterations}) rst 
+parseArgs options [pieceName, algoName] = pure (pieceName, read algoName, options) -- concat `fmap` mapM readFile fs
+parseArgs _ _ = usage >> exit
+
+defaultInputPath = "preprocessing/inputs/"
+defaultOutputPath = "preprocessing/outputs/"
+defaultNumIterations = 1
 
 usage = putStrLn 
-  "\nUsage: parseFullPieces [-vh] chordsFile slicesFile jsonFile {RandomParse, RandomParseSBS, RandomSample, Heuristic1, HeuristicSBS1, All} \n\
+  "\nUsage: parseFullPieces [-vhio] chordsFile slicesFile jsonFile {RandomParse, RandomParseSBS, RandomSample, Heuristic1, HeuristicSBS1, All} \n\
    \   -v:         Show Version \n\
    \   -h:         Show Help \n\
-   \   chordsFile: Path containing a csv file with the chord labels \n\
-   \   slicesFile: Path containing a csv file with slices corresponding to the chord labels \n\
-   \   jsonFile:   Output path for results \n\
+   \   -i:         Set input path for chords and slices. Default: preprocessing/inputs/ \n\
+   \   -o:         Set output path for results. Default: preprocessing/outputs/ \n\
+   \   -n:         Set number of iterations \n\
+   \   pieceName:  Name of piece to parse. \n\
    \   {..}:       Choose which algorithm to run. \"all\" runs all algorithms and returns results in an aggregated\
-   \ json file\n"
+   \ json file\n\
+   \               Options:\n\
+   \                  = RandomParse\n\
+   \                  | RandomParseSBS\n\
+   \                  | RandomSample \n\
+   \                  | RandomSampleSBS\n\
+   \                  | Heuristic1 \n\
+   \                  | HeuristicSBS1 \n\
+   \                  | All "
 version = putStrLn "Version 0.1"
 exit = exitSuccess
 die = exitWith (ExitFailure 1)
@@ -81,26 +105,46 @@ data AlgoResult = AlgoResult [Notes SPitch] [ChordLabel] (Maybe (Path (Edges SPi
 main :: IO ()
 main = Log.withStdoutLogging $ do 
   params <- loadParams "preprocessing/dcml_params.json"
-  (chordsFile, slicesFile, jsonFile, algo) <- getArgs >>= parseArgs
-  inputChords <- chordsFromFile chordsFile
-  inputSlices <- slicesFromFile' slicesFile
+  (pieceName, algo, Options inputPath outputPath iterations) <- getArgs >>= 
+    parseArgs (Options defaultInputPath defaultOutputPath defaultNumIterations)
+
+  let outputFile = outputPath <> pieceName <> ".json"
+  inputChords <- chordsFromFile (inputPath <> "chords/" <> pieceName <> ".csv")
+  inputSlices <- slicesFromFile' (inputPath <> "slices/" <> pieceName <> ".csv")
 
   let scorer = scoreSegments params scoreSegment'
 
-  res <- let runAlgo = case algo of 
-              RandomParse -> runRandomParse protoVoiceEvaluator
-              RandomParseSBS -> runRandomParseSBS protoVoiceEvaluator
-              RandomSample -> runRandomSample protoVoiceEvaluator
-              RandomSampleSBS -> runRandomSampleSBS protoVoiceEvaluator
-              -- Heuristic1 -> runHeuristic1 params 
-              HeuristicSBS1 -> runHeuristicSBS1 protoVoiceEvaluator 
-              -- All -> runAllAlgos params 
-   in runAlgo scorer params inputChords inputSlices
+  res <- case algo of 
+    All -> forM ( concatMap (replicate iterations ) [RandomParseSBS, RandomSampleSBS, RandomSample] )
+      (\a -> do  
+        res <- runAlgo a scorer params inputChords inputSlices
+        resultToJSON a res
+      )
+    _   -> forM [1 .. iterations] 
+      (\_ -> do 
+        res <- runAlgo algo scorer params inputChords inputSlices
+        resultToJSON algo res
+      )
 
-  case res of 
-    AlgoResult sl ch pa ac li -> writeJSONToFile jsonFile $ writeResultsToJSON sl ch pa ac li 
+  writeJSONToFile outputFile $ concatResults pieceName res
 
-  pure ()
+  where
+    runAlgo algo scorer params inputChords inputSlices = 
+      let run = case algo of 
+            RandomParse -> runRandomParse protoVoiceEvaluator
+            RandomParseSBS -> runRandomParseSBS protoVoiceEvaluator
+            RandomSample -> runRandomSample protoVoiceEvaluator
+            RandomSampleSBS -> runRandomSampleSBS protoVoiceEvaluator
+            -- Heuristic1 -> runHeuristic1 params 
+            HeuristicSBS1 -> runHeuristicSBS1 protoVoiceEvaluator 
+            All -> error ""
+            -- All -> runAllAlgos params 
+         in run scorer params inputChords inputSlices
+
+    resultToJSON :: ParseAlgo -> AlgoResult -> IO A.Value
+    resultToJSON a (AlgoResult sl ch pa ac li) = 
+      pure $ writeResultsToJSON sl ch pa ac li (show a)
+
     
 {- | Runs a random search through the entire piece
      This can get stuck due to combinatoral blowup. 

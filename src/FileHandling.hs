@@ -6,6 +6,7 @@
 module FileHandling 
   ( InputSlice
   , pathFromSlices
+  , concatResults
   , slicesFromFile'
   , chordsFromFile
   , writeMapToJson
@@ -61,6 +62,7 @@ import qualified Internal.MultiSet as MS
 import HeuristicParser 
 import Data.Aeson (JSONPath, (.=))
 import Data.Aeson qualified as A
+import Data.Aeson.Key qualified as A
 import Data.Aeson.Encoding 
 import GHC.Generics
 
@@ -283,16 +285,22 @@ writeResultsToJSON
   -> Maybe (Path (Edges SPitch) (Notes SPitch))
   -> Double
   -> Double
+  -> String
   -> A.Value
-writeResultsToJSON slices chords pathMaybe accuracy likelihood 
-  = A.object  
-    [ "Slices" .= ((\(Notes x) -> show <$> MS.toList x) <$> slices)
-    , "ChordLabels" .= (show <$> chords)
-    -- , "Path" .= pathMaybe
-    , "Accuracy" .= accuracy
-    , "Likelihood" .= likelihood]
+writeResultsToJSON slices chords pathMaybe accuracy likelihood name
+  = A.object 
+    [ A.fromString name .= 
+      A.object  
+        [ "Slices" .= ((\(Notes x) -> show <$> MS.toList x) <$> slices)
+        , "ChordLabels" .= (show <$> chords)
+        -- , "Path" .= pathMaybe
+        , "Accuracy" .= accuracy
+        , "Likelihood" .= likelihood]
+    ]
 
 
+concatResults :: String -> [A.Value] -> A.Value
+concatResults piece results = A.object [ A.fromString piece .= results ]
 
 writeJSONToFile :: A.ToJSON a =>  FilePath -> a -> IO ()
 writeJSONToFile filePath v = BL.writeFile filePath (A.encode v)
