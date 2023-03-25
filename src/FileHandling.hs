@@ -298,7 +298,6 @@ writeResultsToJSON slices chords pathMaybe accuracy likelihood name
         , "Likelihood" .= likelihood]
     ]
 
-
 concatResults :: String -> [A.Value] -> A.Value
 concatResults piece results = A.object [ A.fromString piece .= results ]
 
