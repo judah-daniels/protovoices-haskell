@@ -115,7 +115,7 @@ main = Log.withStdoutLogging $ do
   let scorer = scoreSegments params scoreSegment'
 
   res <- case algo of 
-    All -> forM ( concatMap (replicate iterations ) [RandomParseSBS, RandomSampleSBS, RandomSample] )
+    All -> forM (concatMap (replicate iterations ) [RandomParseSBS, RandomSampleSBS, RandomSample] )
       (\a -> do  
         res <- runAlgo a scorer params inputChords inputSlices
         resultToJSON a res

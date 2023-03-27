@@ -100,7 +100,7 @@ heuristicSearch initialState getNextStates isGoalState heuristic printOp = do
         -- Add the new states to the frontier.
         -- Add lowest cost states
         -- Keeping a maximum of 5 states in the frontier at a time
-        let newFrontier = take 12 nextStates
+        let newFrontier = take 4 nextStates
         --   H.fromList
         --   . H.take 1
         --   $ H.union nextStatesHeap remainingQueue

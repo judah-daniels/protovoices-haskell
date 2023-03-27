@@ -42,10 +42,6 @@ applyHeuristic
 applyHeuristic heuristic (prevState, state) = do
    heuristic (prevState, state)
  where
-  -- op = case getOpsFromState state of
-  --   [] -> Nothing
-  --   x : _ -> Just x
-
   remainingOps :: Double
   remainingOps = fromIntegral $ getPathLengthFromState state
 
@@ -66,7 +62,7 @@ testHeuristic params (prevState, state) = do
   -- lift $ putStrLn $ "Next State: " <> show state
   --
   if isNothing op
-    then pure 100.0
+    then pure 0
     else case fromJust op of
       -- Freezing
       -- no unfreeze if there are 3 open non boundary transition

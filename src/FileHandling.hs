@@ -1,4 +1,4 @@
-
+ 
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -289,17 +289,16 @@ writeResultsToJSON
   -> A.Value
 writeResultsToJSON slices chords pathMaybe accuracy likelihood name
   = A.object 
-    [ A.fromString name .= 
-      A.object  
-        [ "Slices" .= ((\(Notes x) -> show <$> MS.toList x) <$> slices)
-        , "ChordLabels" .= (show <$> chords)
-        -- , "Path" .= pathMaybe
-        , "Accuracy" .= accuracy
-        , "Likelihood" .= likelihood]
+    [ "algorithm"   .= A.fromString name 
+    , "slices"      .= ((\(Notes x) -> show <$> MS.toList x) <$> slices)
+    , "chordLabels" .= (show <$> chords)
+    , "accuracy"    .= accuracy
+    , "likelihood"  .= likelihood
+--  , "Path" .= pathMaybe
     ]
 
 concatResults :: String -> [A.Value] -> A.Value
-concatResults piece results = A.object [ A.fromString piece .= results ]
+concatResults piece results = A.object [ "piece" .= A.fromString piece , "results" .= results ]
 
 writeJSONToFile :: A.ToJSON a =>  FilePath -> a -> IO ()
 writeJSONToFile filePath v = BL.writeFile filePath (A.encode v)
