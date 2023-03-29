@@ -121,6 +121,7 @@ main = Log.withStdoutLogging $ do
         resultToJSON a res
       )
     _   -> forM [1 .. iterations] 
+     
       (\_ -> do 
         res <- runAlgo algo scorer params inputChords inputSlices
         resultToJSON algo res

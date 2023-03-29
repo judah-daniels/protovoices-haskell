@@ -65,17 +65,13 @@ testHeuristic params (prevState, state) = do
     then pure 0
     else case fromJust op of
       -- Freezing
-      -- no unfreeze if there are 3 open non boundary transition
-      LMDouble (LMDoubleFreezeLeft freezeOp) -> do
-        pure 0
+      LMDouble (LMDoubleFreezeLeft freezeOp) -> pure 0
 
-      LMSingle (LMSingleFreeze freezeOp) -> do
-        pure 0
+      LMSingle (LMSingleFreeze freezeOp) -> pure 0  
 
       -- Spreading
       -- Calculate for each chord possibility, the likelihood that they are all the same chord
       -- Splitting Right
-
       {-
                               split:
       ..=[_]----pl----[slc]-==----pr---[_]....
@@ -110,8 +106,8 @@ testHeuristic params (prevState, state) = do
       LMSingle (LMSingleSplit splitOp) -> do
         -- lift $ putStrLn "Considering a single unsplit"
         -- (child, sr)
-        (slcl, parent) <- getParentSingle state
-        -- (slcl, parent, slcr,_, _) <- getParentDouble state
+        -- (slcl, parent) <- getParentSingle state
+        (slcl, parent, slcr,_, _) <- getParentDouble (fromJust prevState)
         pure 5
         -- scoreSplit splitOp parent slcl slcl Stop
 
@@ -255,27 +251,6 @@ testHeuristic params (prevState, state) = do
       -- lift $ putStrLn $ "score: " <> show score
       pure score
          where
-          -- showRightOrnament :: (a,(a,RightOrnament))
-          -- showRightOrnament (x,(n,orn))= show <> ""
-
-          opLs = showL <$> M.toList ls
-          opRs = showR <$> M.toList rs
-
-          showLbl :: Maybe (ChordLabel, Double) -> String
-          showLbl Nothing = "N/A"
-          showLbl (Just (lbl, prob)) = Music.showNotation (rootNote lbl) <> chordType lbl <> ", Prob: " <> show prob
-          showOps ops = "\n   " <>  L.intercalate "\n   " ops 
-
-          showEdge (p1, p2) = Music.showNotation p1 <> "-" <> Music.showNotation p2
-          showEdges ts = "{" <> L.intercalate "," (showEdge <$> S.toList ts) <> "}"
-          showChild (p, o) = Music.showNotation p <> ":" <> show o
-          showChildren cs = "[" <> L.intercalate "," (showChild <$> cs) <> "]"
-
-          showSplit (e, cs) = showEdge e <> "=>" <> showChildren cs
-          showL (p, lchilds) = Music.showNotation p <> "=>" <> showChildren lchilds
-          showR (p, rchilds) = showChildren rchilds <> "<=" <> Music.showNotation p
-
-
           scoreRightOrnament 
             :: Maybe (ChordLabel, Double) 
             -> (SPitch, (SPitch, RightOrnament)) 
@@ -338,6 +313,23 @@ testHeuristic params (prevState, state) = do
             PassingLeft ->  pure $ ornamentLogLikelihood params lblr (transposeNote rootl x) + chordToneLogLikelihood params lblr nr'
             PassingMid ->  pure $ ornamentLogLikelihoodDouble params lbll lblr x + (chordToneLogLikelihood params lblr nr' + chordToneLogLikelihood params lblr nl') / 2
             PassingRight ->  pure $ ornamentLogLikelihood params lblr (transposeNote rootr x) + chordToneLogLikelihood params lbll nl'
+
+          opLs = showL <$> M.toList ls
+          opRs = showR <$> M.toList rs
+
+          showLbl :: Maybe (ChordLabel, Double) -> String
+          showLbl Nothing = "N/A"
+          showLbl (Just (lbl, prob)) = Music.showNotation (rootNote lbl) <> chordType lbl <> ", Prob: " <> show prob
+          showOps ops = "\n   " <>  L.intercalate "\n   " ops 
+
+          showEdge (p1, p2) = Music.showNotation p1 <> "-" <> Music.showNotation p2
+          showEdges ts = "{" <> L.intercalate "," (showEdge <$> S.toList ts) <> "}"
+          showChild (p, o) = Music.showNotation p <> ":" <> show o
+          showChildren cs = "[" <> L.intercalate "," (showChild <$> cs) <> "]"
+
+          showSplit (e, cs) = showEdge e <> "=>" <> showChildren cs
+          showL (p, lchilds) = Music.showNotation p <> "=>" <> showChildren lchilds
+          showR (p, rchilds) = showChildren rchilds <> "<=" <> Music.showNotation p
 
           allOrnaments :: M.Map a [b] -> [(a,b)]
           allOrnaments ornamentSet = do

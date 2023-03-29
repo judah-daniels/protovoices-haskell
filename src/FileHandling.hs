@@ -297,8 +297,8 @@ writeResultsToJSON slices chords pathMaybe accuracy likelihood name
 --  , "Path" .= pathMaybe
     ]
 
-concatResults :: String -> [A.Value] -> A.Value
-concatResults piece results = A.object [ "piece" .= A.fromString piece , "results" .= results ]
+concatResults :: String -> [ChordLabel] -> [A.Value] -> A.Value
+concatResults piece trueLabels results = A.object [ "piece" .= A.fromString piece , "results" .= results, "groundTruth" .= (show <$> trueLabels)]
 
 writeJSONToFile :: A.ToJSON a =>  FilePath -> a -> IO ()
 writeJSONToFile filePath v = BL.writeFile filePath (A.encode v)
