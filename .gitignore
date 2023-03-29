@@ -10,8 +10,13 @@ testdata/.mscbackup/
 __pycache__
 preprocessing/inputs/*
 preprocessing/inputs/
+preprocessing/inputs
+preprocessing/outputs/*
+preprocessing/outputs/
+preprocessing/outputs
 preprocessing/temp/*
 preprocessing/temp/
+preprocessing/temp
 *~
 *.aux
 *.log

@@ -65,6 +65,10 @@ import Data.Aeson qualified as A
 import Data.Aeson.Key qualified as A
 import Data.Aeson.Encoding 
 import GHC.Generics
+ 
+import System.Directory (createDirectoryIfMissing)
+import System.FilePath.Posix (takeDirectory)
+
 
 
 
@@ -297,11 +301,13 @@ writeResultsToJSON slices chords pathMaybe accuracy likelihood name
 --  , "Path" .= pathMaybe
     ]
 
-concatResults :: String -> [ChordLabel] -> [A.Value] -> A.Value
-concatResults piece trueLabels results = A.object [ "piece" .= A.fromString piece , "results" .= results, "groundTruth" .= (show <$> trueLabels)]
+concatResults :: String -> String -> [ChordLabel] -> [A.Value] -> A.Value
+concatResults corpus piece trueLabels results = A.object [ "corpus" .= A.fromString corpus, "piece" .= A.fromString piece , "results" .= results, "groundTruth" .= (show <$> trueLabels)]
 
 writeJSONToFile :: A.ToJSON a =>  FilePath -> a -> IO ()
-writeJSONToFile filePath v = BL.writeFile filePath (A.encode v)
+writeJSONToFile filePath v = do 
+  createDirectoryIfMissing True $ takeDirectory filePath 
+  BL.writeFile filePath (A.encode v)
 
 -- dict fileName = do 
   -- fileHandle <- openFile fileName

@@ -54,7 +54,7 @@ parseArgs _ ["-v"] = version >> exit
 parseArgs options ("-i":inputPath:rst) = parseArgs (options {_inputPath=inputPath}) rst 
 parseArgs options ("-o":outputPath:rst) = parseArgs (options {_outputPath=outputPath}) rst 
 parseArgs options ("-n":numIterations:rst) = parseArgs (options {_iterations=read numIterations}) rst 
-parseArgs options [pieceName, algoName] = pure (pieceName, read algoName, options) -- concat `fmap` mapM readFile fs
+parseArgs options [corpus, pieceName, algoName] = pure (corpus, pieceName, read algoName, options) -- concat `fmap` mapM readFile fs
 parseArgs _ _ = usage >> exit
 
 defaultInputPath = "preprocessing/inputs/"
@@ -62,12 +62,13 @@ defaultOutputPath = "preprocessing/outputs/"
 defaultNumIterations = 1
 
 usage = putStrLn 
-  "\nUsage: parseFullPieces [-vhio] chordsFile slicesFile jsonFile {RandomParse, RandomParseSBS, RandomSample, Heuristic1, HeuristicSBS1, All} \n\
+  "\nUsage: parseFullPieces [-vhio] corpus piece {RandomParse, RandomParseSBS, RandomSample, Heuristic1, HeuristicSBS1, All} \n\
    \   -v:         Show Version \n\
    \   -h:         Show Help \n\
    \   -i:         Set input path for chords and slices. Default: preprocessing/inputs/ \n\
    \   -o:         Set output path for results. Default: preprocessing/outputs/ \n\
    \   -n:         Set number of iterations \n\
+   \   corpus:     Name of the corpus the piece belongs to. \n\
    \   pieceName:  Name of piece to parse. \n\
    \   {..}:       Choose which algorithm to run. \"all\" runs all algorithms and returns results in an aggregated\
    \ json file\n\
@@ -105,12 +106,12 @@ data AlgoResult = AlgoResult [Notes SPitch] [ChordLabel] (Maybe (Path (Edges SPi
 main :: IO ()
 main = Log.withStdoutLogging $ do 
   params <- loadParams "preprocessing/dcml_params.json"
-  (pieceName, algo, Options inputPath outputPath iterations) <- getArgs >>= 
+  (corpus, pieceName, algo, Options inputPath outputPath iterations) <- getArgs >>= 
     parseArgs (Options defaultInputPath defaultOutputPath defaultNumIterations)
 
-  let outputFile = outputPath <> pieceName <> ".json"
-  inputChords <- chordsFromFile (inputPath <> "chords/" <> pieceName <> ".csv")
-  inputSlices <- slicesFromFile' (inputPath <> "slices/" <> pieceName <> ".csv")
+  let outputFile = outputPath <> corpus <> "/" <> pieceName <> ".json"
+  inputChords <- chordsFromFile (inputPath <> "chords/" <> corpus <> "/" <> pieceName <> ".csv")
+  inputSlices <- slicesFromFile' (inputPath <> "slices/" <> corpus <> "/" <> pieceName <> ".csv")
 
   let scorer = scoreSegments params scoreSegment'
 
@@ -123,11 +124,11 @@ main = Log.withStdoutLogging $ do
     _   -> forM [1 .. iterations] 
      
       (\_ -> do 
-        res <- runAlgo algo scorer params inputChords inputSlices
-        resultToJSON algo res
+        r <- runAlgo algo scorer params inputChords inputSlices
+        resultToJSON algo r
       )
 
-  writeJSONToFile outputFile $ concatResults pieceName res
+  writeJSONToFile outputFile $ concatResults corpus pieceName inputChords res
 
   where
     runAlgo algo scorer params inputChords inputSlices = 
