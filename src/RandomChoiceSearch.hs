@@ -93,18 +93,18 @@ randomChoiceSearchSingleSegment initialState getNextStates isGoalState printOp =
  where
   search maxN g hs
     | isGoalState nearestState = do
-        lift $ putStrLn $ "Max number of options reached " <> show maxN
+        -- lift $ putStrLn $ "Max number of options reached " <> show maxN
         pure nearestState
     | otherwise = do
-        lift $ putStrLn "___________________________________________________"
-        lift $ putStrLn "Head: "
+        -- lift $ putStrLn "___________________________________________________"
+        -- lift $ putStrLn "Head: "
         lift $ print nearestState
 
         -- Find neighboring states
         nextStates <- getNextStates nearestState
         let numStates = length nextStates
 
-        lift $ putStrLn $ "Choosing randomly from " <> show numStates <> " states"
+        -- lift $ putStrLn $ "Choosing randomly from " <> show numStates <> " states"
 
         case nextStates of
           [] -> throwError "Parse Stuck! Perhaps the number of chords and segments are not the same?"

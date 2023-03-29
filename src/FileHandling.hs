@@ -282,24 +282,29 @@ writeMapToJson dict fileName = do
 --   , _labelAccuracy :: Double 
 --   , _labelLikelihood :: Double
 --   } deriving (Show, Generic, A.ToJSON , A.FromJSON)
+type Accuracy = Double
+type LogLikelihood = Double
+type Time = Double
 
 writeResultsToJSON 
   :: [Notes SPitch]
   -> [ChordLabel]
   -> Maybe (Path (Edges SPitch) (Notes SPitch))
-  -> Double
-  -> Double
+  -> Accuracy
+  -> LogLikelihood
   -> String
+  -> Time
   -> A.Value
-writeResultsToJSON slices chords pathMaybe accuracy likelihood name
+writeResultsToJSON slices chords pathMaybe accuracy likelihood name runTime 
   = A.object 
     [ "algorithm"   .= A.fromString name 
     , "slices"      .= ((\(Notes x) -> show <$> MS.toList x) <$> slices)
     , "chordLabels" .= (show <$> chords)
     , "accuracy"    .= accuracy
     , "likelihood"  .= likelihood
---  , "Path" .= pathMaybe
+    , "runTime"  .= runTime
     ]
+--  , "Path" .= pathMaybe
 
 concatResults :: String -> String -> [ChordLabel] -> [A.Value] -> A.Value
 concatResults corpus piece trueLabels results = A.object [ "corpus" .= A.fromString corpus, "piece" .= A.fromString piece , "results" .= results, "groundTruth" .= (show <$> trueLabels)]

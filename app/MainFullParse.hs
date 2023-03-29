@@ -16,6 +16,7 @@ import Data.Maybe
   )
 import Control.Monad.Except (ExceptT,runExceptT, forM, lift, throwError, zipWithM)
 import Data.Hashable
+import System.TimeIt qualified as Time
 
 -- LOGGING
 import qualified Data.Text as T
@@ -103,6 +104,9 @@ data AlgoResult = AlgoResult [Notes SPitch] [ChordLabel] (Maybe (Path (Edges SPi
 
 --   Main entry point
 
+type Time = Double
+
+
 main :: IO ()
 main = Log.withStdoutLogging $ do 
   params <- loadParams "preprocessing/dcml_params.json"
@@ -116,16 +120,16 @@ main = Log.withStdoutLogging $ do
   let scorer = scoreSegments params scoreSegment'
 
   res <- case algo of 
-    All -> forM (concatMap (replicate iterations ) [RandomParseSBS, RandomSampleSBS, RandomSample] )
+    All -> forM ((concatMap (replicate iterations ) [RandomParseSBS, RandomSampleSBS, RandomSample]) <> [Heuristic1])
       (\a -> do  
-        res <- runAlgo a scorer params inputChords inputSlices
-        resultToJSON a res
+        (time, r) <- Time.timeItT $ runAlgo a scorer params inputChords inputSlices
+        resultToJSON a time r
       )
     _   -> forM [1 .. iterations] 
      
       (\_ -> do 
-        r <- runAlgo algo scorer params inputChords inputSlices
-        resultToJSON algo r
+        (time, r) <- Time.timeItT $ runAlgo algo scorer params inputChords inputSlices
+        resultToJSON algo time r
       )
 
   writeJSONToFile outputFile $ concatResults corpus pieceName inputChords res
@@ -137,15 +141,14 @@ main = Log.withStdoutLogging $ do
             RandomParseSBS -> runRandomParseSBS protoVoiceEvaluator
             RandomSample -> runRandomSample protoVoiceEvaluator
             RandomSampleSBS -> runRandomSampleSBS protoVoiceEvaluator
-            -- Heuristic1 -> runHeuristic1 params 
+            Heuristic1 -> runHeuristic1 protoVoiceEvaluator 
             HeuristicSBS1 -> runHeuristicSBS1 protoVoiceEvaluator 
             All -> error ""
-            -- All -> runAllAlgos params 
          in run scorer params inputChords inputSlices
 
-    resultToJSON :: ParseAlgo -> AlgoResult -> IO A.Value
-    resultToJSON a (AlgoResult sl ch pa ac li) = 
-      pure $ writeResultsToJSON sl ch pa ac li (show a)
+    resultToJSON :: ParseAlgo -> Time -> AlgoResult -> IO A.Value
+    resultToJSON a time (AlgoResult sl ch pa ac li) = 
+      pure $ writeResultsToJSON sl ch pa ac li (show a) time 
 
     
 {- | Runs a random search through the entire piece
@@ -292,10 +295,31 @@ runHeuristicSBS1 eval scorer params chords inputSlices =
   
 
 
+-----
+runHeuristic1
+  :: Eval (Edges SPitch) [Edge SPitch] (Notes SPitch) [SPitch] (PVLeftmost SPitch)
+  -> ([Notes SPitch] -> [ChordLabel] -> Double)
+  -> HarmonicProfileData
+  -> [ChordLabel] 
+  -> [InputSlice SPitch] 
+  -> IO AlgoResult
+runHeuristic1 eval scorer params chords inputSlices = Log.timedLog "Running Heuristic Search" $ do 
+  let initialState = SSFrozen $ pathFromSlices eval (sliceWrapper params) inputSlices
+  res <- runExceptT (heuristicSearch initialState (exploreStates (sliceWrapper params) eval) (goalTest chords) (applyHeuristic (testHeuristic params)) (showOp . getOpsFromState))
 
+  finalState <- case res of
+    Left err -> do
+      Log.warn $ T.pack err
+      return undefined
+    Right s -> pure s
 
-
-
+  let resultingSlices = pathBetweens $ fromJust $ getPathFromState' finalState
+      chordGuesses = sLbl <$> resultingSlices 
+      slices = sWContent <$> resultingSlices
+      likelihood = scorer slices chords 
+      accuracy = chordAccuracy chords chordGuesses
+    in 
+    pure $ AlgoResult slices chordGuesses Nothing accuracy likelihood      
 
 -- Run 3 search algorithms on the inputs given
 fullPieceExperiment :: String -> String -> String -> IO ()

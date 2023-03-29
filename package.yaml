@@ -65,6 +65,7 @@ dependencies:
 - math-functions
 - streamly
 - directory
+- timeit
 
 language: GHC2021
 
