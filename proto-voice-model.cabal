@@ -60,6 +60,7 @@ library
     , conjugate-programs
     , containers
     , deepseq
+    , directory
     , dirichlet
     , do-notation
     , filepath
@@ -70,6 +71,7 @@ library
     , hspec
     , indexed
     , log-domain
+    , logging
     , math-functions
     , matplotlib
     , microlens
@@ -94,8 +96,8 @@ library
     , vector
   default-language: GHC2021
 
-executable judah
-  main-is: app/MainJudah.hs
+executable fullParse
+  main-is: app/MainFullParse.hs
   other-modules:
       Paths_proto_voice_model
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
@@ -107,6 +109,7 @@ executable judah
     , conjugate-programs
     , containers
     , deepseq
+    , directory
     , dirichlet
     , do-notation
     , filepath
@@ -117,6 +120,7 @@ executable judah
     , hspec
     , indexed
     , log-domain
+    , logging
     , math-functions
     , matplotlib
     , microlens
@@ -147,6 +151,7 @@ test-suite proto-voice-model-test
   main-is: Spec.hs
   other-modules:
       EvaluationSpec
+      FileHandlingSpec
       HeuristicSearchSpec
       HeuristicSpec
       PBHModelSpec
@@ -162,6 +167,7 @@ test-suite proto-voice-model-test
     , conjugate-programs
     , containers
     , deepseq
+    , directory
     , dirichlet
     , do-notation
     , filepath
@@ -172,6 +178,7 @@ test-suite proto-voice-model-test
     , hspec
     , indexed
     , log-domain
+    , logging
     , math-functions
     , matplotlib
     , microlens
