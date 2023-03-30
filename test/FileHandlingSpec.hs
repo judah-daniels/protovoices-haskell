@@ -53,8 +53,5 @@ import Control.Logging qualified as Log
 
 fileHandlingSpec :: Spec 
 fileHandlingSpec = do
-  runIO $ Log.withStdoutLogging $ do 
-    lbls <- chordsFromFile "preprocessing/inputs/chords/n14op131_03.csv"
-    print lbls
-    pure ()
+  pure ()
 

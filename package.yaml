@@ -71,7 +71,7 @@ language: GHC2021
 
 library:
   source-dirs: src
-  ghc-options: []
+  ghc-options: [-haddock]
   #- -Wall
 
 executables:

@@ -1,9 +1,8 @@
- 
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module FileHandling 
+module FileHandling
   ( InputSlice
   , pathFromSlices
   , concatResults
@@ -12,68 +11,69 @@ module FileHandling
   , writeMapToJson
   , writeJSONToFile
   , writeResultsToJSON
+  , nullResultToJSON
   , splitSlicesIntoSegments
   ) where
 
 import Musicology.Core
 
 -- LOGGING
-import qualified Data.Text as T
-import Control.Logging qualified as Log
 
-import Debug.Trace
+import Control.Logging qualified as Log
+import Data.Text qualified as T
+
+import Algorithm.HeuristicSearch
+import Algorithm.RandomChoiceSearch
 import Common hiding (split)
+import Control.Monad.Except (ExceptT, lift, runExceptT, throwError)
+import Control.Monad.State (evalState)
+import Control.Monad.Trans.Except (throwE)
+import Data.Aeson (JSONPath, (.=))
+import Data.Aeson qualified as A
+import Data.Aeson.Encoding
+import Data.Aeson.Key qualified as A
 import Data.ByteString.Lazy qualified as BL
-import Data.Map.Strict qualified as M
-import Control.Monad.Except (ExceptT,runExceptT, lift, throwError)
-import Data.Csv ((.:), parseField, decodeByName, parseNamedRecord, parseRecord, FromField, FromNamedRecord, FromRecord)
-import Data.List.Split
+import Data.Csv (FromField, FromNamedRecord, FromRecord, decodeByName, parseField, parseNamedRecord, parseRecord, (.:))
 import Data.Hashable
+import Data.List.Split
+import Data.Map.Strict qualified as M
 import Data.Maybe
-  ( catMaybes,
-    isNothing,
-    fromMaybe,
-    fromJust,
-    mapMaybe,
-    maybeToList,
+  ( catMaybes
+  , fromJust
+  , fromMaybe
+  , isNothing
+  , mapMaybe
+  , maybeToList
   )
 import Data.Vector qualified as V
+import Debug.Trace
 import Display
-import RandomChoiceSearch
-import HeuristicSearch
-import PBHModel
+import GHC.Generics
+import HeuristicParser
+import Heuristics
+import Internal.MultiSet qualified as MS
 import Language.Haskell.DoNotation
 import Musicology.Core qualified as Music
 import Musicology.Pitch.Spelled
-import Heuristics
+import PBHModel
 import PVGrammar hiding
-  ( slicesFromFile,
+  ( slicesFromFile
   )
 import PVGrammar.Generate
 import PVGrammar.Parse
 import Prelude hiding
-  ( Monad (..),
-    lift,
-    pure,
+  ( Monad (..)
+  , lift
+  , pure
   )
-import Control.Monad.State (evalState)
-import Control.Monad.Trans.Except (throwE)
-import qualified Internal.MultiSet as MS
-import HeuristicParser 
-import Data.Aeson (JSONPath, (.=))
-import Data.Aeson qualified as A
-import Data.Aeson.Key qualified as A
-import Data.Aeson.Encoding 
-import GHC.Generics
- 
+
 import System.Directory (createDirectoryIfMissing)
 import System.FilePath.Posix (takeDirectory)
 
-
-
-
 -- ([(Note, Tied?)], Start of new segment)
+--
 type InputSlice ns = ([(ns, Music.RightTied)], Bool)
+
 -- -- ---------------------------------- -------------------------------- --------------------------------
 -- Reading Data from Files
 
@@ -89,18 +89,18 @@ instance FromField Bool where
 
 -- | Data Structure for parsing individual notes
 data SalamiNote = SalamiNote
-  { _new_segment :: !Bool,
-    _new_slice :: !Bool,
-    _pitch :: !String,
-    _tied :: !Music.RightTied
+  { _new_segment :: !Bool
+  , _new_slice :: !Bool
+  , _pitch :: !String
+  , _tied :: !Music.RightTied
   }
 
 -- | Data Structure for parsing chord labels
 data ChordLabel' = ChordLabel'
-  { _segment_id' :: !Int,
-    _chordtype :: !String,
-    _rootoffset :: !Int,
-    _globalkey :: !String
+  { _segment_id' :: !Int
+  , _chordtype :: !String
+  , _rootoffset :: !Int
+  , _globalkey :: !String
   }
 
 instance FromNamedRecord SalamiNote where
@@ -122,32 +122,33 @@ instance FromNamedRecord ChordLabel' where
 -- | Data type for a chord Label. TODO specialise this datatype.
 type Chord = String
 
+-- | Datatype for a slice
+type Slice' = [(SPitch, Music.RightTied)]
+
 -- | Loads chord annotations from filepath
 chordsFromFile :: FilePath -> IO [ChordLabel]
 chordsFromFile file = do
   txt <- BL.readFile file
   case decodeByName txt of
-    Left err -> do 
+    Left err -> do
       print err
       pure []
     Right (_, v) -> do
       pure $ fmap parseChordLabel (V.toList v)
-  where
-    parseChordLabel :: ChordLabel' -> ChordLabel
-    parseChordLabel r = ChordLabel cType ((Music.+^) globalKey'  rootOffset')
+ where
+  parseChordLabel :: ChordLabel' -> ChordLabel
+  parseChordLabel r = ChordLabel cType ((Music.+^) globalKey' rootOffset')
+   where
     -- (Music.sic $ _rootoffset r) (fromMaybe undefined (Music.readNotation $ _globalkey r))
-      where 
-        cType :: String
-        cType = _chordtype r
-        rootOffset' :: SIC
-        rootOffset' = Music.sic $ _rootoffset r
-        globalKey' :: SPC
-        globalKey' = case Music.readNotation $ _globalkey r of 
-                       Just note -> note
-                       Nothing -> Log.errorL  ( T.concat ["Can't Read notation of global key from " , T.pack file, " key: ", T.pack $ _globalkey r ])
 
--- | Datatype for a slice
-type Slice' = [(SPitch, Music.RightTied)]
+    cType :: String
+    cType = _chordtype r
+    rootOffset' :: SIC
+    rootOffset' = Music.sic $ _rootoffset r
+    globalKey' :: SPC
+    globalKey' = case Music.readNotation $ _globalkey r of
+      Just note -> note
+      Nothing -> Log.errorL (T.concat ["Can't Read notation of global key from ", T.pack file, " key: ", T.pack $ _globalkey r])
 
 -- | Loads slices from filepath
 slicesFromFile' :: FilePath -> IO [(Slice', Bool)]
@@ -159,134 +160,132 @@ slicesFromFile' file = do
       let notes = fmap noteFromSalami (V.toList v)
       -- notes :: [(SPitch, Music.RightTied, NewSegment, NewSlice])
       let slices =
-            let 
-             splitNotes = split (keepDelimsL $ whenElt (\(_,_,_,newSlice) -> newSlice)) notes 
-            in (map . map) (\(s,t,newSeg,_) -> (s,t,newSeg)) splitNotes
+            let
+              splitNotes = split (keepDelimsL $ whenElt (\(_, _, _, newSlice) -> newSlice)) notes
+             in
+              (map . map) (\(s, t, newSeg, _) -> (s, t, newSeg)) splitNotes
 
       -- let segmentedSlices = map addBoundary slices
-      let segmentedSlices = case map addBoundary slices of 
-                              (x, _):rst -> (x, True):rst
-                              [] -> []
-      
+      let segmentedSlices = case map addBoundary slices of
+            (x, _) : rst -> (x, True) : rst
+            [] -> []
+
       pure segmentedSlices
-      where
-        addBoundary :: [(SPitch, Music.RightTied, Bool)] -> (Slice', Bool)
-        addBoundary [] = undefined 
-        addBoundary slc@((p, t, True):rst) = (dropLastOf3 <$> slc, True)
-        addBoundary slc@((p, t, False):rst) = (dropLastOf3 <$> slc, False)
+     where
+      addBoundary :: [(SPitch, Music.RightTied, Bool)] -> (Slice', Bool)
+      addBoundary [] = undefined
+      addBoundary slc@((p, t, True) : rst) = (dropLastOf3 <$> slc, True)
+      addBoundary slc@((p, t, False) : rst) = (dropLastOf3 <$> slc, False)
 
+      dropLastOf3 (a, b, c) = (a, b)
 
-        dropLastOf3 (a,b,c) = (a,b)
+      output :: [[[(SPitch, Music.RightTied)]]] -> [(Slice', Bool)]
+      -- f :: [[a]] -> (a->b) -> [b]
+      output = concatMap addBoundaries
 
-        output :: [[[(SPitch, Music.RightTied)]]] -> [(Slice', Bool)]
-        -- f :: [[a]] -> (a->b) -> [b]
-        output = concatMap addBoundaries
+      splitIntoSlices :: [(SPitch, Music.RightTied, Bool)] -> [[(SPitch, Music.RightTied)]]
+      splitIntoSlices slices = (map . map) (\(s, t, _) -> (s, t)) $ split (keepDelimsR $ whenElt (\(_, _, newSlice) -> newSlice)) slices
 
-        splitIntoSlices :: [(SPitch, Music.RightTied, Bool)] -> [[(SPitch, Music.RightTied)]]
-        splitIntoSlices slices = (map . map) (\(s,t,_) -> (s,t)) $ split (keepDelimsR $ whenElt (\(_,_,newSlice) -> newSlice)) slices
-
-        -- Assign boundary marker to first slice of each segment
-        addBoundaries :: [[(SPitch, Music.RightTied)]] -> [(Slice', Bool)]
-        addBoundaries [] = []
-        addBoundaries (s : sx) = (s, True) : map (,False) sx
+      -- Assign boundary marker to first slice of each segment
+      addBoundaries :: [[(SPitch, Music.RightTied)]] -> [(Slice', Bool)]
+      addBoundaries [] = []
+      addBoundaries (s : sx) = (s, True) : map (,False) sx
 
 -- Parse a salami note as output from the python salalmis package.
 noteFromSalami :: SalamiNote -> (SPitch, Music.RightTied, Bool, Bool)
 noteFromSalami s = (sPitch, tied, newSegment, newSlice)
-  where
-    newSegment = _new_segment s
-    newSlice = _new_slice s
-    tied = _tied s
-    sPitch = Data.Maybe.fromJust (Music.readNotation $ _pitch s) -- Refactor to deal with maybe
+ where
+  newSegment = _new_segment s
+  newSlice = _new_slice s
+  tied = _tied s
+  sPitch = Data.Maybe.fromJust (Music.readNotation $ _pitch s) -- Refactor to deal with maybe
 
-splitSlicesIntoSegments ::
-  forall ns o.
-  Eval (Edges ns) [Edge ns] (Notes ns) [ns] o ->
-  SliceWrapper (Notes ns) ->
-  [InputSlice ns] ->
-  [[InputSlice ns]]
-splitSlicesIntoSegments eval wrap = split (dropInitBlank . keepDelimsL $ whenElt snd) 
+splitSlicesIntoSegments
+  :: forall ns o
+   . Eval (Edges ns) [Edge ns] (Notes ns) [ns] o
+  -> SliceWrapper (Notes ns)
+  -> [InputSlice ns]
+  -> [[InputSlice ns]]
+splitSlicesIntoSegments eval wrap = split (dropInitBlank . keepDelimsL $ whenElt snd)
+
 -- type InputSlice ns = ([(ns, Music.RightTied)], Bool)
-  --
-  --
-  -- reversePath . mkPath False Nothing
-  -- where
-  --   mkPath ::
-  --     Bool ->
-  --     Maybe [Edge ns] ->
-  --     [InputSlice ns] ->
-  --     Path (Maybe [Edge ns], Bool) (SliceWrapped (Notes ns))
-  --
-  --   mkPath tie eLeft [] = PathEnd (eLeft, True)
-  --
-  --   mkPath tie eLeft ((slice, boundary) : rst) =
-  --     Path (eLeft, boundary) nextSlice $
-  --       mkPath False (Just $ getTiedEdges slice) rst
-  --         where 
-  --           nextSlice = wrapSlice wrap $ evalSlice eval (fst <$> slice)
-  --
-  --
-  --   getTiedEdges :: [(ns, Music.RightTied)] -> [Edge ns]
-  --   getTiedEdges = mapMaybe mkTiedEdge
-  --     where
-  --       mkTiedEdge :: (ns, Music.RightTied) -> Maybe (Edge ns)k
-  --       mkTiedEdge (p, Music.Holds) = Just (Inner p, Inner p)
-  --       mkTiedEdge _ = Nothing
-  --
+--
+--
+-- reversePath . mkPath False Nothing
+-- where
+--   mkPath ::
+--     Bool ->
+--     Maybe [Edge ns] ->
+--     [InputSlice ns] ->
+--     Path (Maybe [Edge ns], Bool) (SliceWrapped (Notes ns))
+--
+--   mkPath tie eLeft [] = PathEnd (eLeft, True)
+--
+--   mkPath tie eLeft ((slice, boundary) : rst) =
+--     Path (eLeft, boundary) nextSlice $
+--       mkPath False (Just $ getTiedEdges slice) rst
+--         where
+--           nextSlice = wrapSlice wrap $ evalSlice eval (fst <$> slice)
+--
+--
+--   getTiedEdges :: [(ns, Music.RightTied)] -> [Edge ns]
+--   getTiedEdges = mapMaybe mkTiedEdge
+--     where
+--       mkTiedEdge :: (ns, Music.RightTied) -> Maybe (Edge ns)k
+--       mkTiedEdge (p, Music.Holds) = Just (Inner p, Inner p)
+--       mkTiedEdge _ = Nothing
+--
 
-pathFromSlices ::
-  forall ns o.
-  Eval (Edges ns) [Edge ns] (Notes ns) [ns] o ->
-  SliceWrapper (Notes ns) ->
-  [InputSlice ns] ->
-  Path (Maybe [Edge ns], Bool) (SliceWrapped (Notes ns))
+pathFromSlices
+  :: forall ns o
+   . Eval (Edges ns) [Edge ns] (Notes ns) [ns] o
+  -> SliceWrapper (Notes ns)
+  -> [InputSlice ns]
+  -> Path (Maybe [Edge ns], Bool) (SliceWrapped (Notes ns))
 pathFromSlices eval wrap = reversePath . mkPath False Nothing
-  where
-    mkPath ::
-      Bool ->
-      Maybe [Edge ns] ->
-      [InputSlice ns] ->
-      Path (Maybe [Edge ns], Bool) (SliceWrapped (Notes ns))
+ where
+  mkPath
+    :: Bool
+    -> Maybe [Edge ns]
+    -> [InputSlice ns]
+    -> Path (Maybe [Edge ns], Bool) (SliceWrapped (Notes ns))
 
-    mkPath tie eLeft [] = PathEnd (eLeft, True)
+  mkPath tie eLeft [] = PathEnd (eLeft, True)
+  mkPath tie eLeft ((slice, boundary) : rst) =
+    Path (eLeft, boundary) nextSlice $
+      mkPath False (Just $ getTiedEdges slice) rst
+   where
+    nextSlice = wrapSlice wrap $ evalSlice eval (fst <$> slice)
 
-    mkPath tie eLeft ((slice, boundary) : rst) =
-      Path (eLeft, boundary) nextSlice $
-        mkPath False (Just $ getTiedEdges slice) rst
-          where 
-            nextSlice = wrapSlice wrap $ evalSlice eval (fst <$> slice)
-
-
-    getTiedEdges :: [(ns, Music.RightTied)] -> [Edge ns]
-    getTiedEdges = mapMaybe mkTiedEdge
-      where
-        mkTiedEdge :: (ns, Music.RightTied) -> Maybe (Edge ns)
-        mkTiedEdge (p, Music.Holds) = Just (Inner p, Inner p)
-        mkTiedEdge _ = Nothing
+  getTiedEdges :: [(ns, Music.RightTied)] -> [Edge ns]
+  getTiedEdges = mapMaybe mkTiedEdge
+   where
+    mkTiedEdge :: (ns, Music.RightTied) -> Maybe (Edge ns)
+    mkTiedEdge (p, Music.Holds) = Just (Inner p, Inner p)
+    mkTiedEdge _ = Nothing
 
 ---- Writing Data to JSONPath
 
 writeMapToJson :: [(String, Double)] -> FilePath -> IO ()
-writeMapToJson dict fileName = do 
+writeMapToJson dict fileName = do
   -- fileHandle <- openFile fileName
   let json = A.toJSON (M.fromList dict)
   Log.debug $ T.pack . show $ json
   BL.writeFile fileName (A.encode json)
-  -- closeFile fileHandle
 
+-- closeFile fileHandle
 
--- data ParseResults = ParseResults 
---   { _slices :: [Notes SPitch] 
---   , _chords :: [ChordLabel] 
---   , _path :: Maybe (Path (Notes SPitch) (Edges SPitch)) 
---   , _labelAccuracy :: Double 
---   , _labelLikelihood :: Double
---   } deriving (Show, Generic, A.ToJSON , A.FromJSON)
+-----
+--
+-- JSON PARSING AND WRITING
+--
+----
+
 type Accuracy = Double
 type LogLikelihood = Double
 type Time = Double
 
-writeResultsToJSON 
+writeResultsToJSON
   :: [Notes SPitch]
   -> [ChordLabel]
   -> Maybe (Path (Edges SPitch) (Notes SPitch))
@@ -295,29 +294,34 @@ writeResultsToJSON
   -> String
   -> Time
   -> A.Value
-writeResultsToJSON slices chords pathMaybe accuracy likelihood name runTime 
-  = A.object 
-    [ "algorithm"   .= A.fromString name 
-    , "slices"      .= ((\(Notes x) -> show <$> MS.toList x) <$> slices)
+writeResultsToJSON slices chords pathMaybe accuracy likelihood name runTime =
+  A.object
+    [ "algorithm" .= A.fromString name
+    , "slices" .= ((\(Notes x) -> show <$> MS.toList x) <$> slices)
     , "chordLabels" .= (show <$> chords)
-    , "accuracy"    .= accuracy
-    , "likelihood"  .= likelihood
-    , "runTime"  .= runTime
+    , "accuracy" .= accuracy
+    , "likelihood" .= likelihood
+    , "runTime" .= runTime
     ]
+
 --  , "Path" .= pathMaybe
 
 concatResults :: String -> String -> [ChordLabel] -> [A.Value] -> A.Value
-concatResults corpus piece trueLabels results = A.object [ "corpus" .= A.fromString corpus, "piece" .= A.fromString piece , "results" .= results, "groundTruth" .= (show <$> trueLabels)]
+concatResults corpus piece trueLabels results = A.object ["corpus" .= A.fromString corpus, "piece" .= A.fromString piece, "results" .= results, "groundTruth" .= (show <$> trueLabels)]
 
-writeJSONToFile :: A.ToJSON a =>  FilePath -> a -> IO ()
-writeJSONToFile filePath v = do 
-  createDirectoryIfMissing True $ takeDirectory filePath 
+writeJSONToFile :: A.ToJSON a => FilePath -> a -> IO ()
+writeJSONToFile filePath v = do
+  createDirectoryIfMissing True $ takeDirectory filePath
   BL.writeFile filePath (A.encode v)
 
--- dict fileName = do 
-  -- fileHandle <- openFile fileName
-  -- let json = A.toJSON (M.fromList dict)
-  -- Log.debug $ T.pack . show $ json
-  -- closeFile fileHandle
-
-
+nullResultToJSON :: Show a => a -> IO A.Value
+nullResultToJSON a =
+  pure $
+    A.object
+      [ "algorithm" .= A.fromString (show a)
+      , "slices" .= (Nothing :: Maybe [String])
+      , "chordLabels" .= (Nothing :: Maybe [String])
+      , "accuracy" .= (Nothing :: Maybe Float)
+      , "likelihood" .= (Nothing :: Maybe Float)
+      , "runTime" .= (Nothing :: Maybe Double)
+      ]

@@ -30,28 +30,30 @@ source-repository head
 
 library
   exposed-modules:
+      Algorithm.HeuristicSearch
+      Algorithm.RandomChoiceSearch
+      Algorithm.RandomSampleParser
       ChartParser
       Common
+      Core
       Display
       FileHandling
       GreedyParser
       HeuristicParser
       Heuristics
-      HeuristicSearch
       Internal.MultiSet
       PBHModel
       PVGrammar
       PVGrammar.Generate
       PVGrammar.Parse
       PVGrammar.Prob.Simple
-      RandomChoiceSearch
-      RandomSampleParser
       Scoring.Deprecated.Flat
       Scoring.FunTyped
   other-modules:
       Paths_proto_voice_model
   hs-source-dirs:
       src
+  ghc-options: -haddock
   build-depends:
       aeson
     , base >=4.7 && <5
@@ -91,6 +93,7 @@ library
     , split
     , streamly
     , text
+    , timeit
     , transformers
     , unordered-containers
     , vector
@@ -141,6 +144,7 @@ executable fullParse
     , split
     , streamly
     , text
+    , timeit
     , transformers
     , unordered-containers
     , vector
@@ -199,6 +203,7 @@ test-suite proto-voice-model-test
     , split
     , streamly
     , text
+    , timeit
     , transformers
     , unordered-containers
     , vector

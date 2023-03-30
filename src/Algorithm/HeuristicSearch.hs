@@ -6,18 +6,19 @@
 module Algorithm.HeuristicSearch where
 
 -- LOGGING
-import qualified Data.Text as T
+
 import Control.Logging qualified as Log
+import Data.Text qualified as T
 
 import Common
 import Control.Monad.Except (ExceptT, lift, throwError)
 import Data.Foldable
-import qualified Data.Heap as H
-import qualified Data.List as L
+import Data.Heap qualified as H
+import Data.List qualified as L
 import Data.Maybe (fromMaybe)
 import Data.Ord
 import Debug.Trace
-import HeuristicParser (getPathFromState, getOpFromState, SearchState)
+import HeuristicParser (SearchState, getOpFromState, getPathFromState)
 
 import Data.Aeson.KeyMap (singleton)
 import System.Random (initStdGen)
@@ -64,7 +65,7 @@ heuristicSearch initialState getNextStates isGoalState heuristic printOp = do
     | null open = throwError "No Goal Found"
     | not $ null goalStates = pure . snd . head $ goalStates
     | otherwise = do
-        lift $ Log.log $ T.pack (show open )
+        lift $ Log.log $ T.pack (show open)
 
         -- nextStates <- foldlM getNextStatesAndCosts [] open
         nextStates <- foldlM getNextStatesAndCosts [] open
@@ -80,40 +81,39 @@ heuristicSearch initialState getNextStates isGoalState heuristic printOp = do
     open = frontier hs
     goalStates = filter (isGoalState . snd) open
 
-    isFreeze :: SearchState' -> Bool 
-    isFreeze state = case getOpFromState state of 
-                      Nothing -> False
-                      Just op -> opType op == Freeze'
+    isFreeze :: SearchState' -> Bool
+    isFreeze state = case getOpFromState state of
+      Nothing -> False
+      Just op -> opType op == Freeze'
 
-    isSplit :: SearchState' -> Bool 
-    isSplit state = case getOpFromState state of 
-                      Nothing -> False
-                      Just op -> opType op == Split'
+    isSplit :: SearchState' -> Bool
+    isSplit state = case getOpFromState state of
+      Nothing -> False
+      Just op -> opType op == Split'
 
-    isSpread :: SearchState' -> Bool 
-    isSpread state = case getOpFromState state of 
-                      Nothing -> False
-                      Just op -> opType op == Spread'
+    isSpread :: SearchState' -> Bool
+    isSpread state = case getOpFromState state of
+      Nothing -> False
+      Just op -> opType op == Spread'
 
     minElems 0 mins [] = mins
-    minElems 0 (m:mins) (x:rst)
-      | fst x < fst m = minElems 0 (ins x mins) rst 
-      | otherwise = minElems 0 (m:mins) rst
-    minElems n mins (x:rst) = minElems (n-1) (ins x mins) rst
+    minElems 0 (m : mins) (x : rst)
+      | fst x < fst m = minElems 0 (ins x mins) rst
+      | otherwise = minElems 0 (m : mins) rst
+    minElems n mins (x : rst) = minElems (n - 1) (ins x mins) rst
     minElems n mins [] = mins
 
     ins = L.insertBy ((flip . comparing) fst)
-
 
     getNextStatesAndCosts xs (cost, state) = do
       nextStates <- getNextStates state
       statesAndCosts <- mapM go nextStates
       pure statesAndCosts
-      where 
-        go newState = do
-          h <- heuristic (Just state, newState)
-          pure (cost + h, newState)
-      
+     where
+      go newState = do
+        h <- heuristic (Just state, newState)
+        pure (cost + h, newState)
+
 getLowestCostState :: [(Double, state)] -> state
 getLowestCostState goalStates = snd $ maximumBy (comparing fst) goalStates
 
@@ -126,17 +126,17 @@ popFromHeap heap =
 data PvOp = Split' | Spread' | Freeze' deriving (Eq)
 
 opType :: Leftmost a b c -> PvOp
-opType op = case op of 
-              LMSingle lms -> 
-                case lms of 
-                  LMSingleSplit _ -> Split'
-                  LMSingleFreeze _ -> Freeze'
-              LMDouble lmd -> 
-                case lmd of 
-                  LMDoubleFreezeLeft _ -> Freeze'
-                  LMDoubleSpread _ -> Spread'
-                  LMDoubleSplitLeft _ -> Split'
-                  LMDoubleSplitRight _ -> Split'
+opType op = case op of
+  LMSingle lms ->
+    case lms of
+      LMSingleSplit _ -> Split'
+      LMSingleFreeze _ -> Freeze'
+  LMDouble lmd ->
+    case lmd of
+      LMDoubleFreezeLeft _ -> Freeze'
+      LMDoubleSpread _ -> Spread'
+      LMDoubleSplitLeft _ -> Split'
+      LMDoubleSplitRight _ -> Split'
 
 genHeap
   :: (Ord a)

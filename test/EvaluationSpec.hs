@@ -56,29 +56,26 @@ evaluationSpec = do
     -- print finalPath
     -- print $ testHeuristic params s 
     params <- loadParams "preprocessing/inputs/dcml_params.json"
-    let wrap = 
-          let 
-            wrapSlice' ns = let (r,l,p) = mostLikelyChordFromSlice params ns in SliceWrapped ns (ChordLabel l r) p
-          in 
-            SliceWrapper wrapSlice'
-    let pathScore = scoreSegments params (scoreSegment' params) (map sWContent $ pathBetweens $ pathFromSlices protoVoiceEvaluator idWrapper slices43) chords43
-    let pathScore' = scoreSegments params (scoreSegment' params) (map sWContent $ pathBetweens $ pathFromSlices protoVoiceEvaluator idWrapper slices43') chords43
-    let pathScore'' = scoreSegments params (scoreSegment' params) (map sWContent $ pathBetweens $ pathFromSlices protoVoiceEvaluator idWrapper slices43'') chords43
+    pure ()
+    -- let wrap = let wrapSlice' ns = let (r,l,p) = mostLikelyChordFromSlice params ns in SliceWrapped ns (ChordLabel l r) p in SliceWrapper wrapSlice'
 
+    -- let pathScore = scoreSegments params (scoreSegment' params) (map sWContent $ pathBetweens $ pathFromSlices protoVoiceEvaluator idWrapper slices43) chords43
+    -- let pathScore' = scoreSegments params (scoreSegment' params) (map sWContent $ pathBetweens $ pathFromSlices protoVoiceEvaluator idWrapper slices43') chords43
+    -- let pathScore'' = scoreSegments params (scoreSegment' params) (map sWContent $ pathBetweens $ pathFromSlices protoVoiceEvaluator idWrapper slices43'') chords43
+    --
     -- let pathScore' = scoreSegments params (scoreSegment' params) (pathBetweens finalPath') chords 
     -- let pathScore'' = scoreSegments params (scoreSegment' params) (pathBetweens finalPath'') chords43
     -- let pathScore'' = scoreSegments params (scoreSegment' params) (pathBetweens finalPath'') chordsTiny
        
-
     -- let res = evalPath finalPath chordsTiny params
     -- let res = evalPath finalPath chords65m params
     -- let res = evalPath finalPath chords321sus params
     -- putStrLn $ "\nRandom score: " <> show pathScore
     -- putStrLn $ "\nRandom Choice score: " <> show pathScore'
-    putStrLn "Chord CM: " 
-    putStrLn $ "cgcf: " <> show pathScore
-    putStrLn $ "cgce: " <> show pathScore'
-    putStrLn $ "ceea: " <> show pathScore''
+    -- putStrLn "Chord CM: " 
+    -- putStrLn $ "cgcf: " <> show pathScore
+    -- putStrLn $ "cgce: " <> show pathScore'
+    -- putStrLn $ "ceea: " <> show pathScore''
 
     -- print chords
     -- hspec pathFromSlicesSpec

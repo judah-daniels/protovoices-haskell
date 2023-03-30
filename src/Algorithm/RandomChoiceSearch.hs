@@ -8,7 +8,7 @@ module Algorithm.RandomChoiceSearch where
 import Common
 import Control.Monad.Except (ExceptT, lift, throwError)
 import Data.Foldable
-import qualified Data.Heap as H
+import Data.Heap qualified as H
 import Data.Maybe (fromMaybe)
 import Data.Ord
 import Debug.Trace

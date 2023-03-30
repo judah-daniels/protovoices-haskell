@@ -5,11 +5,16 @@ module HeuristicParser where
 import Common
 
 import Control.Monad.Except (ExceptT, lift, throwError)
-import Data.Bifunctor (second)
-import Data.Maybe (Maybe, catMaybes, fromJust, mapMaybe, maybeToList)
-import PBHModel
+import Data.Bifunctor qualified as BF (second)
 import Data.HashMap.Strict qualified as HM
+import Data.Maybe (Maybe, catMaybes, fromJust, mapMaybe, maybeToList)
+import Musicology.Pitch
+import PBHModel
+import PVGrammar
 
+--
+-- SLICE
+--
 newtype Slice ns = Slice
   { sContent :: ns
   }
@@ -24,8 +29,7 @@ data SliceWrapped ns = SliceWrapped
 
 newtype SliceWrapper ns = SliceWrapper {wrapSlice :: ns -> SliceWrapped ns}
 idWrapper :: SliceWrapper ns
-idWrapper = SliceWrapper {wrapSlice = \n -> SliceWrapped n undefined 1}
-
+idWrapper = SliceWrapper{wrapSlice = \n -> SliceWrapped n undefined 1}
 
 instance Show ns => Show (Slice ns) where
   show (Slice ns) = show ns
@@ -35,6 +39,9 @@ instance Show ns => Show (SliceWrapped ns) where
 
 type Boundary = Bool
 
+--
+-- Transition
+--
 data Trans es = Trans
   { tContent :: !es
   , t2nd :: !Bool
@@ -191,7 +198,7 @@ exploreStates wrap eval state = do
           -- lift $ putStrLn "3+ Open transitions:"
           pure $ genState <$> actions
          where
-          actions = collectDoubles Start tl (sWContent sl) tm (sWContent sr) (second sWContent rst)
+          actions = collectDoubles Start tl (sWContent sl) tm (sWContent sr) (BF.second sWContent rst)
           genState (ActionDouble (_, topl, tops, topr, _) op) =
             SSOpen (Path topl (wrapSlice wrap tops) (pathSetHead rst topr)) (LMDouble op : ops)
 
@@ -259,7 +266,7 @@ exploreStates wrap eval state = do
                         (sWContent sopenl)
                         topenm
                         (sWContent sopenr)
-                        (second sWContent rstOpen)
+                        (BF.second sWContent rstOpen)
                in case frozen of
                     PathEnd tfrozen -> do
                       -- lift $ putStrLn "2+ Open Transitions, 1 frozen transition Left: \n"
@@ -427,18 +434,16 @@ exploreStates wrap eval state = do
       | tmBoundary = []
       | otherwise = collectUnspreads sstart tl sl tm sr tr send
 
-{-
- > freeze left:
- > ...=[]—f—[]—l—[]—r-...
- > ...=[]=f=[]—l—[]—r-...
- >
--}
--- Defines if an unfreeze is allowed given the boundaries of the frozen transition, and of the nearest two neighboring transistions
+  {-
+   > ...=[]—f—[]—l—[]—r-...
+   > ...=[]=f=[]—l—[]—r-...
+  -}
+  -- Defines if an unfreeze is allowed given the boundaries of the frozen transition, and of the nearest two neighboring transistions
 
-allowUnfreeze
-  :: Bool -> Bool -> Bool -> Bool
-allowUnfreeze frozenBoundary lBoundary rBoundary =
-  rBoundary || not (lBoundary || frozenBoundary)
+  allowUnfreeze
+    :: Bool -> Bool -> Bool -> Bool
+  allowUnfreeze frozenBoundary lBoundary rBoundary =
+    rBoundary || not (lBoundary || frozenBoundary)
 
 heursiticSearchGoalTest
   :: SearchState es es' ns o
@@ -466,6 +471,14 @@ getOpsFromState s = case s of
   SSSemiOpen p m f d -> d
   SSFrozen p -> []
 
+getOpFromState
+  :: SearchState es es' ns o
+  -> Maybe o
+getOpFromState s = case s of
+  SSOpen p (d : _) -> Just d
+  SSSemiOpen p m f (d : _) -> Just d
+  SSFrozen p -> Nothing
+
 getPathLengthFromState
   :: SearchState es es' ns o
   -> Int
@@ -487,7 +500,6 @@ getPathFromState s = case s of
   transformPath (PathEnd t) = PathEnd (tContent t)
   transformPath (Path t s rst) = Path (tContent t) (sWContent s) $ transformPath rst
 
-
 -- Get path from state, keeping chord label information
 getPathFromState'
   :: SearchState es es' ns o
@@ -499,9 +511,10 @@ getPathFromState' s = case s of
  where
   transformPath
     :: Path (Trans es) (SliceWrapped ns)
-    -> Path es (SliceWrapped ns) 
+    -> Path es (SliceWrapped ns)
   transformPath (PathEnd t) = PathEnd (tContent t)
   transformPath (Path t s rst) = Path (tContent t) s $ transformPath rst
+
 -- * Parsing Actions
 
 {- | A parsing action (reduction step) with a single parent transition.
@@ -530,3 +543,32 @@ data ActionDouble ns tr s f h
       (LeftmostDouble s f h)
       -- ^ double-transition operation
   deriving (Show)
+
+-- HELPER FUNCTIONS
+showOp [] = ""
+showOp (x : _) = case x of
+  LMDouble y -> show y
+  LMSingle y -> show y
+
+-- One Slice only
+goalTestSBS (SSOpen p _) | pathLen p == 2 = True
+goalTestSBS _ = False
+
+-- The goal is to find a state with a slice for each chord label.
+goalTest chordLabels (SSOpen p _) = pathLen p - 1 == length chordLabels
+goalTest chordlabels _ = False
+
+sliceWrapper :: HarmonicProfileData -> SliceWrapper (Notes SPitch)
+sliceWrapper params = SliceWrapper $ \ns -> let (r, l, p) = mostLikelyChordFromSlice params ns in SliceWrapped ns (ChordLabel l r) p
+
+guessChords :: HarmonicProfileData -> [Notes SPitch] -> [ChordLabel]
+guessChords params slices = sLbl <$> (wrapSlice (SliceWrapper $ \ns -> let (r, l, p) = mostLikelyChordFromSlice params ns in SliceWrapped ns (ChordLabel l r) p) <$> slices)
+
+chordAccuracy :: [ChordLabel] -> [ChordLabel] -> Double
+chordAccuracy guesses truth = fromIntegral (numMatches guesses truth) / fromIntegral (length truth)
+ where
+  numMatches [] [] = 0
+  numMatches (x : xs) (y : ys)
+    | x == y = 1 + numMatches xs ys
+    | otherwise = numMatches xs ys
+  numMatches _ _ = error $ show guesses <> show truth
