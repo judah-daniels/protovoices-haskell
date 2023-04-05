@@ -1,3 +1,5 @@
+{- | This module contains
+  -}
 module PBHModel where
 
 -- TODO( HarmonicProfileData

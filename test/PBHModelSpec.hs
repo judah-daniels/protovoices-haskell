@@ -21,7 +21,7 @@ import Data.Maybe
 import Data.Ord
 import Data.Vector qualified as V
 import HeuristicParser
-import HeuristicSearch
+import Algorithm.HeuristicSearch
 import Heuristics
 import Internal.MultiSet qualified as MS
 import Language.Haskell.DoNotation

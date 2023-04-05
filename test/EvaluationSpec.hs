@@ -25,9 +25,9 @@ import Data.Maybe
   )
 import Data.Vector qualified as V
 import Display
-import RandomChoiceSearch
-import RandomSampleParser
-import HeuristicSearch
+import Algorithm.HeuristicSearch
+import Algorithm.RandomChoiceSearch
+import Algorithm.RandomSampleParser
 import PBHModel
 import Language.Haskell.DoNotation
 import Musicology.Core qualified as Music

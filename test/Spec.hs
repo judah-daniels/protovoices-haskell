@@ -10,14 +10,14 @@ import Test.Hspec
 
 main :: IO ()
 main = hspec $ do
-  -- mostLikelyChordSpec
+  heuristicSpec
 
-  -- fullParseSpec
-  fileHandlingSpec
+-- mostLikelyChordSpec
+
+-- fullParseSpec
+-- fileHandlingSpec
 
 -- evaluationSpec
-
--- heuristicSpec
 
 -- pbhModelSpec
 

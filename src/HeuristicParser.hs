@@ -1,9 +1,11 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module HeuristicParser where
+{- | A parser for the protovoice model, representials partial reductions as a search state that can be traversed
+    by applying operations such as 'Unspread', 'Unfreeze' and 'Unsplit'.
+-}
+module HeuristicParser  where
 
 import Common
-
 import Control.Monad.Except (ExceptT, lift, throwError)
 import Data.Bifunctor qualified as BF (second)
 import Data.HashMap.Strict qualified as HM
@@ -12,14 +14,16 @@ import Musicology.Pitch
 import PBHModel
 import PVGrammar
 
---
--- SLICE
---
+-- | Slice datatype for parsing
 newtype Slice ns = Slice
   { sContent :: ns
+  -- ^ Content of the Slice
   }
   deriving (Eq)
 
+{- | Data type for a slice "wrapped" with additional information. Contains the content alongside
+    the guess of the most likely chord label, and our confidence in that label.
+-}
 data SliceWrapped ns = SliceWrapped
   { sWContent :: ns
   , sLbl :: ChordLabel
@@ -27,7 +31,12 @@ data SliceWrapped ns = SliceWrapped
   }
   deriving (Eq)
 
-newtype SliceWrapper ns = SliceWrapper {wrapSlice :: ns -> SliceWrapped ns}
+-- | Type for functions that 'wrap' slices with additional information
+newtype SliceWrapper ns = SliceWrapper
+  { wrapSlice :: ns -> SliceWrapped ns
+  -- ^ Converts a slice into a wrapped slice, giving additional information such as a guess of the chord it represents.
+  }
+
 idWrapper :: SliceWrapper ns
 idWrapper = SliceWrapper{wrapSlice = \n -> SliceWrapped n undefined 1}
 
@@ -37,15 +46,20 @@ instance Show ns => Show (Slice ns) where
 instance Show ns => Show (SliceWrapped ns) where
   show (SliceWrapped ns _ _) = show ns
 
+-- | Boolean type synonym representing if a transition is a boundary between two segments
 type Boundary = Bool
 
---
--- Transition
---
+{- | Transition wrapper datatype. Wraps a transition with a flag indicating whether or not the transition
+    is the 2nd right parent of a spread, and another flag marking whether or not this transition is at a boundary
+    between segments
+-}
 data Trans es = Trans
   { tContent :: !es
+  -- ^ The value inside the transition, i.e. protovoice edges
   , t2nd :: !Bool
+  -- ^ Marks if this transition is the 2nd right parent of a spread
   , tBoundary :: !Boundary
+  -- ^ Marks whether or not this transition is at a boundary between two segments
   }
   deriving (Eq)
 
@@ -98,8 +112,6 @@ es  : Unfrozen transitions
 ns  : Evaluated slice content
 o   : Operation type
 -}
-
--- | The state of the search between steps
 data SearchState es es' ns o
   = SSFrozen !(Path (Maybe es', Bool) (SliceWrapped ns)) -- Beginning of search - all frozen edges and slices
   | SSSemiOpen -- Point between beginning and end of the path
@@ -121,7 +133,7 @@ instance (Show ns, Show o) => Show (SearchState es es' ns o) where
 
 -- | Helper function for showing the frozen part of a piece.
 showFrozen :: Show slc => Path (Maybe es', Bool) slc -> String
-showFrozen path = "⋊" <> go 4 path
+showFrozen path = "⋊" <> go 1 path
  where
   go _ (PathEnd (_, True)) = "≠"
   go _ (PathEnd (_, False)) = "="
@@ -132,7 +144,7 @@ showFrozen path = "⋊" <> go 4 path
 
 -- | Helper function for showing the open part of a piece.
 showOpen :: Show slc => Path (Trans es') slc -> String
-showOpen path = go 4 path <> "⋉"
+showOpen path = go 3 path <> "⋉"
  where
   go _ (PathEnd (Trans _ _ True)) = "⌿"
   go _ (PathEnd (Trans _ _ False)) = "-"
@@ -141,14 +153,14 @@ showOpen path = go 4 path <> "⋉"
   go 0 (Path _ a rst) = "-" <> show a <> "..."
   go n (Path _ a rst) = "-" <> show a <> go (n - 1) rst
 
-{-
+{- | Returns a list of possible next states given the current state.
+     Works by applying the inverse of the following operations, as returned by the protovoiceEvaluator.
+ >
  > freeze left:         split left:          split right:         spread:
  > ...=[]——[]——[]—...   ...=[]——[]——[]—...   ...=[]——[]——[]—...   ...=[]——[]——[]—...
  > ...=[]==[]——[]—...        \  /                     \  /             \  /\  /
  >                            []                       []               []——[]
 -}
-
--- | Returns a list of possible next states given the current state.
 exploreStates
   :: forall es es' ns ns' s f h
    . (Show s, Show f, Show h, Show es, Show es', Show ns, Show ns')
@@ -156,6 +168,7 @@ exploreStates
   -> Eval es es' ns ns' (Leftmost s f h)
   -> SearchState es es' ns (Leftmost s f h)
   -> ExceptT String IO [SearchState es es' ns (Leftmost s f h)]
+  -- ^ Either a error message or a list of possible next states
 exploreStates wrap eval state = do
   -- lift $ putStrLn "_________________________________________________________"
   -- lift $ putStrLn $ "\n Exploring state: " <> show state <> "\n"
@@ -261,11 +274,11 @@ exploreStates wrap eval state = do
               let doubleActions =
                     Right
                       <$> collectDoubles
-                        (Inner $ sWContent midSlice)
-                        topenl
-                        (sWContent sopenl)
-                        topenm
-                        (sWContent sopenr)
+                        (Inner $ sWContent midSlice) -- E C C G
+                        topenl -- boundary
+                        (sWContent sopenl) -- D C Bb F#
+                        topenm -- no boundary
+                        (sWContent sopenr) -- D C A F#
                         (BF.second sWContent rstOpen)
                in case frozen of
                     PathEnd tfrozen -> do
@@ -403,12 +416,13 @@ exploreStates wrap eval state = do
          -> StartStop ns
          -> [ActionDouble ns es s f h]
        )
-  collectUnspreads sstart (Trans tl _ tlBoundary) sl (Trans tm _ tmBoundary) sr (Trans tr _ trBoundary) send =
-    catMaybes $ do
-      (sTop, op) <- maybeToList $ evalUnspreadMiddle eval (sl, tm, sr)
-      lTop <- evalUnspreadLeft eval (tl, sl) sTop
-      rTop <- evalUnspreadRight eval (sr, tr) sTop
-      pure $ getAction lTop sTop rTop op
+  collectUnspreads sstart (Trans tl _ tlBoundary) sl (Trans tm _ tmBoundary) sr (Trans tr _ trBoundary) send
+    | tmBoundary = []
+    | otherwise = catMaybes $ do
+        (sTop, op) <- maybeToList $ evalUnspreadMiddle eval (sl, tm, sr)
+        lTop <- evalUnspreadLeft eval (tl, sl) sTop
+        rTop <- evalUnspreadRight eval (sr, tr) sTop
+        pure $ getAction lTop sTop rTop op
    where
     -- pure $ getAction $ evalUnsplit eval (Inner sl) tm sr tr send RightOfTwo
     getAction lTop sTop rTop op = case op of
@@ -424,38 +438,17 @@ exploreStates wrap eval state = do
     (tr@(Trans _ _ trBoundary), send) = case rst of
       PathEnd t -> (t, Stop)
       Path t s _ -> (t, Inner s)
-    leftUnsplits
-      | tlBoundary || tmBoundary = []
-      | otherwise = collectUnsplitLeft sstart tl sl tm sr tr send
-    rightUnsplits
-      | tmBoundary || trBoundary = []
-      | otherwise = collectUnsplitRight sstart tl sl tm sr tr send
-    unspreads
-      | tmBoundary = []
-      | otherwise = collectUnspreads sstart tl sl tm sr tr send
+    leftUnsplits = collectUnsplitLeft sstart tl sl tm sr tr send
+    rightUnsplits = collectUnsplitRight sstart tl sl tm sr tr send
+    unspreads = collectUnspreads sstart tl sl tm sr tr send
 
-  {-
-   > ...=[]—f—[]—l—[]—r-...
-   > ...=[]=f=[]—l—[]—r-...
-  -}
-  -- Defines if an unfreeze is allowed given the boundaries of the frozen transition, and of the nearest two neighboring transistions
-
+  -- \| Defines if an unfreeze is allowed given the boundaries of the frozen transition, and of the nearest two neighboring transistions
+  --   > ...=[]—f—[]—l—[]—r-...
+  --
   allowUnfreeze
     :: Bool -> Bool -> Bool -> Bool
   allowUnfreeze frozenBoundary lBoundary rBoundary =
     rBoundary || not (lBoundary || frozenBoundary)
-
-heursiticSearchGoalTest
-  :: SearchState es es' ns o
-  -> Bool
-heursiticSearchGoalTest s = case s of
-  SSSemiOpen{} -> False
-  SSFrozen{} -> False
-  SSOpen p _ -> oneChordPerSegment p
-   where
-    oneChordPerSegment :: Path (Trans es) (SliceWrapped ns) -> Bool
-    oneChordPerSegment (PathEnd _) = True
-    oneChordPerSegment (Path tl _ rst) = tBoundary tl && oneChordPerSegment rst
 
 printPathFromState
   :: (Show es, Show ns)
@@ -463,6 +456,7 @@ printPathFromState
   -> String
 printPathFromState s = maybe "" show (getPathFromState s)
 
+-- | Returns a list of all operations that have been taken up to the state given
 getOpsFromState
   :: SearchState es es' ns o
   -> [o]
@@ -471,6 +465,7 @@ getOpsFromState s = case s of
   SSSemiOpen p m f d -> d
   SSFrozen p -> []
 
+-- | Returns the latest operation that has been applied, or Nothing if no operations have been applied
 getOpFromState
   :: SearchState es es' ns o
   -> Maybe o
@@ -485,6 +480,20 @@ getPathLengthFromState
 getPathLengthFromState (SSOpen p d) = pathLen p
 getPathLengthFromState (SSSemiOpen p m f d) = pathLen f + pathLen p
 getPathLengthFromState (SSFrozen p) = pathLen p
+
+getSlicesFromState
+  :: SearchState es es' ns o
+  -> Maybe [SliceWrapped ns]
+getSlicesFromState s = case s of
+  SSOpen p d -> Just $ pathBetweens p
+  SSSemiOpen p m f d -> Just $ [m] <> pathBetweens f
+  SSFrozen p -> Nothing
+ where
+  transformPath
+    :: Path (Trans es) (SliceWrapped ns)
+    -> Path es ns
+  transformPath (PathEnd t) = PathEnd (tContent t)
+  transformPath (Path t s rst) = Path (tContent t) (sWContent s) $ transformPath rst
 
 getPathFromState
   :: SearchState es es' ns o
@@ -550,21 +559,38 @@ showOp (x : _) = case x of
   LMDouble y -> show y
   LMSingle y -> show y
 
--- One Slice only
+-- | Returns 'True' if the parse is complete, and has been reduced to only one slice
 goalTestSBS (SSOpen p _) | pathLen p == 2 = True
 goalTestSBS _ = False
 
--- The goal is to find a state with a slice for each chord label.
+-- | Returns 'True' if the parse is complete and has been reduced to only one slice per segment
+goalTest :: [ChordLabel] -> SearchState es es' ns o -> Bool
 goalTest chordLabels (SSOpen p _) = pathLen p - 1 == length chordLabels
 goalTest chordlabels _ = False
 
+-- | Goal test for a search: Only complete once there is a single slice per segment
+heursiticSearchGoalTest
+  :: SearchState es es' ns o
+  -> Bool
+heursiticSearchGoalTest s = case s of
+  SSSemiOpen{} -> False
+  SSFrozen{} -> False
+  SSOpen p _ -> oneChordPerSegment p
+   where
+    oneChordPerSegment :: Path (Trans es) (SliceWrapped ns) -> Bool
+    oneChordPerSegment (PathEnd _) = True
+    oneChordPerSegment (Path tl _ rst) = tBoundary tl && oneChordPerSegment rst
+
+-- | Returns a 'SliceWrapper' that guesses the most likely chord for a slice
 sliceWrapper :: HarmonicProfileData -> SliceWrapper (Notes SPitch)
 sliceWrapper params = SliceWrapper $ \ns -> let (r, l, p) = mostLikelyChordFromSlice params ns in SliceWrapped ns (ChordLabel l r) p
 
+-- | Returns the most likely chord labels for each input group of notes
 guessChords :: HarmonicProfileData -> [Notes SPitch] -> [ChordLabel]
 guessChords params slices = sLbl <$> (wrapSlice (SliceWrapper $ \ns -> let (r, l, p) = mostLikelyChordFromSlice params ns in SliceWrapped ns (ChordLabel l r) p) <$> slices)
 
-chordAccuracy :: [ChordLabel] -> [ChordLabel] -> Double
+-- | Calculate a naive accuracy metric for two lists using equality
+chordAccuracy :: (Eq a, Show a) => [a] -> [a] -> Double
 chordAccuracy guesses truth = fromIntegral (numMatches guesses truth) / fromIntegral (length truth)
  where
   numMatches [] [] = 0

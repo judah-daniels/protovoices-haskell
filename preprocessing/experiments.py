@@ -59,10 +59,10 @@ r"""°°°
 if __name__ == '__main__':
     inputs = []
     corpi = get_corpi()
-    for corpus in corpi:
+    for corpus in corpi[::-1]:
         pieces = get_corpus_pieces(corpus)
         for piece in pieces:
             inputs.append((corpus, piece))
     
-    with Pool(10) as p:
+    with Pool(5) as p:
         p.map(runFullParse, inputs) 

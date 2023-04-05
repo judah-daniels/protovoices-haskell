@@ -2,29 +2,25 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
+{- | This module contains functionality for reading chord and slice data from csv files, as output by 'preprocess.py'.
+     This also contains functionality for writing the results of the parses to json files, to be read by 'results.py'
+-}
 module FileHandling
   ( InputSlice
   , pathFromSlices
   , concatResults
   , slicesFromFile'
   , chordsFromFile
-  , writeMapToJson
   , writeJSONToFile
   , writeResultsToJSON
   , nullResultToJSON
   , splitSlicesIntoSegments
   ) where
 
-import Musicology.Core
-
--- LOGGING
-
-import Control.Logging qualified as Log
-import Data.Text qualified as T
-
 import Algorithm.HeuristicSearch
 import Algorithm.RandomChoiceSearch
 import Common hiding (split)
+import Control.Logging qualified as Log
 import Control.Monad.Except (ExceptT, lift, runExceptT, throwError)
 import Control.Monad.State (evalState)
 import Control.Monad.Trans.Except (throwE)
@@ -45,6 +41,7 @@ import Data.Maybe
   , mapMaybe
   , maybeToList
   )
+import Data.Text qualified as T
 import Data.Vector qualified as V
 import Debug.Trace
 import Display
@@ -53,6 +50,7 @@ import HeuristicParser
 import Heuristics
 import Internal.MultiSet qualified as MS
 import Language.Haskell.DoNotation
+import Musicology.Core
 import Musicology.Core qualified as Music
 import Musicology.Pitch.Spelled
 import PBHModel
@@ -70,9 +68,19 @@ import Prelude hiding
 import System.Directory (createDirectoryIfMissing)
 import System.FilePath.Posix (takeDirectory)
 
--- ([(Note, Tied?)], Start of new segment)
---
-type InputSlice ns = ([(ns, Music.RightTied)], Bool)
+-- | Slice type for reading from csv
+type InputSlice ns =
+  ( [ ( ns
+      , -- \^ Note
+        Music.RightTied
+      )
+    ]
+  , -- \^ Marks whether or not this note is tied to the next
+
+    Bool
+  )
+
+-- \^ Marks if this slice is the start of a new segment
 
 -- -- ---------------------------------- -------------------------------- --------------------------------
 -- Reading Data from Files
@@ -119,10 +127,10 @@ instance FromNamedRecord ChordLabel' where
       <*> r .: "rootoffset"
       <*> r .: "globalkey"
 
--- | Data type for a chord Label. TODO specialise this datatype.
+-- | Data type for a chord type. TODO specialise this datatype.
 type Chord = String
 
--- | Datatype for a slice
+-- | Intermediate datatype for a slice, once boundaries have been parsed.
 type Slice' = [(SPitch, Music.RightTied)]
 
 -- | Loads chord annotations from filepath
@@ -191,7 +199,7 @@ slicesFromFile' file = do
       addBoundaries [] = []
       addBoundaries (s : sx) = (s, True) : map (,False) sx
 
--- Parse a salami note as output from the python salalmis package.
+-- | Parse a salami note as output from the DCML dimcat package.
 noteFromSalami :: SalamiNote -> (SPitch, Music.RightTied, Bool, Bool)
 noteFromSalami s = (sPitch, tied, newSegment, newSlice)
  where
@@ -208,34 +216,7 @@ splitSlicesIntoSegments
   -> [[InputSlice ns]]
 splitSlicesIntoSegments eval wrap = split (dropInitBlank . keepDelimsL $ whenElt snd)
 
--- type InputSlice ns = ([(ns, Music.RightTied)], Bool)
---
---
--- reversePath . mkPath False Nothing
--- where
---   mkPath ::
---     Bool ->
---     Maybe [Edge ns] ->
---     [InputSlice ns] ->
---     Path (Maybe [Edge ns], Bool) (SliceWrapped (Notes ns))
---
---   mkPath tie eLeft [] = PathEnd (eLeft, True)
---
---   mkPath tie eLeft ((slice, boundary) : rst) =
---     Path (eLeft, boundary) nextSlice $
---       mkPath False (Just $ getTiedEdges slice) rst
---         where
---           nextSlice = wrapSlice wrap $ evalSlice eval (fst <$> slice)
---
---
---   getTiedEdges :: [(ns, Music.RightTied)] -> [Edge ns]
---   getTiedEdges = mapMaybe mkTiedEdge
---     where
---       mkTiedEdge :: (ns, Music.RightTied) -> Maybe (Edge ns)k
---       mkTiedEdge (p, Music.Holds) = Just (Inner p, Inner p)
---       mkTiedEdge _ = Nothing
---
-
+-- | Create a 'Path' given a list of slices
 pathFromSlices
   :: forall ns o
    . Eval (Edges ns) [Edge ns] (Notes ns) [ns] o
@@ -264,27 +245,18 @@ pathFromSlices eval wrap = reversePath . mkPath False Nothing
     mkTiedEdge (p, Music.Holds) = Just (Inner p, Inner p)
     mkTiedEdge _ = Nothing
 
----- Writing Data to JSONPath
 
-writeMapToJson :: [(String, Double)] -> FilePath -> IO ()
-writeMapToJson dict fileName = do
-  -- fileHandle <- openFile fileName
-  let json = A.toJSON (M.fromList dict)
-  Log.debug $ T.pack . show $ json
-  BL.writeFile fileName (A.encode json)
+-- Writing parse results to JSON
+-- ===========
 
--- closeFile fileHandle
-
------
---
--- JSON PARSING AND WRITING
---
-----
-
+-- | Alias for the accuracy of the predicted labels compared to the ground truth
 type Accuracy = Double
+-- | Alias for the loglikelihood of the entire piece given the chordlabels, according to the probabilistic model of harmony
 type LogLikelihood = Double
+-- | Alias for how long the algorithm ran for, measured in TODO
 type Time = Double
 
+-- | Coverts the results of a parsing algorithm to a JSON value
 writeResultsToJSON
   :: [Notes SPitch]
   -> [ChordLabel]
@@ -304,16 +276,17 @@ writeResultsToJSON slices chords pathMaybe accuracy likelihood name runTime =
     , "runTime" .= runTime
     ]
 
---  , "Path" .= pathMaybe
-
+-- | Concatenates all results for a given piece into an object, inlucuding the piece and corpus in the JSON value.
 concatResults :: String -> String -> [ChordLabel] -> [A.Value] -> A.Value
 concatResults corpus piece trueLabels results = A.object ["corpus" .= A.fromString corpus, "piece" .= A.fromString piece, "results" .= results, "groundTruth" .= (show <$> trueLabels)]
 
+-- | Write JSON value to the given file
 writeJSONToFile :: A.ToJSON a => FilePath -> a -> IO ()
 writeJSONToFile filePath v = do
   createDirectoryIfMissing True $ takeDirectory filePath
   BL.writeFile filePath (A.encode v)
 
+-- | Used when the algorithm fails. Contains NANs in all fields.
 nullResultToJSON :: Show a => a -> IO A.Value
 nullResultToJSON a =
   pure $

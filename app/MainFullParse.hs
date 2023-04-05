@@ -6,41 +6,15 @@
 module Main where
 
 import Common
-import Control.Monad.Except (ExceptT, forM, lift, runExceptT, throwError, when, zipWithM)
-import Data.Hashable
-import Data.Maybe
-  ( catMaybes
-  , fromJust
-  , fromMaybe
-  , isNothing
-  , mapMaybe
-  , maybeToList
-  )
-import System.TimeIt qualified as Time
-import System.Timeout
-
--- LOGGING
-
 import Control.Logging qualified as Log
-import Data.Text qualified as T
-
-import FileHandling
-import HeuristicParser
-import Heuristics
-import PBHModel
-
+import Control.Monad.Except (ExceptT, forM, lift, runExceptT, throwError, when, zipWithM)
 import Core
-import Musicology.Core
-import Musicology.Core qualified as Music
-import Musicology.Pitch.Spelled
-import PVGrammar
-import PVGrammar.Parse
-import Test.Hspec
-
-import Data.Aeson qualified as A
-import Data.Aeson.Key qualified as A
+import FileHandling
+import PBHModel
 import System.Environment
 import System.Exit
+import System.TimeIt qualified as Time
+import System.Timeout
 
 data Options = Options
   { _inputPath :: String
@@ -86,7 +60,7 @@ exit = exitSuccess
 die = exitWith (ExitFailure 1)
 
 main :: IO ()
-main = Log.withStdoutLogging $ do
+main = Log.withStderrLogging $ do
   params <- loadParams "preprocessing/dcml_params.json"
   (corpus, pieceName, algo, Options inputPath outputPath iterations) <-
     getArgs
