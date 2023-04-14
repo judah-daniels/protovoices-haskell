@@ -3,7 +3,15 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Core where
+module Core 
+  (
+    ParseAlgo (..)
+  , runAlgo 
+  , resultToJSON 
+  , timeOutMs
+  , AlgoResult
+  )
+    where
 
 import Common
 import Control.Monad.Except (ExceptT, forM, lift, runExceptT, throwError, when, zipWithM)
@@ -41,6 +49,8 @@ import Data.Aeson qualified as A
 import Data.Aeson.Key qualified as A
 import System.Environment
 import System.Exit
+
+
 
 data ParseAlgo
   = RandomParse
@@ -277,8 +287,15 @@ runHeuristicSearchSingleSegment params eval wrap heuristic inputSlices chordLabe
 
 resultToJSON :: ParseAlgo -> Double -> AlgoResult -> IO A.Value
 resultToJSON a time (AlgoResult sl ch pa ac li) =
-  pure $ writeResultsToJSON sl ch pa ac li (show a) time
+  pure $ writeResultsToJSON sl ch Nothing ac li (show a) time
 
+runAlgo 
+  :: ParseAlgo
+  -> ([Notes SPitch] -> [ChordLabel] -> Double)
+  -> HarmonicProfileData
+  -> [ChordLabel]
+  -> [InputSlice SPitch]
+  -> IO AlgoResult
 runAlgo algo scorer params inputChords inputSlices =
   let run = case algo of
         RandomParse -> runRandomParse

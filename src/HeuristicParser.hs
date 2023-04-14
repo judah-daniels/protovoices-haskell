@@ -3,7 +3,41 @@
 {- | A parser for the protovoice model, representials partial reductions as a search state that can be traversed
     by applying operations such as 'Unspread', 'Unfreeze' and 'Unsplit'.
 -}
-module HeuristicParser  where
+module HeuristicParser 
+  (
+    Slice (..)
+  , SliceWrapped (..)
+  , SliceWrapper (..)
+  , sliceWrapper
+  , idWrapper 
+
+  , Trans (..)
+  , Boundary 
+
+  , SearchState (..)
+  , SearchState'
+
+  , ActionSingle (..)
+  , ActionDouble (..)
+
+  , exploreStates
+
+  , goalTest
+  , goalTestSBS
+  , heursiticSearchGoalTest
+
+  , getPathFromState
+  , getPathLengthFromState
+  , getPathFromState'
+  , getSlicesFromState
+  , getOpFromState
+  , getOpsFromState
+
+  , chordAccuracy
+  , guessChords
+  , showOp
+  )
+    where
 
 import Common
 import Control.Monad.Except (ExceptT, lift, throwError)
@@ -106,6 +140,7 @@ instance Show es => Show (Trans es) where
 
  The open and semiopen case additionally have a list of operations in generative order.
 
+
 Types:
 es' : Unparsed/frozen transitions
 es  : Unfrozen transitions
@@ -125,6 +160,8 @@ data SearchState es es' ns o
       -- ^ derivation from current reduction to original surface
       }
   | SSOpen !(Path (Trans es) (SliceWrapped ns)) ![o] -- Single path with unfrozen transition,slices and history
+
+type SearchState' = SearchState (Edges SPitch) [Edge SPitch] (Notes SPitch) (Leftmost (Split SPitch) Freeze (Spread SPitch))
 
 instance (Show ns, Show o) => Show (SearchState es es' ns o) where
   show (SSFrozen frozen) = showFrozen frozen <> "⋉"

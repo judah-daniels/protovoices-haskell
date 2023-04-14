@@ -1,6 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 {- | This module contains -}
-module Heuristics where
+module Heuristics 
+  ( 
+    applyHeuristic
+  , testHeuristic
+  , State 
+  )
+    where
 
 -- LOGGING
 import Control.Logging qualified as Log

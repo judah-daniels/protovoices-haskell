@@ -3,7 +3,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Algorithm.HeuristicSearch where
+module Algorithm.HeuristicSearch 
+  (
+    heuristicSearch
+  )where
 
 -- LOGGING
 
@@ -11,14 +14,20 @@ import Control.Logging qualified as Log
 import Data.Text qualified as T
 
 import Common
+    ( Leftmost(..),
+      LeftmostDouble(..),
+      LeftmostSingle(..) 
+    )
+
 import Control.Monad.Except (ExceptT, lift, throwError)
-import Data.Foldable
+
+import Data.Foldable ( foldlM, maximumBy )
+
 import Data.Heap qualified as H
 import Data.List qualified as L
 import Data.Maybe (fromMaybe)
-import Data.Ord
-import Debug.Trace
-import HeuristicParser (SearchState, getOpFromState, getPathFromState)
+import Data.Ord ( comparing )
+import HeuristicParser (sliceWrapper, wrapSlice, sLbl, SearchState, getOpFromState, getPathFromState)
 
 import Data.Aeson.KeyMap (singleton)
 import System.Random (initStdGen)
@@ -28,11 +37,9 @@ import System.Random.Stateful
   , uniformRM
   )
 
-import Musicology.Core
+import Musicology.Core ( SPitch )
 import Musicology.Core qualified as Music
-import Musicology.Pitch.Spelled
-import PVGrammar
-import PVGrammar.Parse
+import PVGrammar ( Edge, Edges, Freeze, Notes, Split, Spread )
 
 data HeuristicSearch s c = HeuristicSearch
   { frontier :: [(c, s)]
@@ -107,8 +114,7 @@ heuristicSearch initialState getNextStates isGoalState heuristic printOp = do
 
     getNextStatesAndCosts xs (cost, state) = do
       nextStates <- getNextStates state
-      statesAndCosts <- mapM go nextStates
-      pure statesAndCosts
+      mapM go nextStates
      where
       go newState = do
         h <- heuristic (Just state, newState)

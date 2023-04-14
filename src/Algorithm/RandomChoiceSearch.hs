@@ -3,7 +3,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Algorithm.RandomChoiceSearch where
+module Algorithm.RandomChoiceSearch 
+  (
+    randomChoiceSearch
+  )
+    where
 
 import Common
 import Control.Monad.Except (ExceptT, lift, throwError)

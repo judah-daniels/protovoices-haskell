@@ -1,13 +1,25 @@
 {- | This module contains
   -}
-module PBHModel where
+module PBHModel 
+  ( 
+    HarmonicProfileData (..)
+  , loadParams
+  , ChordLabel (..)
+  , evaluateSlice, mostLikelyChordFromSlice
+  , chordToneLogLikelihood
+  , transposeNote
+  , ornamentLogLikelihood
+  , ornamentLogLikelihoodDouble
+  , sliceChordLogLikelihood
+  , chordToneLogLikelihoodDouble
+  , sliceChordWeightedLogLikelihoods
+  , sliceChordWeightedLogLikelihood
+  , scoreSegment
+  , scoreSegment'
+  , scoreSegments
+  ) 
+  where
 
--- TODO( HarmonicProfileData
--- , Params
--- , loadParams
--- , ChordLabel
--- , evaluateSlice, mostLikelyChordFromSlice
--- )
 
 import Common
 import Data.Aeson
@@ -33,6 +45,10 @@ data ChordLabel = ChordLabel
   , rootNote :: SPC
   }
   deriving (Generic, Eq)
+
+-- | Returns the most likely chord labels for each input group of notes
+-- guessChords :: HarmonicProfileData -> [Notes SPitch] -> [ChordLabel]
+-- guessChords params slices = sLbl <$> (wrapSlice (SliceWrapper $ \ns -> let (r, l, p) = mostLikelyChordFromSlice params ns in SliceWrapped ns (ChordLabel l r) p) <$> slices)
 
 instance Show ChordLabel where
   show (ChordLabel lbl root) = Music.showNotation root <> lbl

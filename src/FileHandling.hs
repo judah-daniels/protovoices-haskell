@@ -17,8 +17,6 @@ module FileHandling
   , splitSlicesIntoSegments
   ) where
 
-import Algorithm.HeuristicSearch
-import Algorithm.RandomChoiceSearch
 import Common hiding (split)
 import Control.Logging qualified as Log
 import Control.Monad.Except (ExceptT, lift, runExceptT, throwError)
@@ -260,7 +258,7 @@ type Time = Double
 writeResultsToJSON
   :: [Notes SPitch]
   -> [ChordLabel]
-  -> Maybe (Path (Edges SPitch) (Notes SPitch))
+  -> Maybe [PVLeftmost SPitch]
   -> Accuracy
   -> LogLikelihood
   -> String
@@ -287,9 +285,8 @@ writeJSONToFile filePath v = do
   BL.writeFile filePath (A.encode v)
 
 -- | Used when the algorithm fails. Contains NANs in all fields.
-nullResultToJSON :: Show a => a -> IO A.Value
+nullResultToJSON :: Show a => a -> A.Value
 nullResultToJSON a =
-  pure $
     A.object
       [ "algorithm" .= A.fromString (show a)
       , "slices" .= (Nothing :: Maybe [String])

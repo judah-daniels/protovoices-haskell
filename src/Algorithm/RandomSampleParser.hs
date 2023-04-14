@@ -2,23 +2,26 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+module Algorithm.RandomSampleParser 
+  (
+    randomSamplePath
+  , randomSamplePathSBS
+  )
+    where
 
-module Algorithm.RandomSampleParser where
 
-import Common
+import Common ( Path (..) )
 import Control.Monad.Except (ExceptT, lift, runExceptT, throwError)
 import FileHandling (InputSlice)
 import HeuristicParser (Slice, Trans)
-import Musicology.Pitch
-import PVGrammar
+import Musicology.Pitch ( spelledp, SPitch )
+import PVGrammar ( Edges (..), Notes(..) )
 
-import Data.Foldable
-import Data.HashSet as S
+import Data.HashSet as S ( empty )
 import Data.Heap qualified as H
 import Data.List qualified as L
 import Data.Maybe (fromJust, fromMaybe)
-import Data.Ord
-import Debug.Trace
+
 import Internal.MultiSet qualified as MS
 
 import Data.Aeson.KeyMap (singleton)
@@ -28,6 +31,11 @@ import System.Random.Stateful
   , newIOGenM
   , uniformRM
   )
+
+
+
+
+
 
 {- |
   Generates a path of random notes for the given number of segments
