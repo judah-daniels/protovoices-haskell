@@ -9,7 +9,6 @@ import Common
 import Control.Logging qualified as Log
 import Control.Monad.Except (ExceptT, forM, lift, runExceptT, throwError, when, zipWithM)
 import FileHandling
-import PBHModel
 import System.Environment
 import System.Exit
 import System.TimeIt qualified as Time
@@ -19,6 +18,9 @@ import PVGrammar.Parse (protoVoiceEvaluator)
 import qualified Algorithm as Core
 import Control.Monad (replicateM)
 import HeuristicParser (chordAccuracy)
+import Harmony
+import Harmony.ChordLabel
+import Harmony.Params
 
 data Options = Options
   { _inputPath :: String
@@ -67,7 +69,6 @@ die = exitWith (ExitFailure 1)
 
 main :: IO () 
 main = Log.withStderrLogging $ do 
-  params <- loadParams "preprocessing/dcml_params.json"
   (corpus, pieceName, algo, Options inputPath outputPath iterations) <-
     getArgs
       >>= parseArgs (Options defaultInputPath defaultOutputPath defaultNumIterations)
@@ -76,7 +77,7 @@ main = Log.withStderrLogging $ do
   inputSlices <- slicesFromFile' (inputPath <> "slices/" <> corpus <> "/" <> pieceName <> ".csv")
   let outputFile = outputPath <> corpus <> "/" <> pieceName <> "/" <> show algo <> ".json"
 
-  res <- replicateM iterations $ runAlgo algo params inputChords inputSlices numRetries
+  res <- replicateM iterations $ runAlgo algo inputChords inputSlices numRetries
 
   writeJSONToFile outputFile $ concatResults corpus pieceName inputChords res
 
@@ -85,17 +86,17 @@ main = Log.withStderrLogging $ do
 
     numRetries = 1 :: Int
 
-    runAlgo algo _ _ _ 0 = pure $ nullResultToJSON algo
-    runAlgo algo params inputChords inputSlices n = do 
-      mTimedRes <- timeout timeOutMs $ Time.timeItT $ runParse algo (AlgoInput protoVoiceEvaluator params inputSlices inputChords)
+    runAlgo algo _ _ 0 = pure $ nullResultToJSON algo
+    runAlgo algo inputChords inputSlices n = do 
+      mTimedRes <- timeout timeOutMs $ Time.timeItT $ runParse algo (AlgoInput protoVoiceEvaluator inputSlices inputChords)
       case mTimedRes of 
-        Nothing -> runAlgo algo params inputChords inputSlices (n - 1)
+        Nothing -> runAlgo algo inputChords inputSlices (n - 1)
         Just (time, mRes) -> 
           case mRes of 
             Nothing -> pure $ nullResultToJSON algo
             Just (AlgoResult top ops lbls) -> 
               let accuracy = chordAccuracy inputChords lbls
-                  likelihood = scoreSegments params scoreSegment' top lbls
+                  likelihood = scoreSegments top lbls
                 in 
                   pure $ writeResultsToJSON top lbls ops accuracy likelihood (show algo) time 
   

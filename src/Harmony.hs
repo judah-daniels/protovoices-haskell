@@ -3,6 +3,7 @@
 module Harmony
   (
     evaluateSlice
+  , mostLikelyLabelFromSliceWithProb
   , mostLikelyLabelFromSlice
   , labelLikelihoodGivenSlice
   , allLabelLikelihoodsGivenSlice
@@ -17,7 +18,7 @@ module Harmony
   -- , sliceChordWeightedLogLikelihood
   -- , scoreSegment
   , scoreSegment'
-  -- , scoreSegments
+  , scoreSegments
   )
   where
 
@@ -75,6 +76,16 @@ scoreSegment' (Notes slc) (ChordLabel chordType rootNote) = mlp + clp
   mlp = (multinomialLogProb valueVector <$> chordToneParams) V.! chordTypeIndex
   clp = categoricalLogProb chordTypeIndex pChordTones
 
+scoreSegments
+  :: [Notes SPitch]
+  -> [ChordLabel]
+  -> Double
+scoreSegments segments labels =
+  let
+    scores = zipWith scoreSegment' segments labels
+   in
+    sum scores / fromIntegral (length scores)
+
 
 -- | Returns the most likely chord labels for each input group of notes
 guessLabels :: [Notes SPitch] -> [ChordLabel]
@@ -90,6 +101,18 @@ mostLikelyLabelFromSlice slice = argmax (`labelLikelihoodGivenSlice` slice) allC
     argmax :: (a -> Double) -> V.Vector a -> a
     argmax f = V.foldl1' (\acc x -> if f x > f acc then x else acc)
 
+mostLikelyLabelFromSliceWithProb :: Notes SPitch -> (ChordLabel, Double)
+
+-- mostLikelyLabelFromSlice slice = argmax allLabelLikelihoodsGivenSlice
+  -- where 
+    -- argmax :: V.Vector (Double, ChordLabel) -> ChordLabel
+    -- argmax = V.foldl1' (\acc )
+mostLikelyLabelFromSliceWithProb slice = let l = argmax (`labelLikelihoodGivenSlice` slice) allChordLabels
+  in 
+    (l, labelLikelihoodGivenSlice l slice)
+  where
+    argmax :: (a -> Double) -> V.Vector a -> a
+    argmax f = V.foldl1' (\acc x -> if f x > f acc then x else acc)
 
 allLabelLikelihoodsGivenSlice :: Notes SPitch -> V.Vector (Double, ChordLabel)
 allLabelLikelihoodsGivenSlice slice = 

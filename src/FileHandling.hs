@@ -51,7 +51,9 @@ import Language.Haskell.DoNotation
 import Musicology.Core
 import Musicology.Core qualified as Music
 import Musicology.Pitch.Spelled
-import PBHModel
+import Harmony.ChordLabel
+import Harmony
+import Harmony.Params
 import PVGrammar hiding
   ( slicesFromFile
   )
@@ -147,8 +149,8 @@ chordsFromFile file = do
    where
     -- (Music.sic $ _rootoffset r) (fromMaybe undefined (Music.readNotation $ _globalkey r))
 
-    cType :: String
-    cType = _chordtype r
+    cType :: ChordType
+    cType = read $ _chordtype r
     rootOffset' :: SIC
     rootOffset' = Music.sic $ _rootoffset r
     globalKey' :: SPC

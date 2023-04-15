@@ -15,7 +15,9 @@ module Algorithm
 import Control.Logging qualified as Log
 import Data.Text qualified as T
 import FileHandling ( InputSlice (..), pathFromSlices, splitSlicesIntoSegments)
-import PBHModel 
+import Harmony
+import Harmony.ChordLabel
+import Harmony.Params
 import Algorithm.RandomChoiceSearch
 import Algorithm.RandomSampleParser
 import Algorithm.HeuristicSearch
@@ -34,7 +36,6 @@ import Heuristics
 data AlgoInput = 
   AlgoInput 
   (Eval (Edges SPitch) [Edge SPitch] (Notes SPitch) [SPitch] (PVLeftmost SPitch))
-  HarmonicProfileData
   [InputSlice SPitch]
   [ChordLabel]
 
@@ -61,7 +62,7 @@ data AlgoType
 timeOutMs = 400 * 1000000 :: Int
 
 instance ParseAlgo AlgoType where
-  runParse algoType (AlgoInput eval params inputSlices chords) = case algoType of   
+  runParse algoType (AlgoInput eval inputSlices chords) = case algoType of   
     RandomParse -> 
       let initialState = SSFrozen $ pathFromSlices eval idWrapper inputSlices 
        in 
@@ -76,38 +77,38 @@ instance ParseAlgo AlgoType where
               let path = fromMaybe (error "failed to get path from state") $ getPathFromState finalState
                   ops = getOpsFromState finalState
                   slices = pathBetweens path
-                  chordGuesses = guessChords params slices 
+                  chordGuesses = guessChords slices 
                in 
                pure $ Just $ AlgoResult slices (Just ops) chordGuesses
 
     RandomSample -> 
-      let x = splitSlicesIntoSegments eval (sliceWrapper params) inputSlices
+      let x = splitSlicesIntoSegments eval (sliceWrapper) inputSlices
         in do 
           path <- randomSamplePath (length chords)
           let slices = pathBetweens path
-              chordGuesses = guessChords params slices
+              chordGuesses = guessChords slices
            in pure $ Just (AlgoResult slices Nothing chordGuesses)
 
     RandomSampleSBS -> 
-      let x = splitSlicesIntoSegments eval (sliceWrapper params) inputSlices
+      let x = splitSlicesIntoSegments eval (sliceWrapper ) inputSlices
        in Log.timedLog "Running Random Sample SBS Parse" $ do
         path <- randomSamplePathSBS x
 
         let slices = pathBetweens path
-            chordGuesses = guessChords params slices
+            chordGuesses = guessChords  slices
          in pure $ Just $ AlgoResult slices Nothing chordGuesses 
 
     Heuristic1 -> 
-      let initialState = SSFrozen $ pathFromSlices eval (sliceWrapper params) inputSlices
+      let initialState = SSFrozen $ pathFromSlices eval (sliceWrapper ) inputSlices
        in 
         Log.timedLog "Running Random Sample SBS Parse" $ do
           res <- runExceptT 
             (heuristicSearch 
               initialState 
-              (exploreStates (sliceWrapper params) eval) 
+              (exploreStates (sliceWrapper ) eval) 
               (goalTest chords) 
               (applyHeuristic 
-              (testHeuristic params)
+              (testHeuristic )
             ) 
             (showOp . getOpsFromState))
 
@@ -119,7 +120,7 @@ instance ParseAlgo AlgoType where
               let p = fromJust $ getPathFromState finalState
                   ops = getOpsFromState finalState
                   slices = pathBetweens p
-                  chordGuesses = guessChords params slices
+                  chordGuesses = guessChords  slices
                in 
                pure $ Just $ AlgoResult slices (Just ops) chordGuesses
 

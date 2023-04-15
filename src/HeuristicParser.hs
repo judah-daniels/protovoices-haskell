@@ -45,8 +45,10 @@ import Data.Bifunctor qualified as BF (second)
 import Data.HashMap.Strict qualified as HM
 import Data.Maybe (Maybe, catMaybes, fromJust, mapMaybe, maybeToList)
 import Musicology.Pitch
-import PBHModel
 import PVGrammar
+import Harmony
+import Harmony.Params
+import Harmony.ChordLabel
 
 -- | Slice datatype for parsing
 newtype Slice ns = Slice
@@ -619,12 +621,12 @@ heursiticSearchGoalTest s = case s of
     oneChordPerSegment (Path tl _ rst) = tBoundary tl && oneChordPerSegment rst
 
 -- | Returns a 'SliceWrapper' that guesses the most likely chord for a slice
-sliceWrapper :: HarmonicProfileData -> SliceWrapper (Notes SPitch)
-sliceWrapper params = SliceWrapper $ \ns -> let (r, l, p) = mostLikelyChordFromSlice params ns in SliceWrapped ns (ChordLabel l r) p
+sliceWrapper :: SliceWrapper (Notes SPitch)
+sliceWrapper = SliceWrapper $ \ns -> let (l, p) = mostLikelyLabelFromSliceWithProb ns in SliceWrapped ns l p
 
 -- | Returns the most likely chord labels for each input group of notes
-guessChords :: HarmonicProfileData -> [Notes SPitch] -> [ChordLabel]
-guessChords params slices = sLbl <$> (wrapSlice (SliceWrapper $ \ns -> let (r, l, p) = mostLikelyChordFromSlice params ns in SliceWrapped ns (ChordLabel l r) p) <$> slices)
+guessChords :: [Notes SPitch] -> [ChordLabel]
+guessChords slices = sLbl <$> (wrapSlice (SliceWrapper $ \ns -> let (l, p) = mostLikelyLabelFromSliceWithProb ns in SliceWrapped ns l p) <$> slices)
 
 -- | Calculate a naive accuracy metric for two lists using equality
 chordAccuracy :: (Eq a, Show a) => [a] -> [a] -> Double
