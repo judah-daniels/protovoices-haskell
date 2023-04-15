@@ -1,0 +1,64 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-- |</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- Module      : Unicode.Char</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Copyright   : (c) 2020 Composewell Technologies and Contributors</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- License     : Apache-2.0</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- Maintainer  : streamly@composewell.com</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Stability   : experimental</span><span>
+</span><span id="line-7"></span><span class="hs-comment">--</span><span>
+</span><span id="line-8"></span><span class="hs-comment">-- This module provides APIs to access the Unicode character database (UCD)</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- corresponding to [Unicode Standard version</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- 14.0.0](https://www.unicode.org/versions/Unicode14.0.0/).</span><span>
+</span><span id="line-11"></span><span class="hs-comment">--</span><span>
+</span><span id="line-12"></span><span class="hs-comment">-- This module re-exports several sub-modules under it.  The sub-module</span><span>
+</span><span id="line-13"></span><span class="hs-comment">-- structure under `Unicode.Char` is largely based on the</span><span>
+</span><span id="line-14"></span><span class="hs-comment">-- [&quot;Property Index by Scope of Use&quot; in Unicode&#174; Standard Annex #44](https://www.unicode.org/reports/tr44/#Property_Index_Table).</span><span>
+</span><span id="line-15"></span><span class="hs-comment">--</span><span>
+</span><span id="line-16"></span><span class="hs-comment">-- The @Unicode.Char.*@ modules in turn depend on @Unicode.Internal.Char.*@</span><span>
+</span><span id="line-17"></span><span class="hs-comment">-- modules which are programmatically generated from the Unicode standard's</span><span>
+</span><span id="line-18"></span><span class="hs-comment">-- Unicode character database files. The module structure under</span><span>
+</span><span id="line-19"></span><span class="hs-comment">-- @Unicode.Internal.Char@ is largely based on the UCD text file names from</span><span>
+</span><span id="line-20"></span><span class="hs-comment">-- which the properties are generated.</span><span>
+</span><span id="line-21"></span><span class="hs-comment">--</span><span>
+</span><span id="line-22"></span><span class="hs-comment">-- For the original UCD files used in this code please refer to the @UCD@</span><span>
+</span><span id="line-23"></span><span class="hs-comment">-- section on the Unicode standard page.  See</span><span>
+</span><span id="line-24"></span><span class="hs-comment">-- https://www.unicode.org/reports/tr44/ to understand the contents and the</span><span>
+</span><span id="line-25"></span><span class="hs-comment">-- format of the unicode database files.</span><span>
+</span><span id="line-26"></span><span class="hs-comment">--</span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Unicode.Char</span><span>
+</span><span id="line-29"></span><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Unicode.Char.General.html"><span class="hs-identifier">Unicode.Char.General</span></a></span><span>
+</span><span id="line-30"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Unicode.Char.General.Compat.html"><span class="hs-identifier">Unicode.Char.General.Compat</span></a></span><span>
+</span><span id="line-31"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Unicode.Char.Case.html"><span class="hs-identifier">Unicode.Char.Case</span></a></span><span>
+</span><span id="line-32"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Unicode.Char.Case.Compat.html"><span class="hs-identifier">Unicode.Char.Case.Compat</span></a></span><span>
+</span><span id="line-33"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Unicode.Char.Numeric.html"><span class="hs-identifier">Unicode.Char.Numeric</span></a></span><span>
+</span><span id="line-34"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Unicode.Char.Normalization.html"><span class="hs-identifier">Unicode.Char.Normalization</span></a></span><span>
+</span><span id="line-35"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Unicode.Char.Identifiers.html"><span class="hs-identifier">Unicode.Char.Identifiers</span></a></span><span>
+</span><span id="line-36"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.html#unicodeVersion"><span class="hs-identifier">unicodeVersion</span></a></span><span>
+</span><span id="line-37"></span><span>
+</span><span id="line-38"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Re-export from @base@</span></span><span>
+</span><span id="line-39"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">ord</span></span><span>
+</span><span id="line-40"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">chr</span></span><span>
+</span><span id="line-41"></span><span>    </span><span class="hs-special">)</span><span>
+</span><span id="line-42"></span><span class="hs-keyword">where</span><span>
+</span><span id="line-43"></span><span>
+</span><span id="line-44"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Char</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">chr</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">ord</span></span><span class="hs-special">)</span><span>
+</span><span id="line-45"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Version</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Version</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">makeVersion</span></span><span class="hs-special">)</span><span>
+</span><span id="line-46"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Unicode.Char.Case.html"><span class="hs-identifier">Unicode.Char.Case</span></a></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Unicode.Internal.Unfold.html#Unfold"><span class="hs-identifier">Unfold</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Internal.Unfold.html#Step"><span class="hs-identifier">Step</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-47"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Unicode.Char.Case.Compat.html"><span class="hs-identifier">Unicode.Char.Case.Compat</span></a></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Unicode.Char.Case.Compat.html#isLower"><span class="hs-identifier">isLower</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.Case.Compat.html#isUpper"><span class="hs-identifier">isUpper</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-48"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Unicode.Char.General.html"><span class="hs-identifier">Unicode.Char.General</span></a></span><span>
+</span><span id="line-49"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Unicode.Char.General.Compat.html"><span class="hs-identifier">Unicode.Char.General.Compat</span></a></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Unicode.Char.General.Compat.html#isLetter"><span class="hs-identifier">isLetter</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.General.Compat.html#isSpace"><span class="hs-identifier">isSpace</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-50"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Unicode.Char.Identifiers.html"><span class="hs-identifier">Unicode.Char.Identifiers</span></a></span><span>
+</span><span id="line-51"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Unicode.Char.Numeric.html"><span class="hs-identifier">Unicode.Char.Numeric</span></a></span><span>
+</span><span id="line-52"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Unicode.Char.Normalization.html"><span class="hs-identifier">Unicode.Char.Normalization</span></a></span><span>
+</span><span id="line-53"></span><span>
+</span><span id="line-54"></span><span class="hs-comment">-- | Version of Unicode standard used by @unicode-data@.</span><span>
+</span><span id="line-55"></span><span class="hs-comment">--</span><span>
+</span><span id="line-56"></span><span class="hs-comment">-- @since 0.3.0</span><span>
+</span><span id="line-57"></span><span class="annot"><a href="Unicode.Char.html#unicodeVersion"><span class="hs-identifier hs-type">unicodeVersion</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Version</span></span><span>
+</span><span id="line-58"></span><span id="unicodeVersion"><span class="annot"><span class="annottext">unicodeVersion :: Version
+</span><a href="Unicode.Char.html#unicodeVersion"><span class="hs-identifier hs-var hs-var">unicodeVersion</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Int] -&gt; Version
+</span><span class="hs-identifier hs-var">makeVersion</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">14</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span class="hs-special">]</span><span>
+</span><span id="line-59"></span></pre></body></html>

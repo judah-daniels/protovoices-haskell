@@ -1,0 +1,130 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-- |</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- Module      : Unicode.Char.Case.Compat</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Copyright   : (c) 2020 Composewell Technologies and Contributors</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- License     : Apache-2.0</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- Maintainer  : streamly@composewell.com</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Stability   : experimental</span><span>
+</span><span id="line-7"></span><span class="hs-comment">--</span><span>
+</span><span id="line-8"></span><span class="hs-comment">-- Compatibility module for case and case mapping related functions.</span><span>
+</span><span id="line-9"></span><span class="hs-comment">--</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- The functions of this module are drop-in replacement for those in &quot;Data.Char&quot;.</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-- They are similar but not identical to some functions in &quot;Unicode.Char.Case&quot;,</span><span>
+</span><span id="line-12"></span><span class="hs-comment">-- therefore they are placed in a separate module in order to avoid ambiguity.</span><span>
+</span><span id="line-13"></span><span class="hs-comment">--</span><span>
+</span><span id="line-14"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Unicode.Char.Case.Compat</span><span>
+</span><span id="line-15"></span><span>    </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-comment">-- * Predicates</span></span><span>
+</span><span id="line-16"></span><span>      </span><span class="annot"><a href="Unicode.Char.Case.Compat.html#isUpper"><span class="hs-identifier">isUpper</span></a></span><span>
+</span><span id="line-17"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.Case.Compat.html#isLower"><span class="hs-identifier">isLower</span></a></span><span>
+</span><span id="line-18"></span><span>      </span><span class="annot"><span class="hs-comment">-- * Case conversion</span></span><span>
+</span><span id="line-19"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.Case.Compat.html#toUpper"><span class="hs-identifier">toUpper</span></a></span><span>
+</span><span id="line-20"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.Case.Compat.html#toLower"><span class="hs-identifier">toLower</span></a></span><span>
+</span><span id="line-21"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.Case.Compat.html#toTitle"><span class="hs-identifier">toTitle</span></a></span><span>
+</span><span id="line-22"></span><span>    </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-23"></span><span>
+</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Unicode.Char.General.html"><span class="hs-identifier">Unicode.Char.General</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Unicode.Char.General.html#GeneralCategory"><span class="hs-identifier">GeneralCategory</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.General.html#generalCategory"><span class="hs-identifier">generalCategory</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-25"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Unicode.Internal.Char.UnicodeData.SimpleLowerCaseMapping.html"><span class="hs-identifier">Unicode.Internal.Char.UnicodeData.SimpleLowerCaseMapping</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">C</span></span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Unicode.Internal.Char.UnicodeData.SimpleTitleCaseMapping.html"><span class="hs-identifier">Unicode.Internal.Char.UnicodeData.SimpleTitleCaseMapping</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">C</span></span><span>
+</span><span id="line-27"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Unicode.Internal.Char.UnicodeData.SimpleUpperCaseMapping.html"><span class="hs-identifier">Unicode.Internal.Char.UnicodeData.SimpleUpperCaseMapping</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">C</span></span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span class="hs-comment">-- | Selects upper-case or title-case alphabetic Unicode characters (letters).</span><span>
+</span><span id="line-30"></span><span class="hs-comment">-- Title case is used by a small number of letter ligatures like the</span><span>
+</span><span id="line-31"></span><span class="hs-comment">-- single-character form of /Lj/.</span><span>
+</span><span id="line-32"></span><span class="hs-comment">--</span><span>
+</span><span id="line-33"></span><span class="hs-comment">-- It matches characters with general category 'UppercaseLetter' and</span><span>
+</span><span id="line-34"></span><span class="hs-comment">-- 'TitlecaseLetter'.</span><span>
+</span><span id="line-35"></span><span class="hs-comment">--</span><span>
+</span><span id="line-36"></span><span class="hs-comment">-- See: 'Unicode.Char.Case.isUpperCase' for the /full upper/ case predicate.</span><span>
+</span><span id="line-37"></span><span class="hs-comment">--</span><span>
+</span><span id="line-38"></span><span class="hs-comment">-- prop&gt; isUpper c == Data.Char.isUpper c</span><span>
+</span><span id="line-39"></span><span class="hs-comment">--</span><span>
+</span><span id="line-40"></span><span class="hs-comment">-- @since 0.3.0</span><span>
+</span><span id="line-41"></span><span class="annot"><a href="Unicode.Char.Case.Compat.html#isUpper"><span class="hs-identifier hs-type">isUpper</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-42"></span><span id="isUpper"><span class="annot"><span class="annottext">isUpper :: Char -&gt; Bool
+</span><a href="Unicode.Char.Case.Compat.html#isUpper"><span class="hs-identifier hs-var hs-var">isUpper</span></a></span></span><span> </span><span id="local-6989586621679415150"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679415150"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Char -&gt; GeneralCategory
+</span><a href="Unicode.Char.General.html#generalCategory"><span class="hs-identifier hs-var">generalCategory</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679415150"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-43"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#UppercaseLetter"><span class="hs-identifier hs-var">UppercaseLetter</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-44"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#TitlecaseLetter"><span class="hs-identifier hs-var">TitlecaseLetter</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-45"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><span class="hs-identifier">_</span></span><span>               </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-46"></span><span>
+</span><span id="line-47"></span><span class="hs-comment">-- | Selects lower-case alphabetic Unicode characters (letters).</span><span>
+</span><span id="line-48"></span><span class="hs-comment">--</span><span>
+</span><span id="line-49"></span><span class="hs-comment">-- It matches characters with general category 'LowercaseLetter'.</span><span>
+</span><span id="line-50"></span><span class="hs-comment">--</span><span>
+</span><span id="line-51"></span><span class="hs-comment">-- See: 'Unicode.Char.Case.isLowerCase' for the /full/ lower case predicate.</span><span>
+</span><span id="line-52"></span><span class="hs-comment">--</span><span>
+</span><span id="line-53"></span><span class="hs-comment">-- prop&gt; isLower c == Data.Char.isLower c</span><span>
+</span><span id="line-54"></span><span class="hs-comment">--</span><span>
+</span><span id="line-55"></span><span class="hs-comment">-- @since 0.3.0</span><span>
+</span><span id="line-56"></span><span class="annot"><a href="Unicode.Char.Case.Compat.html#isLower"><span class="hs-identifier hs-type">isLower</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-57"></span><span id="isLower"><span class="annot"><span class="annottext">isLower :: Char -&gt; Bool
+</span><a href="Unicode.Char.Case.Compat.html#isLower"><span class="hs-identifier hs-var hs-var">isLower</span></a></span></span><span> </span><span id="local-6989586621679415147"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679415147"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Char -&gt; GeneralCategory
+</span><a href="Unicode.Char.General.html#generalCategory"><span class="hs-identifier hs-var">generalCategory</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679415147"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-58"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#LowercaseLetter"><span class="hs-identifier hs-var">LowercaseLetter</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-59"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><span class="hs-identifier">_</span></span><span>               </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-60"></span><span>
+</span><span id="line-61"></span><span class="hs-comment">-- | Convert a letter to the corresponding upper-case letter, if any.</span><span>
+</span><span id="line-62"></span><span class="hs-comment">-- Any other character is returned unchanged.</span><span>
+</span><span id="line-63"></span><span class="hs-comment">--</span><span>
+</span><span id="line-64"></span><span class="hs-comment">-- It uses the character property @Simple_Uppercase_Mapping@.</span><span>
+</span><span id="line-65"></span><span class="hs-comment">--</span><span>
+</span><span id="line-66"></span><span class="hs-comment">-- See: 'Unicode.Char.Case.upperCaseMapping' and</span><span>
+</span><span id="line-67"></span><span class="hs-comment">-- 'Unicode.Char.Case.toUpperString' for /full/ upper case conversion.</span><span>
+</span><span id="line-68"></span><span class="hs-comment">--</span><span>
+</span><span id="line-69"></span><span class="hs-comment">-- prop&gt; toUpper c == Data.Char.toUpper c</span><span>
+</span><span id="line-70"></span><span class="hs-comment">--</span><span>
+</span><span id="line-71"></span><span class="hs-comment">-- @since 0.3.0</span><span>
+</span><span id="line-72"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Unicode.Char.Case.Compat.html#toUpper"><span class="hs-pragma hs-type">toUpper</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-73"></span><span class="annot"><a href="Unicode.Char.Case.Compat.html#toUpper"><span class="hs-identifier hs-type">toUpper</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span>
+</span><span id="line-74"></span><span id="toUpper"><span class="annot"><span class="annottext">toUpper :: Char -&gt; Char
+</span><a href="Unicode.Char.Case.Compat.html#toUpper"><span class="hs-identifier hs-var hs-var">toUpper</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Char
+</span><a href="Unicode.Internal.Char.UnicodeData.SimpleUpperCaseMapping.html#toSimpleUpperCase"><span class="hs-identifier hs-var">C.toSimpleUpperCase</span></a></span><span>
+</span><span id="line-75"></span><span>
+</span><span id="line-76"></span><span class="hs-comment">-- | Convert a letter to the corresponding lower-case letter, if any.</span><span>
+</span><span id="line-77"></span><span class="hs-comment">-- Any other character is returned unchanged.</span><span>
+</span><span id="line-78"></span><span class="hs-comment">--</span><span>
+</span><span id="line-79"></span><span class="hs-comment">-- It uses the character property @Simple_Lowercase_Mapping@.</span><span>
+</span><span id="line-80"></span><span class="hs-comment">--</span><span>
+</span><span id="line-81"></span><span class="hs-comment">-- See: 'Unicode.Char.Case.lowerCaseMapping' and</span><span>
+</span><span id="line-82"></span><span class="hs-comment">-- 'Unicode.Char.Case.toLowerString' for /full/ lower case conversion.</span><span>
+</span><span id="line-83"></span><span class="hs-comment">--</span><span>
+</span><span id="line-84"></span><span class="hs-comment">-- prop&gt; toLower c == Data.Char.toLower c</span><span>
+</span><span id="line-85"></span><span class="hs-comment">--</span><span>
+</span><span id="line-86"></span><span class="hs-comment">-- @since 0.3.0</span><span>
+</span><span id="line-87"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Unicode.Char.Case.Compat.html#toLower"><span class="hs-pragma hs-type">toLower</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-88"></span><span class="annot"><a href="Unicode.Char.Case.Compat.html#toLower"><span class="hs-identifier hs-type">toLower</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span>
+</span><span id="line-89"></span><span id="toLower"><span class="annot"><span class="annottext">toLower :: Char -&gt; Char
+</span><a href="Unicode.Char.Case.Compat.html#toLower"><span class="hs-identifier hs-var hs-var">toLower</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Char
+</span><a href="Unicode.Internal.Char.UnicodeData.SimpleLowerCaseMapping.html#toSimpleLowerCase"><span class="hs-identifier hs-var">C.toSimpleLowerCase</span></a></span><span>
+</span><span id="line-90"></span><span>
+</span><span id="line-91"></span><span class="hs-comment">-- | Convert a letter to the corresponding title-case or upper-case letter,</span><span>
+</span><span id="line-92"></span><span class="hs-comment">-- if any. (Title case differs from upper case only for a small number of</span><span>
+</span><span id="line-93"></span><span class="hs-comment">-- ligature letters.) Any other character is returned unchanged.</span><span>
+</span><span id="line-94"></span><span class="hs-comment">--</span><span>
+</span><span id="line-95"></span><span class="hs-comment">-- It uses the character property @Simple_Titlecase_Mapping@.</span><span>
+</span><span id="line-96"></span><span class="hs-comment">--</span><span>
+</span><span id="line-97"></span><span class="hs-comment">-- See: 'Unicode.Char.Case.titleCaseMapping' and</span><span>
+</span><span id="line-98"></span><span class="hs-comment">-- 'Unicode.Char.Case.toTitleString' for /full/ title case conversion.</span><span>
+</span><span id="line-99"></span><span class="hs-comment">--</span><span>
+</span><span id="line-100"></span><span class="hs-comment">-- prop&gt; toTitle c == Data.Char.toTitle c</span><span>
+</span><span id="line-101"></span><span class="hs-comment">--</span><span>
+</span><span id="line-102"></span><span class="hs-comment">-- @since 0.3.0</span><span>
+</span><span id="line-103"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Unicode.Char.Case.Compat.html#toTitle"><span class="hs-pragma hs-type">toTitle</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-104"></span><span class="annot"><a href="Unicode.Char.Case.Compat.html#toTitle"><span class="hs-identifier hs-type">toTitle</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span>
+</span><span id="line-105"></span><span id="toTitle"><span class="annot"><span class="annottext">toTitle :: Char -&gt; Char
+</span><a href="Unicode.Char.Case.Compat.html#toTitle"><span class="hs-identifier hs-var hs-var">toTitle</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Char
+</span><a href="Unicode.Internal.Char.UnicodeData.SimpleTitleCaseMapping.html#toSimpleTitleCase"><span class="hs-identifier hs-var">C.toSimpleTitleCase</span></a></span><span>
+</span><span id="line-106"></span></pre></body></html>

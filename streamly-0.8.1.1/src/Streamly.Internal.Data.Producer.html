@@ -1,0 +1,131 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-- |</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- Module      : Streamly.Internal.Data.Producer</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Copyright   : (c) 2021 Composewell Technologies</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- License     : BSD-3-Clause</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- Maintainer  : streamly@composewell.com</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Stability   : experimental</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Portability : GHC</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- A 'Producer' is an 'Unfold' with an 'extract' function added to extract</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- the state. It is more powerful but less general than an Unfold.</span><span>
+</span><span id="line-11"></span><span class="hs-comment">--</span><span>
+</span><span id="line-12"></span><span class="hs-comment">-- A 'Producer' represents steps of a loop generating a sequence of elements.</span><span>
+</span><span id="line-13"></span><span class="hs-comment">-- While unfolds are closed representation of imperative loops with some opaque</span><span>
+</span><span id="line-14"></span><span class="hs-comment">-- internal state, producers are open loops with the state being accessible to</span><span>
+</span><span id="line-15"></span><span class="hs-comment">-- the user.</span><span>
+</span><span id="line-16"></span><span class="hs-comment">--</span><span>
+</span><span id="line-17"></span><span class="hs-comment">-- Unlike an unfold, which runs a loop till completion, a producer can be</span><span>
+</span><span id="line-18"></span><span class="hs-comment">-- stopped in the middle, its state can be extracted, examined, changed, and</span><span>
+</span><span id="line-19"></span><span class="hs-comment">-- then it can be resumed later from the stopped state.</span><span>
+</span><span id="line-20"></span><span class="hs-comment">--</span><span>
+</span><span id="line-21"></span><span class="hs-comment">-- A producer can be used in places where a CPS stream would otherwise be</span><span>
+</span><span id="line-22"></span><span class="hs-comment">-- needed, because the state of the loop can be passed around. However, it can</span><span>
+</span><span id="line-23"></span><span class="hs-comment">-- be much more efficient than CPS because it allows stream fusion and</span><span>
+</span><span id="line-24"></span><span class="hs-comment">-- unecessary function calls can be avoided.</span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Streamly.Internal.Data.Producer</span><span>
+</span><span id="line-27"></span><span>    </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Producer.Type.html#Producer"><span class="hs-identifier">Producer</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Converting</span></span><span>
+</span><span id="line-30"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Producer.html#simplify"><span class="hs-identifier">simplify</span></a></span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Producers</span></span><span>
+</span><span id="line-33"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Producer.Type.html#nil"><span class="hs-identifier">nil</span></a></span><span>
+</span><span id="line-34"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Producer.Type.html#nilM"><span class="hs-identifier">nilM</span></a></span><span>
+</span><span id="line-35"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Producer.Type.html#unfoldrM"><span class="hs-identifier">unfoldrM</span></a></span><span>
+</span><span id="line-36"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Producer.html#fromStreamD"><span class="hs-identifier">fromStreamD</span></a></span><span>
+</span><span id="line-37"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Producer.Type.html#fromList"><span class="hs-identifier">fromList</span></a></span><span>
+</span><span id="line-38"></span><span>
+</span><span id="line-39"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Combinators</span></span><span>
+</span><span id="line-40"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Producer.Type.html#NestedLoop"><span class="hs-identifier">NestedLoop</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-41"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Producer.Type.html#concat"><span class="hs-identifier">concat</span></a></span><span>
+</span><span id="line-42"></span><span>    </span><span class="hs-special">)</span><span>
+</span><span id="line-43"></span><span class="hs-keyword">where</span><span class="hs-cpp">
+
+#include &quot;inline.hs&quot;
+</span><span>
+</span><span id="line-47"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamD.Step.html"><span class="hs-identifier">Streamly.Internal.Data.Stream.StreamD.Step</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamD.Step.html#Step"><span class="hs-identifier">Step</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-48"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamD.Type.html"><span class="hs-identifier">Streamly.Internal.Data.Stream.StreamD.Type</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamD.Type.html#Stream"><span class="hs-identifier">Stream</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-49"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html"><span class="hs-identifier">Streamly.Internal.Data.SVar.Type</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#defState"><span class="hs-identifier">defState</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-50"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Unfold.Type.html"><span class="hs-identifier">Streamly.Internal.Data.Unfold.Type</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Unfold.Type.html#Unfold"><span class="hs-identifier">Unfold</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-51"></span><span>
+</span><span id="line-52"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Producer.Type.html"><span class="hs-identifier">Streamly.Internal.Data.Producer.Type</span></a></span><span>
+</span><span id="line-53"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">concat</span></span><span class="hs-special">)</span><span>
+</span><span id="line-54"></span><span>
+</span><span id="line-55"></span><span class="hs-comment">-- XXX We should write unfolds as producers where possible and define</span><span>
+</span><span id="line-56"></span><span class="hs-comment">-- unfolds using &quot;simplify&quot;.</span><span>
+</span><span id="line-57"></span><span class="hs-comment">--</span><span>
+</span><span id="line-58"></span><span class="hs-comment">-------------------------------------------------------------------------------</span><span>
+</span><span id="line-59"></span><span class="hs-comment">-- Converting to unfolds</span><span>
+</span><span id="line-60"></span><span class="hs-comment">-------------------------------------------------------------------------------</span><span>
+</span><span id="line-61"></span><span>
+</span><span id="line-62"></span><span class="hs-comment">-- | Simplify a producer to an unfold.</span><span>
+</span><span id="line-63"></span><span class="hs-comment">--</span><span>
+</span><span id="line-64"></span><span class="hs-comment">-- /Pre-release/</span><span>
+</span><span id="line-65"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Producer.html#simplify"><span class="hs-pragma hs-type">simplify</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-66"></span><span id="local-6989586621679399506"><span id="local-6989586621679399507"><span id="local-6989586621679399508"><span class="annot"><a href="Streamly.Internal.Data.Producer.html#simplify"><span class="hs-identifier hs-type">simplify</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Producer.Type.html#Producer"><span class="hs-identifier hs-type">Producer</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679399508"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679399507"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679399506"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Unfold.Type.html#Unfold"><span class="hs-identifier hs-type">Unfold</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679399508"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679399507"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679399506"><span class="hs-identifier hs-type">b</span></a></span></span></span></span><span>
+</span><span id="line-67"></span><span id="simplify"><span class="annot"><span class="annottext">simplify :: forall (m :: * -&gt; *) a b. Producer m a b -&gt; Unfold m a b
+</span><a href="Streamly.Internal.Data.Producer.html#simplify"><span class="hs-identifier hs-var hs-var">simplify</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Producer.Type.html#Producer"><span class="hs-identifier hs-type">Producer</span></a></span><span> </span><span id="local-6989586621679399457"><span class="annot"><span class="annottext">s -&gt; m (Step s b)
+</span><a href="#local-6989586621679399457"><span class="hs-identifier hs-var">step</span></a></span></span><span> </span><span id="local-6989586621679399456"><span class="annot"><span class="annottext">a -&gt; m s
+</span><a href="#local-6989586621679399456"><span class="hs-identifier hs-var">inject</span></a></span></span><span> </span><span class="annot"><span class="annottext">s -&gt; m a
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a b s.
+(s -&gt; m (Step s b)) -&gt; (a -&gt; m s) -&gt; Unfold m a b
+</span><a href="Streamly.Internal.Data.Unfold.Type.html#Unfold"><span class="hs-identifier hs-var">Unfold</span></a></span><span> </span><span class="annot"><span class="annottext">s -&gt; m (Step s b)
+</span><a href="#local-6989586621679399457"><span class="hs-identifier hs-var">step</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; m s
+</span><a href="#local-6989586621679399456"><span class="hs-identifier hs-var">inject</span></a></span><span>
+</span><span id="line-68"></span><span>
+</span><span id="line-69"></span><span class="hs-comment">-------------------------------------------------------------------------------</span><span>
+</span><span id="line-70"></span><span class="hs-comment">-- Unfolds</span><span>
+</span><span id="line-71"></span><span class="hs-comment">-------------------------------------------------------------------------------</span><span>
+</span><span id="line-72"></span><span>
+</span><span id="line-73"></span><span class="hs-comment">-- | Convert a StreamD stream into a producer.</span><span>
+</span><span id="line-74"></span><span class="hs-comment">--</span><span>
+</span><span id="line-75"></span><span class="hs-comment">-- /Pre-release/</span><span>
+</span><span id="line-76"></span><span class="hs-pragma">{-# INLINE_NORMAL fromStreamD #-}</span><span>
+</span><span id="line-77"></span><span id="local-6989586621679399493"><span id="local-6989586621679399494"><span class="annot"><a href="Streamly.Internal.Data.Producer.html#fromStreamD"><span class="hs-identifier hs-type">fromStreamD</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621679399494"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Producer.Type.html#Producer"><span class="hs-identifier hs-type">Producer</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679399494"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamD.Type.html#Stream"><span class="hs-identifier hs-type">Stream</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679399494"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679399493"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679399493"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-78"></span><span id="fromStreamD"><span class="annot"><span class="annottext">fromStreamD :: forall (m :: * -&gt; *) a. Monad m =&gt; Producer m (Stream m a) a
+</span><a href="Streamly.Internal.Data.Producer.html#fromStreamD"><span class="hs-identifier hs-var hs-var">fromStreamD</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a b s.
+(s -&gt; m (Step s b)) -&gt; (a -&gt; m s) -&gt; (s -&gt; m a) -&gt; Producer m a b
+</span><a href="Streamly.Internal.Data.Producer.Type.html#Producer"><span class="hs-identifier hs-var">Producer</span></a></span><span> </span><span class="annot"><span class="annottext">forall {m :: * -&gt; *} {a}.
+Monad m =&gt;
+Stream m a -&gt; m (Step (Stream m a) a)
+</span><a href="#local-6989586621679399450"><span class="hs-identifier hs-var">step</span></a></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span>
+</span><span id="line-79"></span><span>
+</span><span id="line-80"></span><span>    </span><span class="hs-keyword">where</span><span>
+</span><span id="line-81"></span><span>
+</span><span id="line-82"></span><span>    </span><span class="hs-pragma">{-# INLINE_LATE step #-}</span><span>
+</span><span id="line-83"></span><span>    </span><span id="local-6989586621679399450"><span class="annot"><span class="annottext">step :: Stream m a -&gt; m (Step (Stream m a) a)
+</span><a href="#local-6989586621679399450"><span class="hs-identifier hs-var hs-var">step</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamD.Type.html#UnStream"><span class="hs-identifier hs-type">UnStream</span></a></span><span> </span><span id="local-6989586621679399445"><span class="annot"><span class="annottext">State Stream m a -&gt; s -&gt; m (Step s a)
+</span><a href="#local-6989586621679399445"><span class="hs-identifier hs-var">step1</span></a></span></span><span> </span><span id="local-6989586621679399444"><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679399444"><span class="hs-identifier hs-var">state1</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-84"></span><span>        </span><span id="local-6989586621679399443"><span class="annot"><span class="annottext">Step s a
+</span><a href="#local-6989586621679399443"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">State Stream m a -&gt; s -&gt; m (Step s a)
+</span><a href="#local-6989586621679399445"><span class="hs-identifier hs-var">step1</span></a></span><span> </span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a. State t m a
+</span><a href="Streamly.Internal.Data.SVar.Type.html#defState"><span class="hs-identifier hs-var">defState</span></a></span><span> </span><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679399444"><span class="hs-identifier hs-var">state1</span></a></span><span>
+</span><span id="line-85"></span><span>        </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Step s a
+</span><a href="#local-6989586621679399443"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-86"></span><span>            </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamD.Step.html#Yield"><span class="hs-identifier hs-type">Yield</span></a></span><span> </span><span id="local-6989586621679399441"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679399441"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621679399440"><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679399440"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall s a. a -&gt; s -&gt; Step s a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Step.html#Yield"><span class="hs-identifier hs-var">Yield</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679399441"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a s.
+(State Stream m a -&gt; s -&gt; m (Step s a)) -&gt; s -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Type.html#Stream"><span class="hs-identifier hs-var">Stream</span></a></span><span> </span><span class="annot"><span class="annottext">State Stream m a -&gt; s -&gt; m (Step s a)
+</span><a href="#local-6989586621679399445"><span class="hs-identifier hs-var">step1</span></a></span><span> </span><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679399440"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-87"></span><span>            </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamD.Step.html#Skip"><span class="hs-identifier hs-type">Skip</span></a></span><span> </span><span id="local-6989586621679399437"><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679399437"><span class="hs-identifier hs-var">s</span></a></span></span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall s a. s -&gt; Step s a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Step.html#Skip"><span class="hs-identifier hs-var">Skip</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a s.
+(State Stream m a -&gt; s -&gt; m (Step s a)) -&gt; s -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Type.html#Stream"><span class="hs-identifier hs-var">Stream</span></a></span><span> </span><span class="annot"><span class="annottext">State Stream m a -&gt; s -&gt; m (Step s a)
+</span><a href="#local-6989586621679399445"><span class="hs-identifier hs-var">step1</span></a></span><span> </span><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679399437"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-88"></span><span>            </span><span class="annot"><span class="annottext">Step s a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Step.html#Stop"><span class="hs-identifier hs-var">Stop</span></a></span><span>      </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall s a. Step s a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Step.html#Stop"><span class="hs-identifier hs-var">Stop</span></a></span><span>
+</span><span id="line-89"></span></pre></body></html>

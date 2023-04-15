@@ -1,0 +1,113 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-- |</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- Module      : Streamly.Internal.Unicode.Utf8</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Copyright   : (c) 2021 Composewell Technologies</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- License     : BSD-3-Clause</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- Maintainer  : streamly@composewell.com</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Stability   : experimental</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Portability : GHC</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Streamly.Internal.Unicode.Utf8</span><span>
+</span><span id="line-10"></span><span>    </span><span class="hs-special">(</span><span>
+</span><span id="line-11"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Type</span></span><span>
+</span><span id="line-12"></span><span>      </span><span class="annot"><a href="Streamly.Internal.Unicode.Utf8.html#Utf8"><span class="hs-identifier">Utf8</span></a></span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Creation and elimination</span></span><span>
+</span><span id="line-15"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Unicode.Utf8.html#pack"><span class="hs-identifier">pack</span></a></span><span>
+</span><span id="line-16"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Unicode.Utf8.html#unpack"><span class="hs-identifier">unpack</span></a></span><span>
+</span><span id="line-17"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Unicode.Utf8.html#toArray"><span class="hs-identifier">toArray</span></a></span><span>
+</span><span id="line-18"></span><span>    </span><span class="hs-special">)</span><span>
+</span><span id="line-19"></span><span class="hs-keyword">where</span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span class="hs-comment">--------------------------------------------------------------------------------</span><span>
+</span><span id="line-22"></span><span class="hs-comment">-- Imports</span><span>
+</span><span id="line-23"></span><span class="hs-comment">--------------------------------------------------------------------------------</span><span>
+</span><span id="line-24"></span><span>
+</span><span id="line-25"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.DeepSeq</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">NFData</span></span><span class="hs-special">)</span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Word</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Word8</span></span><span class="hs-special">)</span><span>
+</span><span id="line-27"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Array.Foreign.Type.html"><span class="hs-identifier">Streamly.Internal.Data.Array.Foreign.Type</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Array.Foreign.Type.html#Array"><span class="hs-identifier">Array</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-28"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">System.IO.Unsafe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">unsafePerformIO</span></span><span class="hs-special">)</span><span>
+</span><span id="line-29"></span><span>
+</span><span id="line-30"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Array.Foreign.html"><span class="hs-identifier">Streamly.Internal.Data.Array.Foreign</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Array</span></span><span>
+</span><span id="line-31"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.IsStream.html"><span class="hs-identifier">Streamly.Internal.Data.Stream.IsStream</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Stream</span></span><span>
+</span><span id="line-32"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Streamly.Internal.Unicode.Stream.html"><span class="hs-identifier">Streamly.Internal.Unicode.Stream</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Unicode</span></span><span>
+</span><span id="line-33"></span><span>
+</span><span id="line-34"></span><span class="hs-comment">--------------------------------------------------------------------------------</span><span>
+</span><span id="line-35"></span><span class="hs-comment">-- Type</span><span>
+</span><span id="line-36"></span><span class="hs-comment">--------------------------------------------------------------------------------</span><span>
+</span><span id="line-37"></span><span>
+</span><span id="line-38"></span><span class="hs-comment">-- | A space efficient, packed, unboxed Unicode container.</span><span>
+</span><span id="line-39"></span><span class="hs-keyword">newtype</span><span> </span><span id="Utf8"><span class="annot"><a href="Streamly.Internal.Unicode.Utf8.html#Utf8"><span class="hs-identifier hs-var">Utf8</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-40"></span><span>    </span><span id="Utf8"><span class="annot"><a href="Streamly.Internal.Unicode.Utf8.html#Utf8"><span class="hs-identifier hs-var">Utf8</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Array.Foreign.Type.html#Array"><span class="hs-identifier hs-type">Array</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word8</span></span><span class="hs-special">)</span><span>
+</span><span id="line-41"></span><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679435729"><span class="annot"><span class="annottext">Utf8 -&gt; ()
+forall a. (a -&gt; ()) -&gt; NFData a
+rnf :: Utf8 -&gt; ()
+$crnf :: Utf8 -&gt; ()
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">NFData</span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span class="hs-comment">--------------------------------------------------------------------------------</span><span>
+</span><span id="line-44"></span><span class="hs-comment">-- Functions</span><span>
+</span><span id="line-45"></span><span class="hs-comment">--------------------------------------------------------------------------------</span><span>
+</span><span id="line-46"></span><span>
+</span><span id="line-47"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Streamly.Internal.Unicode.Utf8.html#toArray"><span class="hs-pragma hs-type">toArray</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-48"></span><span class="annot"><a href="Streamly.Internal.Unicode.Utf8.html#toArray"><span class="hs-identifier hs-type">toArray</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.Unicode.Utf8.html#Utf8"><span class="hs-identifier hs-type">Utf8</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Array.Foreign.Type.html#Array"><span class="hs-identifier hs-type">Array</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word8</span></span><span>
+</span><span id="line-49"></span><span id="toArray"><span class="annot"><span class="annottext">toArray :: Utf8 -&gt; Array Word8
+</span><a href="Streamly.Internal.Unicode.Utf8.html#toArray"><span class="hs-identifier hs-var hs-var">toArray</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Unicode.Utf8.html#Utf8"><span class="hs-identifier hs-type">Utf8</span></a></span><span> </span><span id="local-6989586621679435723"><span class="annot"><span class="annottext">Array Word8
+</span><a href="#local-6989586621679435723"><span class="hs-identifier hs-var">arr</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Array Word8
+</span><a href="#local-6989586621679435723"><span class="hs-identifier hs-var">arr</span></a></span><span>
+</span><span id="line-50"></span><span>
+</span><span id="line-51"></span><span>
+</span><span id="line-52"></span><span class="hs-pragma">{-# INLINEABLE</span><span> </span><span class="annot"><a href="Streamly.Internal.Unicode.Utf8.html#pack"><span class="hs-pragma hs-type">pack</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-53"></span><span class="annot"><a href="Streamly.Internal.Unicode.Utf8.html#pack"><span class="hs-identifier hs-type">pack</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Unicode.Utf8.html#Utf8"><span class="hs-identifier hs-type">Utf8</span></a></span><span>
+</span><span id="line-54"></span><span id="pack"><span class="annot"><span class="annottext">pack :: String -&gt; Utf8
+</span><a href="Streamly.Internal.Unicode.Utf8.html#pack"><span class="hs-identifier hs-var hs-var">pack</span></a></span></span><span> </span><span id="local-6989586621679435722"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679435722"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-55"></span><span>    </span><span class="annot"><span class="annottext">Array Word8 -&gt; Utf8
+</span><a href="Streamly.Internal.Unicode.Utf8.html#Utf8"><span class="hs-identifier hs-var">Utf8</span></a></span><span>
+</span><span id="line-56"></span><span>        </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a. IO a -&gt; a
+</span><span class="hs-identifier hs-var">unsafePerformIO</span></span><span>
+</span><span id="line-57"></span><span>        </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a.
+(MonadIO m, Storable a) =&gt;
+Int -&gt; SerialT m a -&gt; m (Array a)
+</span><a href="Streamly.Internal.Data.Array.Foreign.html#fromStreamN"><span class="hs-identifier hs-var">Array.fromStreamN</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679435720"><span class="hs-identifier hs-var">len</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) (t :: (* -&gt; *) -&gt; * -&gt; *).
+(Monad m, IsStream t) =&gt;
+t m Char -&gt; t m Word8
+</span><a href="Streamly.Internal.Unicode.Stream.html#encodeUtf8%27"><span class="hs-identifier hs-var">Unicode.encodeUtf8'</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) (t :: (* -&gt; *) -&gt; * -&gt; *) a.
+(Monad m, IsStream t) =&gt;
+[a] -&gt; t m a
+</span><a href="Streamly.Internal.Data.Stream.IsStream.Type.html#fromList"><span class="hs-identifier hs-var">Stream.fromList</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679435722"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-58"></span><span>
+</span><span id="line-59"></span><span>    </span><span class="hs-keyword">where</span><span>
+</span><span id="line-60"></span><span>
+</span><span id="line-61"></span><span>    </span><span id="local-6989586621679435720"><span class="annot"><span class="annottext">len :: Int
+</span><a href="#local-6989586621679435720"><span class="hs-identifier hs-var hs-var">len</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Int
+</span><span class="hs-identifier hs-var">length</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679435722"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-62"></span><span>
+</span><span id="line-63"></span><span class="hs-pragma">{-# INLINEABLE</span><span> </span><span class="annot"><a href="Streamly.Internal.Unicode.Utf8.html#unpack"><span class="hs-pragma hs-type">unpack</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-64"></span><span class="annot"><a href="Streamly.Internal.Unicode.Utf8.html#unpack"><span class="hs-identifier hs-type">unpack</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.Unicode.Utf8.html#Utf8"><span class="hs-identifier hs-type">Utf8</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-65"></span><span id="unpack"><span class="annot"><span class="annottext">unpack :: Utf8 -&gt; String
+</span><a href="Streamly.Internal.Unicode.Utf8.html#unpack"><span class="hs-identifier hs-var hs-var">unpack</span></a></span></span><span> </span><span id="local-6989586621679435714"><span class="annot"><span class="annottext">Utf8
+</span><a href="#local-6989586621679435714"><span class="hs-identifier hs-var">u</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-66"></span><span>    </span><span class="annot"><span class="annottext">forall a. IO a -&gt; a
+</span><span class="hs-identifier hs-var">unsafePerformIO</span></span><span>
+</span><span id="line-67"></span><span>        </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; SerialT m a -&gt; m [a]
+</span><a href="Streamly.Internal.Data.Stream.IsStream.Eliminate.html#toList"><span class="hs-identifier hs-var">Stream.toList</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) (t :: (* -&gt; *) -&gt; * -&gt; *).
+(Monad m, IsStream t) =&gt;
+t m Word8 -&gt; t m Char
+</span><a href="Streamly.Internal.Unicode.Stream.html#decodeUtf8%27"><span class="hs-identifier hs-var">Unicode.decodeUtf8'</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a.
+(Monad m, Storable a) =&gt;
+Array a -&gt; SerialT m a
+</span><a href="Streamly.Internal.Data.Array.Foreign.Type.html#toStream"><span class="hs-identifier hs-var">Array.toStream</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Utf8 -&gt; Array Word8
+</span><a href="Streamly.Internal.Unicode.Utf8.html#toArray"><span class="hs-identifier hs-var">toArray</span></a></span><span> </span><span class="annot"><span class="annottext">Utf8
+</span><a href="#local-6989586621679435714"><span class="hs-identifier hs-var">u</span></a></span><span>
+</span><span id="line-68"></span></pre></body></html>

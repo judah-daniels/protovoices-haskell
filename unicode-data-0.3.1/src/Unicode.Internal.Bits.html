@@ -1,0 +1,129 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE CPP #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Module      : Unicode.Internal.Bits</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- Copyright   : (c) 2020 Andrew Lelechenko</span><span>
+</span><span id="line-6"></span><span class="hs-comment">--               (c) 2020 Composewell Technologies</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- License     : BSD-3-Clause</span><span>
+</span><span id="line-8"></span><span class="hs-comment">-- Maintainer  : streamly@composewell.com</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Stability   : experimental</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- Portability : GHC</span><span>
+</span><span id="line-11"></span><span class="hs-comment">--</span><span>
+</span><span id="line-12"></span><span class="hs-comment">-- Fast, static bitmap lookup utilities</span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Unicode.Internal.Bits</span><span>
+</span><span id="line-15"></span><span>    </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Unicode.Internal.Bits.html#lookupBit64"><span class="hs-identifier">lookupBit64</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-16"></span><span>      </span><span class="annot"><a href="Unicode.Internal.Bits.html#lookupIntN"><span class="hs-identifier">lookupIntN</span></a></span><span>
+</span><span id="line-17"></span><span>    </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span class="hs-cpp">
+
+#include &quot;MachDeps.h&quot;
+</span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Bits</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">finiteBitSize</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">popCount</span></span><span class="hs-special">)</span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.Exts</span></span><span>
+</span><span id="line-23"></span><span>       </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Addr#</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">Int</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">Word</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-24"></span><span>        </span><span class="annot"><span class="hs-identifier">indexWordOffAddr#</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">indexWord8OffAddr#</span></span><span class="hs-special">,</span><span>
+</span><span id="line-25"></span><span>        </span><span class="annot"><span class="hs-identifier">andI#</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">uncheckedIShiftRL#</span></span><span class="hs-special">,</span><span>
+</span><span id="line-26"></span><span>        </span><span class="annot"><span class="hs-identifier">and#</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">word2Int#</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">uncheckedShiftL#</span></span><span class="hs-special">)</span><span class="hs-cpp">
+#if MIN_VERSION_base(4,16,0)
+</span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.Exts</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">word8ToWord#</span></span><span class="hs-special">)</span><span class="hs-cpp">
+#endif
+</span><span class="hs-cpp">#ifdef WORDS_BIGENDIAN
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">GHC.Exts</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">byteSwap#</span><span class="hs-special">)</span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-34"></span><span class="hs-comment">-- | @lookup64 addr index@ looks up the bit stored at bit index @index@ using a</span><span>
+</span><span id="line-35"></span><span class="hs-comment">-- bitmap starting at the address @addr@. Looks up the 64-bit word containing</span><span>
+</span><span id="line-36"></span><span class="hs-comment">-- the bit and then the bit in that word. The caller must make sure that the</span><span>
+</span><span id="line-37"></span><span class="hs-comment">-- 64-bit word at the byte address (addr + index / 64) * 8 is legally</span><span>
+</span><span id="line-38"></span><span class="hs-comment">-- accessible memory.</span><span>
+</span><span id="line-39"></span><span class="hs-comment">--</span><span>
+</span><span id="line-40"></span><span class="annot"><a href="Unicode.Internal.Bits.html#lookupBit64"><span class="hs-identifier hs-type">lookupBit64</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Addr#</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-41"></span><span id="lookupBit64"><span class="annot"><span class="annottext">lookupBit64 :: Addr# -&gt; Int -&gt; Bool
+</span><a href="Unicode.Internal.Bits.html#lookupBit64"><span class="hs-identifier hs-var hs-var">lookupBit64</span></a></span></span><span> </span><span id="local-6989586621679405378"><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621679405378"><span class="hs-identifier hs-var">addr#</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">I#</span></span><span> </span><span id="local-6989586621679405377"><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621679405377"><span class="hs-identifier hs-var">index#</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word# -&gt; Word
+</span><span class="hs-identifier hs-var">W#</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Word#
+</span><a href="#local-6989586621679405376"><span class="hs-identifier hs-var">word##</span></a></span><span> </span><span class="annot"><span class="annottext">Word# -&gt; Word# -&gt; Word#
+</span><span class="hs-operator hs-var">`and#`</span></span><span> </span><span class="annot"><span class="annottext">Word#
+</span><a href="#local-6989586621679405375"><span class="hs-identifier hs-var">bitMask##</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">/=</span></span><span> </span><span class="annot"><span class="annottext">Word
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-42"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-43"></span><span>    </span><span class="hs-glyph">!</span><span id="local-6989586621679405368"><span class="annot"><span class="annottext">fbs :: Int
+</span><a href="#local-6989586621679405368"><span class="hs-identifier hs-var">fbs</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">I#</span></span><span> </span><span id="local-6989586621679405367"><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621679405367"><span class="hs-identifier hs-var">fbs#</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall b. FiniteBits b =&gt; b -&gt; Int
+</span><span class="hs-identifier hs-var">finiteBitSize</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Word
+</span><span class="hs-number">0</span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span>
+</span><span id="line-44"></span><span>    </span><span class="hs-glyph">!</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">I#</span></span><span> </span><span id="local-6989586621679405357"><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621679405357"><span class="hs-identifier hs-var">logFbs#</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679405368"><span class="hs-identifier hs-var">fbs</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-45"></span><span>      </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">31</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">5</span></span><span>
+</span><span id="line-46"></span><span>      </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">63</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">6</span></span><span>
+</span><span id="line-47"></span><span>      </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-identifier">_</span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall a. Bits a =&gt; a -&gt; Int
+</span><span class="hs-identifier hs-var">popCount</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679405368"><span class="hs-identifier hs-var">fbs</span></a></span><span> </span><span class="hs-comment">-- this is a really weird architecture</span><span>
+</span><span id="line-48"></span><span>
+</span><span id="line-49"></span><span>    </span><span id="local-6989586621679405356"><span class="annot"><span class="annottext">wordIndex# :: Int#
+</span><a href="#local-6989586621679405356"><span class="hs-identifier hs-var hs-var">wordIndex#</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621679405377"><span class="hs-identifier hs-var">index#</span></a></span><span> </span><span class="annot"><span class="annottext">Int# -&gt; Int# -&gt; Int#
+</span><span class="hs-operator hs-var">`uncheckedIShiftRL#`</span></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621679405357"><span class="hs-identifier hs-var">logFbs#</span></a></span><span class="hs-cpp">
+#ifdef WORDS_BIGENDIAN
+</span><span>    </span><span class="hs-identifier">word##</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">byteSwap#</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">indexWordOffAddr#</span><span> </span><span class="hs-identifier">addr#</span><span> </span><span class="hs-identifier">wordIndex#</span><span class="hs-special">)</span><span class="hs-cpp">
+#else
+</span><span>    </span><span id="local-6989586621679405376"><span class="annot"><span class="annottext">word## :: Word#
+</span><a href="#local-6989586621679405376"><span class="hs-identifier hs-var hs-var">word##</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Addr# -&gt; Int# -&gt; Word#
+</span><span class="hs-identifier hs-var">indexWordOffAddr#</span></span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621679405378"><span class="hs-identifier hs-var">addr#</span></a></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621679405356"><span class="hs-identifier hs-var">wordIndex#</span></a></span><span class="hs-cpp">
+#endif
+</span><span>    </span><span id="local-6989586621679405355"><span class="annot"><span class="annottext">bitIndex# :: Int#
+</span><a href="#local-6989586621679405355"><span class="hs-identifier hs-var hs-var">bitIndex#</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621679405377"><span class="hs-identifier hs-var">index#</span></a></span><span> </span><span class="annot"><span class="annottext">Int# -&gt; Int# -&gt; Int#
+</span><span class="hs-operator hs-var">`andI#`</span></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621679405367"><span class="hs-identifier hs-var">fbs#</span></a></span><span>
+</span><span id="line-56"></span><span>    </span><span id="local-6989586621679405375"><span class="annot"><span class="annottext">bitMask## :: Word#
+</span><a href="#local-6989586621679405375"><span class="hs-identifier hs-var hs-var">bitMask##</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word#
+</span><span class="hs-number">1##</span></span><span> </span><span class="annot"><span class="annottext">Word# -&gt; Int# -&gt; Word#
+</span><span class="hs-operator hs-var">`uncheckedShiftL#`</span></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621679405355"><span class="hs-identifier hs-var">bitIndex#</span></a></span><span>
+</span><span id="line-57"></span><span>
+</span><span id="line-58"></span><span class="hs-comment">{-| @lookupIntN addr index@ looks up for the @index@-th @8@-bits word in
+the bitmap starting at @addr@, then convert it to an Int.
+
+The caller must make sure that:
+
+* @ceiling (addr + (n * 8))@ is legally accessible @Word8@.
+
+@since 0.3.0
+-}</span><span>
+</span><span id="line-67"></span><span class="annot"><a href="Unicode.Internal.Bits.html#lookupIntN"><span class="hs-identifier hs-type">lookupIntN</span></a></span><span>
+</span><span id="line-68"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Addr#</span></span><span> </span><span class="hs-comment">-- ^ Bitmap address</span><span>
+</span><span id="line-69"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>   </span><span class="hs-comment">-- ^ Word index</span><span>
+</span><span id="line-70"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>   </span><span class="hs-comment">-- ^ Resulting word as 'Int'</span><span>
+</span><span id="line-71"></span><span id="lookupIntN"><span class="annot"><span class="annottext">lookupIntN :: Addr# -&gt; Int -&gt; Int
+</span><a href="Unicode.Internal.Bits.html#lookupIntN"><span class="hs-identifier hs-var hs-var">lookupIntN</span></a></span></span><span> </span><span id="local-6989586621679405354"><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621679405354"><span class="hs-identifier hs-var">addr#</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">I#</span></span><span> </span><span id="local-6989586621679405353"><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621679405353"><span class="hs-identifier hs-var">index#</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int# -&gt; Int
+</span><span class="hs-identifier hs-var">I#</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Word# -&gt; Int#
+</span><span class="hs-identifier hs-var">word2Int#</span></span><span> </span><span class="annot"><span class="annottext">Word#
+</span><a href="#local-6989586621679405352"><span class="hs-identifier hs-var">word##</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-72"></span><span>  </span><span class="hs-keyword">where</span><span class="hs-cpp">
+#if MIN_VERSION_base(4,16,0)
+</span><span>    </span><span id="local-6989586621679405352"><span class="annot"><span class="annottext">word## :: Word#
+</span><a href="#local-6989586621679405352"><span class="hs-identifier hs-var hs-var">word##</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word8# -&gt; Word#
+</span><span class="hs-identifier hs-var">word8ToWord#</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Addr# -&gt; Int# -&gt; Word8#
+</span><span class="hs-identifier hs-var">indexWord8OffAddr#</span></span><span> </span><span class="annot"><span class="annottext">Addr#
+</span><a href="#local-6989586621679405354"><span class="hs-identifier hs-var">addr#</span></a></span><span> </span><span class="annot"><span class="annottext">Int#
+</span><a href="#local-6989586621679405353"><span class="hs-identifier hs-var">index#</span></a></span><span class="hs-special">)</span><span class="hs-cpp">
+#else
+</span><span>    </span><span class="hs-identifier">word##</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">indexWord8OffAddr#</span><span> </span><span class="hs-identifier">addr#</span><span> </span><span class="hs-identifier">index#</span><span class="hs-cpp">
+#endif
+</span></pre></body></html>

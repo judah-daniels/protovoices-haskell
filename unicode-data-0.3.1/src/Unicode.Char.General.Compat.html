@@ -1,0 +1,118 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-- |</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- Module      : Unicode.Char.General.Compat</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Copyright   : (c) 2020 Composewell Technologies and Contributors</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- License     : Apache-2.0</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- Maintainer  : streamly@composewell.com</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Stability   : experimental</span><span>
+</span><span id="line-7"></span><span class="hs-comment">--</span><span>
+</span><span id="line-8"></span><span class="hs-comment">-- Compatibility module for general character property related functions.</span><span>
+</span><span id="line-9"></span><span class="hs-comment">--</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- The functions of this module are drop-in replacement for those in &quot;Data.Char&quot;.</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-- They are similar but not identical to some functions in &quot;Unicode.Char.General&quot;,</span><span>
+</span><span id="line-12"></span><span class="hs-comment">-- therefore they are placed in a separate module in order to avoid ambiguity.</span><span>
+</span><span id="line-13"></span><span class="hs-comment">--</span><span>
+</span><span id="line-14"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Unicode.Char.General.Compat</span><span>
+</span><span id="line-15"></span><span>    </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Unicode.Char.General.Compat.html#isAlpha"><span class="hs-identifier">isAlpha</span></a></span><span>
+</span><span id="line-16"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.General.Compat.html#isLetter"><span class="hs-identifier">isLetter</span></a></span><span>
+</span><span id="line-17"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.General.Compat.html#isSpace"><span class="hs-identifier">isSpace</span></a></span><span>
+</span><span id="line-18"></span><span>    </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Unicode.Char.General.html"><span class="hs-identifier">Unicode.Char.General</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Unicode.Char.General.html#GeneralCategory"><span class="hs-identifier">GeneralCategory</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.General.html#generalCategory"><span class="hs-identifier">generalCategory</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span class="hs-comment">-- | Same as 'isLetter'.</span><span>
+</span><span id="line-23"></span><span class="hs-comment">--</span><span>
+</span><span id="line-24"></span><span class="hs-comment">-- @since 0.3.0</span><span>
+</span><span id="line-25"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Unicode.Char.General.Compat.html#isAlpha"><span class="hs-pragma hs-type">isAlpha</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-26"></span><span class="annot"><a href="Unicode.Char.General.Compat.html#isAlpha"><span class="hs-identifier hs-type">isAlpha</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-27"></span><span id="isAlpha"><span class="annot"><span class="annottext">isAlpha :: Char -&gt; Bool
+</span><a href="Unicode.Char.General.Compat.html#isAlpha"><span class="hs-identifier hs-var hs-var">isAlpha</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><a href="Unicode.Char.General.Compat.html#isLetter"><span class="hs-identifier hs-var">isLetter</span></a></span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span class="hs-comment">{-| Selects alphabetic Unicode characters (lower-case, upper-case and title-case
+letters, plus letters of caseless scripts and modifiers letters).
+
+This function returns 'True' if its argument has one of the
+following 'GeneralCategory's, or 'False' otherwise:
+
+* 'UppercaseLetter'
+* 'LowercaseLetter'
+* 'TitlecaseLetter'
+* 'ModifierLetter'
+* 'OtherLetter'
+
+__Note:__ this function is /not/ equivalent to 'Unicode.Char.General.isAlphabetic'.
+See the description of 'Unicode.Char.General.isAlphabetic' for further details.
+
+prop&gt; isLetter c == Data.Char.isLetter c
+
+@since 0.3.0
+-}</span><span>
+</span><span id="line-48"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Unicode.Char.General.Compat.html#isLetter"><span class="hs-pragma hs-type">isLetter</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-49"></span><span class="annot"><a href="Unicode.Char.General.Compat.html#isLetter"><span class="hs-identifier hs-type">isLetter</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-50"></span><span id="isLetter"><span class="annot"><span class="annottext">isLetter :: Char -&gt; Bool
+</span><a href="Unicode.Char.General.Compat.html#isLetter"><span class="hs-identifier hs-var hs-var">isLetter</span></a></span></span><span> </span><span id="local-6989586621679415137"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679415137"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Char -&gt; GeneralCategory
+</span><a href="Unicode.Char.General.html#generalCategory"><span class="hs-identifier hs-var">generalCategory</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679415137"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-51"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#UppercaseLetter"><span class="hs-identifier hs-var">UppercaseLetter</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-52"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#LowercaseLetter"><span class="hs-identifier hs-var">LowercaseLetter</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-53"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#TitlecaseLetter"><span class="hs-identifier hs-var">TitlecaseLetter</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-54"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#ModifierLetter"><span class="hs-identifier hs-var">ModifierLetter</span></a></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-55"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#OtherLetter"><span class="hs-identifier hs-var">OtherLetter</span></a></span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-56"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><span class="hs-identifier">_</span></span><span>               </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-57"></span><span>
+</span><span id="line-58"></span><span class="hs-comment">{-| Selects Unicode space characters (general category 'Space'),
+and the control characters @\\t@, @\\n@, @\\r@, @\\f@, @\\v@.
+
+__Note:__ 'isSpace' is /not/ equivalent to 'Unicode.Char.General.isWhiteSpace'.
+'Unicode.Char.General.isWhiteSpace' selects the same characters from 'isSpace'
+plus the following:
+
+* @U+0085@ NEXT LINE (NEL)
+* @U+2028@ LINE SEPARATOR
+* @U+2029@ PARAGRAPH SEPARATOR
+
+prop&gt; isSpace c == Data.Char.isSpace c
+
+@since 0.3.0
+-}</span><span>
+</span><span id="line-73"></span><span class="annot"><a href="Unicode.Char.General.Compat.html#isSpace"><span class="hs-identifier hs-type">isSpace</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-74"></span><span id="isSpace"><span class="annot"><span class="annottext">isSpace :: Char -&gt; Bool
+</span><a href="Unicode.Char.General.Compat.html#isSpace"><span class="hs-identifier hs-var hs-var">isSpace</span></a></span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'\t'</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-75"></span><span class="annot"><a href="Unicode.Char.General.Compat.html#isSpace"><span class="hs-identifier hs-var">isSpace</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'\n'</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-76"></span><span class="annot"><a href="Unicode.Char.General.Compat.html#isSpace"><span class="hs-identifier hs-var">isSpace</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'\v'</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-77"></span><span class="annot"><a href="Unicode.Char.General.Compat.html#isSpace"><span class="hs-identifier hs-var">isSpace</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'\f'</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-78"></span><span class="annot"><a href="Unicode.Char.General.Compat.html#isSpace"><span class="hs-identifier hs-var">isSpace</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'\r'</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-79"></span><span class="annot"><a href="Unicode.Char.General.Compat.html#isSpace"><span class="hs-identifier hs-var">isSpace</span></a></span><span> </span><span id="local-6989586621679415131"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679415131"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Char -&gt; GeneralCategory
+</span><a href="Unicode.Char.General.html#generalCategory"><span class="hs-identifier hs-var">generalCategory</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679415131"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-80"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#Space"><span class="hs-identifier hs-var">Space</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-81"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><span class="hs-identifier">_</span></span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-82"></span></pre></body></html>

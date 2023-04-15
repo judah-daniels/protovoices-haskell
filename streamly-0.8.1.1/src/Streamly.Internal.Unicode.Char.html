@@ -1,0 +1,1055 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span id="local-6989586621679433621"><span id="local-6989586621679433622"></span></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- Module      : Streamly.Internal.Unicode.Char</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Copyright   : (c) 2018 Composewell Technologies</span><span>
+</span><span id="line-4"></span><span class="hs-comment">--</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License     : BSD-3-Clause</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer  : streamly@composewell.com</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability   : experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">-- Portability : GHC</span><span>
+</span><span id="line-9"></span><span class="hs-comment">--</span><span>
+</span><span id="line-10"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Streamly.Internal.Unicode.Char</span><span>
+</span><span id="line-11"></span><span>    </span><span class="hs-special">(</span><span>
+</span><span id="line-12"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Predicates</span></span><span>
+</span><span id="line-13"></span><span>      </span><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#isAsciiAlpha"><span class="hs-identifier">isAsciiAlpha</span></a></span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Unicode aware operations</span></span><span>
+</span><span id="line-16"></span><span>    </span><span class="hs-comment">{-
+      toCaseFold
+    , toLower
+    , toUpper
+    , toTitle
+    -}</span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Unicode normalization</span></span><span>
+</span><span id="line-24"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#NormalizationMode"><span class="hs-identifier">NormalizationMode</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-25"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#normalize"><span class="hs-identifier">normalize</span></a></span><span>
+</span><span id="line-26"></span><span>    </span><span class="hs-special">)</span><span>
+</span><span id="line-27"></span><span class="hs-keyword">where</span><span class="hs-cpp">
+
+#include &quot;inline.hs&quot;
+</span><span>
+</span><span id="line-31"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Char</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">isAsciiUpper</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">isAsciiLower</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">chr</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">ord</span></span><span class="hs-special">)</span><span>
+</span><span id="line-32"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Typeable</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Typeable</span></span><span class="hs-special">)</span><span>
+</span><span id="line-33"></span><span>
+</span><span id="line-34"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Unicode.Char</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">DecomposeMode</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-35"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.IsStream.Type.html"><span class="hs-identifier">Streamly.Internal.Data.Stream.IsStream.Type</span></a></span><span>
+</span><span id="line-36"></span><span>    </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Stream.IsStream.Type.html#IsStream"><span class="hs-identifier">IsStream</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.IsStream.Type.html#fromStreamD"><span class="hs-identifier">fromStreamD</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.IsStream.Type.html#toStreamD"><span class="hs-identifier">toStreamD</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-37"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamD.html"><span class="hs-identifier">Streamly.Internal.Data.Stream.StreamD</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamD.Type.html#Stream"><span class="hs-identifier">Stream</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamD.Step.html#Step"><span class="hs-identifier">Step</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-38"></span><span>
+</span><span id="line-39"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Unicode.Char</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Char</span></span><span>
+</span><span id="line-40"></span><span>
+</span><span id="line-41"></span><span class="hs-comment">-------------------------------------------------------------------------------</span><span>
+</span><span id="line-42"></span><span class="hs-comment">-- Unicode aware operations on strings</span><span>
+</span><span id="line-43"></span><span class="hs-comment">-------------------------------------------------------------------------------</span><span>
+</span><span id="line-44"></span><span>
+</span><span id="line-45"></span><span class="hs-comment">-- | Select alphabetic characters in the ascii character set.</span><span>
+</span><span id="line-46"></span><span class="hs-comment">--</span><span>
+</span><span id="line-47"></span><span class="hs-comment">-- /Pre-release/</span><span>
+</span><span id="line-48"></span><span class="hs-comment">--</span><span>
+</span><span id="line-49"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#isAsciiAlpha"><span class="hs-pragma hs-type">isAsciiAlpha</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-50"></span><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#isAsciiAlpha"><span class="hs-identifier hs-type">isAsciiAlpha</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-51"></span><span id="isAsciiAlpha"><span class="annot"><span class="annottext">isAsciiAlpha :: Char -&gt; Bool
+</span><a href="Streamly.Internal.Unicode.Char.html#isAsciiAlpha"><span class="hs-identifier hs-var hs-var">isAsciiAlpha</span></a></span></span><span> </span><span id="local-6989586621679433610"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433610"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><span class="hs-identifier hs-var">isAsciiUpper</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433610"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">||</span></span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><span class="hs-identifier hs-var">isAsciiLower</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433610"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-52"></span><span>
+</span><span id="line-53"></span><span class="hs-comment">-------------------------------------------------------------------------------</span><span>
+</span><span id="line-54"></span><span class="hs-comment">-- Unicode aware operations on strings</span><span>
+</span><span id="line-55"></span><span class="hs-comment">-------------------------------------------------------------------------------</span><span>
+</span><span id="line-56"></span><span>
+</span><span id="line-57"></span><span class="hs-comment">{-
+-- |
+-- /undefined/
+toCaseFold :: IsStream t =&gt; Char -&gt; t m Char
+toCaseFold = undefined
+
+-- |
+-- /undefined/
+toLower :: IsStream t =&gt; Char -&gt; t m Char
+toLower = undefined
+
+-- |
+-- /undefined/
+toUpper :: IsStream t =&gt; Char -&gt; t m Char
+toUpper = undefined
+
+-- |
+-- /undefined/
+toTitle :: IsStream t =&gt; Char -&gt; t m Char
+toTitle = undefined
+-}</span><span>
+</span><span id="line-78"></span><span>
+</span><span id="line-79"></span><span class="hs-comment">-------------------------------------------------------------------------------</span><span>
+</span><span id="line-80"></span><span class="hs-comment">-- Unicode normalization</span><span>
+</span><span id="line-81"></span><span class="hs-comment">-------------------------------------------------------------------------------</span><span>
+</span><span id="line-82"></span><span>
+</span><span id="line-83"></span><span class="hs-keyword">data</span><span> </span><span id="NormalizationMode"><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#NormalizationMode"><span class="hs-identifier hs-var">NormalizationMode</span></a></span></span><span>
+</span><span id="line-84"></span><span>    </span><span class="hs-glyph">=</span><span> </span><span id="NFD"><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#NFD"><span class="hs-identifier hs-var">NFD</span></a></span></span><span>    </span><span class="hs-comment">-- ^ Canonical decomposition.</span><span>
+</span><span id="line-85"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="NFKD"><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#NFKD"><span class="hs-identifier hs-var">NFKD</span></a></span></span><span>   </span><span class="hs-comment">-- ^ Compatibility decomposition.</span><span>
+</span><span id="line-86"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="NFC"><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#NFC"><span class="hs-identifier hs-var">NFC</span></a></span></span><span>    </span><span class="hs-comment">-- ^ Canonical decomposition followed by canonical composition.</span><span>
+</span><span id="line-87"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="NFKC"><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#NFKC"><span class="hs-identifier hs-var">NFKC</span></a></span></span><span>   </span><span class="hs-comment">-- ^ Compatibility decomposition followed by canonical composition.</span><span>
+</span><span id="line-88"></span><span>      </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679433601"><span id="local-6989586621679433603"><span class="annot"><span class="annottext">NormalizationMode -&gt; NormalizationMode -&gt; Bool
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+/= :: NormalizationMode -&gt; NormalizationMode -&gt; Bool
+$c/= :: NormalizationMode -&gt; NormalizationMode -&gt; Bool
+== :: NormalizationMode -&gt; NormalizationMode -&gt; Bool
+$c== :: NormalizationMode -&gt; NormalizationMode -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679433594"><span id="local-6989586621679433596"><span id="local-6989586621679433598"><span class="annot"><span class="annottext">Int -&gt; NormalizationMode -&gt; ShowS
+[NormalizationMode] -&gt; ShowS
+NormalizationMode -&gt; String
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+showList :: [NormalizationMode] -&gt; ShowS
+$cshowList :: [NormalizationMode] -&gt; ShowS
+show :: NormalizationMode -&gt; String
+$cshow :: NormalizationMode -&gt; String
+showsPrec :: Int -&gt; NormalizationMode -&gt; ShowS
+$cshowsPrec :: Int -&gt; NormalizationMode -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679433556"><span id="local-6989586621679433558"><span id="local-6989586621679433562"><span id="local-6989586621679433566"><span id="local-6989586621679433568"><span id="local-6989586621679433577"><span id="local-6989586621679433583"><span id="local-6989586621679433591"><span class="annot"><span class="annottext">Int -&gt; NormalizationMode
+NormalizationMode -&gt; Int
+NormalizationMode -&gt; [NormalizationMode]
+NormalizationMode -&gt; NormalizationMode
+NormalizationMode -&gt; NormalizationMode -&gt; [NormalizationMode]
+NormalizationMode
+-&gt; NormalizationMode -&gt; NormalizationMode -&gt; [NormalizationMode]
+forall a.
+(a -&gt; a)
+-&gt; (a -&gt; a)
+-&gt; (Int -&gt; a)
+-&gt; (a -&gt; Int)
+-&gt; (a -&gt; [a])
+-&gt; (a -&gt; a -&gt; [a])
+-&gt; (a -&gt; a -&gt; [a])
+-&gt; (a -&gt; a -&gt; a -&gt; [a])
+-&gt; Enum a
+enumFromThenTo :: NormalizationMode
+-&gt; NormalizationMode -&gt; NormalizationMode -&gt; [NormalizationMode]
+$cenumFromThenTo :: NormalizationMode
+-&gt; NormalizationMode -&gt; NormalizationMode -&gt; [NormalizationMode]
+enumFromTo :: NormalizationMode -&gt; NormalizationMode -&gt; [NormalizationMode]
+$cenumFromTo :: NormalizationMode -&gt; NormalizationMode -&gt; [NormalizationMode]
+enumFromThen :: NormalizationMode -&gt; NormalizationMode -&gt; [NormalizationMode]
+$cenumFromThen :: NormalizationMode -&gt; NormalizationMode -&gt; [NormalizationMode]
+enumFrom :: NormalizationMode -&gt; [NormalizationMode]
+$cenumFrom :: NormalizationMode -&gt; [NormalizationMode]
+fromEnum :: NormalizationMode -&gt; Int
+$cfromEnum :: NormalizationMode -&gt; Int
+toEnum :: Int -&gt; NormalizationMode
+$ctoEnum :: Int -&gt; NormalizationMode
+pred :: NormalizationMode -&gt; NormalizationMode
+$cpred :: NormalizationMode -&gt; NormalizationMode
+succ :: NormalizationMode -&gt; NormalizationMode
+$csucc :: NormalizationMode -&gt; NormalizationMode
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Enum</span></span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Typeable</span></span><span class="hs-special">)</span><span>
+</span><span id="line-89"></span><span>
+</span><span id="line-90"></span><span class="hs-comment">-------------------------------------------------------------------------------</span><span>
+</span><span id="line-91"></span><span class="hs-comment">-- Normalization combinators</span><span>
+</span><span id="line-92"></span><span class="hs-comment">-------------------------------------------------------------------------------</span><span>
+</span><span id="line-93"></span><span>
+</span><span id="line-94"></span><span class="hs-keyword">type</span><span> </span><span id="ReBuf"><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#ReBuf"><span class="hs-identifier hs-var">ReBuf</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span class="hs-special">]</span><span>
+</span><span id="line-95"></span><span>
+</span><span id="line-96"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#insertIntoReBuf"><span class="hs-pragma hs-type">insertIntoReBuf</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-97"></span><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#insertIntoReBuf"><span class="hs-identifier hs-type">insertIntoReBuf</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#ReBuf"><span class="hs-identifier hs-type">ReBuf</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#ReBuf"><span class="hs-identifier hs-type">ReBuf</span></a></span><span>
+</span><span id="line-98"></span><span id="insertIntoReBuf"><span class="annot"><span class="annottext">insertIntoReBuf :: Char -&gt; ShowS
+</span><a href="Streamly.Internal.Unicode.Char.html#insertIntoReBuf"><span class="hs-identifier hs-var hs-var">insertIntoReBuf</span></a></span></span><span> </span><span id="local-6989586621679433552"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433552"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433552"><span class="hs-identifier hs-var">c</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-99"></span><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#insertIntoReBuf"><span class="hs-identifier hs-var">insertIntoReBuf</span></a></span><span> </span><span id="local-6989586621679433551"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433551"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span id="local-6989586621679433550"><span class="annot"><span class="annottext">xxs :: String
+</span><a href="#local-6989586621679433550"><span class="hs-identifier hs-var">xxs</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span id="local-6989586621679433549"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433549"><span class="hs-identifier hs-var">x</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621679433548"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679433548"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span>
+</span><span id="line-100"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Int
+</span><span class="hs-identifier hs-var">Char.combiningClass</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433551"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;</span></span><span> </span><span class="annot"><span class="annottext">Char -&gt; Int
+</span><span class="hs-identifier hs-var">Char.combiningClass</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433549"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433551"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679433550"><span class="hs-identifier hs-var">xxs</span></a></span><span>
+</span><span id="line-101"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433549"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">Char -&gt; ShowS
+</span><a href="Streamly.Internal.Unicode.Char.html#insertIntoReBuf"><span class="hs-identifier hs-var">insertIntoReBuf</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433551"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679433548"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-102"></span><span>
+</span><span id="line-103"></span><span class="hs-comment">-- {-# ANN type DecomposeState Fuse #-}</span><span>
+</span><span id="line-104"></span><span class="hs-keyword">data</span><span> </span><span id="DecomposeState"><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#DecomposeState"><span class="hs-identifier hs-var">DecomposeState</span></a></span></span><span> </span><span id="local-6989586621679433676"><span class="annot"><a href="#local-6989586621679433676"><span class="hs-identifier hs-type">st</span></a></span></span><span>
+</span><span id="line-105"></span><span>    </span><span class="hs-glyph">=</span><span> </span><span id="YieldCharList"><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#YieldCharList"><span class="hs-identifier hs-var">YieldCharList</span></a></span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span class="hs-special">]</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#DecomposeState"><span class="hs-identifier hs-type">DecomposeState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679433676"><span class="hs-identifier hs-type">st</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-106"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="ReadInputChar"><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#ReadInputChar"><span class="hs-identifier hs-var">ReadInputChar</span></a></span></span><span> </span><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#ReBuf"><span class="hs-identifier hs-type">ReBuf</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679433676"><span class="hs-identifier hs-type">st</span></a></span><span>
+</span><span id="line-107"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="IsHangul"><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#IsHangul"><span class="hs-identifier hs-var">IsHangul</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="annot"><a href="#local-6989586621679433676"><span class="hs-identifier hs-type">st</span></a></span><span>
+</span><span id="line-108"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="IsDecomposable"><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#IsDecomposable"><span class="hs-identifier hs-var">IsDecomposable</span></a></span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span class="hs-special">]</span><span> </span><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#ReBuf"><span class="hs-identifier hs-type">ReBuf</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679433676"><span class="hs-identifier hs-type">st</span></a></span><span>
+</span><span id="line-109"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="DecomposeStop"><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#DecomposeStop"><span class="hs-identifier hs-var">DecomposeStop</span></a></span></span><span>
+</span><span id="line-110"></span><span>
+</span><span id="line-111"></span><span class="hs-pragma">{-# INLINE_NORMAL decomposeD #-}</span><span>
+</span><span id="line-112"></span><span id="local-6989586621679433688"><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#decomposeD"><span class="hs-identifier hs-type">decomposeD</span></a></span><span> </span><span class="hs-glyph">::</span><span>
+</span><span id="line-113"></span><span>       </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621679433688"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">DecomposeMode</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamD.Type.html#Stream"><span class="hs-identifier hs-type">Stream</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679433688"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamD.Type.html#Stream"><span class="hs-identifier hs-type">Stream</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679433688"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span></span><span>
+</span><span id="line-114"></span><span id="decomposeD"><span class="annot"><span class="annottext">decomposeD :: forall (m :: * -&gt; *).
+Monad m =&gt;
+Bool -&gt; DecomposeMode -&gt; Stream m Char -&gt; Stream m Char
+</span><a href="Streamly.Internal.Unicode.Char.html#decomposeD"><span class="hs-identifier hs-var hs-var">decomposeD</span></a></span></span><span> </span><span id="local-6989586621679433538"><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621679433538"><span class="hs-identifier hs-var">decomposeHangul</span></a></span></span><span> </span><span id="local-6989586621679433537"><span class="annot"><span class="annottext">DecomposeMode
+</span><a href="#local-6989586621679433537"><span class="hs-identifier hs-var">mode</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamD.Type.html#Stream"><span class="hs-identifier hs-type">Stream</span></a></span><span> </span><span id="local-6989586621679433535"><span class="annot"><span class="annottext">State Stream m Char -&gt; s -&gt; m (Step s Char)
+</span><a href="#local-6989586621679433535"><span class="hs-identifier hs-var">step</span></a></span></span><span> </span><span id="local-6989586621679433534"><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679433534"><span class="hs-identifier hs-var">state</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-115"></span><span>    </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a s.
+(State Stream m a -&gt; s -&gt; m (Step s a)) -&gt; s -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Type.html#Stream"><span class="hs-identifier hs-var">Stream</span></a></span><span> </span><span class="annot"><span class="annottext">State Stream m Char
+-&gt; DecomposeState s -&gt; m (Step (DecomposeState s) Char)
+</span><a href="#local-6989586621679433533"><span class="hs-identifier hs-var">sstep</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall st. String -&gt; st -&gt; DecomposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#ReadInputChar"><span class="hs-identifier hs-var">ReadInputChar</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679433534"><span class="hs-identifier hs-var">state</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-116"></span><span>
+</span><span id="line-117"></span><span>    </span><span class="hs-keyword">where</span><span>
+</span><span id="line-118"></span><span>
+</span><span id="line-119"></span><span>    </span><span class="hs-pragma">{-# INLINE_LATE sstep #-}</span><span>
+</span><span id="line-120"></span><span>    </span><span class="hs-comment">-- XXX Does this cause any problem?</span><span>
+</span><span id="line-121"></span><span>    </span><span id="local-6989586621679433533"><span class="annot"><span class="annottext">sstep :: State Stream m Char
+-&gt; DecomposeState s -&gt; m (Step (DecomposeState s) Char)
+</span><a href="#local-6989586621679433533"><span class="hs-identifier hs-var hs-var">sstep</span></a></span></span><span> </span><span class="annot"><span class="annottext">State Stream m Char
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#YieldCharList"><span class="hs-identifier hs-type">YieldCharList</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span id="local-6989586621679433521"><span class="annot"><span class="annottext">DecomposeState s
+</span><a href="#local-6989586621679433521"><span class="hs-identifier hs-var">ns</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall s a. s -&gt; Step s a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Step.html#Skip"><span class="hs-identifier hs-var">Skip</span></a></span><span> </span><span class="annot"><span class="annottext">DecomposeState s
+</span><a href="#local-6989586621679433521"><span class="hs-identifier hs-var">ns</span></a></span><span>
+</span><span id="line-122"></span><span>    </span><span class="annot"><a href="#local-6989586621679433533"><span class="hs-identifier hs-var">sstep</span></a></span><span> </span><span class="annot"><span class="annottext">State Stream m Char
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#YieldCharList"><span class="hs-identifier hs-type">YieldCharList</span></a></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679433519"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433519"><span class="hs-identifier hs-var">ch</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621679433518"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679433518"><span class="hs-identifier hs-var">chs</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679433517"><span class="annot"><span class="annottext">DecomposeState s
+</span><a href="#local-6989586621679433517"><span class="hs-identifier hs-var">ns</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-123"></span><span>        </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall s a. a -&gt; s -&gt; Step s a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Step.html#Yield"><span class="hs-identifier hs-var">Yield</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433519"><span class="hs-identifier hs-var">ch</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall st. String -&gt; DecomposeState st -&gt; DecomposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#YieldCharList"><span class="hs-identifier hs-var">YieldCharList</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679433518"><span class="hs-identifier hs-var">chs</span></a></span><span> </span><span class="annot"><span class="annottext">DecomposeState s
+</span><a href="#local-6989586621679433517"><span class="hs-identifier hs-var">ns</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-124"></span><span>    </span><span class="annot"><a href="#local-6989586621679433533"><span class="hs-identifier hs-var">sstep</span></a></span><span> </span><span id="local-6989586621679433515"><span class="annot"><span class="annottext">State Stream m Char
+</span><a href="#local-6989586621679433515"><span class="hs-identifier hs-var">gst</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#ReadInputChar"><span class="hs-identifier hs-type">ReadInputChar</span></a></span><span> </span><span id="local-6989586621679433514"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679433514"><span class="hs-identifier hs-var">rebuf</span></a></span></span><span> </span><span id="local-6989586621679433513"><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679433513"><span class="hs-identifier hs-var">st</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-125"></span><span>        </span><span id="local-6989586621679433512"><span class="annot"><span class="annottext">Step s Char
+</span><a href="#local-6989586621679433512"><span class="hs-identifier hs-var">res</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">State Stream m Char -&gt; s -&gt; m (Step s Char)
+</span><a href="#local-6989586621679433535"><span class="hs-identifier hs-var">step</span></a></span><span> </span><span class="annot"><span class="annottext">State Stream m Char
+</span><a href="#local-6989586621679433515"><span class="hs-identifier hs-var">gst</span></a></span><span> </span><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679433513"><span class="hs-identifier hs-var">st</span></a></span><span>
+</span><span id="line-126"></span><span>        </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span>
+</span><span id="line-127"></span><span>          </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall s a. s -&gt; Step s a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Step.html#Skip"><span class="hs-identifier hs-var">Skip</span></a></span><span>
+</span><span id="line-128"></span><span>          </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Step s Char
+</span><a href="#local-6989586621679433512"><span class="hs-identifier hs-var">res</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-129"></span><span>                </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamD.Step.html#Yield"><span class="hs-identifier hs-type">Yield</span></a></span><span> </span><span id="local-6989586621679433511"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433511"><span class="hs-identifier hs-var">ch</span></a></span></span><span> </span><span id="local-6989586621679433510"><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679433510"><span class="hs-identifier hs-var">st1</span></a></span></span><span>
+</span><span id="line-130"></span><span>                    </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><span class="hs-identifier hs-var">Char.isHangul</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433511"><span class="hs-identifier hs-var">ch</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-131"></span><span>                        </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621679433538"><span class="hs-identifier hs-var">decomposeHangul</span></a></span><span>
+</span><span id="line-132"></span><span>                        </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">forall st. String -&gt; DecomposeState st -&gt; DecomposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#YieldCharList"><span class="hs-identifier hs-var">YieldCharList</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679433514"><span class="hs-identifier hs-var">rebuf</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall st. Char -&gt; st -&gt; DecomposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#IsHangul"><span class="hs-identifier hs-var">IsHangul</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433511"><span class="hs-identifier hs-var">ch</span></a></span><span> </span><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679433510"><span class="hs-identifier hs-var">st1</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-133"></span><span>                        </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">forall st. String -&gt; DecomposeState st -&gt; DecomposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#YieldCharList"><span class="hs-identifier hs-var">YieldCharList</span></a></span><span>
+</span><span id="line-134"></span><span>                                 </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679433514"><span class="hs-identifier hs-var">rebuf</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433511"><span class="hs-identifier hs-var">ch</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-135"></span><span>                                 </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall st. String -&gt; st -&gt; DecomposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#ReadInputChar"><span class="hs-identifier hs-var">ReadInputChar</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679433510"><span class="hs-identifier hs-var">st1</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-136"></span><span>                    </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">DecomposeMode -&gt; Char -&gt; Bool
+</span><span class="hs-identifier hs-var">Char.isDecomposable</span></span><span> </span><span class="annot"><span class="annottext">DecomposeMode
+</span><a href="#local-6989586621679433537"><span class="hs-identifier hs-var">mode</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433511"><span class="hs-identifier hs-var">ch</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-137"></span><span>                        </span><span class="annot"><span class="annottext">forall st. String -&gt; String -&gt; st -&gt; DecomposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#IsDecomposable"><span class="hs-identifier hs-var">IsDecomposable</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">DecomposeMode -&gt; Char -&gt; String
+</span><span class="hs-identifier hs-var">Char.decompose</span></span><span> </span><span class="annot"><span class="annottext">DecomposeMode
+</span><a href="#local-6989586621679433537"><span class="hs-identifier hs-var">mode</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433511"><span class="hs-identifier hs-var">ch</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679433514"><span class="hs-identifier hs-var">rebuf</span></a></span><span> </span><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679433510"><span class="hs-identifier hs-var">st1</span></a></span><span>
+</span><span id="line-138"></span><span>                    </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-139"></span><span>                        </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><span class="hs-identifier hs-var">Char.isCombining</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433511"><span class="hs-identifier hs-var">ch</span></a></span><span>
+</span><span id="line-140"></span><span>                        </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">forall st. String -&gt; st -&gt; DecomposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#ReadInputChar"><span class="hs-identifier hs-var">ReadInputChar</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char -&gt; ShowS
+</span><a href="Streamly.Internal.Unicode.Char.html#insertIntoReBuf"><span class="hs-identifier hs-var">insertIntoReBuf</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433511"><span class="hs-identifier hs-var">ch</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679433514"><span class="hs-identifier hs-var">rebuf</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679433510"><span class="hs-identifier hs-var">st1</span></a></span><span>
+</span><span id="line-141"></span><span>                        </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">forall st. String -&gt; DecomposeState st -&gt; DecomposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#YieldCharList"><span class="hs-identifier hs-var">YieldCharList</span></a></span><span>
+</span><span id="line-142"></span><span>                                 </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679433514"><span class="hs-identifier hs-var">rebuf</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433511"><span class="hs-identifier hs-var">ch</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-143"></span><span>                                 </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall st. String -&gt; st -&gt; DecomposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#ReadInputChar"><span class="hs-identifier hs-var">ReadInputChar</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679433510"><span class="hs-identifier hs-var">st1</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-144"></span><span>                </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamD.Step.html#Skip"><span class="hs-identifier hs-type">Skip</span></a></span><span> </span><span id="local-6989586621679433505"><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679433505"><span class="hs-identifier hs-var">st1</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall st. String -&gt; st -&gt; DecomposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#ReadInputChar"><span class="hs-identifier hs-var">ReadInputChar</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679433514"><span class="hs-identifier hs-var">rebuf</span></a></span><span> </span><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679433505"><span class="hs-identifier hs-var">st1</span></a></span><span>
+</span><span id="line-145"></span><span>                </span><span class="annot"><span class="annottext">Step s Char
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Step.html#Stop"><span class="hs-identifier hs-var">Stop</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall st. String -&gt; DecomposeState st -&gt; DecomposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#YieldCharList"><span class="hs-identifier hs-var">YieldCharList</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679433514"><span class="hs-identifier hs-var">rebuf</span></a></span><span> </span><span class="annot"><span class="annottext">forall st. DecomposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#DecomposeStop"><span class="hs-identifier hs-var">DecomposeStop</span></a></span><span>
+</span><span id="line-146"></span><span>    </span><span class="annot"><a href="#local-6989586621679433533"><span class="hs-identifier hs-var">sstep</span></a></span><span> </span><span class="annot"><span class="annottext">State Stream m Char
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#IsHangul"><span class="hs-identifier hs-type">IsHangul</span></a></span><span> </span><span id="local-6989586621679433503"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433503"><span class="hs-identifier hs-var">ch</span></a></span></span><span> </span><span id="local-6989586621679433502"><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679433502"><span class="hs-identifier hs-var">st</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-147"></span><span>        </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span>
+</span><span id="line-148"></span><span>          </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall s a. s -&gt; Step s a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Step.html#Skip"><span class="hs-identifier hs-var">Skip</span></a></span><span>
+</span><span id="line-149"></span><span>          </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">let</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679433501"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433501"><span class="hs-identifier hs-var">l</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679433500"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433500"><span class="hs-identifier hs-var">v</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679433499"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433499"><span class="hs-identifier hs-var">t</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char -&gt; (Char, Char, Char)
+</span><span class="hs-identifier hs-var">Char.decomposeHangul</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433503"><span class="hs-identifier hs-var">ch</span></a></span><span>
+</span><span id="line-150"></span><span>             </span><span class="hs-keyword">in</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433499"><span class="hs-identifier hs-var">t</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Char
+</span><span class="hs-identifier hs-var">chr</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-identifier hs-var">Char.jamoTFirst</span></span><span>
+</span><span id="line-151"></span><span>                </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">forall st. String -&gt; DecomposeState st -&gt; DecomposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#YieldCharList"><span class="hs-identifier hs-var">YieldCharList</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433501"><span class="hs-identifier hs-var">l</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433500"><span class="hs-identifier hs-var">v</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall st. String -&gt; st -&gt; DecomposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#ReadInputChar"><span class="hs-identifier hs-var">ReadInputChar</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679433502"><span class="hs-identifier hs-var">st</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-152"></span><span>                </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">forall st. String -&gt; DecomposeState st -&gt; DecomposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#YieldCharList"><span class="hs-identifier hs-var">YieldCharList</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433501"><span class="hs-identifier hs-var">l</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433500"><span class="hs-identifier hs-var">v</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433499"><span class="hs-identifier hs-var">t</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall st. String -&gt; st -&gt; DecomposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#ReadInputChar"><span class="hs-identifier hs-var">ReadInputChar</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679433502"><span class="hs-identifier hs-var">st</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-153"></span><span>    </span><span class="annot"><a href="#local-6989586621679433533"><span class="hs-identifier hs-var">sstep</span></a></span><span> </span><span class="annot"><span class="annottext">State Stream m Char
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#IsDecomposable"><span class="hs-identifier hs-type">IsDecomposable</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span id="local-6989586621679433496"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679433496"><span class="hs-identifier hs-var">rebuf</span></a></span></span><span> </span><span id="local-6989586621679433495"><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679433495"><span class="hs-identifier hs-var">st</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-154"></span><span>        </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall s a. s -&gt; Step s a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Step.html#Skip"><span class="hs-identifier hs-var">Skip</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall st. String -&gt; st -&gt; DecomposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#ReadInputChar"><span class="hs-identifier hs-var">ReadInputChar</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679433496"><span class="hs-identifier hs-var">rebuf</span></a></span><span> </span><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679433495"><span class="hs-identifier hs-var">st</span></a></span><span>
+</span><span id="line-155"></span><span>    </span><span class="annot"><a href="#local-6989586621679433533"><span class="hs-identifier hs-var">sstep</span></a></span><span> </span><span class="annot"><span class="annottext">State Stream m Char
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#IsDecomposable"><span class="hs-identifier hs-type">IsDecomposable</span></a></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679433494"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433494"><span class="hs-identifier hs-var">ch</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621679433493"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679433493"><span class="hs-identifier hs-var">chs</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679433492"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679433492"><span class="hs-identifier hs-var">rebuf</span></a></span></span><span> </span><span id="local-6989586621679433491"><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679433491"><span class="hs-identifier hs-var">st</span></a></span></span><span class="hs-special">)</span><span>
+</span><span id="line-156"></span><span>        </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">DecomposeMode -&gt; Char -&gt; Bool
+</span><span class="hs-identifier hs-var">Char.isDecomposable</span></span><span> </span><span class="annot"><span class="annottext">DecomposeMode
+</span><a href="#local-6989586621679433537"><span class="hs-identifier hs-var">mode</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433494"><span class="hs-identifier hs-var">ch</span></a></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-157"></span><span>            </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span>
+</span><span id="line-158"></span><span>              </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall s a. s -&gt; Step s a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Step.html#Skip"><span class="hs-identifier hs-var">Skip</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall st. String -&gt; String -&gt; st -&gt; DecomposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#IsDecomposable"><span class="hs-identifier hs-var">IsDecomposable</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">DecomposeMode -&gt; Char -&gt; String
+</span><span class="hs-identifier hs-var">Char.decompose</span></span><span> </span><span class="annot"><span class="annottext">DecomposeMode
+</span><a href="#local-6989586621679433537"><span class="hs-identifier hs-var">mode</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433494"><span class="hs-identifier hs-var">ch</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679433493"><span class="hs-identifier hs-var">chs</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679433492"><span class="hs-identifier hs-var">rebuf</span></a></span><span> </span><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679433491"><span class="hs-identifier hs-var">st</span></a></span><span>
+</span><span id="line-159"></span><span>        </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-160"></span><span>            </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span>
+</span><span id="line-161"></span><span>              </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall s a. s -&gt; Step s a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Step.html#Skip"><span class="hs-identifier hs-var">Skip</span></a></span><span>
+</span><span id="line-162"></span><span>              </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><span class="hs-identifier hs-var">Char.isCombining</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433494"><span class="hs-identifier hs-var">ch</span></a></span><span>
+</span><span id="line-163"></span><span>                </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">forall st. String -&gt; String -&gt; st -&gt; DecomposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#IsDecomposable"><span class="hs-identifier hs-var">IsDecomposable</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679433493"><span class="hs-identifier hs-var">chs</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char -&gt; ShowS
+</span><a href="Streamly.Internal.Unicode.Char.html#insertIntoReBuf"><span class="hs-identifier hs-var">insertIntoReBuf</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433494"><span class="hs-identifier hs-var">ch</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679433492"><span class="hs-identifier hs-var">rebuf</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679433491"><span class="hs-identifier hs-var">st</span></a></span><span>
+</span><span id="line-164"></span><span>                </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">forall st. String -&gt; DecomposeState st -&gt; DecomposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#YieldCharList"><span class="hs-identifier hs-var">YieldCharList</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679433492"><span class="hs-identifier hs-var">rebuf</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433494"><span class="hs-identifier hs-var">ch</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall st. String -&gt; String -&gt; st -&gt; DecomposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#IsDecomposable"><span class="hs-identifier hs-var">IsDecomposable</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679433493"><span class="hs-identifier hs-var">chs</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679433491"><span class="hs-identifier hs-var">st</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-165"></span><span>    </span><span class="annot"><a href="#local-6989586621679433533"><span class="hs-identifier hs-var">sstep</span></a></span><span> </span><span class="annot"><span class="annottext">State Stream m Char
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">DecomposeState s
+</span><a href="Streamly.Internal.Unicode.Char.html#DecomposeStop"><span class="hs-identifier hs-var">DecomposeStop</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">forall s a. Step s a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Step.html#Stop"><span class="hs-identifier hs-var">Stop</span></a></span><span>
+</span><span id="line-166"></span><span>
+</span><span id="line-167"></span><span class="hs-comment">-- Hold an L to wait for V, hold an LV to wait for T.</span><span>
+</span><span id="line-168"></span><span class="hs-keyword">data</span><span> </span><span id="JamoBuf"><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#JamoBuf"><span class="hs-identifier hs-var">JamoBuf</span></a></span></span><span>
+</span><span id="line-169"></span><span>    </span><span class="hs-glyph">=</span><span> </span><span id="Jamo"><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#Jamo"><span class="hs-identifier hs-var">Jamo</span></a></span></span><span> </span><span class="hs-glyph">!</span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-comment">-- Jamo L, V or T</span><span>
+</span><span id="line-170"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="Hangul"><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#Hangul"><span class="hs-identifier hs-var">Hangul</span></a></span></span><span> </span><span class="hs-glyph">!</span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-comment">-- Hangul Syllable LV or LVT</span><span>
+</span><span id="line-171"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="HangulLV"><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#HangulLV"><span class="hs-identifier hs-var">HangulLV</span></a></span></span><span> </span><span class="hs-glyph">!</span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span>
+</span><span id="line-172"></span><span>
+</span><span id="line-173"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#fromJamoBuf"><span class="hs-pragma hs-type">fromJamoBuf</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-174"></span><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#fromJamoBuf"><span class="hs-identifier hs-type">fromJamoBuf</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#JamoBuf"><span class="hs-identifier hs-type">JamoBuf</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span>
+</span><span id="line-175"></span><span id="fromJamoBuf"><span class="annot"><span class="annottext">fromJamoBuf :: JamoBuf -&gt; Char
+</span><a href="Streamly.Internal.Unicode.Char.html#fromJamoBuf"><span class="hs-identifier hs-var hs-var">fromJamoBuf</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#Jamo"><span class="hs-identifier hs-type">Jamo</span></a></span><span> </span><span id="local-6989586621679433486"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433486"><span class="hs-identifier hs-var">ch</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433486"><span class="hs-identifier hs-var">ch</span></a></span><span>
+</span><span id="line-176"></span><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#fromJamoBuf"><span class="hs-identifier hs-var">fromJamoBuf</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#Hangul"><span class="hs-identifier hs-type">Hangul</span></a></span><span> </span><span id="local-6989586621679433485"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433485"><span class="hs-identifier hs-var">ch</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433485"><span class="hs-identifier hs-var">ch</span></a></span><span>
+</span><span id="line-177"></span><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#fromJamoBuf"><span class="hs-identifier hs-var">fromJamoBuf</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#HangulLV"><span class="hs-identifier hs-type">HangulLV</span></a></span><span> </span><span id="local-6989586621679433484"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433484"><span class="hs-identifier hs-var">ch</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433484"><span class="hs-identifier hs-var">ch</span></a></span><span>
+</span><span id="line-178"></span><span>
+</span><span id="line-179"></span><span class="hs-comment">-- {-# ANN type ComposeState Fuse #-}</span><span>
+</span><span id="line-180"></span><span class="hs-keyword">data</span><span> </span><span id="ComposeState"><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#ComposeState"><span class="hs-identifier hs-var">ComposeState</span></a></span></span><span> </span><span id="local-6989586621679433662"><span class="annot"><a href="#local-6989586621679433662"><span class="hs-identifier hs-type">st</span></a></span></span><span>
+</span><span id="line-181"></span><span>    </span><span class="hs-glyph">=</span><span> </span><span id="YieldChar"><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#YieldChar"><span class="hs-identifier hs-var">YieldChar</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#ComposeState"><span class="hs-identifier hs-type">ComposeState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679433662"><span class="hs-identifier hs-type">st</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-182"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="YieldList"><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#YieldList"><span class="hs-identifier hs-var">YieldList</span></a></span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span class="hs-special">]</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#ComposeState"><span class="hs-identifier hs-type">ComposeState</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679433662"><span class="hs-identifier hs-type">st</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-183"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="ComposeNone"><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#ComposeNone"><span class="hs-identifier hs-var">ComposeNone</span></a></span></span><span> </span><span class="annot"><a href="#local-6989586621679433662"><span class="hs-identifier hs-type">st</span></a></span><span>
+</span><span id="line-184"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="ComposeReg"><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#ComposeReg"><span class="hs-identifier hs-var">ComposeReg</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span class="hs-special">]</span><span> </span><span class="annot"><a href="#local-6989586621679433662"><span class="hs-identifier hs-type">st</span></a></span><span>
+</span><span id="line-185"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="ComposeJamo"><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#ComposeJamo"><span class="hs-identifier hs-var">ComposeJamo</span></a></span></span><span> </span><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#JamoBuf"><span class="hs-identifier hs-type">JamoBuf</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679433662"><span class="hs-identifier hs-type">st</span></a></span><span>
+</span><span id="line-186"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="ComposeStop"><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#ComposeStop"><span class="hs-identifier hs-var">ComposeStop</span></a></span></span><span>
+</span><span id="line-187"></span><span>
+</span><span id="line-188"></span><span class="hs-comment">-- Assumes every character except hangul characters are fully decomposed and the</span><span>
+</span><span id="line-189"></span><span class="hs-comment">-- combining characters are reordered. Hangul characters may or may not be</span><span>
+</span><span id="line-190"></span><span class="hs-comment">-- decomposed.</span><span>
+</span><span id="line-191"></span><span class="hs-pragma">{-# INLINE_EARLY partialComposeD #-}</span><span>
+</span><span id="line-192"></span><span id="local-6989586621679433666"><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#partialComposeD"><span class="hs-identifier hs-type">partialComposeD</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621679433666"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamD.Type.html#Stream"><span class="hs-identifier hs-type">Stream</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679433666"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamD.Type.html#Stream"><span class="hs-identifier hs-type">Stream</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679433666"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span></span><span>
+</span><span id="line-193"></span><span id="partialComposeD"><span class="annot"><span class="annottext">partialComposeD :: forall (m :: * -&gt; *). Monad m =&gt; Stream m Char -&gt; Stream m Char
+</span><a href="Streamly.Internal.Unicode.Char.html#partialComposeD"><span class="hs-identifier hs-var hs-var">partialComposeD</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamD.Type.html#Stream"><span class="hs-identifier hs-type">Stream</span></a></span><span> </span><span id="local-6989586621679433475"><span class="annot"><span class="annottext">State Stream m Char -&gt; s -&gt; m (Step s Char)
+</span><a href="#local-6989586621679433475"><span class="hs-identifier hs-var">step</span></a></span></span><span> </span><span id="local-6989586621679433474"><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679433474"><span class="hs-identifier hs-var">state</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a s.
+(State Stream m a -&gt; s -&gt; m (Step s a)) -&gt; s -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Type.html#Stream"><span class="hs-identifier hs-var">Stream</span></a></span><span> </span><span class="annot"><span class="annottext">State Stream m Char
+-&gt; ComposeState s -&gt; m (Step (ComposeState s) Char)
+</span><a href="#local-6989586621679433473"><span class="hs-identifier hs-var">step'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall st. st -&gt; ComposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#ComposeNone"><span class="hs-identifier hs-var">ComposeNone</span></a></span><span> </span><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679433474"><span class="hs-identifier hs-var">state</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-194"></span><span>
+</span><span id="line-195"></span><span>    </span><span class="hs-keyword">where</span><span>
+</span><span id="line-196"></span><span>
+</span><span id="line-197"></span><span>    </span><span class="hs-pragma">{-# INLINE_NORMAL step' #-}</span><span>
+</span><span id="line-198"></span><span>    </span><span id="local-6989586621679433473"><span class="annot"><span class="annottext">step' :: State Stream m Char
+-&gt; ComposeState s -&gt; m (Step (ComposeState s) Char)
+</span><a href="#local-6989586621679433473"><span class="hs-identifier hs-var hs-var">step'</span></a></span></span><span> </span><span class="annot"><span class="annottext">State Stream m Char
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">ComposeState s
+</span><a href="Streamly.Internal.Unicode.Char.html#ComposeStop"><span class="hs-identifier hs-var">ComposeStop</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">forall s a. Step s a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Step.html#Stop"><span class="hs-identifier hs-var">Stop</span></a></span><span>
+</span><span id="line-199"></span><span>    </span><span class="annot"><a href="#local-6989586621679433473"><span class="hs-identifier hs-var">step'</span></a></span><span> </span><span class="annot"><span class="annottext">State Stream m Char
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#YieldChar"><span class="hs-identifier hs-type">YieldChar</span></a></span><span> </span><span id="local-6989586621679433462"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433462"><span class="hs-identifier hs-var">ch</span></a></span></span><span> </span><span id="local-6989586621679433461"><span class="annot"><span class="annottext">ComposeState s
+</span><a href="#local-6989586621679433461"><span class="hs-identifier hs-var">ns</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall s a. a -&gt; s -&gt; Step s a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Step.html#Yield"><span class="hs-identifier hs-var">Yield</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433462"><span class="hs-identifier hs-var">ch</span></a></span><span> </span><span class="annot"><span class="annottext">ComposeState s
+</span><a href="#local-6989586621679433461"><span class="hs-identifier hs-var">ns</span></a></span><span>
+</span><span id="line-200"></span><span>    </span><span class="annot"><a href="#local-6989586621679433473"><span class="hs-identifier hs-var">step'</span></a></span><span> </span><span class="annot"><span class="annottext">State Stream m Char
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#YieldList"><span class="hs-identifier hs-type">YieldList</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span id="local-6989586621679433460"><span class="annot"><span class="annottext">ComposeState s
+</span><a href="#local-6989586621679433460"><span class="hs-identifier hs-var">ns</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall s a. s -&gt; Step s a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Step.html#Skip"><span class="hs-identifier hs-var">Skip</span></a></span><span> </span><span class="annot"><span class="annottext">ComposeState s
+</span><a href="#local-6989586621679433460"><span class="hs-identifier hs-var">ns</span></a></span><span>
+</span><span id="line-201"></span><span>    </span><span class="annot"><a href="#local-6989586621679433473"><span class="hs-identifier hs-var">step'</span></a></span><span> </span><span class="annot"><span class="annottext">State Stream m Char
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#YieldList"><span class="hs-identifier hs-type">YieldList</span></a></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679433459"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433459"><span class="hs-identifier hs-var">x</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621679433458"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679433458"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679433457"><span class="annot"><span class="annottext">ComposeState s
+</span><a href="#local-6989586621679433457"><span class="hs-identifier hs-var">ns</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall s a. a -&gt; s -&gt; Step s a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Step.html#Yield"><span class="hs-identifier hs-var">Yield</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433459"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall st. String -&gt; ComposeState st -&gt; ComposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#YieldList"><span class="hs-identifier hs-var">YieldList</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679433458"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">ComposeState s
+</span><a href="#local-6989586621679433457"><span class="hs-identifier hs-var">ns</span></a></span><span>
+</span><span id="line-202"></span><span>    </span><span class="annot"><a href="#local-6989586621679433473"><span class="hs-identifier hs-var">step'</span></a></span><span> </span><span id="local-6989586621679433456"><span class="annot"><span class="annottext">State Stream m Char
+</span><a href="#local-6989586621679433456"><span class="hs-identifier hs-var">gst</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#ComposeNone"><span class="hs-identifier hs-type">ComposeNone</span></a></span><span> </span><span id="local-6989586621679433455"><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679433455"><span class="hs-identifier hs-var">st</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-203"></span><span>        </span><span id="local-6989586621679433454"><span class="annot"><span class="annottext">Step s Char
+</span><a href="#local-6989586621679433454"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">State Stream m Char -&gt; s -&gt; m (Step s Char)
+</span><a href="#local-6989586621679433475"><span class="hs-identifier hs-var">step</span></a></span><span> </span><span class="annot"><span class="annottext">State Stream m Char
+</span><a href="#local-6989586621679433456"><span class="hs-identifier hs-var">gst</span></a></span><span> </span><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679433455"><span class="hs-identifier hs-var">st</span></a></span><span>
+</span><span id="line-204"></span><span>        </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span>
+</span><span id="line-205"></span><span>          </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Step s Char
+</span><a href="#local-6989586621679433454"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-206"></span><span>                </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamD.Step.html#Yield"><span class="hs-identifier hs-type">Yield</span></a></span><span> </span><span id="local-6989586621679433453"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433453"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621679433452"><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679433452"><span class="hs-identifier hs-var">st1</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall s a. s -&gt; Step s a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Step.html#Skip"><span class="hs-identifier hs-var">Skip</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall {st}. Char -&gt; st -&gt; ComposeState st
+</span><a href="#local-6989586621679433451"><span class="hs-identifier hs-var">composeNone</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433453"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679433452"><span class="hs-identifier hs-var">st1</span></a></span><span>
+</span><span id="line-207"></span><span>                </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamD.Step.html#Skip"><span class="hs-identifier hs-type">Skip</span></a></span><span> </span><span id="local-6989586621679433450"><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679433450"><span class="hs-identifier hs-var">st1</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall s a. s -&gt; Step s a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Step.html#Skip"><span class="hs-identifier hs-var">Skip</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall st. st -&gt; ComposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#ComposeNone"><span class="hs-identifier hs-var">ComposeNone</span></a></span><span> </span><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679433450"><span class="hs-identifier hs-var">st1</span></a></span><span>
+</span><span id="line-208"></span><span>                </span><span class="annot"><span class="annottext">Step s Char
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Step.html#Stop"><span class="hs-identifier hs-var">Stop</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall s a. Step s a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Step.html#Stop"><span class="hs-identifier hs-var">Stop</span></a></span><span>
+</span><span id="line-209"></span><span>    </span><span class="annot"><a href="#local-6989586621679433473"><span class="hs-identifier hs-var">step'</span></a></span><span> </span><span id="local-6989586621679433449"><span class="annot"><span class="annottext">State Stream m Char
+</span><a href="#local-6989586621679433449"><span class="hs-identifier hs-var">gst</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#ComposeJamo"><span class="hs-identifier hs-type">ComposeJamo</span></a></span><span> </span><span id="local-6989586621679433448"><span class="annot"><span class="annottext">JamoBuf
+</span><a href="#local-6989586621679433448"><span class="hs-identifier hs-var">jbuf</span></a></span></span><span> </span><span id="local-6989586621679433447"><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679433447"><span class="hs-identifier hs-var">st</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-210"></span><span>        </span><span id="local-6989586621679433446"><span class="annot"><span class="annottext">Step s Char
+</span><a href="#local-6989586621679433446"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">State Stream m Char -&gt; s -&gt; m (Step s Char)
+</span><a href="#local-6989586621679433475"><span class="hs-identifier hs-var">step</span></a></span><span> </span><span class="annot"><span class="annottext">State Stream m Char
+</span><a href="#local-6989586621679433449"><span class="hs-identifier hs-var">gst</span></a></span><span> </span><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679433447"><span class="hs-identifier hs-var">st</span></a></span><span>
+</span><span id="line-211"></span><span>        </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span>
+</span><span id="line-212"></span><span>          </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Step s Char
+</span><a href="#local-6989586621679433446"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-213"></span><span>                </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamD.Step.html#Yield"><span class="hs-identifier hs-type">Yield</span></a></span><span> </span><span id="local-6989586621679433445"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433445"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621679433444"><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679433444"><span class="hs-identifier hs-var">st1</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall s a. s -&gt; Step s a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Step.html#Skip"><span class="hs-identifier hs-var">Skip</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall {st}. JamoBuf -&gt; Char -&gt; st -&gt; ComposeState st
+</span><a href="#local-6989586621679433443"><span class="hs-identifier hs-var">composeJamo</span></a></span><span> </span><span class="annot"><span class="annottext">JamoBuf
+</span><a href="#local-6989586621679433448"><span class="hs-identifier hs-var">jbuf</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433445"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679433444"><span class="hs-identifier hs-var">st1</span></a></span><span>
+</span><span id="line-214"></span><span>                </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamD.Step.html#Skip"><span class="hs-identifier hs-type">Skip</span></a></span><span> </span><span id="local-6989586621679433442"><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679433442"><span class="hs-identifier hs-var">st1</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall s a. s -&gt; Step s a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Step.html#Skip"><span class="hs-identifier hs-var">Skip</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall st. JamoBuf -&gt; st -&gt; ComposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#ComposeJamo"><span class="hs-identifier hs-var">ComposeJamo</span></a></span><span> </span><span class="annot"><span class="annottext">JamoBuf
+</span><a href="#local-6989586621679433448"><span class="hs-identifier hs-var">jbuf</span></a></span><span> </span><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679433442"><span class="hs-identifier hs-var">st1</span></a></span><span>
+</span><span id="line-215"></span><span>                </span><span class="annot"><span class="annottext">Step s Char
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Step.html#Stop"><span class="hs-identifier hs-var">Stop</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall s a. s -&gt; Step s a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Step.html#Skip"><span class="hs-identifier hs-var">Skip</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall st. Char -&gt; ComposeState st -&gt; ComposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#YieldChar"><span class="hs-identifier hs-var">YieldChar</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">JamoBuf -&gt; Char
+</span><a href="Streamly.Internal.Unicode.Char.html#fromJamoBuf"><span class="hs-identifier hs-var">fromJamoBuf</span></a></span><span> </span><span class="annot"><span class="annottext">JamoBuf
+</span><a href="#local-6989586621679433448"><span class="hs-identifier hs-var">jbuf</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall st. ComposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#ComposeStop"><span class="hs-identifier hs-var">ComposeStop</span></a></span><span>
+</span><span id="line-216"></span><span>    </span><span class="annot"><a href="#local-6989586621679433473"><span class="hs-identifier hs-var">step'</span></a></span><span> </span><span id="local-6989586621679433441"><span class="annot"><span class="annottext">State Stream m Char
+</span><a href="#local-6989586621679433441"><span class="hs-identifier hs-var">gst</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#ComposeReg"><span class="hs-identifier hs-type">ComposeReg</span></a></span><span> </span><span id="local-6989586621679433440"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679433440"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span id="local-6989586621679433439"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679433439"><span class="hs-identifier hs-var">rbuf</span></a></span></span><span> </span><span id="local-6989586621679433438"><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679433438"><span class="hs-identifier hs-var">st</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-217"></span><span>        </span><span id="local-6989586621679433437"><span class="annot"><span class="annottext">Step s Char
+</span><a href="#local-6989586621679433437"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">State Stream m Char -&gt; s -&gt; m (Step s Char)
+</span><a href="#local-6989586621679433475"><span class="hs-identifier hs-var">step</span></a></span><span> </span><span class="annot"><span class="annottext">State Stream m Char
+</span><a href="#local-6989586621679433441"><span class="hs-identifier hs-var">gst</span></a></span><span> </span><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679433438"><span class="hs-identifier hs-var">st</span></a></span><span>
+</span><span id="line-218"></span><span>        </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span>
+</span><span id="line-219"></span><span>          </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Step s Char
+</span><a href="#local-6989586621679433437"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-220"></span><span>                </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamD.Step.html#Yield"><span class="hs-identifier hs-type">Yield</span></a></span><span> </span><span id="local-6989586621679433436"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433436"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621679433435"><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679433435"><span class="hs-identifier hs-var">st1</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall s a. s -&gt; Step s a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Step.html#Skip"><span class="hs-identifier hs-var">Skip</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall {st}. Int -&gt; String -&gt; Char -&gt; st -&gt; ComposeState st
+</span><a href="#local-6989586621679433434"><span class="hs-identifier hs-var">composeReg</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679433440"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679433439"><span class="hs-identifier hs-var">rbuf</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433436"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679433435"><span class="hs-identifier hs-var">st1</span></a></span><span>
+</span><span id="line-221"></span><span>                </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamD.Step.html#Skip"><span class="hs-identifier hs-type">Skip</span></a></span><span> </span><span id="local-6989586621679433433"><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679433433"><span class="hs-identifier hs-var">st1</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall s a. s -&gt; Step s a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Step.html#Skip"><span class="hs-identifier hs-var">Skip</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall st. Int -&gt; String -&gt; st -&gt; ComposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#ComposeReg"><span class="hs-identifier hs-var">ComposeReg</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679433440"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679433439"><span class="hs-identifier hs-var">rbuf</span></a></span><span> </span><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679433433"><span class="hs-identifier hs-var">st1</span></a></span><span>
+</span><span id="line-222"></span><span>                </span><span class="annot"><span class="annottext">Step s Char
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Step.html#Stop"><span class="hs-identifier hs-var">Stop</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall s a. s -&gt; Step s a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Step.html#Skip"><span class="hs-identifier hs-var">Skip</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall st. String -&gt; ComposeState st -&gt; ComposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#YieldList"><span class="hs-identifier hs-var">YieldList</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679433439"><span class="hs-identifier hs-var">rbuf</span></a></span><span> </span><span class="annot"><span class="annottext">forall st. ComposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#ComposeStop"><span class="hs-identifier hs-var">ComposeStop</span></a></span><span>
+</span><span id="line-223"></span><span>
+</span><span id="line-224"></span><span>    </span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="#local-6989586621679433432"><span class="hs-pragma hs-type">initHangul</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-225"></span><span>    </span><span id="local-6989586621679433432"><span class="annot"><span class="annottext">initHangul :: Char -&gt; st -&gt; ComposeState st
+</span><a href="#local-6989586621679433432"><span class="hs-identifier hs-var hs-var">initHangul</span></a></span></span><span> </span><span id="local-6989586621679433431"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433431"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span id="local-6989586621679433430"><span class="annot"><span class="annottext">st
+</span><a href="#local-6989586621679433430"><span class="hs-identifier hs-var">st</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall st. JamoBuf -&gt; st -&gt; ComposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#ComposeJamo"><span class="hs-identifier hs-var">ComposeJamo</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char -&gt; JamoBuf
+</span><a href="Streamly.Internal.Unicode.Char.html#Hangul"><span class="hs-identifier hs-var">Hangul</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433431"><span class="hs-identifier hs-var">c</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">st
+</span><a href="#local-6989586621679433430"><span class="hs-identifier hs-var">st</span></a></span><span>
+</span><span id="line-226"></span><span>
+</span><span id="line-227"></span><span>    </span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="#local-6989586621679433429"><span class="hs-pragma hs-type">initJamo</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-228"></span><span>    </span><span id="local-6989586621679433429"><span class="annot"><span class="annottext">initJamo :: Char -&gt; st -&gt; ComposeState st
+</span><a href="#local-6989586621679433429"><span class="hs-identifier hs-var hs-var">initJamo</span></a></span></span><span> </span><span id="local-6989586621679433428"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433428"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span id="local-6989586621679433427"><span class="annot"><span class="annottext">st
+</span><a href="#local-6989586621679433427"><span class="hs-identifier hs-var">st</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall st. JamoBuf -&gt; st -&gt; ComposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#ComposeJamo"><span class="hs-identifier hs-var">ComposeJamo</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char -&gt; JamoBuf
+</span><a href="Streamly.Internal.Unicode.Char.html#Jamo"><span class="hs-identifier hs-var">Jamo</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433428"><span class="hs-identifier hs-var">c</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">st
+</span><a href="#local-6989586621679433427"><span class="hs-identifier hs-var">st</span></a></span><span>
+</span><span id="line-229"></span><span>
+</span><span id="line-230"></span><span>    </span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="#local-6989586621679433426"><span class="hs-pragma hs-type">initReg</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-231"></span><span>    </span><span id="local-6989586621679433426"><span class="annot"><span class="annottext">initReg :: Char -&gt; st -&gt; ComposeState st
+</span><a href="#local-6989586621679433426"><span class="hs-identifier hs-var hs-var">initReg</span></a></span></span><span> </span><span class="hs-glyph">!</span><span id="local-6989586621679433425"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433425"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span id="local-6989586621679433424"><span class="annot"><span class="annottext">st
+</span><a href="#local-6989586621679433424"><span class="hs-identifier hs-var">st</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall st. Int -&gt; String -&gt; st -&gt; ComposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#ComposeReg"><span class="hs-identifier hs-var">ComposeReg</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433425"><span class="hs-identifier hs-var">c</span></a></span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">st
+</span><a href="#local-6989586621679433424"><span class="hs-identifier hs-var">st</span></a></span><span>
+</span><span id="line-232"></span><span>
+</span><span id="line-233"></span><span>    </span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="#local-6989586621679433451"><span class="hs-pragma hs-type">composeNone</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-234"></span><span>    </span><span id="local-6989586621679433451"><span class="annot"><span class="annottext">composeNone :: Char -&gt; st -&gt; ComposeState st
+</span><a href="#local-6989586621679433451"><span class="hs-identifier hs-var hs-var">composeNone</span></a></span></span><span> </span><span id="local-6989586621679433423"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433423"><span class="hs-identifier hs-var">ch</span></a></span></span><span> </span><span id="local-6989586621679433422"><span class="annot"><span class="annottext">st
+</span><a href="#local-6989586621679433422"><span class="hs-identifier hs-var">st</span></a></span></span><span>
+</span><span id="line-235"></span><span>        </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><span class="hs-identifier hs-var">Char.isHangul</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433423"><span class="hs-identifier hs-var">ch</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall {st}. Char -&gt; st -&gt; ComposeState st
+</span><a href="#local-6989586621679433432"><span class="hs-identifier hs-var">initHangul</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433423"><span class="hs-identifier hs-var">ch</span></a></span><span> </span><span class="annot"><span class="annottext">st
+</span><a href="#local-6989586621679433422"><span class="hs-identifier hs-var">st</span></a></span><span>
+</span><span id="line-236"></span><span>        </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><span class="hs-identifier hs-var">Char.isJamo</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433423"><span class="hs-identifier hs-var">ch</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall {st}. Char -&gt; st -&gt; ComposeState st
+</span><a href="#local-6989586621679433429"><span class="hs-identifier hs-var">initJamo</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433423"><span class="hs-identifier hs-var">ch</span></a></span><span> </span><span class="annot"><span class="annottext">st
+</span><a href="#local-6989586621679433422"><span class="hs-identifier hs-var">st</span></a></span><span>
+</span><span id="line-237"></span><span>        </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall {st}. Char -&gt; st -&gt; ComposeState st
+</span><a href="#local-6989586621679433426"><span class="hs-identifier hs-var">initReg</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433423"><span class="hs-identifier hs-var">ch</span></a></span><span> </span><span class="annot"><span class="annottext">st
+</span><a href="#local-6989586621679433422"><span class="hs-identifier hs-var">st</span></a></span><span>
+</span><span id="line-238"></span><span>
+</span><span id="line-239"></span><span>    </span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="#local-6989586621679433420"><span class="hs-pragma hs-type">composeCharHangul</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-240"></span><span>    </span><span id="local-6989586621679433420"><span class="annot"><span class="annottext">composeCharHangul :: JamoBuf -&gt; Char -&gt; st -&gt; ComposeState st
+</span><a href="#local-6989586621679433420"><span class="hs-identifier hs-var hs-var">composeCharHangul</span></a></span></span><span> </span><span id="local-6989586621679433419"><span class="annot"><span class="annottext">JamoBuf
+</span><a href="#local-6989586621679433419"><span class="hs-identifier hs-var">jbuf</span></a></span></span><span> </span><span id="local-6989586621679433418"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433418"><span class="hs-identifier hs-var">ch</span></a></span></span><span> </span><span id="local-6989586621679433417"><span class="annot"><span class="annottext">st
+</span><a href="#local-6989586621679433417"><span class="hs-identifier hs-var">st</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-241"></span><span>        </span><span class="annot"><span class="annottext">forall st. Char -&gt; ComposeState st -&gt; ComposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#YieldChar"><span class="hs-identifier hs-var">YieldChar</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">JamoBuf -&gt; Char
+</span><a href="Streamly.Internal.Unicode.Char.html#fromJamoBuf"><span class="hs-identifier hs-var">fromJamoBuf</span></a></span><span> </span><span class="annot"><span class="annottext">JamoBuf
+</span><a href="#local-6989586621679433419"><span class="hs-identifier hs-var">jbuf</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall st. JamoBuf -&gt; st -&gt; ComposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#ComposeJamo"><span class="hs-identifier hs-var">ComposeJamo</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char -&gt; JamoBuf
+</span><a href="Streamly.Internal.Unicode.Char.html#Hangul"><span class="hs-identifier hs-var">Hangul</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433418"><span class="hs-identifier hs-var">ch</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">st
+</span><a href="#local-6989586621679433417"><span class="hs-identifier hs-var">st</span></a></span><span>
+</span><span id="line-242"></span><span>
+</span><span id="line-243"></span><span>    </span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="#local-6989586621679433416"><span class="hs-pragma hs-type">composeCharJamo</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-244"></span><span>    </span><span id="local-6989586621679433416"><span class="annot"><span class="annottext">composeCharJamo :: JamoBuf -&gt; Char -&gt; st -&gt; ComposeState st
+</span><a href="#local-6989586621679433416"><span class="hs-identifier hs-var hs-var">composeCharJamo</span></a></span></span><span> </span><span id="local-6989586621679433411"><span class="annot"><span class="annottext">JamoBuf
+</span><a href="#local-6989586621679433411"><span class="hs-identifier hs-var">jbuf</span></a></span></span><span> </span><span id="local-6989586621679433410"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433410"><span class="hs-identifier hs-var">ch</span></a></span></span><span> </span><span id="local-6989586621679433409"><span class="annot"><span class="annottext">st
+</span><a href="#local-6989586621679433409"><span class="hs-identifier hs-var">st</span></a></span></span><span>
+</span><span id="line-245"></span><span>        </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679433408"><span class="hs-identifier hs-var">ich</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;=</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-identifier hs-var">Char.jamoLLast</span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-246"></span><span>            </span><span class="annot"><span class="annottext">forall st. Char -&gt; ComposeState st -&gt; ComposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#YieldChar"><span class="hs-identifier hs-var">YieldChar</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">JamoBuf -&gt; Char
+</span><a href="Streamly.Internal.Unicode.Char.html#fromJamoBuf"><span class="hs-identifier hs-var">fromJamoBuf</span></a></span><span> </span><span class="annot"><span class="annottext">JamoBuf
+</span><a href="#local-6989586621679433411"><span class="hs-identifier hs-var">jbuf</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall st. JamoBuf -&gt; st -&gt; ComposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#ComposeJamo"><span class="hs-identifier hs-var">ComposeJamo</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char -&gt; JamoBuf
+</span><a href="Streamly.Internal.Unicode.Char.html#Jamo"><span class="hs-identifier hs-var">Jamo</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433410"><span class="hs-identifier hs-var">ch</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">st
+</span><a href="#local-6989586621679433409"><span class="hs-identifier hs-var">st</span></a></span><span>
+</span><span id="line-247"></span><span>        </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679433408"><span class="hs-identifier hs-var">ich</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-identifier hs-var">Char.jamoVFirst</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall {st}. JamoBuf -&gt; Char -&gt; st -&gt; ComposeState st
+</span><a href="#local-6989586621679433404"><span class="hs-identifier hs-var">flushAndWrite</span></a></span><span> </span><span class="annot"><span class="annottext">JamoBuf
+</span><a href="#local-6989586621679433411"><span class="hs-identifier hs-var">jbuf</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433410"><span class="hs-identifier hs-var">ch</span></a></span><span> </span><span class="annot"><span class="annottext">st
+</span><a href="#local-6989586621679433409"><span class="hs-identifier hs-var">st</span></a></span><span>
+</span><span id="line-248"></span><span>        </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679433408"><span class="hs-identifier hs-var">ich</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;=</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-identifier hs-var">Char.jamoVLast</span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-249"></span><span>            </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">JamoBuf
+</span><a href="#local-6989586621679433411"><span class="hs-identifier hs-var">jbuf</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-250"></span><span>                </span><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#Jamo"><span class="hs-identifier hs-type">Jamo</span></a></span><span> </span><span id="local-6989586621679433402"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433402"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-251"></span><span>                    </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Maybe Int
+</span><span class="hs-identifier hs-var">Char.jamoLIndex</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433402"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-252"></span><span>                        </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621679433400"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679433400"><span class="hs-identifier hs-var">li</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-253"></span><span>                            </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679433398"><span class="annot"><span class="annottext">vi :: Int
+</span><a href="#local-6989586621679433398"><span class="hs-identifier hs-var hs-var">vi</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679433408"><span class="hs-identifier hs-var">ich</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-identifier hs-var">Char.jamoVFirst</span></span><span>
+</span><span id="line-254"></span><span>                                </span><span id="local-6989586621679433394"><span class="annot"><span class="annottext">lvi :: Int
+</span><a href="#local-6989586621679433394"><span class="hs-identifier hs-var hs-var">lvi</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679433400"><span class="hs-identifier hs-var">li</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-identifier hs-var">Char.jamoNCount</span></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679433398"><span class="hs-identifier hs-var">vi</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-identifier hs-var">Char.jamoTCount</span></span><span>
+</span><span id="line-255"></span><span>                                </span><span id="local-6989586621679433388"><span class="annot"><span class="annottext">lv :: Char
+</span><a href="#local-6989586621679433388"><span class="hs-identifier hs-var hs-var">lv</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Char
+</span><span class="hs-identifier hs-var">chr</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><span class="hs-identifier hs-var">Char.hangulFirst</span></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679433394"><span class="hs-identifier hs-var">lvi</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-256"></span><span>                             </span><span class="hs-keyword">in</span><span> </span><span class="annot"><span class="annottext">forall st. JamoBuf -&gt; st -&gt; ComposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#ComposeJamo"><span class="hs-identifier hs-var">ComposeJamo</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char -&gt; JamoBuf
+</span><a href="Streamly.Internal.Unicode.Char.html#HangulLV"><span class="hs-identifier hs-var">HangulLV</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433388"><span class="hs-identifier hs-var">lv</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">st
+</span><a href="#local-6989586621679433409"><span class="hs-identifier hs-var">st</span></a></span><span>
+</span><span id="line-257"></span><span>                        </span><span class="annot"><span class="annottext">Maybe Int
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall {st}. Char -&gt; Char -&gt; st -&gt; ComposeState st
+</span><a href="#local-6989586621679433386"><span class="hs-identifier hs-var">writeTwo</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433402"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433410"><span class="hs-identifier hs-var">ch</span></a></span><span> </span><span class="annot"><span class="annottext">st
+</span><a href="#local-6989586621679433409"><span class="hs-identifier hs-var">st</span></a></span><span>
+</span><span id="line-258"></span><span>                </span><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#Hangul"><span class="hs-identifier hs-type">Hangul</span></a></span><span> </span><span id="local-6989586621679433385"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433385"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall {st}. Char -&gt; Char -&gt; st -&gt; ComposeState st
+</span><a href="#local-6989586621679433386"><span class="hs-identifier hs-var">writeTwo</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433385"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433410"><span class="hs-identifier hs-var">ch</span></a></span><span> </span><span class="annot"><span class="annottext">st
+</span><a href="#local-6989586621679433409"><span class="hs-identifier hs-var">st</span></a></span><span>
+</span><span id="line-259"></span><span>                </span><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#HangulLV"><span class="hs-identifier hs-type">HangulLV</span></a></span><span> </span><span id="local-6989586621679433384"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433384"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall {st}. Char -&gt; Char -&gt; st -&gt; ComposeState st
+</span><a href="#local-6989586621679433386"><span class="hs-identifier hs-var">writeTwo</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433384"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433410"><span class="hs-identifier hs-var">ch</span></a></span><span> </span><span class="annot"><span class="annottext">st
+</span><a href="#local-6989586621679433409"><span class="hs-identifier hs-var">st</span></a></span><span>
+</span><span id="line-260"></span><span>        </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679433408"><span class="hs-identifier hs-var">ich</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;=</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-identifier hs-var">Char.jamoTFirst</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall {st}. JamoBuf -&gt; Char -&gt; st -&gt; ComposeState st
+</span><a href="#local-6989586621679433404"><span class="hs-identifier hs-var">flushAndWrite</span></a></span><span> </span><span class="annot"><span class="annottext">JamoBuf
+</span><a href="#local-6989586621679433411"><span class="hs-identifier hs-var">jbuf</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433410"><span class="hs-identifier hs-var">ch</span></a></span><span> </span><span class="annot"><span class="annottext">st
+</span><a href="#local-6989586621679433409"><span class="hs-identifier hs-var">st</span></a></span><span>
+</span><span id="line-261"></span><span>        </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-262"></span><span>            </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679433382"><span class="annot"><span class="annottext">ti :: Int
+</span><a href="#local-6989586621679433382"><span class="hs-identifier hs-var hs-var">ti</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679433408"><span class="hs-identifier hs-var">ich</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-identifier hs-var">Char.jamoTFirst</span></span><span>
+</span><span id="line-263"></span><span>            </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">JamoBuf
+</span><a href="#local-6989586621679433411"><span class="hs-identifier hs-var">jbuf</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-264"></span><span>                </span><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#Jamo"><span class="hs-identifier hs-type">Jamo</span></a></span><span> </span><span id="local-6989586621679433381"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433381"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall {st}. Char -&gt; Char -&gt; st -&gt; ComposeState st
+</span><a href="#local-6989586621679433386"><span class="hs-identifier hs-var">writeTwo</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433381"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433410"><span class="hs-identifier hs-var">ch</span></a></span><span> </span><span class="annot"><span class="annottext">st
+</span><a href="#local-6989586621679433409"><span class="hs-identifier hs-var">st</span></a></span><span>
+</span><span id="line-265"></span><span>                </span><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#Hangul"><span class="hs-identifier hs-type">Hangul</span></a></span><span> </span><span id="local-6989586621679433380"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433380"><span class="hs-identifier hs-var">c</span></a></span></span><span>
+</span><span id="line-266"></span><span>                    </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><span class="hs-identifier hs-var">Char.isHangulLV</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433380"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall {st}. Char -&gt; Int -&gt; st -&gt; ComposeState st
+</span><a href="#local-6989586621679433378"><span class="hs-identifier hs-var">writeLVT</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433380"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679433382"><span class="hs-identifier hs-var">ti</span></a></span><span> </span><span class="annot"><span class="annottext">st
+</span><a href="#local-6989586621679433409"><span class="hs-identifier hs-var">st</span></a></span><span>
+</span><span id="line-267"></span><span>                    </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall {st}. Char -&gt; Char -&gt; st -&gt; ComposeState st
+</span><a href="#local-6989586621679433386"><span class="hs-identifier hs-var">writeTwo</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433380"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433410"><span class="hs-identifier hs-var">ch</span></a></span><span> </span><span class="annot"><span class="annottext">st
+</span><a href="#local-6989586621679433409"><span class="hs-identifier hs-var">st</span></a></span><span>
+</span><span id="line-268"></span><span>                </span><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#HangulLV"><span class="hs-identifier hs-type">HangulLV</span></a></span><span> </span><span id="local-6989586621679433377"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433377"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall {st}. Char -&gt; Int -&gt; st -&gt; ComposeState st
+</span><a href="#local-6989586621679433378"><span class="hs-identifier hs-var">writeLVT</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433377"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679433382"><span class="hs-identifier hs-var">ti</span></a></span><span> </span><span class="annot"><span class="annottext">st
+</span><a href="#local-6989586621679433409"><span class="hs-identifier hs-var">st</span></a></span><span>
+</span><span id="line-269"></span><span>
+</span><span id="line-270"></span><span>        </span><span class="hs-keyword">where</span><span>
+</span><span id="line-271"></span><span>
+</span><span id="line-272"></span><span>        </span><span id="local-6989586621679433404"><span class="annot"><span class="annottext">flushAndWrite :: JamoBuf -&gt; Char -&gt; st -&gt; ComposeState st
+</span><a href="#local-6989586621679433404"><span class="hs-identifier hs-var hs-var">flushAndWrite</span></a></span></span><span> </span><span id="local-6989586621679433376"><span class="annot"><span class="annottext">JamoBuf
+</span><a href="#local-6989586621679433376"><span class="hs-identifier hs-var">jb</span></a></span></span><span> </span><span id="local-6989586621679433375"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433375"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span id="local-6989586621679433374"><span class="annot"><span class="annottext">st
+</span><a href="#local-6989586621679433374"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall st. String -&gt; ComposeState st -&gt; ComposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#YieldList"><span class="hs-identifier hs-var">YieldList</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">JamoBuf -&gt; Char
+</span><a href="Streamly.Internal.Unicode.Char.html#fromJamoBuf"><span class="hs-identifier hs-var">fromJamoBuf</span></a></span><span> </span><span class="annot"><span class="annottext">JamoBuf
+</span><a href="#local-6989586621679433376"><span class="hs-identifier hs-var">jb</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433375"><span class="hs-identifier hs-var">c</span></a></span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall st. st -&gt; ComposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#ComposeNone"><span class="hs-identifier hs-var">ComposeNone</span></a></span><span> </span><span class="annot"><span class="annottext">st
+</span><a href="#local-6989586621679433374"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-273"></span><span>
+</span><span id="line-274"></span><span>        </span><span id="local-6989586621679433378"><span class="annot"><span class="annottext">writeLVT :: Char -&gt; Int -&gt; st -&gt; ComposeState st
+</span><a href="#local-6989586621679433378"><span class="hs-identifier hs-var hs-var">writeLVT</span></a></span></span><span> </span><span id="local-6989586621679433373"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433373"><span class="hs-identifier hs-var">lv</span></a></span></span><span> </span><span id="local-6989586621679433372"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679433372"><span class="hs-identifier hs-var">ti</span></a></span></span><span> </span><span id="local-6989586621679433371"><span class="annot"><span class="annottext">st
+</span><a href="#local-6989586621679433371"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-275"></span><span>            </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679433369"><span class="annot"><span class="annottext">lvt :: Char
+</span><a href="#local-6989586621679433369"><span class="hs-identifier hs-var hs-var">lvt</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Char
+</span><span class="hs-identifier hs-var">chr</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Char -&gt; Int
+</span><span class="hs-identifier hs-var">ord</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433373"><span class="hs-identifier hs-var">lv</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679433372"><span class="hs-identifier hs-var">ti</span></a></span><span>
+</span><span id="line-276"></span><span>             </span><span class="hs-keyword">in</span><span> </span><span class="annot"><span class="annottext">forall st. Char -&gt; ComposeState st -&gt; ComposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#YieldChar"><span class="hs-identifier hs-var">YieldChar</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433369"><span class="hs-identifier hs-var">lvt</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall st. st -&gt; ComposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#ComposeNone"><span class="hs-identifier hs-var">ComposeNone</span></a></span><span> </span><span class="annot"><span class="annottext">st
+</span><a href="#local-6989586621679433371"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-277"></span><span>
+</span><span id="line-278"></span><span>        </span><span id="local-6989586621679433386"><span class="annot"><span class="annottext">writeTwo :: Char -&gt; Char -&gt; st -&gt; ComposeState st
+</span><a href="#local-6989586621679433386"><span class="hs-identifier hs-var hs-var">writeTwo</span></a></span></span><span> </span><span id="local-6989586621679433368"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433368"><span class="hs-identifier hs-var">c1</span></a></span></span><span> </span><span id="local-6989586621679433367"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433367"><span class="hs-identifier hs-var">c2</span></a></span></span><span> </span><span id="local-6989586621679433366"><span class="annot"><span class="annottext">st
+</span><a href="#local-6989586621679433366"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall st. String -&gt; ComposeState st -&gt; ComposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#YieldList"><span class="hs-identifier hs-var">YieldList</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433368"><span class="hs-identifier hs-var">c1</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433367"><span class="hs-identifier hs-var">c2</span></a></span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall st. st -&gt; ComposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#ComposeNone"><span class="hs-identifier hs-var">ComposeNone</span></a></span><span> </span><span class="annot"><span class="annottext">st
+</span><a href="#local-6989586621679433366"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-279"></span><span>
+</span><span id="line-280"></span><span>        </span><span id="local-6989586621679433408"><span class="annot"><span class="annottext">ich :: Int
+</span><a href="#local-6989586621679433408"><span class="hs-identifier hs-var hs-var">ich</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Int
+</span><span class="hs-identifier hs-var">ord</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433410"><span class="hs-identifier hs-var">ch</span></a></span><span>
+</span><span id="line-281"></span><span>
+</span><span id="line-282"></span><span>    </span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="#local-6989586621679433443"><span class="hs-pragma hs-type">composeJamo</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-283"></span><span>    </span><span id="local-6989586621679433443"><span class="annot"><span class="annottext">composeJamo :: JamoBuf -&gt; Char -&gt; st -&gt; ComposeState st
+</span><a href="#local-6989586621679433443"><span class="hs-identifier hs-var hs-var">composeJamo</span></a></span></span><span> </span><span id="local-6989586621679433365"><span class="annot"><span class="annottext">JamoBuf
+</span><a href="#local-6989586621679433365"><span class="hs-identifier hs-var">jbuf</span></a></span></span><span> </span><span id="local-6989586621679433364"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433364"><span class="hs-identifier hs-var">ch</span></a></span></span><span> </span><span id="local-6989586621679433363"><span class="annot"><span class="annottext">st
+</span><a href="#local-6989586621679433363"><span class="hs-identifier hs-var">st</span></a></span></span><span>
+</span><span id="line-284"></span><span>        </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><span class="hs-identifier hs-var">Char.isJamo</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433364"><span class="hs-identifier hs-var">ch</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall {st}. JamoBuf -&gt; Char -&gt; st -&gt; ComposeState st
+</span><a href="#local-6989586621679433416"><span class="hs-identifier hs-var">composeCharJamo</span></a></span><span> </span><span class="annot"><span class="annottext">JamoBuf
+</span><a href="#local-6989586621679433365"><span class="hs-identifier hs-var">jbuf</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433364"><span class="hs-identifier hs-var">ch</span></a></span><span> </span><span class="annot"><span class="annottext">st
+</span><a href="#local-6989586621679433363"><span class="hs-identifier hs-var">st</span></a></span><span>
+</span><span id="line-285"></span><span>        </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><span class="hs-identifier hs-var">Char.isHangul</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433364"><span class="hs-identifier hs-var">ch</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall {st}. JamoBuf -&gt; Char -&gt; st -&gt; ComposeState st
+</span><a href="#local-6989586621679433420"><span class="hs-identifier hs-var">composeCharHangul</span></a></span><span> </span><span class="annot"><span class="annottext">JamoBuf
+</span><a href="#local-6989586621679433365"><span class="hs-identifier hs-var">jbuf</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433364"><span class="hs-identifier hs-var">ch</span></a></span><span> </span><span class="annot"><span class="annottext">st
+</span><a href="#local-6989586621679433363"><span class="hs-identifier hs-var">st</span></a></span><span>
+</span><span id="line-286"></span><span>        </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall st. Char -&gt; ComposeState st -&gt; ComposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#YieldChar"><span class="hs-identifier hs-var">YieldChar</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">JamoBuf -&gt; Char
+</span><a href="Streamly.Internal.Unicode.Char.html#fromJamoBuf"><span class="hs-identifier hs-var">fromJamoBuf</span></a></span><span> </span><span class="annot"><span class="annottext">JamoBuf
+</span><a href="#local-6989586621679433365"><span class="hs-identifier hs-var">jbuf</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall st. Int -&gt; String -&gt; st -&gt; ComposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#ComposeReg"><span class="hs-identifier hs-var">ComposeReg</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433364"><span class="hs-identifier hs-var">ch</span></a></span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">st
+</span><a href="#local-6989586621679433363"><span class="hs-identifier hs-var">st</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-287"></span><span>
+</span><span id="line-288"></span><span>    </span><span class="hs-comment">-- i ~ Char.combiningClass (last rbuf)</span><span>
+</span><span id="line-289"></span><span>    </span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="#local-6989586621679433362"><span class="hs-pragma hs-type">composeCharCombining</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-290"></span><span>    </span><span id="local-6989586621679433362"><span class="annot"><span class="annottext">composeCharCombining :: Int -&gt; String -&gt; Char -&gt; st -&gt; ComposeState st
+</span><a href="#local-6989586621679433362"><span class="hs-identifier hs-var hs-var">composeCharCombining</span></a></span></span><span> </span><span id="local-6989586621679433360"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679433360"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span id="local-6989586621679433359"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679433359"><span class="hs-identifier hs-var">rbuf</span></a></span></span><span> </span><span id="local-6989586621679433358"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433358"><span class="hs-identifier hs-var">ch</span></a></span></span><span> </span><span id="local-6989586621679433357"><span class="annot"><span class="annottext">st
+</span><a href="#local-6989586621679433357"><span class="hs-identifier hs-var">st</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-291"></span><span>        </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679433356"><span class="hs-identifier hs-var">cch</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&gt;</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679433360"><span class="hs-identifier hs-var">i</span></a></span><span>
+</span><span id="line-292"></span><span>        </span><span class="hs-keyword">then</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Char -&gt; Maybe Char
+</span><span class="hs-identifier hs-var">Char.compose</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433353"><span class="hs-identifier hs-var">str</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433358"><span class="hs-identifier hs-var">ch</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-293"></span><span>                 </span><span class="annot"><span class="annottext">Maybe Char
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall st. Int -&gt; String -&gt; st -&gt; ComposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#ComposeReg"><span class="hs-identifier hs-var">ComposeReg</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679433356"><span class="hs-identifier hs-var">cch</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679433359"><span class="hs-identifier hs-var">rbuf</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433358"><span class="hs-identifier hs-var">ch</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">st
+</span><a href="#local-6989586621679433357"><span class="hs-identifier hs-var">st</span></a></span><span>
+</span><span id="line-294"></span><span>                 </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621679433352"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433352"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall st. Int -&gt; String -&gt; st -&gt; ComposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#ComposeReg"><span class="hs-identifier hs-var">ComposeReg</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679433360"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433352"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">tail</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679433359"><span class="hs-identifier hs-var">rbuf</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">st
+</span><a href="#local-6989586621679433357"><span class="hs-identifier hs-var">st</span></a></span><span>
+</span><span id="line-295"></span><span>        </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">forall st. Int -&gt; String -&gt; st -&gt; ComposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#ComposeReg"><span class="hs-identifier hs-var">ComposeReg</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679433360"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679433359"><span class="hs-identifier hs-var">rbuf</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433358"><span class="hs-identifier hs-var">ch</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">st
+</span><a href="#local-6989586621679433357"><span class="hs-identifier hs-var">st</span></a></span><span>
+</span><span id="line-296"></span><span>
+</span><span id="line-297"></span><span>        </span><span class="hs-keyword">where</span><span>
+</span><span id="line-298"></span><span>
+</span><span id="line-299"></span><span>        </span><span id="local-6989586621679433353"><span class="annot"><span class="annottext">str :: Char
+</span><a href="#local-6989586621679433353"><span class="hs-identifier hs-var hs-var">str</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. [a] -&gt; a
+</span><span class="hs-identifier hs-var">head</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679433359"><span class="hs-identifier hs-var">rbuf</span></a></span><span>
+</span><span id="line-300"></span><span>        </span><span id="local-6989586621679433356"><span class="annot"><span class="annottext">cch :: Int
+</span><a href="#local-6989586621679433356"><span class="hs-identifier hs-var hs-var">cch</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Int
+</span><span class="hs-identifier hs-var">Char.combiningClass</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433358"><span class="hs-identifier hs-var">ch</span></a></span><span>
+</span><span id="line-301"></span><span>
+</span><span id="line-302"></span><span>    </span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="#local-6989586621679433434"><span class="hs-pragma hs-type">composeReg</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-303"></span><span>    </span><span id="local-6989586621679433434"><span class="annot"><span class="annottext">composeReg :: Int -&gt; String -&gt; Char -&gt; st -&gt; ComposeState st
+</span><a href="#local-6989586621679433434"><span class="hs-identifier hs-var hs-var">composeReg</span></a></span></span><span> </span><span id="local-6989586621679433349"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679433349"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span id="local-6989586621679433348"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679433348"><span class="hs-identifier hs-var">rbuf</span></a></span></span><span> </span><span class="hs-glyph">!</span><span id="local-6989586621679433347"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433347"><span class="hs-identifier hs-var">ch</span></a></span></span><span> </span><span class="hs-glyph">!</span><span id="local-6989586621679433346"><span class="annot"><span class="annottext">st
+</span><a href="#local-6989586621679433346"><span class="hs-identifier hs-var">st</span></a></span></span><span>
+</span><span id="line-304"></span><span>        </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><span class="hs-identifier hs-var">Char.isHangul</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433347"><span class="hs-identifier hs-var">ch</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall st. String -&gt; ComposeState st -&gt; ComposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#YieldList"><span class="hs-identifier hs-var">YieldList</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679433348"><span class="hs-identifier hs-var">rbuf</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall {st}. Char -&gt; st -&gt; ComposeState st
+</span><a href="#local-6989586621679433432"><span class="hs-identifier hs-var">initHangul</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433347"><span class="hs-identifier hs-var">ch</span></a></span><span> </span><span class="annot"><span class="annottext">st
+</span><a href="#local-6989586621679433346"><span class="hs-identifier hs-var">st</span></a></span><span>
+</span><span id="line-305"></span><span>        </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><span class="hs-identifier hs-var">Char.isJamo</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433347"><span class="hs-identifier hs-var">ch</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall st. String -&gt; ComposeState st -&gt; ComposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#YieldList"><span class="hs-identifier hs-var">YieldList</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679433348"><span class="hs-identifier hs-var">rbuf</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall {st}. Char -&gt; st -&gt; ComposeState st
+</span><a href="#local-6989586621679433429"><span class="hs-identifier hs-var">initJamo</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433347"><span class="hs-identifier hs-var">ch</span></a></span><span> </span><span class="annot"><span class="annottext">st
+</span><a href="#local-6989586621679433346"><span class="hs-identifier hs-var">st</span></a></span><span>
+</span><span id="line-306"></span><span>        </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><span class="hs-identifier hs-var">Char.isCombining</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433347"><span class="hs-identifier hs-var">ch</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall {st}. Int -&gt; String -&gt; Char -&gt; st -&gt; ComposeState st
+</span><a href="#local-6989586621679433362"><span class="hs-identifier hs-var">composeCharCombining</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679433349"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679433348"><span class="hs-identifier hs-var">rbuf</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433347"><span class="hs-identifier hs-var">ch</span></a></span><span> </span><span class="annot"><span class="annottext">st
+</span><a href="#local-6989586621679433346"><span class="hs-identifier hs-var">st</span></a></span><span>
+</span><span id="line-307"></span><span>        </span><span class="hs-glyph">|</span><span> </span><span class="hs-special">[</span><span id="local-6989586621679433345"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433345"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679433348"><span class="hs-identifier hs-var">rbuf</span></a></span><span>
+</span><span id="line-308"></span><span>        </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><span class="hs-identifier hs-var">Char.isCombiningStarter</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433347"><span class="hs-identifier hs-var">ch</span></a></span><span>
+</span><span id="line-309"></span><span>        </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621679433343"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433343"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Char -&gt; Maybe Char
+</span><span class="hs-identifier hs-var">Char.composeStarters</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433345"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433347"><span class="hs-identifier hs-var">ch</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall st. Int -&gt; String -&gt; st -&gt; ComposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#ComposeReg"><span class="hs-identifier hs-var">ComposeReg</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433343"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">st
+</span><a href="#local-6989586621679433346"><span class="hs-identifier hs-var">st</span></a></span><span>
+</span><span id="line-310"></span><span>        </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall st. String -&gt; ComposeState st -&gt; ComposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#YieldList"><span class="hs-identifier hs-var">YieldList</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679433348"><span class="hs-identifier hs-var">rbuf</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall st. Int -&gt; String -&gt; st -&gt; ComposeState st
+</span><a href="Streamly.Internal.Unicode.Char.html#ComposeReg"><span class="hs-identifier hs-var">ComposeReg</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433347"><span class="hs-identifier hs-var">ch</span></a></span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">st
+</span><a href="#local-6989586621679433346"><span class="hs-identifier hs-var">st</span></a></span><span>
+</span><span id="line-311"></span><span>
+</span><span id="line-312"></span><span id="local-6989586621679433646"><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#normalizeD"><span class="hs-identifier hs-type">normalizeD</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621679433646"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#NormalizationMode"><span class="hs-identifier hs-type">NormalizationMode</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamD.Type.html#Stream"><span class="hs-identifier hs-type">Stream</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679433646"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamD.Type.html#Stream"><span class="hs-identifier hs-type">Stream</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679433646"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span></span><span>
+</span><span id="line-313"></span><span id="normalizeD"><span class="annot"><span class="annottext">normalizeD :: forall (m :: * -&gt; *).
+Monad m =&gt;
+NormalizationMode -&gt; Stream m Char -&gt; Stream m Char
+</span><a href="Streamly.Internal.Unicode.Char.html#normalizeD"><span class="hs-identifier hs-var hs-var">normalizeD</span></a></span></span><span> </span><span class="annot"><span class="annottext">NormalizationMode
+</span><a href="Streamly.Internal.Unicode.Char.html#NFD"><span class="hs-identifier hs-var">NFD</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *).
+Monad m =&gt;
+Bool -&gt; DecomposeMode -&gt; Stream m Char -&gt; Stream m Char
+</span><a href="Streamly.Internal.Unicode.Char.html#decomposeD"><span class="hs-identifier hs-var">decomposeD</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span> </span><span class="annot"><span class="annottext">DecomposeMode
+</span><span class="hs-identifier hs-var">Canonical</span></span><span>
+</span><span id="line-314"></span><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#normalizeD"><span class="hs-identifier hs-var">normalizeD</span></a></span><span> </span><span class="annot"><span class="annottext">NormalizationMode
+</span><a href="Streamly.Internal.Unicode.Char.html#NFKD"><span class="hs-identifier hs-var">NFKD</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *).
+Monad m =&gt;
+Bool -&gt; DecomposeMode -&gt; Stream m Char -&gt; Stream m Char
+</span><a href="Streamly.Internal.Unicode.Char.html#decomposeD"><span class="hs-identifier hs-var">decomposeD</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span> </span><span class="annot"><span class="annottext">DecomposeMode
+</span><span class="hs-identifier hs-var">Kompat</span></span><span>
+</span><span id="line-315"></span><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#normalizeD"><span class="hs-identifier hs-var">normalizeD</span></a></span><span> </span><span class="annot"><span class="annottext">NormalizationMode
+</span><a href="Streamly.Internal.Unicode.Char.html#NFC"><span class="hs-identifier hs-var">NFC</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *). Monad m =&gt; Stream m Char -&gt; Stream m Char
+</span><a href="Streamly.Internal.Unicode.Char.html#partialComposeD"><span class="hs-identifier hs-var">partialComposeD</span></a></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *).
+Monad m =&gt;
+Bool -&gt; DecomposeMode -&gt; Stream m Char -&gt; Stream m Char
+</span><a href="Streamly.Internal.Unicode.Char.html#decomposeD"><span class="hs-identifier hs-var">decomposeD</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span> </span><span class="annot"><span class="annottext">DecomposeMode
+</span><span class="hs-identifier hs-var">Canonical</span></span><span>
+</span><span id="line-316"></span><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#normalizeD"><span class="hs-identifier hs-var">normalizeD</span></a></span><span> </span><span class="annot"><span class="annottext">NormalizationMode
+</span><a href="Streamly.Internal.Unicode.Char.html#NFKC"><span class="hs-identifier hs-var">NFKC</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *). Monad m =&gt; Stream m Char -&gt; Stream m Char
+</span><a href="Streamly.Internal.Unicode.Char.html#partialComposeD"><span class="hs-identifier hs-var">partialComposeD</span></a></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *).
+Monad m =&gt;
+Bool -&gt; DecomposeMode -&gt; Stream m Char -&gt; Stream m Char
+</span><a href="Streamly.Internal.Unicode.Char.html#decomposeD"><span class="hs-identifier hs-var">decomposeD</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span> </span><span class="annot"><span class="annottext">DecomposeMode
+</span><span class="hs-identifier hs-var">Kompat</span></span><span>
+</span><span id="line-317"></span><span>
+</span><span id="line-318"></span><span id="local-6989586621679433639"><span id="local-6989586621679433641"><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#normalize"><span class="hs-identifier hs-type">normalize</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Stream.IsStream.Type.html#IsStream"><span class="hs-identifier hs-type">IsStream</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679433641"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621679433639"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Unicode.Char.html#NormalizationMode"><span class="hs-identifier hs-type">NormalizationMode</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679433641"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679433639"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679433641"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679433639"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span></span></span><span>
+</span><span id="line-319"></span><span id="normalize"><span class="annot"><span class="annottext">normalize :: forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *).
+(IsStream t, Monad m) =&gt;
+NormalizationMode -&gt; t m Char -&gt; t m Char
+</span><a href="Streamly.Internal.Unicode.Char.html#normalize"><span class="hs-identifier hs-var hs-var">normalize</span></a></span></span><span> </span><span id="local-6989586621679433323"><span class="annot"><span class="annottext">NormalizationMode
+</span><a href="#local-6989586621679433323"><span class="hs-identifier hs-var">mode</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(IsStream t, Monad m) =&gt;
+Stream m a -&gt; t m a
+</span><a href="Streamly.Internal.Data.Stream.IsStream.Type.html#fromStreamD"><span class="hs-identifier hs-var">fromStreamD</span></a></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *).
+Monad m =&gt;
+NormalizationMode -&gt; Stream m Char -&gt; Stream m Char
+</span><a href="Streamly.Internal.Unicode.Char.html#normalizeD"><span class="hs-identifier hs-var">normalizeD</span></a></span><span> </span><span class="annot"><span class="annottext">NormalizationMode
+</span><a href="#local-6989586621679433323"><span class="hs-identifier hs-var">mode</span></a></span><span>  </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(IsStream t, Monad m) =&gt;
+t m a -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.IsStream.Type.html#toStreamD"><span class="hs-identifier hs-var">toStreamD</span></a></span><span>
+</span><span id="line-320"></span></pre></body></html>

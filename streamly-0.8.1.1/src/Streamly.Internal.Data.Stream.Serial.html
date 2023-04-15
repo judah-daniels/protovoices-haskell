@@ -1,0 +1,943 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE UndecidableInstances #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Module      : Streamly.Internal.Data.Stream.Serial</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- Copyright   : (c) 2017 Composewell Technologies</span><span>
+</span><span id="line-6"></span><span class="hs-comment">--</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- License     : BSD3</span><span>
+</span><span id="line-8"></span><span class="hs-comment">-- Maintainer  : streamly@composewell.com</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Stability   : experimental</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- Portability : GHC</span><span>
+</span><span id="line-11"></span><span class="hs-comment">--</span><span>
+</span><span id="line-12"></span><span class="hs-comment">-- To run examples in this module:</span><span>
+</span><span id="line-13"></span><span class="hs-comment">--</span><span>
+</span><span id="line-14"></span><span class="hs-comment">-- &gt;&gt;&gt; import qualified Streamly.Prelude as Stream</span><span>
+</span><span id="line-15"></span><span class="hs-comment">--</span><span>
+</span><span id="line-16"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Streamly.Internal.Data.Stream.Serial</span><span>
+</span><span id="line-17"></span><span>    </span><span class="hs-special">(</span><span>
+</span><span id="line-18"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Serial appending stream</span></span><span>
+</span><span id="line-19"></span><span>      </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier">SerialT</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-20"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#Serial"><span class="hs-identifier">Serial</span></a></span><span>
+</span><span id="line-21"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#serial"><span class="hs-identifier">serial</span></a></span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Serial interleaving stream</span></span><span>
+</span><span id="line-24"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#WSerialT"><span class="hs-identifier">WSerialT</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-25"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#WSerial"><span class="hs-identifier">WSerial</span></a></span><span>
+</span><span id="line-26"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#wSerialK"><span class="hs-identifier">wSerialK</span></a></span><span>
+</span><span id="line-27"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#wSerial"><span class="hs-identifier">wSerial</span></a></span><span>
+</span><span id="line-28"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#wSerialFst"><span class="hs-identifier">wSerialFst</span></a></span><span>
+</span><span id="line-29"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#wSerialMin"><span class="hs-identifier">wSerialMin</span></a></span><span>
+</span><span id="line-30"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#consMWSerial"><span class="hs-identifier">consMWSerial</span></a></span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Construction</span></span><span>
+</span><span id="line-33"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#cons"><span class="hs-identifier">cons</span></a></span><span>
+</span><span id="line-34"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#consM"><span class="hs-identifier">consM</span></a></span><span>
+</span><span id="line-35"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#repeat"><span class="hs-identifier">repeat</span></a></span><span>
+</span><span id="line-36"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#unfoldrM"><span class="hs-identifier">unfoldrM</span></a></span><span>
+</span><span id="line-37"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">fromList</span></span><span>
+</span><span id="line-38"></span><span>
+</span><span id="line-39"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Elimination</span></span><span>
+</span><span id="line-40"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">toList</span></span><span>
+</span><span id="line-41"></span><span>
+</span><span id="line-42"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Transformation</span></span><span>
+</span><span id="line-43"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#map"><span class="hs-identifier">map</span></a></span><span>
+</span><span id="line-44"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#mapM"><span class="hs-identifier">mapM</span></a></span><span>
+</span><span id="line-45"></span><span>
+</span><span id="line-46"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Deprecated</span></span><span>
+</span><span id="line-47"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#StreamT"><span class="hs-identifier">StreamT</span></a></span><span>
+</span><span id="line-48"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#InterleavedT"><span class="hs-identifier">InterleavedT</span></a></span><span>
+</span><span id="line-49"></span><span>    </span><span class="hs-special">)</span><span>
+</span><span id="line-50"></span><span class="hs-keyword">where</span><span>
+</span><span id="line-51"></span><span>
+</span><span id="line-52"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Applicative</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">liftA2</span></span><span class="hs-special">)</span><span>
+</span><span id="line-53"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.DeepSeq</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">NFData</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-cpp">
+#if MIN_VERSION_deepseq(1,4,3)
+</span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.DeepSeq</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">NFData1</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-cpp">
+#endif
+</span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Base</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">MonadBase</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">liftBaseDefault</span></span><span class="hs-special">)</span><span>
+</span><span id="line-58"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Catch</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">MonadThrow</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">throwM</span></span><span class="hs-special">)</span><span>
+</span><span id="line-59"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.IO.Class</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">MonadIO</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-60"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Reader.Class</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">MonadReader</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-61"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.State.Class</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">MonadState</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-62"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Trans.Class</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">MonadTrans</span></span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">lift</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-63"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Foldable</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Foldable</span></span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">foldl'</span></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">fold</span></span><span class="hs-special">)</span><span>
+</span><span id="line-64"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Functor.Identity</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Identity</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">runIdentity</span></span><span class="hs-special">)</span><span>
+</span><span id="line-65"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">fromMaybe</span></span><span class="hs-special">)</span><span>
+</span><span id="line-66"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Semigroup</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Endo</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-cpp">
+#if __GLASGOW_HASKELL__ &lt; 808
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Semigroup</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">Semigroup</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-cpp">
+#endif
+</span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.Exts</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">IsList</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">IsString</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-71"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Text.Read</span></span><span>
+</span><span id="line-72"></span><span>       </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier">Lexeme</span></span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Ident</span></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">lexP</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">parens</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">prec</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">readPrec</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">readListPrec</span></span><span>
+</span><span id="line-73"></span><span>       </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">readListPrecDefault</span></span><span class="hs-special">)</span><span>
+</span><span id="line-74"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Streamly.Internal.BaseCompat.html"><span class="hs-identifier">Streamly.Internal.BaseCompat</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.BaseCompat.html#%23."><span class="hs-operator">(#.)</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">errorWithoutStackTrace</span></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.BaseCompat.html#oneShot"><span class="hs-identifier">oneShot</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-75"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Maybe.Strict.html"><span class="hs-identifier">Streamly.Internal.Data.Maybe.Strict</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Maybe.Strict.html#Maybe%27"><span class="hs-identifier">Maybe'</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Maybe.Strict.html#toMaybe"><span class="hs-identifier">toMaybe</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-76"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamK.Type.html"><span class="hs-identifier">Streamly.Internal.Data.Stream.StreamK.Type</span></a></span><span>
+</span><span id="line-77"></span><span>       </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#Stream"><span class="hs-identifier">Stream</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#mkStream"><span class="hs-identifier">mkStream</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#foldStream"><span class="hs-identifier">foldStream</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-78"></span><span>
+</span><span id="line-79"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Prelude.html"><span class="hs-identifier">Streamly.Internal.Data.Stream.Prelude</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">P</span></span><span>
+</span><span id="line-80"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamD.Generate.html"><span class="hs-identifier">Streamly.Internal.Data.Stream.StreamD.Generate</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">D</span></span><span>
+</span><span id="line-81"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamD.Type.html"><span class="hs-identifier">Streamly.Internal.Data.Stream.StreamD.Type</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">D</span></span><span>
+</span><span id="line-82"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamK.Type.html"><span class="hs-identifier">Streamly.Internal.Data.Stream.StreamK.Type</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">K</span></span><span>
+</span><span id="line-83"></span><span>
+</span><span id="line-84"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">map</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">mapM</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">errorWithoutStackTrace</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">repeat</span></span><span class="hs-special">)</span><span class="hs-cpp">
+
+#include &quot;Instances.hs&quot;
+</span><span class="hs-cpp">#include &quot;inline.hs&quot;
+</span><span>
+</span><span id="line-89"></span><span class="hs-comment">-- $setup</span><span>
+</span><span id="line-90"></span><span class="hs-comment">-- &gt;&gt;&gt; import qualified Streamly.Prelude as Stream</span><span>
+</span><span id="line-91"></span><span>
+</span><span id="line-92"></span><span class="hs-comment">------------------------------------------------------------------------------</span><span>
+</span><span id="line-93"></span><span class="hs-comment">-- SerialT</span><span>
+</span><span id="line-94"></span><span class="hs-comment">------------------------------------------------------------------------------</span><span>
+</span><span id="line-95"></span><span>
+</span><span id="line-96"></span><span class="hs-comment">-- | For 'SerialT' streams:</span><span>
+</span><span id="line-97"></span><span class="hs-comment">--</span><span>
+</span><span id="line-98"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-99"></span><span class="hs-comment">-- (&lt;&gt;) = 'Streamly.Prelude.serial'                       -- 'Semigroup'</span><span>
+</span><span id="line-100"></span><span class="hs-comment">-- (&gt;&gt;=) = flip . 'Streamly.Prelude.concatMapWith' 'Streamly.Prelude.serial' -- 'Monad'</span><span>
+</span><span id="line-101"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-102"></span><span class="hs-comment">--</span><span>
+</span><span id="line-103"></span><span class="hs-comment">-- A single 'Monad' bind behaves like a @for@ loop:</span><span>
+</span><span id="line-104"></span><span class="hs-comment">--</span><span>
+</span><span id="line-105"></span><span class="hs-comment">-- &gt;&gt;&gt; :{</span><span>
+</span><span id="line-106"></span><span class="hs-comment">-- Stream.toList $ do</span><span>
+</span><span id="line-107"></span><span class="hs-comment">--      x &lt;- Stream.fromList [1,2] -- foreach x in stream</span><span>
+</span><span id="line-108"></span><span class="hs-comment">--      return x</span><span>
+</span><span id="line-109"></span><span class="hs-comment">-- :}</span><span>
+</span><span id="line-110"></span><span class="hs-comment">-- [1,2]</span><span>
+</span><span id="line-111"></span><span class="hs-comment">--</span><span>
+</span><span id="line-112"></span><span class="hs-comment">-- Nested monad binds behave like nested @for@ loops:</span><span>
+</span><span id="line-113"></span><span class="hs-comment">--</span><span>
+</span><span id="line-114"></span><span class="hs-comment">-- &gt;&gt;&gt; :{</span><span>
+</span><span id="line-115"></span><span class="hs-comment">-- Stream.toList $ do</span><span>
+</span><span id="line-116"></span><span class="hs-comment">--     x &lt;- Stream.fromList [1,2] -- foreach x in stream</span><span>
+</span><span id="line-117"></span><span class="hs-comment">--     y &lt;- Stream.fromList [3,4] -- foreach y in stream</span><span>
+</span><span id="line-118"></span><span class="hs-comment">--     return (x, y)</span><span>
+</span><span id="line-119"></span><span class="hs-comment">-- :}</span><span>
+</span><span id="line-120"></span><span class="hs-comment">-- [(1,3),(1,4),(2,3),(2,4)]</span><span>
+</span><span id="line-121"></span><span class="hs-comment">--</span><span>
+</span><span id="line-122"></span><span class="hs-comment">-- /Since: 0.2.0 (&quot;Streamly&quot;)/</span><span>
+</span><span id="line-123"></span><span class="hs-comment">--</span><span>
+</span><span id="line-124"></span><span class="hs-comment">-- @since 0.8.0</span><span>
+</span><span id="line-125"></span><span class="hs-keyword">newtype</span><span> </span><span id="SerialT"><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-var">SerialT</span></a></span></span><span> </span><span id="local-6989586621679387924"><span class="annot"><a href="#local-6989586621679387924"><span class="hs-identifier hs-type">m</span></a></span></span><span> </span><span id="local-6989586621679387923"><span class="annot"><a href="#local-6989586621679387923"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="SerialT"><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-var">SerialT</span></a></span></span><span> </span><span class="hs-special">{</span><span id="getSerialT"><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. SerialT m a -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#getSerialT"><span class="hs-identifier hs-var hs-var">getSerialT</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#Stream"><span class="hs-identifier hs-type">Stream</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387924"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387923"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">}</span><span>
+</span><span id="line-126"></span><span>    </span><span class="hs-comment">-- XXX when deriving do we inherit an INLINE?</span><span>
+</span><span id="line-127"></span><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679387339"><span id="local-6989586621679387345"><span id="local-6989586621679387350"><span class="annot"><span class="annottext">NonEmpty (SerialT m a) -&gt; SerialT m a
+SerialT m a -&gt; SerialT m a -&gt; SerialT m a
+forall b. Integral b =&gt; b -&gt; SerialT m a -&gt; SerialT m a
+forall a.
+(a -&gt; a -&gt; a)
+-&gt; (NonEmpty a -&gt; a)
+-&gt; (forall b. Integral b =&gt; b -&gt; a -&gt; a)
+-&gt; Semigroup a
+forall (m :: * -&gt; *) a. NonEmpty (SerialT m a) -&gt; SerialT m a
+forall (m :: * -&gt; *) a. SerialT m a -&gt; SerialT m a -&gt; SerialT m a
+forall (m :: * -&gt; *) a b.
+Integral b =&gt;
+b -&gt; SerialT m a -&gt; SerialT m a
+stimes :: forall b. Integral b =&gt; b -&gt; SerialT m a -&gt; SerialT m a
+$cstimes :: forall (m :: * -&gt; *) a b.
+Integral b =&gt;
+b -&gt; SerialT m a -&gt; SerialT m a
+sconcat :: NonEmpty (SerialT m a) -&gt; SerialT m a
+$csconcat :: forall (m :: * -&gt; *) a. NonEmpty (SerialT m a) -&gt; SerialT m a
+&lt;&gt; :: SerialT m a -&gt; SerialT m a -&gt; SerialT m a
+$c&lt;&gt; :: forall (m :: * -&gt; *) a. SerialT m a -&gt; SerialT m a -&gt; SerialT m a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Semigroup</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679387320"><span id="local-6989586621679387324"><span id="local-6989586621679387329"><span class="annot"><span class="annottext">SerialT m a
+[SerialT m a] -&gt; SerialT m a
+SerialT m a -&gt; SerialT m a -&gt; SerialT m a
+forall a.
+Semigroup a -&gt; a -&gt; (a -&gt; a -&gt; a) -&gt; ([a] -&gt; a) -&gt; Monoid a
+forall (m :: * -&gt; *) a. Semigroup (SerialT m a)
+forall (m :: * -&gt; *) a. SerialT m a
+forall (m :: * -&gt; *) a. [SerialT m a] -&gt; SerialT m a
+forall (m :: * -&gt; *) a. SerialT m a -&gt; SerialT m a -&gt; SerialT m a
+mconcat :: [SerialT m a] -&gt; SerialT m a
+$cmconcat :: forall (m :: * -&gt; *) a. [SerialT m a] -&gt; SerialT m a
+mappend :: SerialT m a -&gt; SerialT m a -&gt; SerialT m a
+$cmappend :: forall (m :: * -&gt; *) a. SerialT m a -&gt; SerialT m a -&gt; SerialT m a
+mempty :: SerialT m a
+$cmempty :: forall (m :: * -&gt; *) a. SerialT m a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Monoid</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679387312"><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; SerialT m a
+forall (t :: (* -&gt; *) -&gt; * -&gt; *).
+(forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; t m a) -&gt; MonadTrans t
+lift :: forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; SerialT m a
+$clift :: forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; SerialT m a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">MonadTrans</span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-128"></span><span>
+</span><span id="line-129"></span><span class="hs-comment">-- | A serial IO stream of elements of type @a@. See 'SerialT' documentation</span><span>
+</span><span id="line-130"></span><span class="hs-comment">-- for more details.</span><span>
+</span><span id="line-131"></span><span class="hs-comment">--</span><span>
+</span><span id="line-132"></span><span class="hs-comment">-- /Since: 0.2.0 (&quot;Streamly&quot;)/</span><span>
+</span><span id="line-133"></span><span class="hs-comment">--</span><span>
+</span><span id="line-134"></span><span class="hs-comment">-- @since 0.8.0</span><span>
+</span><span id="line-135"></span><span class="hs-keyword">type</span><span> </span><span id="Serial"><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#Serial"><span class="hs-identifier hs-var">Serial</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-type">SerialT</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span>
+</span><span id="line-136"></span><span>
+</span><span id="line-137"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-138"></span><span class="hs-comment">-- @since 0.1.0</span><span>
+</span><span id="line-139"></span><span class="hs-pragma">{-# DEPRECATED</span><span> </span><span class="hs-pragma">StreamT</span><span> </span><span class="hs-pragma">&quot;Please use 'SerialT' instead.&quot;</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-140"></span><span class="hs-keyword">type</span><span> </span><span id="StreamT"><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#StreamT"><span class="hs-identifier hs-var">StreamT</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-type">SerialT</span></a></span><span>
+</span><span id="line-141"></span><span>
+</span><span id="line-142"></span><span class="hs-comment">------------------------------------------------------------------------------</span><span>
+</span><span id="line-143"></span><span class="hs-comment">-- Generation</span><span>
+</span><span id="line-144"></span><span class="hs-comment">------------------------------------------------------------------------------</span><span>
+</span><span id="line-145"></span><span>
+</span><span id="line-146"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#cons"><span class="hs-pragma hs-type">cons</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-147"></span><span id="local-6989586621679387898"><span id="local-6989586621679387899"><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#cons"><span class="hs-identifier hs-type">cons</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621679387899"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-type">SerialT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387898"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387899"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-type">SerialT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387898"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387899"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-148"></span><span id="cons"><span class="annot"><span class="annottext">cons :: forall a (m :: * -&gt; *). a -&gt; SerialT m a -&gt; SerialT m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#cons"><span class="hs-identifier hs-var hs-var">cons</span></a></span></span><span> </span><span id="local-6989586621679387304"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679387304"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-type">SerialT</span></a></span><span> </span><span id="local-6989586621679387303"><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679387303"><span class="hs-identifier hs-var">ms</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Stream m a -&gt; SerialT m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-var">SerialT</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a (m :: * -&gt; *). a -&gt; Stream m a -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#cons"><span class="hs-identifier hs-var">K.cons</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679387304"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679387303"><span class="hs-identifier hs-var">ms</span></a></span><span>
+</span><span id="line-149"></span><span>
+</span><span id="line-150"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#consM"><span class="hs-pragma hs-type">consM</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-151"></span><span class="hs-pragma">{-# SPECIALIZE</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#consM"><span class="hs-pragma hs-type">consM</span></a></span><span> </span><span class="hs-pragma">::</span><span> </span><span id="local-6989586621679387301"><span class="annot"><span class="hs-pragma hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621679387301"><span class="hs-pragma hs-type">a</span></a></span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-pragma hs-type">SerialT</span></a></span><span> </span><span class="annot"><span class="hs-pragma hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621679387301"><span class="hs-pragma hs-type">a</span></a></span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-pragma hs-type">SerialT</span></a></span><span> </span><span class="annot"><span class="hs-pragma hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621679387301"><span class="hs-pragma hs-type">a</span></a></span></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-152"></span><span id="local-6989586621679387889"><span id="local-6989586621679387890"><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#consM"><span class="hs-identifier hs-type">consM</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621679387890"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679387890"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387889"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-type">SerialT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387890"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387889"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-type">SerialT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387890"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387889"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-153"></span><span id="consM"><span class="annot"><span class="annottext">consM :: forall (m :: * -&gt; *) a.
+Monad m =&gt;
+m a -&gt; SerialT m a -&gt; SerialT m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#consM"><span class="hs-identifier hs-var hs-var">consM</span></a></span></span><span> </span><span id="local-6989586621679387298"><span class="annot"><span class="annottext">m a
+</span><a href="#local-6989586621679387298"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-type">SerialT</span></a></span><span> </span><span id="local-6989586621679387297"><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679387297"><span class="hs-identifier hs-var">ms</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Stream m a -&gt; SerialT m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-var">SerialT</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; Stream m a -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#consM"><span class="hs-identifier hs-var">K.consM</span></a></span><span> </span><span class="annot"><span class="annottext">m a
+</span><a href="#local-6989586621679387298"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679387297"><span class="hs-identifier hs-var">ms</span></a></span><span>
+</span><span id="line-154"></span><span>
+</span><span id="line-155"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-156"></span><span class="hs-comment">-- Generate an infinite stream by repeating a pure value.</span><span>
+</span><span id="line-157"></span><span class="hs-comment">--</span><span>
+</span><span id="line-158"></span><span class="hs-pragma">{-# INLINE_NORMAL repeat #-}</span><span>
+</span><span id="line-159"></span><span id="local-6989586621679387883"><span id="local-6989586621679387884"><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#repeat"><span class="hs-identifier hs-type">repeat</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621679387884"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679387883"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-type">SerialT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387884"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387883"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-160"></span><span id="repeat"><span class="annot"><span class="annottext">repeat :: forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; SerialT m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#repeat"><span class="hs-identifier hs-var hs-var">repeat</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Stream m a -&gt; SerialT m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-var">SerialT</span></a></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; Stream m a -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Type.html#toStreamK"><span class="hs-identifier hs-var">D.toStreamK</span></a></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Generate.html#repeat"><span class="hs-identifier hs-var">D.repeat</span></a></span><span>
+</span><span id="line-161"></span><span>
+</span><span id="line-162"></span><span class="hs-comment">------------------------------------------------------------------------------</span><span>
+</span><span id="line-163"></span><span class="hs-comment">-- Combining</span><span>
+</span><span id="line-164"></span><span class="hs-comment">------------------------------------------------------------------------------</span><span>
+</span><span id="line-165"></span><span>
+</span><span id="line-166"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#serial"><span class="hs-pragma hs-type">serial</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-167"></span><span id="local-6989586621679387288"><span id="local-6989586621679387289"><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#serial"><span class="hs-identifier hs-type">serial</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-type">SerialT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387289"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387288"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-type">SerialT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387289"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387288"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-type">SerialT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387289"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387288"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-168"></span><span id="serial"><span class="annot"><span class="annottext">serial :: forall (m :: * -&gt; *) a. SerialT m a -&gt; SerialT m a -&gt; SerialT m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#serial"><span class="hs-identifier hs-var hs-var">serial</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">(&lt;&gt;)</span></span><span>
+</span><span id="line-169"></span><span>
+</span><span id="line-170"></span><span class="hs-comment">------------------------------------------------------------------------------</span><span>
+</span><span id="line-171"></span><span class="hs-comment">-- Monad</span><span>
+</span><span id="line-172"></span><span class="hs-comment">------------------------------------------------------------------------------</span><span>
+</span><span id="line-173"></span><span>
+</span><span id="line-174"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679387863"><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621679387863"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-type">SerialT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387863"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-175"></span><span>    </span><span id="local-6989586621679387276"><span class="annot"><span class="annottext">return :: forall a. a -&gt; SerialT m a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">return</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span>
+</span><span id="line-176"></span><span>
+</span><span id="line-177"></span><span>    </span><span class="hs-comment">-- Benchmarks better with StreamD bind and pure:</span><span>
+</span><span id="line-178"></span><span>    </span><span class="hs-comment">-- toList, filterAllout, *&gt;, *&lt;, &gt;&gt; (~2x)</span><span>
+</span><span id="line-179"></span><span>    </span><span class="hs-comment">--</span><span>
+</span><span id="line-180"></span><span>    </span><span class="hs-comment">-- pure = SerialT . D.fromStreamD . D.fromPure</span><span>
+</span><span id="line-181"></span><span>    </span><span class="hs-comment">-- m &gt;&gt;= f = D.fromStreamD $ D.concatMap (D.toStreamD . f) (D.toStreamD m)</span><span>
+</span><span id="line-182"></span><span>
+</span><span id="line-183"></span><span>    </span><span class="hs-comment">-- Benchmarks better with CPS bind and pure:</span><span>
+</span><span id="line-184"></span><span>    </span><span class="hs-comment">-- Prime sieve (25x)</span><span>
+</span><span id="line-185"></span><span>    </span><span class="hs-comment">-- n binds, breakAfterSome, filterAllIn, state transformer (~2x)</span><span>
+</span><span id="line-186"></span><span>    </span><span class="hs-comment">--</span><span>
+</span><span id="line-187"></span><span>    </span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">(</span><span class="hs-pragma">&gt;&gt;=</span><span class="hs-pragma">)</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-188"></span><span>    </span><span id="local-6989586621679387275"><span class="annot"><span class="annottext">&gt;&gt;= :: forall a b. SerialT m a -&gt; (a -&gt; SerialT m b) -&gt; SerialT m b
+</span><span class="hs-operator hs-var hs-var hs-var hs-var">(&gt;&gt;=)</span></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-type">SerialT</span></a></span><span> </span><span id="local-6989586621679387274"><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679387274"><span class="hs-identifier hs-var">m</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679387273"><span class="annot"><span class="annottext">a -&gt; SerialT m b
+</span><a href="#local-6989586621679387273"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Stream m a -&gt; SerialT m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-var">SerialT</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) b a.
+(Stream m b -&gt; Stream m b -&gt; Stream m b)
+-&gt; Stream m a -&gt; (a -&gt; Stream m b) -&gt; Stream m b
+</span><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#bindWith"><span class="hs-identifier hs-var">K.bindWith</span></a></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Stream m a -&gt; Stream m a -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#serial"><span class="hs-identifier hs-var">K.serial</span></a></span><span> </span><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679387274"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. SerialT m a -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#getSerialT"><span class="hs-identifier hs-var">getSerialT</span></a></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; SerialT m b
+</span><a href="#local-6989586621679387273"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-189"></span><span>
+</span><span id="line-190"></span><span>    </span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">(</span><span class="hs-pragma">&gt;&gt;</span><span class="hs-pragma">)</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-191"></span><span>    </span><span id="local-6989586621679387269"><span class="annot"><span class="annottext">&gt;&gt; :: forall a b. SerialT m a -&gt; SerialT m b -&gt; SerialT m b
+</span><span class="hs-operator hs-var hs-var hs-var hs-var">(&gt;&gt;)</span></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f b
+</span><span class="hs-operator hs-var">(*&gt;)</span></span><span>
+</span><span id="line-192"></span><span>
+</span><span id="line-193"></span><span class="hs-comment">------------------------------------------------------------------------------</span><span>
+</span><span id="line-194"></span><span class="hs-comment">-- Other instances</span><span>
+</span><span id="line-195"></span><span class="hs-comment">------------------------------------------------------------------------------</span><span>
+</span><span id="line-196"></span><span>
+</span><span id="line-197"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#mapM"><span class="hs-pragma hs-type">mapM</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-198"></span><span id="local-6989586621679387849"><span id="local-6989586621679387850"><span id="local-6989586621679387851"><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#mapM"><span class="hs-identifier hs-type">mapM</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621679387851"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679387850"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679387851"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387849"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-type">SerialT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387851"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387850"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-type">SerialT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387851"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387849"><span class="hs-identifier hs-type">b</span></a></span></span></span></span><span>
+</span><span id="line-199"></span><span id="mapM"><span class="annot"><span class="annottext">mapM :: forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b) -&gt; SerialT m a -&gt; SerialT m b
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#mapM"><span class="hs-identifier hs-var hs-var">mapM</span></a></span></span><span> </span><span id="local-6989586621679387262"><span class="annot"><span class="annottext">a -&gt; m b
+</span><a href="#local-6989586621679387262"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-type">SerialT</span></a></span><span> </span><span id="local-6989586621679387261"><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679387261"><span class="hs-identifier hs-var">m</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Stream m a -&gt; SerialT m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-var">SerialT</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; Stream m a -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Type.html#toStreamK"><span class="hs-identifier hs-var">D.toStreamK</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b) -&gt; Stream m a -&gt; Stream m b
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Type.html#mapM"><span class="hs-identifier hs-var">D.mapM</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; m b
+</span><a href="#local-6989586621679387262"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Applicative m =&gt; Stream m a -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Type.html#fromStreamK"><span class="hs-identifier hs-var">D.fromStreamK</span></a></span><span> </span><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679387261"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-200"></span><span>
+</span><span id="line-201"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-202"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-203"></span><span class="hs-comment">-- map = fmap</span><span>
+</span><span id="line-204"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-205"></span><span class="hs-comment">--</span><span>
+</span><span id="line-206"></span><span class="hs-comment">-- Same as 'fmap'.</span><span>
+</span><span id="line-207"></span><span class="hs-comment">--</span><span>
+</span><span id="line-208"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-209"></span><span class="hs-comment">-- &gt; S.toList $ S.map (+1) $ S.fromList [1,2,3]</span><span>
+</span><span id="line-210"></span><span class="hs-comment">-- [2,3,4]</span><span>
+</span><span id="line-211"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-212"></span><span class="hs-comment">--</span><span>
+</span><span id="line-213"></span><span class="hs-comment">-- @since 0.4.0</span><span>
+</span><span id="line-214"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#map"><span class="hs-pragma hs-type">map</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-215"></span><span id="local-6989586621679387838"><span id="local-6989586621679387839"><span id="local-6989586621679387840"><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#map"><span class="hs-identifier hs-type">map</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621679387840"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679387839"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679387838"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-type">SerialT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387840"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387839"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-type">SerialT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387840"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387838"><span class="hs-identifier hs-type">b</span></a></span></span></span></span><span>
+</span><span id="line-216"></span><span id="map"><span class="annot"><span class="annottext">map :: forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; b) -&gt; SerialT m a -&gt; SerialT m b
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#map"><span class="hs-identifier hs-var hs-var">map</span></a></span></span><span> </span><span id="local-6989586621679387255"><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621679387255"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b) -&gt; SerialT m a -&gt; SerialT m b
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#mapM"><span class="hs-identifier hs-var">mapM</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621679387255"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-217"></span><span>
+</span><span id="line-218"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#apSerial"><span class="hs-pragma hs-type">apSerial</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-219"></span><span id="local-6989586621679387832"><span id="local-6989586621679387833"><span id="local-6989586621679387834"><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#apSerial"><span class="hs-identifier hs-type">apSerial</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621679387834"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-type">SerialT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387834"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679387833"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679387832"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-type">SerialT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387834"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387833"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-type">SerialT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387834"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387832"><span class="hs-identifier hs-type">b</span></a></span></span></span></span><span>
+</span><span id="line-220"></span><span id="apSerial"><span class="annot"><span class="annottext">apSerial :: forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+SerialT m (a -&gt; b) -&gt; SerialT m a -&gt; SerialT m b
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#apSerial"><span class="hs-identifier hs-var hs-var">apSerial</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-type">SerialT</span></a></span><span> </span><span id="local-6989586621679387246"><span class="annot"><span class="annottext">Stream m (a -&gt; b)
+</span><a href="#local-6989586621679387246"><span class="hs-identifier hs-var">m1</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-type">SerialT</span></a></span><span> </span><span id="local-6989586621679387245"><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679387245"><span class="hs-identifier hs-var">m2</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-221"></span><span>    </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Stream m a -&gt; SerialT m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-var">SerialT</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; Stream m a -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Type.html#toStreamK"><span class="hs-identifier hs-var">D.toStreamK</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Applicative m =&gt; Stream m a -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Type.html#fromStreamK"><span class="hs-identifier hs-var">D.fromStreamK</span></a></span><span> </span><span class="annot"><span class="annottext">Stream m (a -&gt; b)
+</span><a href="#local-6989586621679387246"><span class="hs-identifier hs-var">m1</span></a></span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Applicative m =&gt; Stream m a -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Type.html#fromStreamK"><span class="hs-identifier hs-var">D.fromStreamK</span></a></span><span> </span><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679387245"><span class="hs-identifier hs-var">m2</span></a></span><span>
+</span><span id="line-222"></span><span>
+</span><span id="line-223"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#apSequence"><span class="hs-pragma hs-type">apSequence</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-224"></span><span id="local-6989586621679387823"><span id="local-6989586621679387824"><span id="local-6989586621679387825"><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#apSequence"><span class="hs-identifier hs-type">apSequence</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621679387825"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-type">SerialT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387825"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387824"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-type">SerialT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387825"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387823"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-type">SerialT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387825"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387823"><span class="hs-identifier hs-type">b</span></a></span></span></span></span><span>
+</span><span id="line-225"></span><span id="apSequence"><span class="annot"><span class="annottext">apSequence :: forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+SerialT m a -&gt; SerialT m b -&gt; SerialT m b
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#apSequence"><span class="hs-identifier hs-var hs-var">apSequence</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-type">SerialT</span></a></span><span> </span><span id="local-6989586621679387237"><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679387237"><span class="hs-identifier hs-var">m1</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-type">SerialT</span></a></span><span> </span><span id="local-6989586621679387236"><span class="annot"><span class="annottext">Stream m b
+</span><a href="#local-6989586621679387236"><span class="hs-identifier hs-var">m2</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-226"></span><span>    </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Stream m a -&gt; SerialT m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-var">SerialT</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; Stream m a -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Type.html#toStreamK"><span class="hs-identifier hs-var">D.toStreamK</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Applicative m =&gt; Stream m a -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Type.html#fromStreamK"><span class="hs-identifier hs-var">D.fromStreamK</span></a></span><span> </span><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679387237"><span class="hs-identifier hs-var">m1</span></a></span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f b
+</span><span class="hs-operator hs-var">*&gt;</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Applicative m =&gt; Stream m a -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Type.html#fromStreamK"><span class="hs-identifier hs-var">D.fromStreamK</span></a></span><span> </span><span class="annot"><span class="annottext">Stream m b
+</span><a href="#local-6989586621679387236"><span class="hs-identifier hs-var">m2</span></a></span><span>
+</span><span id="line-227"></span><span>
+</span><span id="line-228"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#apDiscardSnd"><span class="hs-pragma hs-type">apDiscardSnd</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-229"></span><span id="local-6989586621679387817"><span id="local-6989586621679387818"><span id="local-6989586621679387819"><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#apDiscardSnd"><span class="hs-identifier hs-type">apDiscardSnd</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621679387819"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-type">SerialT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387819"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387818"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-type">SerialT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387819"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387817"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-type">SerialT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387819"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387818"><span class="hs-identifier hs-type">a</span></a></span></span></span></span><span>
+</span><span id="line-230"></span><span id="apDiscardSnd"><span class="annot"><span class="annottext">apDiscardSnd :: forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+SerialT m a -&gt; SerialT m b -&gt; SerialT m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#apDiscardSnd"><span class="hs-identifier hs-var hs-var">apDiscardSnd</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-type">SerialT</span></a></span><span> </span><span id="local-6989586621679387228"><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679387228"><span class="hs-identifier hs-var">m1</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-type">SerialT</span></a></span><span> </span><span id="local-6989586621679387227"><span class="annot"><span class="annottext">Stream m b
+</span><a href="#local-6989586621679387227"><span class="hs-identifier hs-var">m2</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-231"></span><span>    </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Stream m a -&gt; SerialT m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-var">SerialT</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; Stream m a -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Type.html#toStreamK"><span class="hs-identifier hs-var">D.toStreamK</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Applicative m =&gt; Stream m a -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Type.html#fromStreamK"><span class="hs-identifier hs-var">D.fromStreamK</span></a></span><span> </span><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679387228"><span class="hs-identifier hs-var">m1</span></a></span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;*</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Applicative m =&gt; Stream m a -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Type.html#fromStreamK"><span class="hs-identifier hs-var">D.fromStreamK</span></a></span><span> </span><span class="annot"><span class="annottext">Stream m b
+</span><a href="#local-6989586621679387227"><span class="hs-identifier hs-var">m2</span></a></span><span>
+</span><span id="line-232"></span><span>
+</span><span id="line-233"></span><span class="hs-comment">-- Note: we need to define all the typeclass operations because we want to</span><span>
+</span><span id="line-234"></span><span class="hs-comment">-- INLINE them.</span><span>
+</span><span id="line-235"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679387225"><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621679387225"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Applicative</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-type">SerialT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387225"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-236"></span><span>    </span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><span class="hs-pragma hs-type">pure</span></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-237"></span><span>    </span><span id="local-6989586621679387214"><span class="annot"><span class="annottext">pure :: forall a. a -&gt; SerialT m a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">pure</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Stream m a -&gt; SerialT m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-var">SerialT</span></a></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall a (m :: * -&gt; *). a -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#fromPure"><span class="hs-identifier hs-var">K.fromPure</span></a></span><span>
+</span><span id="line-238"></span><span>
+</span><span id="line-239"></span><span>    </span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">(</span><span class="hs-pragma">&lt;*&gt;</span><span class="hs-pragma">)</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-240"></span><span>    </span><span id="local-6989586621679387211"><span class="annot"><span class="annottext">&lt;*&gt; :: forall a b. SerialT m (a -&gt; b) -&gt; SerialT m a -&gt; SerialT m b
+</span><span class="hs-operator hs-var hs-var hs-var hs-var">(&lt;*&gt;)</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+SerialT m (a -&gt; b) -&gt; SerialT m a -&gt; SerialT m b
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#apSerial"><span class="hs-identifier hs-var">apSerial</span></a></span><span>
+</span><span id="line-241"></span><span>    </span><span class="hs-comment">-- (&lt;*&gt;) = K.apSerial</span><span class="hs-cpp">
+
+#if MIN_VERSION_base(4,10,0)
+</span><span>    </span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><span class="hs-pragma hs-type">liftA2</span></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-245"></span><span>    </span><span id="local-6989586621679387208"><span class="annot"><span class="annottext">liftA2 :: forall a b c.
+(a -&gt; b -&gt; c) -&gt; SerialT m a -&gt; SerialT m b -&gt; SerialT m c
+</span><a href="#local-6989586621679387208"><span class="hs-identifier hs-var hs-var hs-var hs-var">liftA2</span></a></span></span><span> </span><span id="local-6989586621679387207"><span class="annot"><span class="annottext">a -&gt; b -&gt; c
+</span><a href="#local-6989586621679387207"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621679387206"><span class="annot"><span class="annottext">SerialT m a
+</span><a href="#local-6989586621679387206"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">(&lt;*&gt;)</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; b -&gt; c
+</span><a href="#local-6989586621679387207"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">SerialT m a
+</span><a href="#local-6989586621679387206"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-248"></span><span>    </span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">(</span><span class="hs-pragma">*&gt;</span><span class="hs-pragma">)</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-249"></span><span>    </span><span id="local-6989586621679387204"><span class="annot"><span class="annottext">*&gt; :: forall a b. SerialT m a -&gt; SerialT m b -&gt; SerialT m b
+</span><span class="hs-operator hs-var hs-var hs-var hs-var">(*&gt;)</span></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+SerialT m a -&gt; SerialT m b -&gt; SerialT m b
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#apSequence"><span class="hs-identifier hs-var">apSequence</span></a></span><span>
+</span><span id="line-250"></span><span>    </span><span class="hs-comment">-- (*&gt;)  = K.apSerialDiscardFst</span><span>
+</span><span id="line-251"></span><span>
+</span><span id="line-252"></span><span>    </span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">(</span><span class="hs-pragma">&lt;*</span><span class="hs-pragma">)</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-253"></span><span>    </span><span id="local-6989586621679387202"><span class="annot"><span class="annottext">&lt;* :: forall a b. SerialT m a -&gt; SerialT m b -&gt; SerialT m a
+</span><a href="#local-6989586621679387202"><span class="hs-operator hs-var hs-var hs-var hs-var">(&lt;*)</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+SerialT m a -&gt; SerialT m b -&gt; SerialT m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#apDiscardSnd"><span class="hs-identifier hs-var">apDiscardSnd</span></a></span><span>
+</span><span id="line-254"></span><span>    </span><span class="hs-comment">-- (&lt;*)  = K.apSerialDiscardSnd</span><span>
+</span><span id="line-255"></span><span>
+</span><span id="line-256"></span><span id="local-6989586621679387201"></span><span class="hs-identifier">MONAD_COMMON_INSTANCES</span><span class="hs-special">(</span><span class="hs-identifier">SerialT</span><span class="hs-special">,</span><span class="hs-special">)</span><span>
+</span><span id="line-257"></span><span id="local-6989586621679387089"><span id="local-6989586621679387741"></span></span><span class="hs-identifier">LIST_INSTANCES</span><span class="hs-special">(</span><span class="hs-identifier">SerialT</span><span class="hs-special">)</span><span>
+</span><span id="line-258"></span><span class="hs-identifier">NFDATA1_INSTANCE</span><span class="hs-special">(</span><span class="hs-identifier">SerialT</span><span class="hs-special">)</span><span>
+</span><span id="line-259"></span><span id="local-6989586621679386931"><span id="local-6989586621679386933"><span id="local-6989586621679386935"><span id="local-6989586621679386937"><span id="local-6989586621679386940"><span id="local-6989586621679386942"><span id="local-6989586621679386945"><span id="local-6989586621679386948"><span id="local-6989586621679387669"></span></span></span></span></span></span></span></span></span><span class="hs-identifier">FOLDABLE_INSTANCE</span><span class="hs-special">(</span><span class="hs-identifier">SerialT</span><span class="hs-special">)</span><span>
+</span><span id="line-260"></span><span id="local-6989586621679386826"><span id="local-6989586621679386828"><span id="local-6989586621679386830"></span></span></span><span class="hs-identifier">TRAVERSABLE_INSTANCE</span><span class="hs-special">(</span><span class="hs-identifier">SerialT</span><span class="hs-special">)</span><span>
+</span><span id="line-261"></span><span>
+</span><span id="line-262"></span><span class="hs-comment">------------------------------------------------------------------------------</span><span>
+</span><span id="line-263"></span><span class="hs-comment">-- WSerialT</span><span>
+</span><span id="line-264"></span><span class="hs-comment">------------------------------------------------------------------------------</span><span>
+</span><span id="line-265"></span><span>
+</span><span id="line-266"></span><span class="hs-comment">-- | For 'WSerialT' streams:</span><span>
+</span><span id="line-267"></span><span class="hs-comment">--</span><span>
+</span><span id="line-268"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-269"></span><span class="hs-comment">-- (&lt;&gt;) = 'Streamly.Prelude.wSerial'                       -- 'Semigroup'</span><span>
+</span><span id="line-270"></span><span class="hs-comment">-- (&gt;&gt;=) = flip . 'Streamly.Prelude.concatMapWith' 'Streamly.Prelude.wSerial' -- 'Monad'</span><span>
+</span><span id="line-271"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-272"></span><span class="hs-comment">--</span><span>
+</span><span id="line-273"></span><span class="hs-comment">-- Note that '&lt;&gt;' is associative only if we disregard the ordering of elements</span><span>
+</span><span id="line-274"></span><span class="hs-comment">-- in the resulting stream.</span><span>
+</span><span id="line-275"></span><span class="hs-comment">--</span><span>
+</span><span id="line-276"></span><span class="hs-comment">-- A single 'Monad' bind behaves like a @for@ loop:</span><span>
+</span><span id="line-277"></span><span class="hs-comment">--</span><span>
+</span><span id="line-278"></span><span class="hs-comment">-- &gt;&gt;&gt; :{</span><span>
+</span><span id="line-279"></span><span class="hs-comment">-- Stream.toList $ Stream.fromWSerial $ do</span><span>
+</span><span id="line-280"></span><span class="hs-comment">--      x &lt;- Stream.fromList [1,2] -- foreach x in stream</span><span>
+</span><span id="line-281"></span><span class="hs-comment">--      return x</span><span>
+</span><span id="line-282"></span><span class="hs-comment">-- :}</span><span>
+</span><span id="line-283"></span><span class="hs-comment">-- [1,2]</span><span>
+</span><span id="line-284"></span><span class="hs-comment">--</span><span>
+</span><span id="line-285"></span><span class="hs-comment">-- Nested monad binds behave like interleaved nested @for@ loops:</span><span>
+</span><span id="line-286"></span><span class="hs-comment">--</span><span>
+</span><span id="line-287"></span><span class="hs-comment">-- &gt;&gt;&gt; :{</span><span>
+</span><span id="line-288"></span><span class="hs-comment">-- Stream.toList $ Stream.fromWSerial $ do</span><span>
+</span><span id="line-289"></span><span class="hs-comment">--     x &lt;- Stream.fromList [1,2] -- foreach x in stream</span><span>
+</span><span id="line-290"></span><span class="hs-comment">--     y &lt;- Stream.fromList [3,4] -- foreach y in stream</span><span>
+</span><span id="line-291"></span><span class="hs-comment">--     return (x, y)</span><span>
+</span><span id="line-292"></span><span class="hs-comment">-- :}</span><span>
+</span><span id="line-293"></span><span class="hs-comment">-- [(1,3),(2,3),(1,4),(2,4)]</span><span>
+</span><span id="line-294"></span><span class="hs-comment">--</span><span>
+</span><span id="line-295"></span><span class="hs-comment">-- It is a result of interleaving all the nested iterations corresponding to</span><span>
+</span><span id="line-296"></span><span class="hs-comment">-- element @1@ in the first stream with all the nested iterations of element</span><span>
+</span><span id="line-297"></span><span class="hs-comment">-- @2@:</span><span>
+</span><span id="line-298"></span><span class="hs-comment">--</span><span>
+</span><span id="line-299"></span><span class="hs-comment">-- &gt;&gt;&gt; import Streamly.Prelude (wSerial)</span><span>
+</span><span id="line-300"></span><span class="hs-comment">-- &gt;&gt;&gt; Stream.toList $ Stream.fromList [(1,3),(1,4)] `Stream.wSerial` Stream.fromList [(2,3),(2,4)]</span><span>
+</span><span id="line-301"></span><span class="hs-comment">-- [(1,3),(2,3),(1,4),(2,4)]</span><span>
+</span><span id="line-302"></span><span class="hs-comment">--</span><span>
+</span><span id="line-303"></span><span class="hs-comment">-- The @W@ in the name stands for @wide@ or breadth wise scheduling in</span><span>
+</span><span id="line-304"></span><span class="hs-comment">-- contrast to the depth wise scheduling behavior of 'SerialT'.</span><span>
+</span><span id="line-305"></span><span class="hs-comment">--</span><span>
+</span><span id="line-306"></span><span class="hs-comment">-- /Since: 0.2.0 (&quot;Streamly&quot;)/</span><span>
+</span><span id="line-307"></span><span class="hs-comment">--</span><span>
+</span><span id="line-308"></span><span class="hs-comment">-- @since 0.8.0</span><span>
+</span><span id="line-309"></span><span class="hs-keyword">newtype</span><span> </span><span id="WSerialT"><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#WSerialT"><span class="hs-identifier hs-var">WSerialT</span></a></span></span><span> </span><span id="local-6989586621679387616"><span class="annot"><a href="#local-6989586621679387616"><span class="hs-identifier hs-type">m</span></a></span></span><span> </span><span id="local-6989586621679387615"><span class="annot"><a href="#local-6989586621679387615"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="WSerialT"><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#WSerialT"><span class="hs-identifier hs-var">WSerialT</span></a></span></span><span> </span><span class="hs-special">{</span><span id="getWSerialT"><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. WSerialT m a -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#getWSerialT"><span class="hs-identifier hs-var hs-var">getWSerialT</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#Stream"><span class="hs-identifier hs-type">Stream</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387616"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387615"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">}</span><span>
+</span><span id="line-310"></span><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679386803"><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; WSerialT m a
+forall (t :: (* -&gt; *) -&gt; * -&gt; *).
+(forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; t m a) -&gt; MonadTrans t
+lift :: forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; WSerialT m a
+$clift :: forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; WSerialT m a
+</span><a href="#local-6989586621679386803"><span class="hs-identifier hs-var hs-var hs-var hs-var">MonadTrans</span></a></span></span><span class="hs-special">)</span><span>
+</span><span id="line-311"></span><span>
+</span><span id="line-312"></span><span class="hs-comment">-- | An interleaving serial IO stream of elements of type @a@. See 'WSerialT'</span><span>
+</span><span id="line-313"></span><span class="hs-comment">-- documentation for more details.</span><span>
+</span><span id="line-314"></span><span class="hs-comment">--</span><span>
+</span><span id="line-315"></span><span class="hs-comment">-- /Since: 0.2.0 (&quot;Streamly&quot;)/</span><span>
+</span><span id="line-316"></span><span class="hs-comment">--</span><span>
+</span><span id="line-317"></span><span class="hs-comment">-- @since 0.8.0</span><span>
+</span><span id="line-318"></span><span class="hs-keyword">type</span><span> </span><span id="WSerial"><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#WSerial"><span class="hs-identifier hs-var">WSerial</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#WSerialT"><span class="hs-identifier hs-type">WSerialT</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span>
+</span><span id="line-319"></span><span>
+</span><span id="line-320"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-321"></span><span class="hs-comment">-- @since 0.1.0</span><span>
+</span><span id="line-322"></span><span class="hs-pragma">{-# DEPRECATED</span><span> </span><span class="hs-pragma">InterleavedT</span><span> </span><span class="hs-pragma">&quot;Please use 'WSerialT' instead.&quot;</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-323"></span><span class="hs-keyword">type</span><span> </span><span id="InterleavedT"><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#InterleavedT"><span class="hs-identifier hs-var">InterleavedT</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#WSerialT"><span class="hs-identifier hs-type">WSerialT</span></a></span><span>
+</span><span id="line-324"></span><span>
+</span><span id="line-325"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#consMWSerial"><span class="hs-pragma hs-type">consMWSerial</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-326"></span><span class="hs-pragma">{-# SPECIALIZE</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#consMWSerial"><span class="hs-pragma hs-type">consMWSerial</span></a></span><span> </span><span class="hs-pragma">::</span><span> </span><span id="local-6989586621679386797"><span class="annot"><span class="hs-pragma hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621679386797"><span class="hs-pragma hs-type">a</span></a></span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#WSerialT"><span class="hs-pragma hs-type">WSerialT</span></a></span><span> </span><span class="annot"><span class="hs-pragma hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621679386797"><span class="hs-pragma hs-type">a</span></a></span><span> </span><span class="hs-pragma">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#WSerialT"><span class="hs-pragma hs-type">WSerialT</span></a></span><span> </span><span class="annot"><span class="hs-pragma hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621679386797"><span class="hs-pragma hs-type">a</span></a></span></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-327"></span><span id="local-6989586621679387608"><span id="local-6989586621679387609"><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#consMWSerial"><span class="hs-identifier hs-type">consMWSerial</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621679387609"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679387609"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387608"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#WSerialT"><span class="hs-identifier hs-type">WSerialT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387609"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387608"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#WSerialT"><span class="hs-identifier hs-type">WSerialT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387609"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387608"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-328"></span><span id="consMWSerial"><span class="annot"><span class="annottext">consMWSerial :: forall (m :: * -&gt; *) a.
+Monad m =&gt;
+m a -&gt; WSerialT m a -&gt; WSerialT m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#consMWSerial"><span class="hs-identifier hs-var hs-var">consMWSerial</span></a></span></span><span> </span><span id="local-6989586621679386794"><span class="annot"><span class="annottext">m a
+</span><a href="#local-6989586621679386794"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#WSerialT"><span class="hs-identifier hs-type">WSerialT</span></a></span><span> </span><span id="local-6989586621679386793"><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679386793"><span class="hs-identifier hs-var">ms</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Stream m a -&gt; WSerialT m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#WSerialT"><span class="hs-identifier hs-var">WSerialT</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; m a -&gt; Stream m a -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#consM"><span class="hs-identifier hs-var">K.consM</span></a></span><span> </span><span class="annot"><span class="annottext">m a
+</span><a href="#local-6989586621679386794"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679386793"><span class="hs-identifier hs-var">ms</span></a></span><span>
+</span><span id="line-329"></span><span>
+</span><span id="line-330"></span><span class="hs-comment">------------------------------------------------------------------------------</span><span>
+</span><span id="line-331"></span><span class="hs-comment">-- Semigroup</span><span>
+</span><span id="line-332"></span><span class="hs-comment">------------------------------------------------------------------------------</span><span>
+</span><span id="line-333"></span><span>
+</span><span id="line-334"></span><span class="hs-keyword">infixr</span><span> </span><span class="hs-number">6</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#wSerial"><span class="hs-operator hs-type">`wSerial`</span></a></span><span>
+</span><span id="line-335"></span><span>
+</span><span id="line-336"></span><span class="hs-comment">-- Additionally we can have m elements yield from the first stream and n</span><span>
+</span><span id="line-337"></span><span class="hs-comment">-- elements yielding from the second stream. We can also have time slicing</span><span>
+</span><span id="line-338"></span><span class="hs-comment">-- variants of positional interleaving, e.g. run first stream for m seconds and</span><span>
+</span><span id="line-339"></span><span class="hs-comment">-- run the second stream for n seconds.</span><span>
+</span><span id="line-340"></span><span class="hs-comment">--</span><span>
+</span><span id="line-341"></span><span class="hs-comment">-- Similar combinators can be implemented using WAhead style.</span><span>
+</span><span id="line-342"></span><span>
+</span><span id="line-343"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#wSerialK"><span class="hs-pragma hs-type">wSerialK</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-344"></span><span id="local-6989586621679386791"><span id="local-6989586621679386792"><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#wSerialK"><span class="hs-identifier hs-type">wSerialK</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#Stream"><span class="hs-identifier hs-type">Stream</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679386792"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679386791"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#Stream"><span class="hs-identifier hs-type">Stream</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679386792"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679386791"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#Stream"><span class="hs-identifier hs-type">Stream</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679386792"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679386791"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-345"></span><span id="wSerialK"><span class="annot"><span class="annottext">wSerialK :: forall (m :: * -&gt; *) a. Stream m a -&gt; Stream m a -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#wSerialK"><span class="hs-identifier hs-var hs-var">wSerialK</span></a></span></span><span> </span><span id="local-6989586621679386790"><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679386790"><span class="hs-identifier hs-var">m1</span></a></span></span><span> </span><span id="local-6989586621679386789"><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679386789"><span class="hs-identifier hs-var">m2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a.
+(forall r.
+ State Stream m a
+ -&gt; (a -&gt; Stream m a -&gt; m r) -&gt; (a -&gt; m r) -&gt; m r -&gt; m r)
+-&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#mkStream"><span class="hs-identifier hs-var">mkStream</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679386788"><span class="annot"><span class="annottext">State Stream m a
+</span><a href="#local-6989586621679386788"><span class="hs-identifier hs-var">st</span></a></span></span><span> </span><span id="local-6989586621679386787"><span class="annot"><span class="annottext">a -&gt; Stream m a -&gt; m r
+</span><a href="#local-6989586621679386787"><span class="hs-identifier hs-var">yld</span></a></span></span><span> </span><span id="local-6989586621679386786"><span class="annot"><span class="annottext">a -&gt; m r
+</span><a href="#local-6989586621679386786"><span class="hs-identifier hs-var">sng</span></a></span></span><span> </span><span id="local-6989586621679386785"><span class="annot"><span class="annottext">m r
+</span><a href="#local-6989586621679386785"><span class="hs-identifier hs-var">stp</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-346"></span><span>    </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679386784"><span class="annot"><span class="annottext">stop :: m r
+</span><a href="#local-6989586621679386784"><span class="hs-identifier hs-var hs-var">stop</span></a></span></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a r.
+State Stream m a
+-&gt; (a -&gt; Stream m a -&gt; m r)
+-&gt; (a -&gt; m r)
+-&gt; m r
+-&gt; Stream m a
+-&gt; m r
+</span><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#foldStream"><span class="hs-identifier hs-var">foldStream</span></a></span><span> </span><span class="annot"><span class="annottext">State Stream m a
+</span><a href="#local-6989586621679386788"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; Stream m a -&gt; m r
+</span><a href="#local-6989586621679386787"><span class="hs-identifier hs-var">yld</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; m r
+</span><a href="#local-6989586621679386786"><span class="hs-identifier hs-var">sng</span></a></span><span> </span><span class="annot"><span class="annottext">m r
+</span><a href="#local-6989586621679386785"><span class="hs-identifier hs-var">stp</span></a></span><span> </span><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679386789"><span class="hs-identifier hs-var">m2</span></a></span><span>
+</span><span id="line-347"></span><span>        </span><span id="local-6989586621679386783"><span class="annot"><span class="annottext">single :: a -&gt; m r
+</span><a href="#local-6989586621679386783"><span class="hs-identifier hs-var hs-var">single</span></a></span></span><span> </span><span id="local-6989586621679386782"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679386782"><span class="hs-identifier hs-var">a</span></a></span></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; Stream m a -&gt; m r
+</span><a href="#local-6989586621679386787"><span class="hs-identifier hs-var">yld</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679386782"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679386789"><span class="hs-identifier hs-var">m2</span></a></span><span>
+</span><span id="line-348"></span><span>        </span><span id="local-6989586621679386781"><span class="annot"><span class="annottext">yieldk :: a -&gt; Stream m a -&gt; m r
+</span><a href="#local-6989586621679386781"><span class="hs-identifier hs-var hs-var">yieldk</span></a></span></span><span> </span><span id="local-6989586621679386780"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679386780"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679386779"><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679386779"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; Stream m a -&gt; m r
+</span><a href="#local-6989586621679386787"><span class="hs-identifier hs-var">yld</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679386780"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Stream m a -&gt; Stream m a -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#wSerialK"><span class="hs-identifier hs-var">wSerialK</span></a></span><span> </span><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679386789"><span class="hs-identifier hs-var">m2</span></a></span><span> </span><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679386779"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-349"></span><span>    </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a r.
+State Stream m a
+-&gt; (a -&gt; Stream m a -&gt; m r)
+-&gt; (a -&gt; m r)
+-&gt; m r
+-&gt; Stream m a
+-&gt; m r
+</span><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#foldStream"><span class="hs-identifier hs-var">foldStream</span></a></span><span> </span><span class="annot"><span class="annottext">State Stream m a
+</span><a href="#local-6989586621679386788"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; Stream m a -&gt; m r
+</span><a href="#local-6989586621679386781"><span class="hs-identifier hs-var">yieldk</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; m r
+</span><a href="#local-6989586621679386783"><span class="hs-identifier hs-var">single</span></a></span><span> </span><span class="annot"><span class="annottext">m r
+</span><a href="#local-6989586621679386784"><span class="hs-identifier hs-var">stop</span></a></span><span> </span><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679386790"><span class="hs-identifier hs-var">m1</span></a></span><span>
+</span><span id="line-350"></span><span>
+</span><span id="line-351"></span><span class="hs-comment">-- | Interleaves two streams, yielding one element from each stream</span><span>
+</span><span id="line-352"></span><span class="hs-comment">-- alternately.  When one stream stops the rest of the other stream is used in</span><span>
+</span><span id="line-353"></span><span class="hs-comment">-- the output stream.</span><span>
+</span><span id="line-354"></span><span>
+</span><span id="line-355"></span><span class="hs-comment">-- Scheduling Notes:</span><span>
+</span><span id="line-356"></span><span class="hs-comment">--</span><span>
+</span><span id="line-357"></span><span class="hs-comment">-- Note that evaluation of @a \`wSerial` b \`wSerial` c@ does not interleave</span><span>
+</span><span id="line-358"></span><span class="hs-comment">-- @a@, @b@ and @c@ with equal priority.  This expression is equivalent to @a</span><span>
+</span><span id="line-359"></span><span class="hs-comment">-- \`wSerial` (b \`wSerial` c)@, therefore, it fairly interleaves @a@ with the</span><span>
+</span><span id="line-360"></span><span class="hs-comment">-- result of @b \`wSerial` c@.  For example, @Stream.fromList [1,2] \`wSerial`</span><span>
+</span><span id="line-361"></span><span class="hs-comment">-- Stream.fromList [3,4] \`wSerial` Stream.fromList [5,6]@ would result in</span><span>
+</span><span id="line-362"></span><span class="hs-comment">-- [1,3,2,5,4,6].  In other words, the leftmost stream gets the same scheduling</span><span>
+</span><span id="line-363"></span><span class="hs-comment">-- priority as the rest of the streams taken together. The same is true for</span><span>
+</span><span id="line-364"></span><span class="hs-comment">-- each subexpression on the right.</span><span>
+</span><span id="line-365"></span><span class="hs-comment">--</span><span>
+</span><span id="line-366"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#wSerial"><span class="hs-pragma hs-type">wSerial</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-367"></span><span id="local-6989586621679387594"><span id="local-6989586621679387595"><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#wSerial"><span class="hs-identifier hs-type">wSerial</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#WSerialT"><span class="hs-identifier hs-type">WSerialT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387595"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387594"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#WSerialT"><span class="hs-identifier hs-type">WSerialT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387595"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387594"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#WSerialT"><span class="hs-identifier hs-type">WSerialT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387595"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387594"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-368"></span><span id="wSerial"><span class="annot"><span class="annottext">wSerial :: forall (m :: * -&gt; *) a.
+WSerialT m a -&gt; WSerialT m a -&gt; WSerialT m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#wSerial"><span class="hs-identifier hs-var hs-var">wSerial</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#WSerialT"><span class="hs-identifier hs-type">WSerialT</span></a></span><span> </span><span id="local-6989586621679386778"><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679386778"><span class="hs-identifier hs-var">m1</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#WSerialT"><span class="hs-identifier hs-type">WSerialT</span></a></span><span> </span><span id="local-6989586621679386777"><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679386777"><span class="hs-identifier hs-var">m2</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Stream m a -&gt; WSerialT m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#WSerialT"><span class="hs-identifier hs-var">WSerialT</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Stream m a -&gt; Stream m a -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#wSerialK"><span class="hs-identifier hs-var">wSerialK</span></a></span><span> </span><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679386778"><span class="hs-identifier hs-var">m1</span></a></span><span> </span><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679386777"><span class="hs-identifier hs-var">m2</span></a></span><span>
+</span><span id="line-369"></span><span>
+</span><span id="line-370"></span><span class="hs-comment">-- | Like `wSerial` but stops interleaving as soon as the first stream stops.</span><span>
+</span><span id="line-371"></span><span class="hs-comment">--</span><span>
+</span><span id="line-372"></span><span class="hs-comment">-- @since 0.7.0</span><span>
+</span><span id="line-373"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#wSerialFstK"><span class="hs-pragma hs-type">wSerialFstK</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-374"></span><span id="local-6989586621679386774"><span id="local-6989586621679386775"><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#wSerialFstK"><span class="hs-identifier hs-type">wSerialFstK</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#Stream"><span class="hs-identifier hs-type">Stream</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679386775"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679386774"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#Stream"><span class="hs-identifier hs-type">Stream</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679386775"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679386774"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#Stream"><span class="hs-identifier hs-type">Stream</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679386775"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679386774"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-375"></span><span id="wSerialFstK"><span class="annot"><span class="annottext">wSerialFstK :: forall (m :: * -&gt; *) a. Stream m a -&gt; Stream m a -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#wSerialFstK"><span class="hs-identifier hs-var hs-var">wSerialFstK</span></a></span></span><span> </span><span id="local-6989586621679386773"><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679386773"><span class="hs-identifier hs-var">m1</span></a></span></span><span> </span><span id="local-6989586621679386772"><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679386772"><span class="hs-identifier hs-var">m2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a.
+(forall r.
+ State Stream m a
+ -&gt; (a -&gt; Stream m a -&gt; m r) -&gt; (a -&gt; m r) -&gt; m r -&gt; m r)
+-&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#mkStream"><span class="hs-identifier hs-var">mkStream</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679386771"><span class="annot"><span class="annottext">State Stream m a
+</span><a href="#local-6989586621679386771"><span class="hs-identifier hs-var">st</span></a></span></span><span> </span><span id="local-6989586621679386770"><span class="annot"><span class="annottext">a -&gt; Stream m a -&gt; m r
+</span><a href="#local-6989586621679386770"><span class="hs-identifier hs-var">yld</span></a></span></span><span> </span><span id="local-6989586621679386769"><span class="annot"><span class="annottext">a -&gt; m r
+</span><a href="#local-6989586621679386769"><span class="hs-identifier hs-var">sng</span></a></span></span><span> </span><span id="local-6989586621679386768"><span class="annot"><span class="annottext">m r
+</span><a href="#local-6989586621679386768"><span class="hs-identifier hs-var">stp</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-376"></span><span>    </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679386767"><span class="annot"><span class="annottext">yieldFirst :: a -&gt; Stream m a -&gt; m r
+</span><a href="#local-6989586621679386767"><span class="hs-identifier hs-var hs-var">yieldFirst</span></a></span></span><span> </span><span id="local-6989586621679386766"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679386766"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679386765"><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679386765"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; Stream m a -&gt; m r
+</span><a href="#local-6989586621679386770"><span class="hs-identifier hs-var">yld</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679386766"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Stream m a -&gt; Stream m a -&gt; Stream m a
+</span><a href="#local-6989586621679386764"><span class="hs-identifier hs-var">yieldSecond</span></a></span><span> </span><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679386765"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679386772"><span class="hs-identifier hs-var">m2</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-377"></span><span>     </span><span class="hs-keyword">in</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a r.
+State Stream m a
+-&gt; (a -&gt; Stream m a -&gt; m r)
+-&gt; (a -&gt; m r)
+-&gt; m r
+-&gt; Stream m a
+-&gt; m r
+</span><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#foldStream"><span class="hs-identifier hs-var">foldStream</span></a></span><span> </span><span class="annot"><span class="annottext">State Stream m a
+</span><a href="#local-6989586621679386771"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; Stream m a -&gt; m r
+</span><a href="#local-6989586621679386767"><span class="hs-identifier hs-var">yieldFirst</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; m r
+</span><a href="#local-6989586621679386769"><span class="hs-identifier hs-var">sng</span></a></span><span> </span><span class="annot"><span class="annottext">m r
+</span><a href="#local-6989586621679386768"><span class="hs-identifier hs-var">stp</span></a></span><span> </span><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679386773"><span class="hs-identifier hs-var">m1</span></a></span><span>
+</span><span id="line-378"></span><span>
+</span><span id="line-379"></span><span>    </span><span class="hs-keyword">where</span><span>
+</span><span id="line-380"></span><span>
+</span><span id="line-381"></span><span>    </span><span id="local-6989586621679386764"><span class="annot"><span class="annottext">yieldSecond :: Stream m a -&gt; Stream m a -&gt; Stream m a
+</span><a href="#local-6989586621679386764"><span class="hs-identifier hs-var hs-var">yieldSecond</span></a></span></span><span> </span><span id="local-6989586621679386763"><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679386763"><span class="hs-identifier hs-var">s1</span></a></span></span><span> </span><span id="local-6989586621679386762"><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679386762"><span class="hs-identifier hs-var">s2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a.
+(forall r.
+ State Stream m a
+ -&gt; (a -&gt; Stream m a -&gt; m r) -&gt; (a -&gt; m r) -&gt; m r -&gt; m r)
+-&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#mkStream"><span class="hs-identifier hs-var">mkStream</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679386761"><span class="annot"><span class="annottext">State Stream m a
+</span><a href="#local-6989586621679386761"><span class="hs-identifier hs-var">st</span></a></span></span><span> </span><span id="local-6989586621679386760"><span class="annot"><span class="annottext">a -&gt; Stream m a -&gt; m r
+</span><a href="#local-6989586621679386760"><span class="hs-identifier hs-var">yld</span></a></span></span><span> </span><span id="local-6989586621679386759"><span class="annot"><span class="annottext">a -&gt; m r
+</span><a href="#local-6989586621679386759"><span class="hs-identifier hs-var">sng</span></a></span></span><span> </span><span id="local-6989586621679386758"><span class="annot"><span class="annottext">m r
+</span><a href="#local-6989586621679386758"><span class="hs-identifier hs-var">stp</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-382"></span><span>            </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679386757"><span class="annot"><span class="annottext">stop :: m r
+</span><a href="#local-6989586621679386757"><span class="hs-identifier hs-var hs-var">stop</span></a></span></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a r.
+State Stream m a
+-&gt; (a -&gt; Stream m a -&gt; m r)
+-&gt; (a -&gt; m r)
+-&gt; m r
+-&gt; Stream m a
+-&gt; m r
+</span><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#foldStream"><span class="hs-identifier hs-var">foldStream</span></a></span><span> </span><span class="annot"><span class="annottext">State Stream m a
+</span><a href="#local-6989586621679386761"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; Stream m a -&gt; m r
+</span><a href="#local-6989586621679386760"><span class="hs-identifier hs-var">yld</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; m r
+</span><a href="#local-6989586621679386759"><span class="hs-identifier hs-var">sng</span></a></span><span> </span><span class="annot"><span class="annottext">m r
+</span><a href="#local-6989586621679386758"><span class="hs-identifier hs-var">stp</span></a></span><span> </span><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679386763"><span class="hs-identifier hs-var">s1</span></a></span><span>
+</span><span id="line-383"></span><span>                </span><span id="local-6989586621679386756"><span class="annot"><span class="annottext">single :: a -&gt; m r
+</span><a href="#local-6989586621679386756"><span class="hs-identifier hs-var hs-var">single</span></a></span></span><span> </span><span id="local-6989586621679386755"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679386755"><span class="hs-identifier hs-var">a</span></a></span></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; Stream m a -&gt; m r
+</span><a href="#local-6989586621679386760"><span class="hs-identifier hs-var">yld</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679386755"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679386763"><span class="hs-identifier hs-var">s1</span></a></span><span>
+</span><span id="line-384"></span><span>                </span><span id="local-6989586621679386754"><span class="annot"><span class="annottext">yieldk :: a -&gt; Stream m a -&gt; m r
+</span><a href="#local-6989586621679386754"><span class="hs-identifier hs-var hs-var">yieldk</span></a></span></span><span> </span><span id="local-6989586621679386753"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679386753"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679386752"><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679386752"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; Stream m a -&gt; m r
+</span><a href="#local-6989586621679386760"><span class="hs-identifier hs-var">yld</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679386753"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Stream m a -&gt; Stream m a -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#wSerialK"><span class="hs-identifier hs-var">wSerialK</span></a></span><span> </span><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679386763"><span class="hs-identifier hs-var">s1</span></a></span><span> </span><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679386752"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-385"></span><span>             </span><span class="hs-keyword">in</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a r.
+State Stream m a
+-&gt; (a -&gt; Stream m a -&gt; m r)
+-&gt; (a -&gt; m r)
+-&gt; m r
+-&gt; Stream m a
+-&gt; m r
+</span><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#foldStream"><span class="hs-identifier hs-var">foldStream</span></a></span><span> </span><span class="annot"><span class="annottext">State Stream m a
+</span><a href="#local-6989586621679386761"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; Stream m a -&gt; m r
+</span><a href="#local-6989586621679386754"><span class="hs-identifier hs-var">yieldk</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; m r
+</span><a href="#local-6989586621679386756"><span class="hs-identifier hs-var">single</span></a></span><span> </span><span class="annot"><span class="annottext">m r
+</span><a href="#local-6989586621679386757"><span class="hs-identifier hs-var">stop</span></a></span><span> </span><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679386762"><span class="hs-identifier hs-var">s2</span></a></span><span>
+</span><span id="line-386"></span><span>
+</span><span id="line-387"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#wSerialFst"><span class="hs-pragma hs-type">wSerialFst</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-388"></span><span id="local-6989586621679386750"><span id="local-6989586621679386751"><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#wSerialFst"><span class="hs-identifier hs-type">wSerialFst</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#WSerialT"><span class="hs-identifier hs-type">WSerialT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679386751"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679386750"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#WSerialT"><span class="hs-identifier hs-type">WSerialT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679386751"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679386750"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#WSerialT"><span class="hs-identifier hs-type">WSerialT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679386751"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679386750"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-389"></span><span id="wSerialFst"><span class="annot"><span class="annottext">wSerialFst :: forall (m :: * -&gt; *) a.
+WSerialT m a -&gt; WSerialT m a -&gt; WSerialT m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#wSerialFst"><span class="hs-identifier hs-var hs-var">wSerialFst</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#WSerialT"><span class="hs-identifier hs-type">WSerialT</span></a></span><span> </span><span id="local-6989586621679386749"><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679386749"><span class="hs-identifier hs-var">m1</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#WSerialT"><span class="hs-identifier hs-type">WSerialT</span></a></span><span> </span><span id="local-6989586621679386748"><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679386748"><span class="hs-identifier hs-var">m2</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Stream m a -&gt; WSerialT m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#WSerialT"><span class="hs-identifier hs-var">WSerialT</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Stream m a -&gt; Stream m a -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#wSerialFstK"><span class="hs-identifier hs-var">wSerialFstK</span></a></span><span> </span><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679386749"><span class="hs-identifier hs-var">m1</span></a></span><span> </span><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679386748"><span class="hs-identifier hs-var">m2</span></a></span><span>
+</span><span id="line-390"></span><span>
+</span><span id="line-391"></span><span class="hs-comment">-- | Like `wSerial` but stops interleaving as soon as any of the two streams</span><span>
+</span><span id="line-392"></span><span class="hs-comment">-- stops.</span><span>
+</span><span id="line-393"></span><span class="hs-comment">--</span><span>
+</span><span id="line-394"></span><span class="hs-comment">-- @since 0.7.0</span><span>
+</span><span id="line-395"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#wSerialMinK"><span class="hs-pragma hs-type">wSerialMinK</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-396"></span><span id="local-6989586621679386745"><span id="local-6989586621679386746"><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#wSerialMinK"><span class="hs-identifier hs-type">wSerialMinK</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#Stream"><span class="hs-identifier hs-type">Stream</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679386746"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679386745"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#Stream"><span class="hs-identifier hs-type">Stream</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679386746"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679386745"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#Stream"><span class="hs-identifier hs-type">Stream</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679386746"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679386745"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-397"></span><span id="wSerialMinK"><span class="annot"><span class="annottext">wSerialMinK :: forall (m :: * -&gt; *) a. Stream m a -&gt; Stream m a -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#wSerialMinK"><span class="hs-identifier hs-var hs-var">wSerialMinK</span></a></span></span><span> </span><span id="local-6989586621679386744"><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679386744"><span class="hs-identifier hs-var">m1</span></a></span></span><span> </span><span id="local-6989586621679386743"><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679386743"><span class="hs-identifier hs-var">m2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a.
+(forall r.
+ State Stream m a
+ -&gt; (a -&gt; Stream m a -&gt; m r) -&gt; (a -&gt; m r) -&gt; m r -&gt; m r)
+-&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#mkStream"><span class="hs-identifier hs-var">mkStream</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679386742"><span class="annot"><span class="annottext">State Stream m a
+</span><a href="#local-6989586621679386742"><span class="hs-identifier hs-var">st</span></a></span></span><span> </span><span id="local-6989586621679386741"><span class="annot"><span class="annottext">a -&gt; Stream m a -&gt; m r
+</span><a href="#local-6989586621679386741"><span class="hs-identifier hs-var">yld</span></a></span></span><span> </span><span class="annot"><span class="annottext">a -&gt; m r
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679386740"><span class="annot"><span class="annottext">m r
+</span><a href="#local-6989586621679386740"><span class="hs-identifier hs-var">stp</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-398"></span><span>    </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679386739"><span class="annot"><span class="annottext">stop :: m r
+</span><a href="#local-6989586621679386739"><span class="hs-identifier hs-var hs-var">stop</span></a></span></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m r
+</span><a href="#local-6989586621679386740"><span class="hs-identifier hs-var">stp</span></a></span><span>
+</span><span id="line-399"></span><span>        </span><span class="hs-comment">-- &quot;single a&quot; is defined as &quot;yld a (wSerialMin m2 K.nil)&quot; instead of</span><span>
+</span><span id="line-400"></span><span>        </span><span class="hs-comment">-- &quot;sng a&quot; to keep the behaviour consistent with the yield continuation.</span><span>
+</span><span id="line-401"></span><span>        </span><span id="local-6989586621679386738"><span class="annot"><span class="annottext">single :: a -&gt; m r
+</span><a href="#local-6989586621679386738"><span class="hs-identifier hs-var hs-var">single</span></a></span></span><span> </span><span id="local-6989586621679386737"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679386737"><span class="hs-identifier hs-var">a</span></a></span></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; Stream m a -&gt; m r
+</span><a href="#local-6989586621679386741"><span class="hs-identifier hs-var">yld</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679386737"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Stream m a -&gt; Stream m a -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#wSerialMinK"><span class="hs-identifier hs-var">wSerialMinK</span></a></span><span> </span><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679386743"><span class="hs-identifier hs-var">m2</span></a></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Stream m a
+</span><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#nil"><span class="hs-identifier hs-var">K.nil</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-402"></span><span>        </span><span id="local-6989586621679386735"><span class="annot"><span class="annottext">yieldk :: a -&gt; Stream m a -&gt; m r
+</span><a href="#local-6989586621679386735"><span class="hs-identifier hs-var hs-var">yieldk</span></a></span></span><span> </span><span id="local-6989586621679386734"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679386734"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679386733"><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679386733"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; Stream m a -&gt; m r
+</span><a href="#local-6989586621679386741"><span class="hs-identifier hs-var">yld</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679386734"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Stream m a -&gt; Stream m a -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#wSerialMinK"><span class="hs-identifier hs-var">wSerialMinK</span></a></span><span> </span><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679386743"><span class="hs-identifier hs-var">m2</span></a></span><span> </span><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679386733"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-403"></span><span>    </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a r.
+State Stream m a
+-&gt; (a -&gt; Stream m a -&gt; m r)
+-&gt; (a -&gt; m r)
+-&gt; m r
+-&gt; Stream m a
+-&gt; m r
+</span><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#foldStream"><span class="hs-identifier hs-var">foldStream</span></a></span><span> </span><span class="annot"><span class="annottext">State Stream m a
+</span><a href="#local-6989586621679386742"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; Stream m a -&gt; m r
+</span><a href="#local-6989586621679386735"><span class="hs-identifier hs-var">yieldk</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; m r
+</span><a href="#local-6989586621679386738"><span class="hs-identifier hs-var">single</span></a></span><span> </span><span class="annot"><span class="annottext">m r
+</span><a href="#local-6989586621679386739"><span class="hs-identifier hs-var">stop</span></a></span><span> </span><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679386744"><span class="hs-identifier hs-var">m1</span></a></span><span>
+</span><span id="line-404"></span><span>
+</span><span id="line-405"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#wSerialMin"><span class="hs-pragma hs-type">wSerialMin</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-406"></span><span id="local-6989586621679386731"><span id="local-6989586621679386732"><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#wSerialMin"><span class="hs-identifier hs-type">wSerialMin</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#WSerialT"><span class="hs-identifier hs-type">WSerialT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679386732"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679386731"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#WSerialT"><span class="hs-identifier hs-type">WSerialT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679386732"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679386731"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#WSerialT"><span class="hs-identifier hs-type">WSerialT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679386732"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679386731"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-407"></span><span id="wSerialMin"><span class="annot"><span class="annottext">wSerialMin :: forall (m :: * -&gt; *) a.
+WSerialT m a -&gt; WSerialT m a -&gt; WSerialT m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#wSerialMin"><span class="hs-identifier hs-var hs-var">wSerialMin</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#WSerialT"><span class="hs-identifier hs-type">WSerialT</span></a></span><span> </span><span id="local-6989586621679386730"><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679386730"><span class="hs-identifier hs-var">m1</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#WSerialT"><span class="hs-identifier hs-type">WSerialT</span></a></span><span> </span><span id="local-6989586621679386729"><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679386729"><span class="hs-identifier hs-var">m2</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Stream m a -&gt; WSerialT m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#WSerialT"><span class="hs-identifier hs-var">WSerialT</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Stream m a -&gt; Stream m a -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#wSerialMinK"><span class="hs-identifier hs-var">wSerialMinK</span></a></span><span> </span><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679386730"><span class="hs-identifier hs-var">m1</span></a></span><span> </span><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679386729"><span class="hs-identifier hs-var">m2</span></a></span><span>
+</span><span id="line-408"></span><span>
+</span><span id="line-409"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679386724"><span id="local-6989586621679386726"><span id="local-6989586621679387575"><span id="local-6989586621679387576"><span class="annot"><span class="hs-identifier hs-type">Semigroup</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#WSerialT"><span class="hs-identifier hs-type">WSerialT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387576"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387575"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-410"></span><span>    </span><span id="local-6989586621679386723"><span class="annot"><span class="annottext">&lt;&gt; :: WSerialT m a -&gt; WSerialT m a -&gt; WSerialT m a
+</span><span class="hs-operator hs-var hs-var hs-var hs-var">(&lt;&gt;)</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a.
+WSerialT m a -&gt; WSerialT m a -&gt; WSerialT m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#wSerial"><span class="hs-identifier hs-var">wSerial</span></a></span><span>
+</span><span id="line-411"></span><span>
+</span><span id="line-412"></span><span class="hs-comment">------------------------------------------------------------------------------</span><span>
+</span><span id="line-413"></span><span class="hs-comment">-- Monoid</span><span>
+</span><span id="line-414"></span><span class="hs-comment">------------------------------------------------------------------------------</span><span>
+</span><span id="line-415"></span><span>
+</span><span id="line-416"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679386717"><span id="local-6989586621679387573"><span id="local-6989586621679387574"><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#WSerialT"><span class="hs-identifier hs-type">WSerialT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387574"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387573"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-417"></span><span>    </span><span id="local-6989586621679386716"><span class="annot"><span class="annottext">mempty :: WSerialT m a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">mempty</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Stream m a -&gt; WSerialT m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#WSerialT"><span class="hs-identifier hs-var">WSerialT</span></a></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Stream m a
+</span><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#nil"><span class="hs-identifier hs-var">K.nil</span></a></span><span>
+</span><span id="line-418"></span><span>    </span><span id="local-6989586621679386714"><span class="annot"><span class="annottext">mappend :: WSerialT m a -&gt; WSerialT m a -&gt; WSerialT m a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">mappend</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">(&lt;&gt;)</span></span><span>
+</span><span id="line-419"></span><span>
+</span><span id="line-420"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#apWSerial"><span class="hs-pragma hs-type">apWSerial</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-421"></span><span id="local-6989586621679387570"><span id="local-6989586621679387571"><span id="local-6989586621679387572"><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#apWSerial"><span class="hs-identifier hs-type">apWSerial</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621679387572"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#WSerialT"><span class="hs-identifier hs-type">WSerialT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387572"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679387571"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679387570"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#WSerialT"><span class="hs-identifier hs-type">WSerialT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387572"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387571"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#WSerialT"><span class="hs-identifier hs-type">WSerialT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387572"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387570"><span class="hs-identifier hs-type">b</span></a></span></span></span></span><span>
+</span><span id="line-422"></span><span id="apWSerial"><span class="annot"><span class="annottext">apWSerial :: forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+WSerialT m (a -&gt; b) -&gt; WSerialT m a -&gt; WSerialT m b
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#apWSerial"><span class="hs-identifier hs-var hs-var">apWSerial</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#WSerialT"><span class="hs-identifier hs-type">WSerialT</span></a></span><span> </span><span id="local-6989586621679386711"><span class="annot"><span class="annottext">Stream m (a -&gt; b)
+</span><a href="#local-6989586621679386711"><span class="hs-identifier hs-var">m1</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#WSerialT"><span class="hs-identifier hs-type">WSerialT</span></a></span><span> </span><span id="local-6989586621679386710"><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679386710"><span class="hs-identifier hs-var">m2</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-423"></span><span>    </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679386706"><span class="annot"><span class="annottext">f :: (a -&gt; b) -&gt; Stream m b
+</span><a href="#local-6989586621679386706"><span class="hs-identifier hs-var hs-var">f</span></a></span></span><span> </span><span id="local-6989586621679386705"><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621679386705"><span class="hs-identifier hs-var">x1</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) b a.
+(Stream m b -&gt; Stream m b -&gt; Stream m b)
+-&gt; (a -&gt; Stream m b) -&gt; Stream m a -&gt; Stream m b
+</span><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#concatMapWith"><span class="hs-identifier hs-var">K.concatMapWith</span></a></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Stream m a -&gt; Stream m a -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#wSerialK"><span class="hs-identifier hs-var">wSerialK</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621679386705"><span class="hs-identifier hs-var">x1</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679386710"><span class="hs-identifier hs-var">m2</span></a></span><span>
+</span><span id="line-424"></span><span>    </span><span class="hs-keyword">in</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Stream m a -&gt; WSerialT m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#WSerialT"><span class="hs-identifier hs-var">WSerialT</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) b a.
+(Stream m b -&gt; Stream m b -&gt; Stream m b)
+-&gt; (a -&gt; Stream m b) -&gt; Stream m a -&gt; Stream m b
+</span><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#concatMapWith"><span class="hs-identifier hs-var">K.concatMapWith</span></a></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Stream m a -&gt; Stream m a -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#wSerialK"><span class="hs-identifier hs-var">wSerialK</span></a></span><span> </span><span class="annot"><span class="annottext">forall {b}. (a -&gt; b) -&gt; Stream m b
+</span><a href="#local-6989586621679386706"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">Stream m (a -&gt; b)
+</span><a href="#local-6989586621679386711"><span class="hs-identifier hs-var">m1</span></a></span><span>
+</span><span id="line-425"></span><span>
+</span><span id="line-426"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679386693"><span id="local-6989586621679386695"><span id="local-6989586621679386697"><span id="local-6989586621679387561"><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621679387561"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Applicative</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#WSerialT"><span class="hs-identifier hs-type">WSerialT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387561"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-427"></span><span>    </span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><span class="hs-pragma hs-type">pure</span></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-428"></span><span>    </span><span id="local-6989586621679386692"><span class="annot"><span class="annottext">pure :: forall a. a -&gt; WSerialT m a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">pure</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Stream m a -&gt; WSerialT m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#WSerialT"><span class="hs-identifier hs-var">WSerialT</span></a></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall a (m :: * -&gt; *). a -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#fromPure"><span class="hs-identifier hs-var">K.fromPure</span></a></span><span>
+</span><span id="line-429"></span><span>    </span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">(</span><span class="hs-pragma">&lt;*&gt;</span><span class="hs-pragma">)</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-430"></span><span>    </span><span id="local-6989586621679386690"><span class="annot"><span class="annottext">&lt;*&gt; :: forall a b. WSerialT m (a -&gt; b) -&gt; WSerialT m a -&gt; WSerialT m b
+</span><span class="hs-operator hs-var hs-var hs-var hs-var">(&lt;*&gt;)</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+WSerialT m (a -&gt; b) -&gt; WSerialT m a -&gt; WSerialT m b
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#apWSerial"><span class="hs-identifier hs-var">apWSerial</span></a></span><span>
+</span><span id="line-431"></span><span>
+</span><span id="line-432"></span><span class="hs-comment">------------------------------------------------------------------------------</span><span>
+</span><span id="line-433"></span><span class="hs-comment">-- Monad</span><span>
+</span><span id="line-434"></span><span class="hs-comment">------------------------------------------------------------------------------</span><span>
+</span><span id="line-435"></span><span>
+</span><span id="line-436"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679386685"><span id="local-6989586621679387559"><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621679387559"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#WSerialT"><span class="hs-identifier hs-type">WSerialT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387559"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-437"></span><span>    </span><span id="local-6989586621679386682"><span class="annot"><span class="annottext">return :: forall a. a -&gt; WSerialT m a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">return</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span>
+</span><span id="line-438"></span><span>    </span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">(</span><span class="hs-pragma">&gt;&gt;=</span><span class="hs-pragma">)</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-439"></span><span>    </span><span id="local-6989586621679386681"><span class="annot"><span class="annottext">&gt;&gt;= :: forall a b. WSerialT m a -&gt; (a -&gt; WSerialT m b) -&gt; WSerialT m b
+</span><span class="hs-operator hs-var hs-var hs-var hs-var">(&gt;&gt;=)</span></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#WSerialT"><span class="hs-identifier hs-type">WSerialT</span></a></span><span> </span><span id="local-6989586621679386680"><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679386680"><span class="hs-identifier hs-var">m</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679386679"><span class="annot"><span class="annottext">a -&gt; WSerialT m b
+</span><a href="#local-6989586621679386679"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Stream m a -&gt; WSerialT m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#WSerialT"><span class="hs-identifier hs-var">WSerialT</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) b a.
+(Stream m b -&gt; Stream m b -&gt; Stream m b)
+-&gt; Stream m a -&gt; (a -&gt; Stream m b) -&gt; Stream m b
+</span><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#bindWith"><span class="hs-identifier hs-var">K.bindWith</span></a></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Stream m a -&gt; Stream m a -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#wSerialK"><span class="hs-identifier hs-var">wSerialK</span></a></span><span> </span><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679386680"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. WSerialT m a -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#getWSerialT"><span class="hs-identifier hs-var">getWSerialT</span></a></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; WSerialT m b
+</span><a href="#local-6989586621679386679"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-440"></span><span>
+</span><span id="line-441"></span><span class="hs-comment">------------------------------------------------------------------------------</span><span>
+</span><span id="line-442"></span><span class="hs-comment">-- Other instances</span><span>
+</span><span id="line-443"></span><span class="hs-comment">------------------------------------------------------------------------------</span><span>
+</span><span id="line-444"></span><span>
+</span><span id="line-445"></span><span id="local-6989586621679386678"></span><span class="hs-identifier">MONAD_COMMON_INSTANCES</span><span class="hs-special">(</span><span class="hs-identifier">WSerialT</span><span class="hs-special">,</span><span class="hs-special">)</span><span>
+</span><span id="line-446"></span><span id="local-6989586621679386587"><span id="local-6989586621679387532"></span></span><span class="hs-identifier">LIST_INSTANCES</span><span class="hs-special">(</span><span class="hs-identifier">WSerialT</span><span class="hs-special">)</span><span>
+</span><span id="line-447"></span><span class="hs-identifier">NFDATA1_INSTANCE</span><span class="hs-special">(</span><span class="hs-identifier">WSerialT</span><span class="hs-special">)</span><span>
+</span><span id="line-448"></span><span id="local-6989586621679386464"><span id="local-6989586621679386466"><span id="local-6989586621679386468"><span id="local-6989586621679386470"><span id="local-6989586621679386473"><span id="local-6989586621679386475"><span id="local-6989586621679386478"><span id="local-6989586621679386481"><span id="local-6989586621679387521"></span></span></span></span></span></span></span></span></span><span class="hs-identifier">FOLDABLE_INSTANCE</span><span class="hs-special">(</span><span class="hs-identifier">WSerialT</span><span class="hs-special">)</span><span>
+</span><span id="line-449"></span><span id="local-6989586621679386379"><span id="local-6989586621679386381"><span id="local-6989586621679386383"></span></span></span><span class="hs-identifier">TRAVERSABLE_INSTANCE</span><span class="hs-special">(</span><span class="hs-identifier">WSerialT</span><span class="hs-special">)</span><span>
+</span><span id="line-450"></span><span>
+</span><span id="line-451"></span><span class="hs-comment">------------------------------------------------------------------------------</span><span>
+</span><span id="line-452"></span><span class="hs-comment">-- Construction</span><span>
+</span><span id="line-453"></span><span class="hs-comment">------------------------------------------------------------------------------</span><span>
+</span><span id="line-454"></span><span>
+</span><span id="line-455"></span><span class="hs-comment">-- | Build a stream by unfolding a /monadic/ step function starting from a</span><span>
+</span><span id="line-456"></span><span class="hs-comment">-- seed.  The step function returns the next element in the stream and the next</span><span>
+</span><span id="line-457"></span><span class="hs-comment">-- seed value. When it is done it returns 'Nothing' and the stream ends. For</span><span>
+</span><span id="line-458"></span><span class="hs-comment">-- example,</span><span>
+</span><span id="line-459"></span><span class="hs-comment">--</span><span>
+</span><span id="line-460"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-461"></span><span class="hs-comment">-- let f b =</span><span>
+</span><span id="line-462"></span><span class="hs-comment">--         if b &gt; 3</span><span>
+</span><span id="line-463"></span><span class="hs-comment">--         then return Nothing</span><span>
+</span><span id="line-464"></span><span class="hs-comment">--         else print b &gt;&gt; return (Just (b, b + 1))</span><span>
+</span><span id="line-465"></span><span class="hs-comment">-- in drain $ unfoldrM f 0</span><span>
+</span><span id="line-466"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-467"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-468"></span><span class="hs-comment">--  0</span><span>
+</span><span id="line-469"></span><span class="hs-comment">--  1</span><span>
+</span><span id="line-470"></span><span class="hs-comment">--  2</span><span>
+</span><span id="line-471"></span><span class="hs-comment">--  3</span><span>
+</span><span id="line-472"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-473"></span><span class="hs-comment">--</span><span>
+</span><span id="line-474"></span><span class="hs-comment">-- /Pre-release/</span><span>
+</span><span id="line-475"></span><span class="hs-comment">--</span><span>
+</span><span id="line-476"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#unfoldrM"><span class="hs-pragma hs-type">unfoldrM</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-477"></span><span id="local-6989586621679387499"><span id="local-6989586621679387500"><span id="local-6989586621679387501"><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#unfoldrM"><span class="hs-identifier hs-type">unfoldrM</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621679387501"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679387500"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679387501"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679387499"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621679387500"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679387500"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-type">SerialT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387501"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679387499"><span class="hs-identifier hs-type">a</span></a></span></span></span></span><span>
+</span><span id="line-478"></span><span id="unfoldrM"><span class="annot"><span class="annottext">unfoldrM :: forall (m :: * -&gt; *) b a.
+Monad m =&gt;
+(b -&gt; m (Maybe (a, b))) -&gt; b -&gt; SerialT m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#unfoldrM"><span class="hs-identifier hs-var hs-var">unfoldrM</span></a></span></span><span> </span><span id="local-6989586621679386362"><span class="annot"><span class="annottext">b -&gt; m (Maybe (a, b))
+</span><a href="#local-6989586621679386362"><span class="hs-identifier hs-var">step</span></a></span></span><span> </span><span id="local-6989586621679386361"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621679386361"><span class="hs-identifier hs-var">seed</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Stream m a -&gt; SerialT m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-var">SerialT</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; Stream m a -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Type.html#toStreamK"><span class="hs-identifier hs-var">D.toStreamK</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) s a.
+Monad m =&gt;
+(s -&gt; m (Maybe (a, s))) -&gt; s -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Generate.html#unfoldrM"><span class="hs-identifier hs-var">D.unfoldrM</span></a></span><span> </span><span class="annot"><span class="annottext">b -&gt; m (Maybe (a, b))
+</span><a href="#local-6989586621679386362"><span class="hs-identifier hs-var">step</span></a></span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621679386361"><span class="hs-identifier hs-var">seed</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-479"></span></pre></body></html>

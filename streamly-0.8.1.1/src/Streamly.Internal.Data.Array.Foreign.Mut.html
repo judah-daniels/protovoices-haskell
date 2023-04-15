@@ -1,0 +1,177 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-cpp">#include &quot;inline.hs&quot;
+</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Module      : Streamly.Internal.Data.Array.Foreign.Mut</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- Copyright   : (c) 2020 Composewell Technologies</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- License     : BSD-3-Clause</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Maintainer  : streamly@composewell.com</span><span>
+</span><span id="line-8"></span><span class="hs-comment">-- Stability   : experimental</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Portability : GHC</span><span>
+</span><span id="line-10"></span><span class="hs-comment">--</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-- Unboxed pinned mutable array type for 'Storable' types with an option to use</span><span>
+</span><span id="line-12"></span><span class="hs-comment">-- foreign (non-GHC) memory allocators. Fulfils the following goals:</span><span>
+</span><span id="line-13"></span><span class="hs-comment">--</span><span>
+</span><span id="line-14"></span><span class="hs-comment">-- * Random access (array)</span><span>
+</span><span id="line-15"></span><span class="hs-comment">-- * Efficient storage (unboxed)</span><span>
+</span><span id="line-16"></span><span class="hs-comment">-- * Performance (unboxed access)</span><span>
+</span><span id="line-17"></span><span class="hs-comment">-- * Performance - in-place operations (mutable)</span><span>
+</span><span id="line-18"></span><span class="hs-comment">-- * Performance - GC (pinned, mutable)</span><span>
+</span><span id="line-19"></span><span class="hs-comment">-- * interfacing with OS (pinned)</span><span>
+</span><span id="line-20"></span><span class="hs-comment">-- * Fragmentation control (foreign allocators)</span><span>
+</span><span id="line-21"></span><span class="hs-comment">--</span><span>
+</span><span id="line-22"></span><span class="hs-comment">-- Stream and Fold APIs allow easy, efficient and convenient operations on</span><span>
+</span><span id="line-23"></span><span class="hs-comment">-- arrays.</span><span>
+</span><span id="line-24"></span><span>
+</span><span id="line-25"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Streamly.Internal.Data.Array.Foreign.Mut</span><span>
+</span><span id="line-26"></span><span>    </span><span class="hs-special">(</span><span>
+</span><span id="line-27"></span><span>      </span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Array.Foreign.Mut.Type.html"><span class="hs-identifier">Streamly.Internal.Data.Array.Foreign.Mut.Type</span></a></span><span>
+</span><span id="line-28"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Array.Foreign.Mut.html#splitOn"><span class="hs-identifier">splitOn</span></a></span><span>
+</span><span id="line-29"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Array.Foreign.Mut.html#genSlicesFromLen"><span class="hs-identifier">genSlicesFromLen</span></a></span><span>
+</span><span id="line-30"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Array.Foreign.Mut.html#getSlicesFromLen"><span class="hs-identifier">getSlicesFromLen</span></a></span><span>
+</span><span id="line-31"></span><span>    </span><span class="hs-special">)</span><span>
+</span><span id="line-32"></span><span class="hs-keyword">where</span><span>
+</span><span id="line-33"></span><span>
+</span><span id="line-34"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">foldr</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">length</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">read</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">splitAt</span></span><span class="hs-special">)</span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Array.Foreign.Mut.Type.html"><span class="hs-identifier">Streamly.Internal.Data.Array.Foreign.Mut.Type</span></a></span><span>
+</span><span id="line-37"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamD.html"><span class="hs-identifier">Streamly.Internal.Data.Stream.StreamD</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">D</span></span><span>
+</span><span id="line-38"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Foreign.Storable</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Storable</span></span><span class="hs-special">)</span><span>
+</span><span id="line-39"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.IsStream.Type.html"><span class="hs-identifier">Streamly.Internal.Data.Stream.IsStream.Type</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier">SerialT</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-40"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.IsStream.Type.html"><span class="hs-identifier">Streamly.Internal.Data.Stream.IsStream.Type</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">IsStream</span></span><span>
+</span><span id="line-41"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Unfold.html"><span class="hs-identifier">Streamly.Internal.Data.Unfold</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Unfold</span></span><span>
+</span><span id="line-42"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Unfold.Type.html"><span class="hs-identifier">Streamly.Internal.Data.Unfold.Type</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Unfold.Type.html#Unfold"><span class="hs-identifier">Unfold</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-43"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.IO.Class</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">MonadIO</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-44"></span><span>
+</span><span id="line-45"></span><span class="hs-comment">-- | Split the array into a stream of slices using a predicate. The element</span><span>
+</span><span id="line-46"></span><span class="hs-comment">-- matching the predicate is dropped.</span><span>
+</span><span id="line-47"></span><span class="hs-comment">--</span><span>
+</span><span id="line-48"></span><span class="hs-comment">-- /Pre-release/</span><span>
+</span><span id="line-49"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Array.Foreign.Mut.html#splitOn"><span class="hs-pragma hs-type">splitOn</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-50"></span><span id="local-6989586621679427427"><span id="local-6989586621679427429"><span class="annot"><a href="Streamly.Internal.Data.Array.Foreign.Mut.html#splitOn"><span class="hs-identifier hs-type">splitOn</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">MonadIO</span></span><span> </span><span class="annot"><a href="#local-6989586621679427429"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Storable</span></span><span> </span><span class="annot"><a href="#local-6989586621679427427"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span>
+</span><span id="line-51"></span><span>    </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679427427"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Array.Foreign.Mut.Type.html#Array"><span class="hs-identifier hs-type">Array</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679427427"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-type">SerialT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679427429"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Array.Foreign.Mut.Type.html#Array"><span class="hs-identifier hs-type">Array</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679427427"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-52"></span><span id="splitOn"><span class="annot"><span class="annottext">splitOn :: forall (m :: * -&gt; *) a.
+(MonadIO m, Storable a) =&gt;
+(a -&gt; Bool) -&gt; Array a -&gt; SerialT m (Array a)
+</span><a href="Streamly.Internal.Data.Array.Foreign.Mut.html#splitOn"><span class="hs-identifier hs-var hs-var">splitOn</span></a></span></span><span> </span><span id="local-6989586621679427349"><span class="annot"><span class="annottext">a -&gt; Bool
+</span><a href="#local-6989586621679427349"><span class="hs-identifier hs-var">predicate</span></a></span></span><span> </span><span id="local-6989586621679427348"><span class="annot"><span class="annottext">Array a
+</span><a href="#local-6989586621679427348"><span class="hs-identifier hs-var">arr</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-53"></span><span>    </span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(IsStream t, Monad m) =&gt;
+Stream m a -&gt; t m a
+</span><a href="Streamly.Internal.Data.Stream.IsStream.Type.html#fromStreamD"><span class="hs-identifier hs-var">IsStream.fromStreamD</span></a></span><span>
+</span><span id="line-54"></span><span>        </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span class="hs-special">(</span><span id="local-6989586621679427346"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679427346"><span class="hs-identifier hs-var">i</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679427345"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679427345"><span class="hs-identifier hs-var">len</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall a. Storable a =&gt; Int -&gt; Int -&gt; Array a -&gt; Array a
+</span><a href="Streamly.Internal.Data.Array.Foreign.Mut.Type.html#getSliceUnsafe"><span class="hs-identifier hs-var">getSliceUnsafe</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679427346"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679427345"><span class="hs-identifier hs-var">len</span></a></span><span> </span><span class="annot"><span class="annottext">Array a
+</span><a href="#local-6989586621679427348"><span class="hs-identifier hs-var">arr</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-55"></span><span>        </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a.
+Monad m =&gt;
+(a -&gt; Bool) -&gt; Stream m a -&gt; Stream m (Int, Int)
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Nesting.html#sliceOnSuffix"><span class="hs-identifier hs-var">D.sliceOnSuffix</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; Bool
+</span><a href="#local-6989586621679427349"><span class="hs-identifier hs-var">predicate</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a.
+(MonadIO m, Storable a) =&gt;
+Array a -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Array.Foreign.Mut.Type.html#toStreamD"><span class="hs-identifier hs-var">toStreamD</span></a></span><span> </span><span class="annot"><span class="annottext">Array a
+</span><a href="#local-6989586621679427348"><span class="hs-identifier hs-var">arr</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-56"></span><span>
+</span><span id="line-57"></span><span class="hs-comment">-- | Generate a stream of array slice descriptors ((index, len)) of specified</span><span>
+</span><span id="line-58"></span><span class="hs-comment">-- length from an array, starting from the supplied array index. The last slice</span><span>
+</span><span id="line-59"></span><span class="hs-comment">-- may be shorter than the requested length depending on the array length.</span><span>
+</span><span id="line-60"></span><span class="hs-comment">--</span><span>
+</span><span id="line-61"></span><span class="hs-comment">-- /Pre-release/</span><span>
+</span><span id="line-62"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Array.Foreign.Mut.html#genSlicesFromLen"><span class="hs-pragma hs-type">genSlicesFromLen</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-63"></span><span class="annot"><a href="Streamly.Internal.Data.Array.Foreign.Mut.html#genSlicesFromLen"><span class="hs-identifier hs-type">genSlicesFromLen</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-keyword">forall</span><span> </span><span id="local-6989586621679427401"><span class="annot"><a href="#local-6989586621679427401"><span class="hs-identifier hs-type">m</span></a></span></span><span> </span><span id="local-6989586621679427400"><span class="annot"><a href="#local-6989586621679427400"><span class="hs-identifier hs-type">a</span></a></span></span><span class="hs-operator">.</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621679427401"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Storable</span></span><span> </span><span class="annot"><a href="#local-6989586621679427400"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-64"></span><span>    </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-comment">-- ^ from index</span><span>
+</span><span id="line-65"></span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-comment">-- ^ length of the slice</span><span>
+</span><span id="line-66"></span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Unfold.Type.html#Unfold"><span class="hs-identifier hs-type">Unfold</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679427401"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Array.Foreign.Mut.Type.html#Array"><span class="hs-identifier hs-type">Array</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679427400"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">)</span><span>
+</span><span id="line-67"></span><span id="genSlicesFromLen"><span class="annot"><span class="annottext">genSlicesFromLen :: forall (m :: * -&gt; *) a.
+(Monad m, Storable a) =&gt;
+Int -&gt; Int -&gt; Unfold m (Array a) (Int, Int)
+</span><a href="Streamly.Internal.Data.Array.Foreign.Mut.html#genSlicesFromLen"><span class="hs-identifier hs-var hs-var">genSlicesFromLen</span></a></span></span><span> </span><span id="local-6989586621679427331"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679427331"><span class="hs-identifier hs-var">from</span></a></span></span><span> </span><span id="local-6989586621679427330"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679427330"><span class="hs-identifier hs-var">len</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-68"></span><span>    </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679427325"><span class="annot"><span class="annottext">fromThenTo :: c -&gt; (Int, Int, c)
+</span><a href="#local-6989586621679427325"><span class="hs-identifier hs-var hs-var">fromThenTo</span></a></span></span><span> </span><span id="local-6989586621679427324"><span class="annot"><span class="annottext">c
+</span><a href="#local-6989586621679427324"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679427331"><span class="hs-identifier hs-var">from</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679427331"><span class="hs-identifier hs-var">from</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679427330"><span class="hs-identifier hs-var">len</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">c
+</span><a href="#local-6989586621679427324"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">c
+</span><span class="hs-number">1</span></span><span class="hs-special">)</span><span>
+</span><span id="line-69"></span><span>        </span><span id="local-6989586621679427317"><span class="annot"><span class="annottext">mkSlice :: Int -&gt; Int -&gt; m (Int, Int)
+</span><a href="#local-6989586621679427317"><span class="hs-identifier hs-var hs-var">mkSlice</span></a></span></span><span> </span><span id="local-6989586621679427316"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679427316"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span id="local-6989586621679427315"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679427315"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679427315"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">min</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679427330"><span class="hs-identifier hs-var">len</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679427316"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679427315"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-70"></span><span>     </span><span class="hs-keyword">in</span><span> </span><span class="annot"><span class="annottext">forall a c (m :: * -&gt; *) b.
+(a -&gt; c) -&gt; Unfold m c b -&gt; Unfold m a b
+</span><a href="Streamly.Internal.Data.Unfold.Type.html#lmap"><span class="hs-identifier hs-var">Unfold.lmap</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Storable a =&gt; Array a -&gt; Int
+</span><a href="Streamly.Internal.Data.Array.Foreign.Mut.Type.html#length"><span class="hs-identifier hs-var">length</span></a></span><span>
+</span><span id="line-71"></span><span>        </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a b c.
+Monad m =&gt;
+(a -&gt; b -&gt; m c) -&gt; Unfold m a b -&gt; Unfold m a c
+</span><a href="Streamly.Internal.Data.Unfold.html#mapMWithInput"><span class="hs-identifier hs-var">Unfold.mapMWithInput</span></a></span><span> </span><span class="annot"><span class="annottext">forall {m :: * -&gt; *}. Monad m =&gt; Int -&gt; Int -&gt; m (Int, Int)
+</span><a href="#local-6989586621679427317"><span class="hs-identifier hs-var">mkSlice</span></a></span><span>
+</span><span id="line-72"></span><span>        </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a c (m :: * -&gt; *) b.
+(a -&gt; c) -&gt; Unfold m c b -&gt; Unfold m a b
+</span><a href="Streamly.Internal.Data.Unfold.Type.html#lmap"><span class="hs-identifier hs-var">Unfold.lmap</span></a></span><span> </span><span class="annot"><span class="annottext">forall {c}. Num c =&gt; c -&gt; (Int, Int, c)
+</span><a href="#local-6989586621679427325"><span class="hs-identifier hs-var">fromThenTo</span></a></span><span> </span><span class="annot"><span class="annottext">forall a (m :: * -&gt; *).
+(Enumerable a, Monad m) =&gt;
+Unfold m (a, a, a) a
+</span><a href="Streamly.Internal.Data.Unfold.Enumeration.html#enumerateFromThenTo"><span class="hs-identifier hs-var">Unfold.enumerateFromThenTo</span></a></span><span>
+</span><span id="line-73"></span><span>
+</span><span id="line-74"></span><span class="hs-comment">-- | Generate a stream of slices of specified length from an array, starting</span><span>
+</span><span id="line-75"></span><span class="hs-comment">-- from the supplied array index. The last slice may be shorter than the</span><span>
+</span><span id="line-76"></span><span class="hs-comment">-- requested length depending on the array length.</span><span>
+</span><span id="line-77"></span><span class="hs-comment">--</span><span>
+</span><span id="line-78"></span><span class="hs-comment">-- /Pre-release/</span><span>
+</span><span id="line-79"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Array.Foreign.Mut.html#getSlicesFromLen"><span class="hs-pragma hs-type">getSlicesFromLen</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-80"></span><span class="annot"><a href="Streamly.Internal.Data.Array.Foreign.Mut.html#getSlicesFromLen"><span class="hs-identifier hs-type">getSlicesFromLen</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-keyword">forall</span><span> </span><span id="local-6989586621679427379"><span class="annot"><a href="#local-6989586621679427379"><span class="hs-identifier hs-type">m</span></a></span></span><span> </span><span id="local-6989586621679427378"><span class="annot"><a href="#local-6989586621679427378"><span class="hs-identifier hs-type">a</span></a></span></span><span class="hs-operator">.</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621679427379"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Storable</span></span><span> </span><span class="annot"><a href="#local-6989586621679427378"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-81"></span><span>    </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-comment">-- ^ from index</span><span>
+</span><span id="line-82"></span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-comment">-- ^ length of the slice</span><span>
+</span><span id="line-83"></span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Unfold.Type.html#Unfold"><span class="hs-identifier hs-type">Unfold</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679427379"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Array.Foreign.Mut.Type.html#Array"><span class="hs-identifier hs-type">Array</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679427378"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Array.Foreign.Mut.Type.html#Array"><span class="hs-identifier hs-type">Array</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679427378"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-84"></span><span id="getSlicesFromLen"><span class="annot"><span class="annottext">getSlicesFromLen :: forall (m :: * -&gt; *) a.
+(Monad m, Storable a) =&gt;
+Int -&gt; Int -&gt; Unfold m (Array a) (Array a)
+</span><a href="Streamly.Internal.Data.Array.Foreign.Mut.html#getSlicesFromLen"><span class="hs-identifier hs-var hs-var">getSlicesFromLen</span></a></span></span><span> </span><span id="local-6989586621679427302"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679427302"><span class="hs-identifier hs-var">from</span></a></span></span><span> </span><span id="local-6989586621679427301"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679427301"><span class="hs-identifier hs-var">len</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-85"></span><span>    </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679427296"><span class="annot"><span class="annottext">mkSlice :: Array a -&gt; (Int, Int) -&gt; m (Array a)
+</span><a href="#local-6989586621679427296"><span class="hs-identifier hs-var hs-var">mkSlice</span></a></span></span><span> </span><span id="local-6989586621679427295"><span class="annot"><span class="annottext">Array a
+</span><a href="#local-6989586621679427295"><span class="hs-identifier hs-var">arr</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679427294"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679427294"><span class="hs-identifier hs-var">i</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679427293"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679427293"><span class="hs-identifier hs-var">n</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a. Storable a =&gt; Int -&gt; Int -&gt; Array a -&gt; Array a
+</span><a href="Streamly.Internal.Data.Array.Foreign.Mut.Type.html#getSliceUnsafe"><span class="hs-identifier hs-var">getSliceUnsafe</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679427294"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679427293"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">Array a
+</span><a href="#local-6989586621679427295"><span class="hs-identifier hs-var">arr</span></a></span><span>
+</span><span id="line-86"></span><span>     </span><span class="hs-keyword">in</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a b c.
+Monad m =&gt;
+(a -&gt; b -&gt; m c) -&gt; Unfold m a b -&gt; Unfold m a c
+</span><a href="Streamly.Internal.Data.Unfold.html#mapMWithInput"><span class="hs-identifier hs-var">Unfold.mapMWithInput</span></a></span><span> </span><span class="annot"><span class="annottext">forall {m :: * -&gt; *} {a}.
+(Monad m, Storable a) =&gt;
+Array a -&gt; (Int, Int) -&gt; m (Array a)
+</span><a href="#local-6989586621679427296"><span class="hs-identifier hs-var">mkSlice</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a.
+(Monad m, Storable a) =&gt;
+Int -&gt; Int -&gt; Unfold m (Array a) (Int, Int)
+</span><a href="Streamly.Internal.Data.Array.Foreign.Mut.html#genSlicesFromLen"><span class="hs-identifier hs-var">genSlicesFromLen</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679427302"><span class="hs-identifier hs-var">from</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679427301"><span class="hs-identifier hs-var">len</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-87"></span></pre></body></html>

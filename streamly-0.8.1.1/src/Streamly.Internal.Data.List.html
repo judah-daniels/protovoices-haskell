@@ -1,0 +1,764 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE UndecidableInstances #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Module      : Streamly.Internal.Data.List</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- Copyright   : (c) 2018 Composewell Technologies</span><span>
+</span><span id="line-6"></span><span class="hs-comment">--</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- License     : BSD3</span><span>
+</span><span id="line-8"></span><span class="hs-comment">-- Maintainer  : streamly@composewell.com</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Stability   : pre-release</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- Portability : GHC</span><span>
+</span><span id="line-11"></span><span class="hs-comment">--</span><span>
+</span><span id="line-12"></span><span class="hs-comment">-- Lists are just a special case of monadic streams. The stream type @SerialT</span><span>
+</span><span id="line-13"></span><span class="hs-comment">-- Identity a@ can be used as a replacement for @[a]@.  The 'List' type in this</span><span>
+</span><span id="line-14"></span><span class="hs-comment">-- module is just a newtype wrapper around @SerialT Identity@ for better type</span><span>
+</span><span id="line-15"></span><span class="hs-comment">-- inference when using the 'OverloadedLists' GHC extension. @List a@ provides</span><span>
+</span><span id="line-16"></span><span class="hs-comment">-- better performance compared to @[a]@. Standard list, string and list</span><span>
+</span><span id="line-17"></span><span class="hs-comment">-- comprehension syntax can be used with the 'List' type by enabling</span><span>
+</span><span id="line-18"></span><span class="hs-comment">-- 'OverloadedLists', 'OverloadedStrings' and 'MonadComprehensions' GHC</span><span>
+</span><span id="line-19"></span><span class="hs-comment">-- extensions.  There would be a slight difference in the 'Show' and 'Read'</span><span>
+</span><span id="line-20"></span><span class="hs-comment">-- strings of streamly list as compared to regular lists.</span><span>
+</span><span id="line-21"></span><span class="hs-comment">--</span><span>
+</span><span id="line-22"></span><span class="hs-comment">-- Conversion to stream types is free, any stream combinator can be used on</span><span>
+</span><span id="line-23"></span><span class="hs-comment">-- lists by converting them to streams.  However, for convenience, this module</span><span>
+</span><span id="line-24"></span><span class="hs-comment">-- provides combinators that work directly on the 'List' type.</span><span>
+</span><span id="line-25"></span><span class="hs-comment">--</span><span>
+</span><span id="line-26"></span><span class="hs-comment">--</span><span>
+</span><span id="line-27"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-28"></span><span class="hs-comment">-- List $ S.map (+ 1) $ toSerial (1 \`Cons\` Nil)</span><span>
+</span><span id="line-29"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-30"></span><span class="hs-comment">--</span><span>
+</span><span id="line-31"></span><span class="hs-comment">-- To convert a 'List' to regular lists, you can use any of the following:</span><span>
+</span><span id="line-32"></span><span class="hs-comment">--</span><span>
+</span><span id="line-33"></span><span class="hs-comment">-- * @toList . toSerial@ and @toSerial . fromList@</span><span>
+</span><span id="line-34"></span><span class="hs-comment">-- * 'Data.Foldable.toList' from &quot;Data.Foldable&quot;</span><span>
+</span><span id="line-35"></span><span class="hs-comment">-- * 'GHC.Exts.toList' and 'GHC.Exts.fromList' from 'IsList' in &quot;GHC.Exts&quot;</span><span>
+</span><span id="line-36"></span><span class="hs-comment">--</span><span>
+</span><span id="line-37"></span><span class="hs-comment">-- If you have made use of 'Nil' and 'Cons' constructors in the code and you</span><span>
+</span><span id="line-38"></span><span class="hs-comment">-- want to replace streamly lists with standard lists, all you need to do is</span><span>
+</span><span id="line-39"></span><span class="hs-comment">-- import these definitions:</span><span>
+</span><span id="line-40"></span><span class="hs-comment">--</span><span>
+</span><span id="line-41"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-42"></span><span class="hs-comment">-- type List = []</span><span>
+</span><span id="line-43"></span><span class="hs-comment">-- pattern Nil &lt;- [] where Nil = []</span><span>
+</span><span id="line-44"></span><span class="hs-comment">-- pattern Cons x xs = x : xs</span><span>
+</span><span id="line-45"></span><span class="hs-comment">-- infixr 5 `Cons`</span><span>
+</span><span id="line-46"></span><span class="hs-comment">-- {-\# COMPLETE Cons, Nil #-}</span><span>
+</span><span id="line-47"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-48"></span><span class="hs-comment">--</span><span>
+</span><span id="line-49"></span><span class="hs-comment">-- See &lt;src/docs/streamly-vs-lists.md&gt; for more details and</span><span>
+</span><span id="line-50"></span><span class="hs-comment">-- &lt;src/test/PureStreams.hs&gt; for comprehensive usage examples.</span><span>
+</span><span id="line-51"></span><span class="hs-comment">--</span><span>
+</span><span id="line-52"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Streamly.Internal.Data.List</span><span>
+</span><span id="line-53"></span><span>    </span><span class="hs-special">(</span><span>
+</span><span id="line-54"></span><span>    </span><span class="annot"><a href="Streamly.Internal.Data.List.html#List"><span class="hs-identifier">List</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.List.html#Nil"><span class="hs-identifier">Nil</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.List.html#Cons"><span class="hs-identifier">Cons</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-55"></span><span>
+</span><span id="line-56"></span><span>    </span><span class="hs-comment">-- XXX we may want to use rebindable syntax for variants instead of using</span><span>
+</span><span id="line-57"></span><span>    </span><span class="hs-comment">-- different types (applicative do and apWith).</span><span>
+</span><span id="line-58"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.List.html#ZipList"><span class="hs-identifier">ZipList</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-59"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.List.html#fromZipList"><span class="hs-identifier">fromZipList</span></a></span><span>
+</span><span id="line-60"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.List.html#toZipList"><span class="hs-identifier">toZipList</span></a></span><span>
+</span><span id="line-61"></span><span>    </span><span class="hs-special">)</span><span>
+</span><span id="line-62"></span><span class="hs-keyword">where</span><span>
+</span><span id="line-63"></span><span>
+</span><span id="line-64"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Arrow</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">second</span></span><span class="hs-special">)</span><span>
+</span><span id="line-65"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.DeepSeq</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">NFData</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-cpp">
+#if MIN_VERSION_deepseq(1,4,3)
+</span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.DeepSeq</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">NFData1</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-cpp">
+#endif
+</span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Functor.Identity</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Identity</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">runIdentity</span></span><span class="hs-special">)</span><span class="hs-cpp">
+#if __GLASGOW_HASKELL__ &lt; 808
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Data.Semigroup</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">Semigroup</span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-cpp">
+#endif
+</span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.Exts</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">IsList</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">IsString</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-74"></span><span>
+</span><span id="line-75"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html"><span class="hs-identifier">Streamly.Internal.Data.Stream.Serial</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier">SerialT</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-76"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Zip.html"><span class="hs-identifier">Streamly.Internal.Data.Stream.Zip</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Stream.Zip.html#ZipSerialM"><span class="hs-identifier">ZipSerialM</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-77"></span><span>
+</span><span id="line-78"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html"><span class="hs-identifier">Streamly.Internal.Data.Stream.Serial</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Serial</span></span><span>
+</span><span id="line-79"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamK.Type.html"><span class="hs-identifier">Streamly.Internal.Data.Stream.StreamK.Type</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">K</span></span><span>
+</span><span id="line-80"></span><span>
+</span><span id="line-81"></span><span class="hs-comment">-- We implement list as a newtype instead of a type synonym to make type</span><span>
+</span><span id="line-82"></span><span class="hs-comment">-- inference easier when using -XOverloadedLists and -XOverloadedStrings. When</span><span>
+</span><span id="line-83"></span><span class="hs-comment">-- using a stream type the programmer needs to specify the Monad otherwise the</span><span>
+</span><span id="line-84"></span><span class="hs-comment">-- type remains ambiguous.</span><span>
+</span><span id="line-85"></span><span class="hs-comment">--</span><span>
+</span><span id="line-86"></span><span class="hs-comment">-- XXX once we separate consM from IsStream or remove the MonadIO and</span><span>
+</span><span id="line-87"></span><span class="hs-comment">-- MonadBaseControlIO dependency from it, then we can make this an instance of</span><span>
+</span><span id="line-88"></span><span class="hs-comment">-- IsStream and use the regular polymorphic functions on Lists as well. Once</span><span>
+</span><span id="line-89"></span><span class="hs-comment">-- that happens we can change the Show and Read instances as well to use &quot;1 &gt;:</span><span>
+</span><span id="line-90"></span><span class="hs-comment">-- 2 &gt;: nil&quot; etc. or should we use a separate constructor indicating the &quot;List&quot;</span><span>
+</span><span id="line-91"></span><span class="hs-comment">-- type &quot;:&gt;&quot; for better inference?</span><span>
+</span><span id="line-92"></span><span class="hs-comment">--</span><span>
+</span><span id="line-93"></span><span class="hs-comment">-- | @List a@ is a replacement for @[a]@.</span><span>
+</span><span id="line-94"></span><span class="hs-comment">--</span><span>
+</span><span id="line-95"></span><span class="hs-comment">-- @since 0.6.0</span><span>
+</span><span id="line-96"></span><span class="hs-keyword">newtype</span><span> </span><span id="List"><span class="annot"><a href="Streamly.Internal.Data.List.html#List"><span class="hs-identifier hs-var">List</span></a></span></span><span> </span><span id="local-6989586621679413046"><span class="annot"><a href="#local-6989586621679413046"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="List"><span class="annot"><a href="Streamly.Internal.Data.List.html#List"><span class="hs-identifier hs-var">List</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="toSerial"><span class="annot"><span class="annottext">forall a. List a -&gt; SerialT Identity a
+</span><a href="Streamly.Internal.Data.List.html#toSerial"><span class="hs-identifier hs-var hs-var">toSerial</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-type">SerialT</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Identity</span></span><span> </span><span class="annot"><a href="#local-6989586621679413046"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-97"></span><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679412734"><span id="local-6989586621679412736"><span id="local-6989586621679412742"><span class="annot"><span class="annottext">Int -&gt; List a -&gt; ShowS
+forall a. Show a =&gt; Int -&gt; List a -&gt; ShowS
+forall a. Show a =&gt; [List a] -&gt; ShowS
+forall a. Show a =&gt; List a -&gt; String
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+showList :: [List a] -&gt; ShowS
+$cshowList :: forall a. Show a =&gt; [List a] -&gt; ShowS
+show :: List a -&gt; String
+$cshow :: forall a. Show a =&gt; List a -&gt; String
+showsPrec :: Int -&gt; List a -&gt; ShowS
+$cshowsPrec :: forall a. Show a =&gt; Int -&gt; List a -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679412716"><span id="local-6989586621679412726"><span id="local-6989586621679412729"><span id="local-6989586621679412731"><span class="annot"><span class="annottext">ReadPrec [List a]
+ReadPrec (List a)
+ReadS [List a]
+forall a. Read a =&gt; ReadPrec [List a]
+forall a. Read a =&gt; ReadPrec (List a)
+forall a. Read a =&gt; Int -&gt; ReadS (List a)
+forall a. Read a =&gt; ReadS [List a]
+forall a.
+(Int -&gt; ReadS a)
+-&gt; ReadS [a] -&gt; ReadPrec a -&gt; ReadPrec [a] -&gt; Read a
+readListPrec :: ReadPrec [List a]
+$creadListPrec :: forall a. Read a =&gt; ReadPrec [List a]
+readPrec :: ReadPrec (List a)
+$creadPrec :: forall a. Read a =&gt; ReadPrec (List a)
+readList :: ReadS [List a]
+$creadList :: forall a. Read a =&gt; ReadS [List a]
+readsPrec :: Int -&gt; ReadS (List a)
+$creadsPrec :: forall a. Read a =&gt; Int -&gt; ReadS (List a)
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Read</span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679412706"><span id="local-6989586621679412711"><span class="annot"><span class="annottext">List a -&gt; List a -&gt; Bool
+forall a. Eq a =&gt; List a -&gt; List a -&gt; Bool
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+/= :: List a -&gt; List a -&gt; Bool
+$c/= :: forall a. Eq a =&gt; List a -&gt; List a -&gt; Bool
+== :: List a -&gt; List a -&gt; Bool
+$c== :: forall a. Eq a =&gt; List a -&gt; List a -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679412671"><span id="local-6989586621679412675"><span id="local-6989586621679412679"><span id="local-6989586621679412683"><span id="local-6989586621679412687"><span id="local-6989586621679412691"><span id="local-6989586621679412696"><span class="annot"><span class="annottext">List a -&gt; List a -&gt; Bool
+List a -&gt; List a -&gt; Ordering
+List a -&gt; List a -&gt; List a
+forall a.
+Eq a
+-&gt; (a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+forall {a}. Ord a =&gt; Eq (List a)
+forall a. Ord a =&gt; List a -&gt; List a -&gt; Bool
+forall a. Ord a =&gt; List a -&gt; List a -&gt; Ordering
+forall a. Ord a =&gt; List a -&gt; List a -&gt; List a
+min :: List a -&gt; List a -&gt; List a
+$cmin :: forall a. Ord a =&gt; List a -&gt; List a -&gt; List a
+max :: List a -&gt; List a -&gt; List a
+$cmax :: forall a. Ord a =&gt; List a -&gt; List a -&gt; List a
+&gt;= :: List a -&gt; List a -&gt; Bool
+$c&gt;= :: forall a. Ord a =&gt; List a -&gt; List a -&gt; Bool
+&gt; :: List a -&gt; List a -&gt; Bool
+$c&gt; :: forall a. Ord a =&gt; List a -&gt; List a -&gt; Bool
+&lt;= :: List a -&gt; List a -&gt; Bool
+$c&lt;= :: forall a. Ord a =&gt; List a -&gt; List a -&gt; Bool
+&lt; :: List a -&gt; List a -&gt; Bool
+$c&lt; :: forall a. Ord a =&gt; List a -&gt; List a -&gt; Bool
+compare :: List a -&gt; List a -&gt; Ordering
+$ccompare :: forall a. Ord a =&gt; List a -&gt; List a -&gt; Ordering
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679412663"><span class="annot"><span class="annottext">List a -&gt; ()
+forall a. NFData a =&gt; List a -&gt; ()
+forall a. (a -&gt; ()) -&gt; NFData a
+rnf :: List a -&gt; ()
+$crnf :: forall a. NFData a =&gt; List a -&gt; ()
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">NFData</span></span></span><span class="hs-cpp">
+#if MIN_VERSION_deepseq(1,4,3)
+</span><span>    </span><span class="hs-special">,</span><span> </span><span id="local-6989586621679412656"><span class="annot"><span class="annottext">forall a. (a -&gt; ()) -&gt; List a -&gt; ()
+forall (f :: * -&gt; *).
+(forall a. (a -&gt; ()) -&gt; f a -&gt; ()) -&gt; NFData1 f
+liftRnf :: forall a. (a -&gt; ()) -&gt; List a -&gt; ()
+$cliftRnf :: forall a. (a -&gt; ()) -&gt; List a -&gt; ()
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">NFData1</span></span></span><span class="hs-cpp">
+#endif
+</span><span>             </span><span class="hs-special">,</span><span> </span><span id="local-6989586621679412638"><span id="local-6989586621679412644"><span id="local-6989586621679412649"><span class="annot"><span class="annottext">NonEmpty (List a) -&gt; List a
+List a -&gt; List a -&gt; List a
+forall b. Integral b =&gt; b -&gt; List a -&gt; List a
+forall a. NonEmpty (List a) -&gt; List a
+forall a. List a -&gt; List a -&gt; List a
+forall a.
+(a -&gt; a -&gt; a)
+-&gt; (NonEmpty a -&gt; a)
+-&gt; (forall b. Integral b =&gt; b -&gt; a -&gt; a)
+-&gt; Semigroup a
+forall a b. Integral b =&gt; b -&gt; List a -&gt; List a
+stimes :: forall b. Integral b =&gt; b -&gt; List a -&gt; List a
+$cstimes :: forall a b. Integral b =&gt; b -&gt; List a -&gt; List a
+sconcat :: NonEmpty (List a) -&gt; List a
+$csconcat :: forall a. NonEmpty (List a) -&gt; List a
+&lt;&gt; :: List a -&gt; List a -&gt; List a
+$c&lt;&gt; :: forall a. List a -&gt; List a -&gt; List a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Semigroup</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679412619"><span id="local-6989586621679412623"><span id="local-6989586621679412628"><span class="annot"><span class="annottext">List a
+[List a] -&gt; List a
+List a -&gt; List a -&gt; List a
+forall a. Semigroup (List a)
+forall a. List a
+forall a.
+Semigroup a -&gt; a -&gt; (a -&gt; a -&gt; a) -&gt; ([a] -&gt; a) -&gt; Monoid a
+forall a. [List a] -&gt; List a
+forall a. List a -&gt; List a -&gt; List a
+mconcat :: [List a] -&gt; List a
+$cmconcat :: forall a. [List a] -&gt; List a
+mappend :: List a -&gt; List a -&gt; List a
+$cmappend :: forall a. List a -&gt; List a -&gt; List a
+mempty :: List a
+$cmempty :: forall a. List a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Monoid</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679412607"><span id="local-6989586621679412613"><span class="annot"><span class="annottext">forall a b. a -&gt; List b -&gt; List a
+forall a b. (a -&gt; b) -&gt; List a -&gt; List b
+forall (f :: * -&gt; *).
+(forall a b. (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b. a -&gt; f b -&gt; f a) -&gt; Functor f
+&lt;$ :: forall a b. a -&gt; List b -&gt; List a
+$c&lt;$ :: forall a b. a -&gt; List b -&gt; List a
+fmap :: forall a b. (a -&gt; b) -&gt; List a -&gt; List b
+$cfmap :: forall a b. (a -&gt; b) -&gt; List a -&gt; List b
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Functor</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679412472"><span id="local-6989586621679412482"><span id="local-6989586621679412492"><span id="local-6989586621679412502"><span id="local-6989586621679412512"><span id="local-6989586621679412520"><span id="local-6989586621679412526"><span id="local-6989586621679412532"><span id="local-6989586621679412538"><span id="local-6989586621679412544"><span id="local-6989586621679412550"><span id="local-6989586621679412556"><span id="local-6989586621679412562"><span id="local-6989586621679412568"><span id="local-6989586621679412576"><span id="local-6989586621679412586"><span id="local-6989586621679412597"><span class="annot"><span class="annottext">forall a. Eq a =&gt; a -&gt; List a -&gt; Bool
+forall a. Num a =&gt; List a -&gt; a
+forall a. Ord a =&gt; List a -&gt; a
+forall m. Monoid m =&gt; List m -&gt; m
+forall a. List a -&gt; Bool
+forall a. List a -&gt; Int
+forall a. List a -&gt; [a]
+forall a. (a -&gt; a -&gt; a) -&gt; List a -&gt; a
+forall m a. Monoid m =&gt; (a -&gt; m) -&gt; List a -&gt; m
+forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; List a -&gt; b
+forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; List a -&gt; b
+forall (t :: * -&gt; *).
+(forall m. Monoid m =&gt; t m -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; t a -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; t a -&gt; m)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; t a -&gt; a)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; t a -&gt; a)
+-&gt; (forall a. t a -&gt; [a])
+-&gt; (forall a. t a -&gt; Bool)
+-&gt; (forall a. t a -&gt; Int)
+-&gt; (forall a. Eq a =&gt; a -&gt; t a -&gt; Bool)
+-&gt; (forall a. Ord a =&gt; t a -&gt; a)
+-&gt; (forall a. Ord a =&gt; t a -&gt; a)
+-&gt; (forall a. Num a =&gt; t a -&gt; a)
+-&gt; (forall a. Num a =&gt; t a -&gt; a)
+-&gt; Foldable t
+product :: forall a. Num a =&gt; List a -&gt; a
+$cproduct :: forall a. Num a =&gt; List a -&gt; a
+sum :: forall a. Num a =&gt; List a -&gt; a
+$csum :: forall a. Num a =&gt; List a -&gt; a
+minimum :: forall a. Ord a =&gt; List a -&gt; a
+$cminimum :: forall a. Ord a =&gt; List a -&gt; a
+maximum :: forall a. Ord a =&gt; List a -&gt; a
+$cmaximum :: forall a. Ord a =&gt; List a -&gt; a
+elem :: forall a. Eq a =&gt; a -&gt; List a -&gt; Bool
+$celem :: forall a. Eq a =&gt; a -&gt; List a -&gt; Bool
+length :: forall a. List a -&gt; Int
+$clength :: forall a. List a -&gt; Int
+null :: forall a. List a -&gt; Bool
+$cnull :: forall a. List a -&gt; Bool
+toList :: forall a. List a -&gt; [a]
+$ctoList :: forall a. List a -&gt; [a]
+foldl1 :: forall a. (a -&gt; a -&gt; a) -&gt; List a -&gt; a
+$cfoldl1 :: forall a. (a -&gt; a -&gt; a) -&gt; List a -&gt; a
+foldr1 :: forall a. (a -&gt; a -&gt; a) -&gt; List a -&gt; a
+$cfoldr1 :: forall a. (a -&gt; a -&gt; a) -&gt; List a -&gt; a
+foldl' :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; List a -&gt; b
+$cfoldl' :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; List a -&gt; b
+foldl :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; List a -&gt; b
+$cfoldl :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; List a -&gt; b
+foldr' :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; List a -&gt; b
+$cfoldr' :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; List a -&gt; b
+foldr :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; List a -&gt; b
+$cfoldr :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; List a -&gt; b
+foldMap' :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; List a -&gt; m
+$cfoldMap' :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; List a -&gt; m
+foldMap :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; List a -&gt; m
+$cfoldMap :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; List a -&gt; m
+fold :: forall m. Monoid m =&gt; List m -&gt; m
+$cfold :: forall m. Monoid m =&gt; List m -&gt; m
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Foldable</span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span><span>
+</span><span id="line-102"></span><span>             </span><span class="hs-special">,</span><span> </span><span id="local-6989586621679412438"><span id="local-6989586621679412443"><span id="local-6989586621679412448"><span id="local-6989586621679412453"><span id="local-6989586621679412459"><span class="annot"><span class="annottext">Functor List
+forall a. a -&gt; List a
+forall a b. List a -&gt; List b -&gt; List a
+forall a b. List a -&gt; List b -&gt; List b
+forall a b. List (a -&gt; b) -&gt; List a -&gt; List b
+forall a b c. (a -&gt; b -&gt; c) -&gt; List a -&gt; List b -&gt; List c
+forall (f :: * -&gt; *).
+Functor f
+-&gt; (forall a. a -&gt; f a)
+-&gt; (forall a b. f (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b c. (a -&gt; b -&gt; c) -&gt; f a -&gt; f b -&gt; f c)
+-&gt; (forall a b. f a -&gt; f b -&gt; f b)
+-&gt; (forall a b. f a -&gt; f b -&gt; f a)
+-&gt; Applicative f
+&lt;* :: forall a b. List a -&gt; List b -&gt; List a
+$c&lt;* :: forall a b. List a -&gt; List b -&gt; List a
+*&gt; :: forall a b. List a -&gt; List b -&gt; List b
+$c*&gt; :: forall a b. List a -&gt; List b -&gt; List b
+liftA2 :: forall a b c. (a -&gt; b -&gt; c) -&gt; List a -&gt; List b -&gt; List c
+$cliftA2 :: forall a b c. (a -&gt; b -&gt; c) -&gt; List a -&gt; List b -&gt; List c
+&lt;*&gt; :: forall a b. List (a -&gt; b) -&gt; List a -&gt; List b
+$c&lt;*&gt; :: forall a b. List (a -&gt; b) -&gt; List a -&gt; List b
+pure :: forall a. a -&gt; List a
+$cpure :: forall a. a -&gt; List a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Applicative</span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679412415"><span id="local-6989586621679412417"><span id="local-6989586621679412419"><span id="local-6989586621679412427"><span class="annot"><span class="annottext">Functor List
+Foldable List
+forall (t :: * -&gt; *).
+Functor t
+-&gt; Foldable t
+-&gt; (forall (f :: * -&gt; *) a b.
+    Applicative f =&gt;
+    (a -&gt; f b) -&gt; t a -&gt; f (t b))
+-&gt; (forall (f :: * -&gt; *) a. Applicative f =&gt; t (f a) -&gt; f (t a))
+-&gt; (forall (m :: * -&gt; *) a b.
+    Monad m =&gt;
+    (a -&gt; m b) -&gt; t a -&gt; m (t b))
+-&gt; (forall (m :: * -&gt; *) a. Monad m =&gt; t (m a) -&gt; m (t a))
+-&gt; Traversable t
+forall (m :: * -&gt; *) a. Monad m =&gt; List (m a) -&gt; m (List a)
+forall (f :: * -&gt; *) a. Applicative f =&gt; List (f a) -&gt; f (List a)
+forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b) -&gt; List a -&gt; m (List b)
+forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; List a -&gt; f (List b)
+sequence :: forall (m :: * -&gt; *) a. Monad m =&gt; List (m a) -&gt; m (List a)
+$csequence :: forall (m :: * -&gt; *) a. Monad m =&gt; List (m a) -&gt; m (List a)
+mapM :: forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b) -&gt; List a -&gt; m (List b)
+$cmapM :: forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b) -&gt; List a -&gt; m (List b)
+sequenceA :: forall (f :: * -&gt; *) a. Applicative f =&gt; List (f a) -&gt; f (List a)
+$csequenceA :: forall (f :: * -&gt; *) a. Applicative f =&gt; List (f a) -&gt; f (List a)
+traverse :: forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; List a -&gt; f (List b)
+$ctraverse :: forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; List a -&gt; f (List b)
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Traversable</span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679412398"><span id="local-6989586621679412403"><span id="local-6989586621679412409"><span class="annot"><span class="annottext">Applicative List
+forall a. a -&gt; List a
+forall a b. List a -&gt; List b -&gt; List b
+forall a b. List a -&gt; (a -&gt; List b) -&gt; List b
+forall (m :: * -&gt; *).
+Applicative m
+-&gt; (forall a b. m a -&gt; (a -&gt; m b) -&gt; m b)
+-&gt; (forall a b. m a -&gt; m b -&gt; m b)
+-&gt; (forall a. a -&gt; m a)
+-&gt; Monad m
+return :: forall a. a -&gt; List a
+$creturn :: forall a. a -&gt; List a
+&gt;&gt; :: forall a b. List a -&gt; List b -&gt; List b
+$c&gt;&gt; :: forall a b. List a -&gt; List b -&gt; List b
+&gt;&gt;= :: forall a b. List a -&gt; (a -&gt; List b) -&gt; List b
+$c&gt;&gt;= :: forall a b. List a -&gt; (a -&gt; List b) -&gt; List b
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Monad</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-103"></span><span>
+</span><span id="line-104"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679412899"><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679412899"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">~</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IsString</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.List.html#List"><span class="hs-identifier hs-type">List</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679412899"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-105"></span><span>    </span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><span class="hs-pragma hs-type">fromString</span></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-106"></span><span>    </span><span id="local-6989586621679412384"><span class="annot"><span class="annottext">fromString :: String -&gt; List a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">fromString</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. SerialT Identity a -&gt; List a
+</span><a href="Streamly.Internal.Data.List.html#List"><span class="hs-identifier hs-var">List</span></a></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall l. IsList l =&gt; [Item l] -&gt; l
+</span><span class="hs-identifier hs-var">fromList</span></span><span>
+</span><span id="line-107"></span><span>
+</span><span id="line-108"></span><span class="hs-comment">-- GHC versions 8.0 and below cannot derive IsList</span><span>
+</span><span id="line-109"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679412380"><span id="local-6989586621679412892"><span class="annot"><span class="hs-identifier hs-type">IsList</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.List.html#List"><span class="hs-identifier hs-type">List</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679412892"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-110"></span><span>    </span><span class="hs-keyword">type</span><span> </span><span class="hs-special">(</span><span id="Item"><span class="annot"><span class="hs-identifier hs-var">Item</span></span></span><span> </span><span id="local-6989586621679412892"><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.List.html#List"><span class="hs-identifier hs-type">List</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679412892"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621679412892"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-111"></span><span>    </span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><span class="hs-pragma hs-type">fromList</span></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-112"></span><span>    </span><span id="local-6989586621679412376"><span class="annot"><span class="annottext">fromList :: [Item (List a)] -&gt; List a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">fromList</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. SerialT Identity a -&gt; List a
+</span><a href="Streamly.Internal.Data.List.html#List"><span class="hs-identifier hs-var">List</span></a></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall l. IsList l =&gt; [Item l] -&gt; l
+</span><span class="hs-identifier hs-var">fromList</span></span><span>
+</span><span id="line-113"></span><span>    </span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><span class="hs-pragma hs-type">toList</span></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-114"></span><span>    </span><span id="local-6989586621679412374"><span class="annot"><span class="annottext">toList :: List a -&gt; [Item (List a)]
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">toList</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall l. IsList l =&gt; l -&gt; [Item l]
+</span><span class="hs-identifier hs-var">toList</span></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall a. List a -&gt; SerialT Identity a
+</span><a href="Streamly.Internal.Data.List.html#toSerial"><span class="hs-identifier hs-var">toSerial</span></a></span><span>
+</span><span id="line-115"></span><span>
+</span><span id="line-116"></span><span class="hs-comment">------------------------------------------------------------------------------</span><span>
+</span><span id="line-117"></span><span class="hs-comment">-- Patterns</span><span>
+</span><span id="line-118"></span><span class="hs-comment">------------------------------------------------------------------------------</span><span>
+</span><span id="line-119"></span><span>
+</span><span id="line-120"></span><span class="hs-comment">-- Note: When using the OverloadedLists extension we should be able to pattern</span><span>
+</span><span id="line-121"></span><span class="hs-comment">-- match using the regular list contructors. OverloadedLists uses 'toList' to</span><span>
+</span><span id="line-122"></span><span class="hs-comment">-- perform the pattern match, it should not be too bad as it works lazily in</span><span>
+</span><span id="line-123"></span><span class="hs-comment">-- the Identity monad. We need these patterns only when not using that</span><span>
+</span><span id="line-124"></span><span class="hs-comment">-- extension.</span><span>
+</span><span id="line-125"></span><span class="hs-comment">--</span><span>
+</span><span id="line-126"></span><span class="hs-comment">-- | An empty list constructor and pattern that matches an empty 'List'.</span><span>
+</span><span id="line-127"></span><span class="hs-comment">-- Corresponds to '[]' for Haskell lists.</span><span>
+</span><span id="line-128"></span><span class="hs-comment">--</span><span>
+</span><span id="line-129"></span><span class="hs-comment">-- @since 0.6.0</span><span>
+</span><span id="line-130"></span><span class="hs-keyword">pattern</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.List.html#Nil"><span class="hs-identifier hs-type">Nil</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span id="local-6989586621679412890"><span class="annot"><a href="Streamly.Internal.Data.List.html#List"><span class="hs-identifier hs-type">List</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679412890"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-131"></span><span class="hs-keyword">pattern</span><span> </span><span id="%24bNil"><span id="%24mNil"><span id="Nil"><span class="annot"><span class="annottext">$bNil :: forall a. List a
+$mNil :: forall {r} {a}. List a -&gt; ((# #) -&gt; r) -&gt; ((# #) -&gt; r) -&gt; r
+</span><a href="Streamly.Internal.Data.List.html#%24bNil"><span class="hs-identifier hs-var hs-var hs-var hs-var">Nil</span></a></span></span></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-var">runIdentity</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">.</span></span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#null"><span class="hs-identifier hs-type">K.null</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">.</span></span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#getSerialT"><span class="hs-identifier hs-var">getSerialT</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">.</span></span><span> </span><span class="annot"><a href="Streamly.Internal.Data.List.html#toSerial"><span class="hs-identifier hs-var">toSerial</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">True</span></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-132"></span><span>    </span><span class="annot"><a href="Streamly.Internal.Data.List.html#Nil"><span class="hs-identifier hs-var">Nil</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. SerialT Identity a -&gt; List a
+</span><a href="Streamly.Internal.Data.List.html#List"><span class="hs-identifier hs-var">List</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Stream m a -&gt; SerialT m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-var">SerialT</span></a></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Stream m a
+</span><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#nil"><span class="hs-identifier hs-var">K.nil</span></a></span><span>
+</span><span id="line-133"></span><span>
+</span><span id="line-134"></span><span class="hs-keyword">infixr</span><span> </span><span class="hs-number">5</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.List.html#Cons"><span class="hs-operator hs-type">`Cons`</span></a></span><span>
+</span><span id="line-135"></span><span>
+</span><span id="line-136"></span><span class="hs-comment">-- | A list constructor and pattern that deconstructs a 'List' into its head</span><span>
+</span><span id="line-137"></span><span class="hs-comment">-- and tail. Corresponds to ':' for Haskell lists.</span><span>
+</span><span id="line-138"></span><span class="hs-comment">--</span><span>
+</span><span id="line-139"></span><span class="hs-comment">-- @since 0.6.0</span><span>
+</span><span id="line-140"></span><span class="hs-keyword">pattern</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.List.html#Cons"><span class="hs-identifier hs-type">Cons</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span id="local-6989586621679412877"><span class="annot"><a href="#local-6989586621679412877"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.List.html#List"><span class="hs-identifier hs-type">List</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679412877"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.List.html#List"><span class="hs-identifier hs-type">List</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679412877"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-141"></span><span class="hs-keyword">pattern</span><span> </span><span id="%24bCons"><span id="%24mCons"><span id="Cons"><span class="annot"><span class="annottext">$bCons :: forall a. a -&gt; List a -&gt; List a
+$mCons :: forall {r} {a}. List a -&gt; (a -&gt; List a -&gt; r) -&gt; ((# #) -&gt; r) -&gt; r
+</span><a href="Streamly.Internal.Data.List.html#%24bCons"><span class="hs-identifier hs-var hs-var hs-var hs-var">Cons</span></a></span></span></span></span><span> </span><span class="annot"><a href="#local-6989586621679412364"><span class="hs-identifier hs-type">x</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679412363"><span class="hs-identifier hs-type">xs</span></a></span><span> </span><span class="hs-glyph">&lt;-</span><span>
+</span><span id="line-142"></span><span>    </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">fmap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">second</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.List.html#List"><span class="hs-identifier hs-type">List</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">.</span></span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-type">SerialT</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-143"></span><span>        </span><span class="annot"><span class="hs-operator hs-type">.</span></span><span> </span><span class="annot"><span class="hs-identifier hs-var">runIdentity</span></span><span> </span><span class="annot"><span class="hs-operator hs-type">.</span></span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#uncons"><span class="hs-identifier hs-type">K.uncons</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">.</span></span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#getSerialT"><span class="hs-identifier hs-var">getSerialT</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">.</span></span><span> </span><span class="annot"><a href="Streamly.Internal.Data.List.html#toSerial"><span class="hs-identifier hs-var">toSerial</span></a></span><span>
+</span><span id="line-144"></span><span>            </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679412364"><span class="annot"><a href="#local-6989586621679412364"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679412363"><span class="annot"><a href="#local-6989586621679412363"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span>
+</span><span id="line-145"></span><span>    </span><span class="hs-special">)</span><span>
+</span><span id="line-146"></span><span>
+</span><span id="line-147"></span><span>    </span><span class="hs-keyword">where</span><span>
+</span><span id="line-148"></span><span>
+</span><span id="line-149"></span><span>    </span><span class="annot"><a href="Streamly.Internal.Data.List.html#Cons"><span class="hs-identifier hs-var">Cons</span></a></span><span> </span><span id="local-6989586621679412355"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679412355"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621679412354"><span class="annot"><span class="annottext">List a
+</span><a href="#local-6989586621679412354"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. SerialT Identity a -&gt; List a
+</span><a href="Streamly.Internal.Data.List.html#List"><span class="hs-identifier hs-var">List</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a (m :: * -&gt; *). a -&gt; SerialT m a -&gt; SerialT m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#cons"><span class="hs-identifier hs-var">Serial.cons</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679412355"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. List a -&gt; SerialT Identity a
+</span><a href="Streamly.Internal.Data.List.html#toSerial"><span class="hs-identifier hs-var">toSerial</span></a></span><span> </span><span class="annot"><span class="annottext">List a
+</span><a href="#local-6989586621679412354"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span class="hs-cpp">
+
+#if __GLASGOW_HASKELL__ &gt;= 802
+</span><span class="hs-pragma">{-# COMPLETE</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.List.html#Nil"><span class="hs-pragma hs-type">Nil</span></a></span><span class="hs-pragma">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.List.html#Cons"><span class="hs-pragma hs-type">Cons</span></a></span><span> </span><span class="hs-pragma">#-}</span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-155"></span><span class="hs-comment">------------------------------------------------------------------------------</span><span>
+</span><span id="line-156"></span><span class="hs-comment">-- ZipList</span><span>
+</span><span id="line-157"></span><span class="hs-comment">------------------------------------------------------------------------------</span><span>
+</span><span id="line-158"></span><span>
+</span><span id="line-159"></span><span class="hs-comment">-- | Just like 'List' except that it has a zipping 'Applicative' instance</span><span>
+</span><span id="line-160"></span><span class="hs-comment">-- and no 'Monad' instance.</span><span>
+</span><span id="line-161"></span><span class="hs-comment">--</span><span>
+</span><span id="line-162"></span><span class="hs-comment">-- @since 0.6.0</span><span>
+</span><span id="line-163"></span><span class="hs-keyword">newtype</span><span> </span><span id="ZipList"><span class="annot"><a href="Streamly.Internal.Data.List.html#ZipList"><span class="hs-identifier hs-var">ZipList</span></a></span></span><span> </span><span id="local-6989586621679412865"><span class="annot"><a href="#local-6989586621679412865"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="ZipList"><span class="annot"><a href="Streamly.Internal.Data.List.html#ZipList"><span class="hs-identifier hs-var">ZipList</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="toZipSerial"><span class="annot"><span class="annottext">forall a. ZipList a -&gt; ZipSerialM Identity a
+</span><a href="Streamly.Internal.Data.List.html#toZipSerial"><span class="hs-identifier hs-var hs-var">toZipSerial</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Zip.html#ZipSerialM"><span class="hs-identifier hs-type">ZipSerialM</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Identity</span></span><span> </span><span class="annot"><a href="#local-6989586621679412865"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-164"></span><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679412342"><span id="local-6989586621679412344"><span id="local-6989586621679412349"><span class="annot"><span class="annottext">Int -&gt; ZipList a -&gt; ShowS
+forall a. Show a =&gt; Int -&gt; ZipList a -&gt; ShowS
+forall a. Show a =&gt; [ZipList a] -&gt; ShowS
+forall a. Show a =&gt; ZipList a -&gt; String
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+showList :: [ZipList a] -&gt; ShowS
+$cshowList :: forall a. Show a =&gt; [ZipList a] -&gt; ShowS
+show :: ZipList a -&gt; String
+$cshow :: forall a. Show a =&gt; ZipList a -&gt; String
+showsPrec :: Int -&gt; ZipList a -&gt; ShowS
+$cshowsPrec :: forall a. Show a =&gt; Int -&gt; ZipList a -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679412326"><span id="local-6989586621679412335"><span id="local-6989586621679412338"><span id="local-6989586621679412340"><span class="annot"><span class="annottext">ReadPrec [ZipList a]
+ReadPrec (ZipList a)
+ReadS [ZipList a]
+forall a. Read a =&gt; ReadPrec [ZipList a]
+forall a. Read a =&gt; ReadPrec (ZipList a)
+forall a. Read a =&gt; Int -&gt; ReadS (ZipList a)
+forall a. Read a =&gt; ReadS [ZipList a]
+forall a.
+(Int -&gt; ReadS a)
+-&gt; ReadS [a] -&gt; ReadPrec a -&gt; ReadPrec [a] -&gt; Read a
+readListPrec :: ReadPrec [ZipList a]
+$creadListPrec :: forall a. Read a =&gt; ReadPrec [ZipList a]
+readPrec :: ReadPrec (ZipList a)
+$creadPrec :: forall a. Read a =&gt; ReadPrec (ZipList a)
+readList :: ReadS [ZipList a]
+$creadList :: forall a. Read a =&gt; ReadS [ZipList a]
+readsPrec :: Int -&gt; ReadS (ZipList a)
+$creadsPrec :: forall a. Read a =&gt; Int -&gt; ReadS (ZipList a)
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Read</span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679412317"><span id="local-6989586621679412322"><span class="annot"><span class="annottext">ZipList a -&gt; ZipList a -&gt; Bool
+forall a. Eq a =&gt; ZipList a -&gt; ZipList a -&gt; Bool
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+/= :: ZipList a -&gt; ZipList a -&gt; Bool
+$c/= :: forall a. Eq a =&gt; ZipList a -&gt; ZipList a -&gt; Bool
+== :: ZipList a -&gt; ZipList a -&gt; Bool
+$c== :: forall a. Eq a =&gt; ZipList a -&gt; ZipList a -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679412283"><span id="local-6989586621679412287"><span id="local-6989586621679412291"><span id="local-6989586621679412295"><span id="local-6989586621679412299"><span id="local-6989586621679412303"><span id="local-6989586621679412308"><span class="annot"><span class="annottext">ZipList a -&gt; ZipList a -&gt; Bool
+ZipList a -&gt; ZipList a -&gt; Ordering
+ZipList a -&gt; ZipList a -&gt; ZipList a
+forall a.
+Eq a
+-&gt; (a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+forall {a}. Ord a =&gt; Eq (ZipList a)
+forall a. Ord a =&gt; ZipList a -&gt; ZipList a -&gt; Bool
+forall a. Ord a =&gt; ZipList a -&gt; ZipList a -&gt; Ordering
+forall a. Ord a =&gt; ZipList a -&gt; ZipList a -&gt; ZipList a
+min :: ZipList a -&gt; ZipList a -&gt; ZipList a
+$cmin :: forall a. Ord a =&gt; ZipList a -&gt; ZipList a -&gt; ZipList a
+max :: ZipList a -&gt; ZipList a -&gt; ZipList a
+$cmax :: forall a. Ord a =&gt; ZipList a -&gt; ZipList a -&gt; ZipList a
+&gt;= :: ZipList a -&gt; ZipList a -&gt; Bool
+$c&gt;= :: forall a. Ord a =&gt; ZipList a -&gt; ZipList a -&gt; Bool
+&gt; :: ZipList a -&gt; ZipList a -&gt; Bool
+$c&gt; :: forall a. Ord a =&gt; ZipList a -&gt; ZipList a -&gt; Bool
+&lt;= :: ZipList a -&gt; ZipList a -&gt; Bool
+$c&lt;= :: forall a. Ord a =&gt; ZipList a -&gt; ZipList a -&gt; Bool
+&lt; :: ZipList a -&gt; ZipList a -&gt; Bool
+$c&lt; :: forall a. Ord a =&gt; ZipList a -&gt; ZipList a -&gt; Bool
+compare :: ZipList a -&gt; ZipList a -&gt; Ordering
+$ccompare :: forall a. Ord a =&gt; ZipList a -&gt; ZipList a -&gt; Ordering
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679412277"><span class="annot"><span class="annottext">ZipList a -&gt; ()
+forall a. NFData a =&gt; ZipList a -&gt; ()
+forall a. (a -&gt; ()) -&gt; NFData a
+rnf :: ZipList a -&gt; ()
+$crnf :: forall a. NFData a =&gt; ZipList a -&gt; ()
+</span><a href="#local-6989586621679412277"><span class="hs-identifier hs-var hs-var hs-var hs-var">NFData</span></a></span></span><span class="hs-cpp">
+#if MIN_VERSION_deepseq(1,4,3)
+</span><span>    </span><span class="hs-special">,</span><span> </span><span id="local-6989586621679412271"><span class="annot"><span class="annottext">forall a. (a -&gt; ()) -&gt; ZipList a -&gt; ()
+forall (f :: * -&gt; *).
+(forall a. (a -&gt; ()) -&gt; f a -&gt; ()) -&gt; NFData1 f
+liftRnf :: forall a. (a -&gt; ()) -&gt; ZipList a -&gt; ()
+$cliftRnf :: forall a. (a -&gt; ()) -&gt; ZipList a -&gt; ()
+</span><a href="#local-6989586621679412271"><span class="hs-identifier hs-var hs-var hs-var hs-var">NFData1</span></a></span></span><span class="hs-cpp">
+#endif
+</span><span>             </span><span class="hs-special">,</span><span> </span><span id="local-6989586621679412254"><span id="local-6989586621679412260"><span id="local-6989586621679412265"><span class="annot"><span class="annottext">NonEmpty (ZipList a) -&gt; ZipList a
+ZipList a -&gt; ZipList a -&gt; ZipList a
+forall b. Integral b =&gt; b -&gt; ZipList a -&gt; ZipList a
+forall a. NonEmpty (ZipList a) -&gt; ZipList a
+forall a. ZipList a -&gt; ZipList a -&gt; ZipList a
+forall a.
+(a -&gt; a -&gt; a)
+-&gt; (NonEmpty a -&gt; a)
+-&gt; (forall b. Integral b =&gt; b -&gt; a -&gt; a)
+-&gt; Semigroup a
+forall a b. Integral b =&gt; b -&gt; ZipList a -&gt; ZipList a
+stimes :: forall b. Integral b =&gt; b -&gt; ZipList a -&gt; ZipList a
+$cstimes :: forall a b. Integral b =&gt; b -&gt; ZipList a -&gt; ZipList a
+sconcat :: NonEmpty (ZipList a) -&gt; ZipList a
+$csconcat :: forall a. NonEmpty (ZipList a) -&gt; ZipList a
+&lt;&gt; :: ZipList a -&gt; ZipList a -&gt; ZipList a
+$c&lt;&gt; :: forall a. ZipList a -&gt; ZipList a -&gt; ZipList a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Semigroup</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679412236"><span id="local-6989586621679412240"><span id="local-6989586621679412245"><span class="annot"><span class="annottext">ZipList a
+[ZipList a] -&gt; ZipList a
+ZipList a -&gt; ZipList a -&gt; ZipList a
+forall a. Semigroup (ZipList a)
+forall a. ZipList a
+forall a.
+Semigroup a -&gt; a -&gt; (a -&gt; a -&gt; a) -&gt; ([a] -&gt; a) -&gt; Monoid a
+forall a. [ZipList a] -&gt; ZipList a
+forall a. ZipList a -&gt; ZipList a -&gt; ZipList a
+mconcat :: [ZipList a] -&gt; ZipList a
+$cmconcat :: forall a. [ZipList a] -&gt; ZipList a
+mappend :: ZipList a -&gt; ZipList a -&gt; ZipList a
+$cmappend :: forall a. ZipList a -&gt; ZipList a -&gt; ZipList a
+mempty :: ZipList a
+$cmempty :: forall a. ZipList a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Monoid</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679412225"><span id="local-6989586621679412231"><span class="annot"><span class="annottext">forall a b. a -&gt; ZipList b -&gt; ZipList a
+forall a b. (a -&gt; b) -&gt; ZipList a -&gt; ZipList b
+forall (f :: * -&gt; *).
+(forall a b. (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b. a -&gt; f b -&gt; f a) -&gt; Functor f
+&lt;$ :: forall a b. a -&gt; ZipList b -&gt; ZipList a
+$c&lt;$ :: forall a b. a -&gt; ZipList b -&gt; ZipList a
+fmap :: forall a b. (a -&gt; b) -&gt; ZipList a -&gt; ZipList b
+$cfmap :: forall a b. (a -&gt; b) -&gt; ZipList a -&gt; ZipList b
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Functor</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679412092"><span id="local-6989586621679412102"><span id="local-6989586621679412112"><span id="local-6989586621679412122"><span id="local-6989586621679412132"><span id="local-6989586621679412140"><span id="local-6989586621679412146"><span id="local-6989586621679412152"><span id="local-6989586621679412158"><span id="local-6989586621679412164"><span id="local-6989586621679412170"><span id="local-6989586621679412176"><span id="local-6989586621679412182"><span id="local-6989586621679412188"><span id="local-6989586621679412196"><span id="local-6989586621679412206"><span id="local-6989586621679412217"><span class="annot"><span class="annottext">forall a. Eq a =&gt; a -&gt; ZipList a -&gt; Bool
+forall a. Num a =&gt; ZipList a -&gt; a
+forall a. Ord a =&gt; ZipList a -&gt; a
+forall m. Monoid m =&gt; ZipList m -&gt; m
+forall a. ZipList a -&gt; Bool
+forall a. ZipList a -&gt; Int
+forall a. ZipList a -&gt; [a]
+forall a. (a -&gt; a -&gt; a) -&gt; ZipList a -&gt; a
+forall m a. Monoid m =&gt; (a -&gt; m) -&gt; ZipList a -&gt; m
+forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; ZipList a -&gt; b
+forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; ZipList a -&gt; b
+forall (t :: * -&gt; *).
+(forall m. Monoid m =&gt; t m -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; t a -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; t a -&gt; m)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; t a -&gt; a)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; t a -&gt; a)
+-&gt; (forall a. t a -&gt; [a])
+-&gt; (forall a. t a -&gt; Bool)
+-&gt; (forall a. t a -&gt; Int)
+-&gt; (forall a. Eq a =&gt; a -&gt; t a -&gt; Bool)
+-&gt; (forall a. Ord a =&gt; t a -&gt; a)
+-&gt; (forall a. Ord a =&gt; t a -&gt; a)
+-&gt; (forall a. Num a =&gt; t a -&gt; a)
+-&gt; (forall a. Num a =&gt; t a -&gt; a)
+-&gt; Foldable t
+product :: forall a. Num a =&gt; ZipList a -&gt; a
+$cproduct :: forall a. Num a =&gt; ZipList a -&gt; a
+sum :: forall a. Num a =&gt; ZipList a -&gt; a
+$csum :: forall a. Num a =&gt; ZipList a -&gt; a
+minimum :: forall a. Ord a =&gt; ZipList a -&gt; a
+$cminimum :: forall a. Ord a =&gt; ZipList a -&gt; a
+maximum :: forall a. Ord a =&gt; ZipList a -&gt; a
+$cmaximum :: forall a. Ord a =&gt; ZipList a -&gt; a
+elem :: forall a. Eq a =&gt; a -&gt; ZipList a -&gt; Bool
+$celem :: forall a. Eq a =&gt; a -&gt; ZipList a -&gt; Bool
+length :: forall a. ZipList a -&gt; Int
+$clength :: forall a. ZipList a -&gt; Int
+null :: forall a. ZipList a -&gt; Bool
+$cnull :: forall a. ZipList a -&gt; Bool
+toList :: forall a. ZipList a -&gt; [a]
+$ctoList :: forall a. ZipList a -&gt; [a]
+foldl1 :: forall a. (a -&gt; a -&gt; a) -&gt; ZipList a -&gt; a
+$cfoldl1 :: forall a. (a -&gt; a -&gt; a) -&gt; ZipList a -&gt; a
+foldr1 :: forall a. (a -&gt; a -&gt; a) -&gt; ZipList a -&gt; a
+$cfoldr1 :: forall a. (a -&gt; a -&gt; a) -&gt; ZipList a -&gt; a
+foldl' :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; ZipList a -&gt; b
+$cfoldl' :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; ZipList a -&gt; b
+foldl :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; ZipList a -&gt; b
+$cfoldl :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; ZipList a -&gt; b
+foldr' :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; ZipList a -&gt; b
+$cfoldr' :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; ZipList a -&gt; b
+foldr :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; ZipList a -&gt; b
+$cfoldr :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; ZipList a -&gt; b
+foldMap' :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; ZipList a -&gt; m
+$cfoldMap' :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; ZipList a -&gt; m
+foldMap :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; ZipList a -&gt; m
+$cfoldMap :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; ZipList a -&gt; m
+fold :: forall m. Monoid m =&gt; ZipList m -&gt; m
+$cfold :: forall m. Monoid m =&gt; ZipList m -&gt; m
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Foldable</span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span><span>
+</span><span id="line-169"></span><span>             </span><span class="hs-special">,</span><span> </span><span id="local-6989586621679412060"><span id="local-6989586621679412065"><span id="local-6989586621679412070"><span id="local-6989586621679412075"><span id="local-6989586621679412081"><span class="annot"><span class="annottext">Functor ZipList
+forall a. a -&gt; ZipList a
+forall a b. ZipList a -&gt; ZipList b -&gt; ZipList a
+forall a b. ZipList a -&gt; ZipList b -&gt; ZipList b
+forall a b. ZipList (a -&gt; b) -&gt; ZipList a -&gt; ZipList b
+forall a b c. (a -&gt; b -&gt; c) -&gt; ZipList a -&gt; ZipList b -&gt; ZipList c
+forall (f :: * -&gt; *).
+Functor f
+-&gt; (forall a. a -&gt; f a)
+-&gt; (forall a b. f (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b c. (a -&gt; b -&gt; c) -&gt; f a -&gt; f b -&gt; f c)
+-&gt; (forall a b. f a -&gt; f b -&gt; f b)
+-&gt; (forall a b. f a -&gt; f b -&gt; f a)
+-&gt; Applicative f
+&lt;* :: forall a b. ZipList a -&gt; ZipList b -&gt; ZipList a
+$c&lt;* :: forall a b. ZipList a -&gt; ZipList b -&gt; ZipList a
+*&gt; :: forall a b. ZipList a -&gt; ZipList b -&gt; ZipList b
+$c*&gt; :: forall a b. ZipList a -&gt; ZipList b -&gt; ZipList b
+liftA2 :: forall a b c. (a -&gt; b -&gt; c) -&gt; ZipList a -&gt; ZipList b -&gt; ZipList c
+$cliftA2 :: forall a b c. (a -&gt; b -&gt; c) -&gt; ZipList a -&gt; ZipList b -&gt; ZipList c
+&lt;*&gt; :: forall a b. ZipList (a -&gt; b) -&gt; ZipList a -&gt; ZipList b
+$c&lt;*&gt; :: forall a b. ZipList (a -&gt; b) -&gt; ZipList a -&gt; ZipList b
+pure :: forall a. a -&gt; ZipList a
+$cpure :: forall a. a -&gt; ZipList a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Applicative</span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679412038"><span id="local-6989586621679412040"><span id="local-6989586621679412042"><span id="local-6989586621679412050"><span class="annot"><span class="annottext">Functor ZipList
+Foldable ZipList
+forall (t :: * -&gt; *).
+Functor t
+-&gt; Foldable t
+-&gt; (forall (f :: * -&gt; *) a b.
+    Applicative f =&gt;
+    (a -&gt; f b) -&gt; t a -&gt; f (t b))
+-&gt; (forall (f :: * -&gt; *) a. Applicative f =&gt; t (f a) -&gt; f (t a))
+-&gt; (forall (m :: * -&gt; *) a b.
+    Monad m =&gt;
+    (a -&gt; m b) -&gt; t a -&gt; m (t b))
+-&gt; (forall (m :: * -&gt; *) a. Monad m =&gt; t (m a) -&gt; m (t a))
+-&gt; Traversable t
+forall (m :: * -&gt; *) a. Monad m =&gt; ZipList (m a) -&gt; m (ZipList a)
+forall (f :: * -&gt; *) a.
+Applicative f =&gt;
+ZipList (f a) -&gt; f (ZipList a)
+forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b) -&gt; ZipList a -&gt; m (ZipList b)
+forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; ZipList a -&gt; f (ZipList b)
+sequence :: forall (m :: * -&gt; *) a. Monad m =&gt; ZipList (m a) -&gt; m (ZipList a)
+$csequence :: forall (m :: * -&gt; *) a. Monad m =&gt; ZipList (m a) -&gt; m (ZipList a)
+mapM :: forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b) -&gt; ZipList a -&gt; m (ZipList b)
+$cmapM :: forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b) -&gt; ZipList a -&gt; m (ZipList b)
+sequenceA :: forall (f :: * -&gt; *) a.
+Applicative f =&gt;
+ZipList (f a) -&gt; f (ZipList a)
+$csequenceA :: forall (f :: * -&gt; *) a.
+Applicative f =&gt;
+ZipList (f a) -&gt; f (ZipList a)
+traverse :: forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; ZipList a -&gt; f (ZipList b)
+$ctraverse :: forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; ZipList a -&gt; f (ZipList b)
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Traversable</span></span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-170"></span><span>
+</span><span id="line-171"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679412796"><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679412796"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-type">~</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IsString</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.List.html#ZipList"><span class="hs-identifier hs-type">ZipList</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679412796"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-172"></span><span>    </span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><span class="hs-pragma hs-type">fromString</span></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-173"></span><span>    </span><span id="local-6989586621679412030"><span class="annot"><span class="annottext">fromString :: String -&gt; ZipList a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">fromString</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. ZipSerialM Identity a -&gt; ZipList a
+</span><a href="Streamly.Internal.Data.List.html#ZipList"><span class="hs-identifier hs-var">ZipList</span></a></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall l. IsList l =&gt; [Item l] -&gt; l
+</span><span class="hs-identifier hs-var">fromList</span></span><span>
+</span><span id="line-174"></span><span>
+</span><span id="line-175"></span><span class="hs-comment">-- GHC versions 8.0 and below cannot derive IsList</span><span>
+</span><span id="line-176"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679412027"><span id="local-6989586621679412794"><span class="annot"><span class="hs-identifier hs-type">IsList</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.List.html#ZipList"><span class="hs-identifier hs-type">ZipList</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679412794"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-177"></span><span>    </span><span class="hs-keyword">type</span><span> </span><span class="hs-special">(</span><span id="Item"><span class="annot"><span class="hs-identifier hs-var">Item</span></span></span><span> </span><span id="local-6989586621679412794"><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.List.html#ZipList"><span class="hs-identifier hs-type">ZipList</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679412794"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621679412794"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-178"></span><span>    </span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><span class="hs-pragma hs-type">fromList</span></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-179"></span><span>    </span><span id="local-6989586621679412024"><span class="annot"><span class="annottext">fromList :: [Item (ZipList a)] -&gt; ZipList a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">fromList</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. ZipSerialM Identity a -&gt; ZipList a
+</span><a href="Streamly.Internal.Data.List.html#ZipList"><span class="hs-identifier hs-var">ZipList</span></a></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall l. IsList l =&gt; [Item l] -&gt; l
+</span><span class="hs-identifier hs-var">fromList</span></span><span>
+</span><span id="line-180"></span><span>    </span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><span class="hs-pragma hs-type">toList</span></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-181"></span><span>    </span><span id="local-6989586621679412022"><span class="annot"><span class="annottext">toList :: ZipList a -&gt; [Item (ZipList a)]
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">toList</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall l. IsList l =&gt; l -&gt; [Item l]
+</span><span class="hs-identifier hs-var">toList</span></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall a. ZipList a -&gt; ZipSerialM Identity a
+</span><a href="Streamly.Internal.Data.List.html#toZipSerial"><span class="hs-identifier hs-var">toZipSerial</span></a></span><span>
+</span><span id="line-182"></span><span>
+</span><span id="line-183"></span><span class="hs-comment">-- | Convert a 'ZipList' to a regular 'List'</span><span>
+</span><span id="line-184"></span><span class="hs-comment">--</span><span>
+</span><span id="line-185"></span><span class="hs-comment">-- @since 0.6.0</span><span>
+</span><span id="line-186"></span><span id="local-6989586621679412793"><span class="annot"><a href="Streamly.Internal.Data.List.html#fromZipList"><span class="hs-identifier hs-type">fromZipList</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.List.html#ZipList"><span class="hs-identifier hs-type">ZipList</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679412793"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.List.html#List"><span class="hs-identifier hs-type">List</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679412793"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-187"></span><span id="fromZipList"><span class="annot"><span class="annottext">fromZipList :: forall a. ZipList a -&gt; List a
+</span><a href="Streamly.Internal.Data.List.html#fromZipList"><span class="hs-identifier hs-var hs-var">fromZipList</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.List.html#ZipList"><span class="hs-identifier hs-type">ZipList</span></a></span><span> </span><span id="local-6989586621679412021"><span class="annot"><span class="annottext">ZipSerialM Identity a
+</span><a href="#local-6989586621679412021"><span class="hs-identifier hs-var">zs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. SerialT Identity a -&gt; List a
+</span><a href="Streamly.Internal.Data.List.html#List"><span class="hs-identifier hs-var">List</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Stream m a -&gt; SerialT m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-var">SerialT</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. ZipSerialM m a -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.Zip.html#getZipSerialM"><span class="hs-identifier hs-var">getZipSerialM</span></a></span><span> </span><span class="annot"><span class="annottext">ZipSerialM Identity a
+</span><a href="#local-6989586621679412021"><span class="hs-identifier hs-var">zs</span></a></span><span>
+</span><span id="line-188"></span><span>
+</span><span id="line-189"></span><span class="hs-comment">-- | Convert a regular 'List' to a 'ZipList'</span><span>
+</span><span id="line-190"></span><span class="hs-comment">--</span><span>
+</span><span id="line-191"></span><span class="hs-comment">-- @since 0.6.0</span><span>
+</span><span id="line-192"></span><span id="local-6989586621679412791"><span class="annot"><a href="Streamly.Internal.Data.List.html#toZipList"><span class="hs-identifier hs-type">toZipList</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.List.html#List"><span class="hs-identifier hs-type">List</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679412791"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.List.html#ZipList"><span class="hs-identifier hs-type">ZipList</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679412791"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-193"></span><span id="toZipList"><span class="annot"><span class="annottext">toZipList :: forall a. List a -&gt; ZipList a
+</span><a href="Streamly.Internal.Data.List.html#toZipList"><span class="hs-identifier hs-var hs-var">toZipList</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. ZipSerialM Identity a -&gt; ZipList a
+</span><a href="Streamly.Internal.Data.List.html#ZipList"><span class="hs-identifier hs-var">ZipList</span></a></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Stream m a -&gt; ZipSerialM m a
+</span><a href="Streamly.Internal.Data.Stream.Zip.html#ZipSerialM"><span class="hs-identifier hs-var">ZipSerialM</span></a></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. SerialT m a -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#getSerialT"><span class="hs-identifier hs-var">getSerialT</span></a></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall a. List a -&gt; SerialT Identity a
+</span><a href="Streamly.Internal.Data.List.html#toSerial"><span class="hs-identifier hs-var">toSerial</span></a></span><span>
+</span><span id="line-194"></span></pre></body></html>

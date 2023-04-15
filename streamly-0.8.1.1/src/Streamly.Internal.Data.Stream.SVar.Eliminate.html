@@ -1,0 +1,1056 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-- |</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- Module      : Streamly.Internal.Data.Stream.SVar.Eliminate</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Copyright   : (c) 2017 Composewell Technologies</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- License     : BSD-3-Clause</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- Maintainer  : streamly@composewell.com</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Stability   : experimental</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Portability : GHC</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- Eliminate a stream by distributing it to multiple SVars concurrently.</span><span>
+</span><span id="line-10"></span><span class="hs-comment">--</span><span>
+</span><span id="line-11"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Streamly.Internal.Data.Stream.SVar.Eliminate</span><span>
+</span><span id="line-12"></span><span>    </span><span class="hs-special">(</span><span>
+</span><span id="line-13"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Concurrent Function Application</span></span><span>
+</span><span id="line-14"></span><span>      </span><span class="annot"><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#toSVarParallel"><span class="hs-identifier">toSVarParallel</span></a></span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Concurrent folds</span></span><span>
+</span><span id="line-17"></span><span>    </span><span class="annot"><span class="hs-comment">-- $concurrentFolds</span></span><span>
+</span><span id="line-18"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#newFoldSVar"><span class="hs-identifier">newFoldSVar</span></a></span><span>
+</span><span id="line-19"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#newFoldSVarF"><span class="hs-identifier">newFoldSVarF</span></a></span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#fromConsumer"><span class="hs-identifier">fromConsumer</span></a></span><span>
+</span><span id="line-22"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#pushToFold"><span class="hs-identifier">pushToFold</span></a></span><span>
+</span><span id="line-23"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#teeToSVar"><span class="hs-identifier">teeToSVar</span></a></span><span>
+</span><span id="line-24"></span><span>    </span><span class="hs-special">)</span><span>
+</span><span id="line-25"></span><span class="hs-keyword">where</span><span class="hs-cpp">
+
+#include &quot;inline.hs&quot;
+</span><span>
+</span><span id="line-29"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Concurrent</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">myThreadId</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">takeMVar</span></span><span class="hs-special">)</span><span>
+</span><span id="line-30"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">when</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">void</span></span><span class="hs-special">)</span><span>
+</span><span id="line-31"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Catch</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">throwM</span></span><span class="hs-special">)</span><span>
+</span><span id="line-32"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.IO.Class</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">MonadIO</span></span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">liftIO</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-33"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.IORef</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">newIORef</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">readIORef</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">writeIORef</span></span><span class="hs-special">)</span><span>
+</span><span id="line-34"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Streamly.Internal.Control.Concurrent.html"><span class="hs-identifier">Streamly.Internal.Control.Concurrent</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Control.Concurrent.html#MonadAsync"><span class="hs-identifier">MonadAsync</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Control.Concurrent.html#doFork"><span class="hs-identifier">doFork</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-35"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Atomics.html"><span class="hs-identifier">Streamly.Internal.Data.Atomics</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Atomics.html#atomicModifyIORefCAS_"><span class="hs-identifier">atomicModifyIORefCAS_</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-36"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Fold.SVar.html"><span class="hs-identifier">Streamly.Internal.Data.Fold.SVar</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Fold.SVar.html#write"><span class="hs-identifier">write</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Fold.SVar.html#writeLimited"><span class="hs-identifier">writeLimited</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-37"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Fold.Type.html"><span class="hs-identifier">Streamly.Internal.Data.Fold.Type</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Fold.Type.html#Fold"><span class="hs-identifier">Fold</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-38"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html"><span class="hs-identifier">Streamly.Internal.Data.Stream.Serial</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier">SerialT</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-39"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Time.Clock.html"><span class="hs-identifier">Streamly.Internal.Data.Time.Clock</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Time.Clock.Type.html#Clock"><span class="hs-identifier">Clock</span></a></span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Time.Clock.Type.html#Monotonic"><span class="hs-identifier">Monotonic</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Time.Clock.Type.html#getTime"><span class="hs-identifier">getTime</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-40"></span><span>
+</span><span id="line-41"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamD.Type.html"><span class="hs-identifier">Streamly.Internal.Data.Stream.StreamD.Type</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">D</span></span><span>
+</span><span id="line-42"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamK.Type.html"><span class="hs-identifier">Streamly.Internal.Data.Stream.StreamK.Type</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">K</span></span><span>
+</span><span id="line-43"></span><span>
+</span><span id="line-44"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.html"><span class="hs-identifier">Streamly.Internal.Data.SVar</span></a></span><span>
+</span><span id="line-45"></span><span>
+</span><span id="line-46"></span><span class="hs-comment">-------------------------------------------------------------------------------</span><span>
+</span><span id="line-47"></span><span class="hs-comment">-- Concurrent function application</span><span>
+</span><span id="line-48"></span><span class="hs-comment">-------------------------------------------------------------------------------</span><span>
+</span><span id="line-49"></span><span>
+</span><span id="line-50"></span><span class="hs-comment">-- Using StreamD the worker stream producing code can fuse with the code to</span><span>
+</span><span id="line-51"></span><span class="hs-comment">-- queue output to the SVar giving some perf boost.</span><span>
+</span><span id="line-52"></span><span class="hs-comment">--</span><span>
+</span><span id="line-53"></span><span class="hs-comment">-- Note that StreamD can only be used in limited situations, specifically, we</span><span>
+</span><span id="line-54"></span><span class="hs-comment">-- cannot implement joinStreamVarPar using this.</span><span>
+</span><span id="line-55"></span><span class="hs-comment">--</span><span>
+</span><span id="line-56"></span><span class="hs-comment">-- XXX make sure that the SVar passed is a Parallel style SVar.</span><span>
+</span><span id="line-57"></span><span>
+</span><span id="line-58"></span><span class="hs-comment">-- | Fold the supplied stream to the SVar asynchronously using Parallel</span><span>
+</span><span id="line-59"></span><span class="hs-comment">-- concurrency style.</span><span>
+</span><span id="line-60"></span><span class="hs-comment">-- {-# INLINE_NORMAL toSVarParallel #-}</span><span>
+</span><span id="line-61"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#toSVarParallel"><span class="hs-pragma hs-type">toSVarParallel</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-62"></span><span id="local-6989586621679396593"><span id="local-6989586621679396594"><span id="local-6989586621679396596"><span class="annot"><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#toSVarParallel"><span class="hs-identifier hs-type">toSVarParallel</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.Control.Concurrent.html#MonadAsync"><span class="hs-identifier hs-type">MonadAsync</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396596"><span class="hs-identifier hs-type">m</span></a></span><span>
+</span><span id="line-63"></span><span>    </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#State"><span class="hs-identifier hs-type">State</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396594"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396596"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396593"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#SVar"><span class="hs-identifier hs-type">SVar</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396594"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396596"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396593"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamD.Type.html#Stream"><span class="hs-identifier hs-type">D.Stream</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396596"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396593"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679396596"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span></span></span><span>
+</span><span id="line-64"></span><span id="toSVarParallel"><span class="annot"><span class="annottext">toSVarParallel :: forall (m :: * -&gt; *) (t :: (* -&gt; *) -&gt; * -&gt; *) a.
+MonadAsync m =&gt;
+State t m a -&gt; SVar t m a -&gt; Stream m a -&gt; m ()
+</span><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#toSVarParallel"><span class="hs-identifier hs-var hs-var">toSVarParallel</span></a></span></span><span> </span><span id="local-6989586621679396379"><span class="annot"><span class="annottext">State t m a
+</span><a href="#local-6989586621679396379"><span class="hs-identifier hs-var">st</span></a></span></span><span> </span><span id="local-6989586621679396378"><span class="annot"><span class="annottext">SVar t m a
+</span><a href="#local-6989586621679396378"><span class="hs-identifier hs-var">sv</span></a></span></span><span> </span><span id="local-6989586621679396377"><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679396377"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-65"></span><span>    </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; Bool
+</span><a href="Streamly.Internal.Data.SVar.Type.html#svarInspectMode"><span class="hs-identifier hs-var">svarInspectMode</span></a></span><span> </span><span class="annot"><span class="annottext">SVar t m a
+</span><a href="#local-6989586621679396378"><span class="hs-identifier hs-var">sv</span></a></span><span>
+</span><span id="line-66"></span><span>    </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">m ()
+</span><a href="#local-6989586621679396375"><span class="hs-identifier hs-var">forkWithDiag</span></a></span><span>
+</span><span id="line-67"></span><span>    </span><span class="hs-keyword">else</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-68"></span><span>        </span><span id="local-6989586621679396374"><span class="annot"><span class="annottext">ThreadId
+</span><a href="#local-6989586621679396374"><span class="hs-identifier hs-var">tid</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span>
+</span><span id="line-69"></span><span>                </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+State t m a -&gt; Maybe Count
+</span><a href="Streamly.Internal.Data.SVar.Type.html#getYieldLimit"><span class="hs-identifier hs-var">getYieldLimit</span></a></span><span> </span><span class="annot"><span class="annottext">State t m a
+</span><a href="#local-6989586621679396379"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-70"></span><span>                    </span><span class="annot"><span class="annottext">Maybe Count
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *).
+MonadBaseControl IO m =&gt;
+m () -&gt; RunInIO m -&gt; (SomeException -&gt; IO ()) -&gt; m ThreadId
+</span><a href="Streamly.Internal.Control.Concurrent.html#doFork"><span class="hs-identifier hs-var">doFork</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Maybe WorkerInfo -&gt; m ()
+</span><a href="#local-6989586621679396372"><span class="hs-identifier hs-var">work</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span class="hs-special">)</span><span>
+</span><span id="line-71"></span><span>                                      </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; RunInIO m
+</span><a href="Streamly.Internal.Data.SVar.Type.html#svarMrun"><span class="hs-identifier hs-var">svarMrun</span></a></span><span> </span><span class="annot"><span class="annottext">SVar t m a
+</span><a href="#local-6989586621679396378"><span class="hs-identifier hs-var">sv</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-72"></span><span>                                      </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; SomeException -&gt; IO ()
+</span><a href="Streamly.Internal.Data.SVar.Worker.html#handleChildException"><span class="hs-identifier hs-var">handleChildException</span></a></span><span> </span><span class="annot"><span class="annottext">SVar t m a
+</span><a href="#local-6989586621679396378"><span class="hs-identifier hs-var">sv</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-73"></span><span>                    </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="annot"><span class="annottext">Count
+</span><span class="hs-identifier">_</span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *).
+MonadBaseControl IO m =&gt;
+m () -&gt; RunInIO m -&gt; (SomeException -&gt; IO ()) -&gt; m ThreadId
+</span><a href="Streamly.Internal.Control.Concurrent.html#doFork"><span class="hs-identifier hs-var">doFork</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Maybe WorkerInfo -&gt; m ()
+</span><a href="#local-6989586621679396369"><span class="hs-identifier hs-var">workLim</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span class="hs-special">)</span><span>
+</span><span id="line-74"></span><span>                                      </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; RunInIO m
+</span><a href="Streamly.Internal.Data.SVar.Type.html#svarMrun"><span class="hs-identifier hs-var">svarMrun</span></a></span><span> </span><span class="annot"><span class="annottext">SVar t m a
+</span><a href="#local-6989586621679396378"><span class="hs-identifier hs-var">sv</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-75"></span><span>                                      </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; SomeException -&gt; IO ()
+</span><a href="Streamly.Internal.Data.SVar.Worker.html#handleChildException"><span class="hs-identifier hs-var">handleChildException</span></a></span><span> </span><span class="annot"><span class="annottext">SVar t m a
+</span><a href="#local-6989586621679396378"><span class="hs-identifier hs-var">sv</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-76"></span><span>        </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) (t :: (* -&gt; *) -&gt; * -&gt; *) a.
+MonadIO m =&gt;
+SVar t m a -&gt; ThreadId -&gt; m ()
+</span><a href="Streamly.Internal.Data.SVar.Dispatch.html#modifyThread"><span class="hs-identifier hs-var">modifyThread</span></a></span><span> </span><span class="annot"><span class="annottext">SVar t m a
+</span><a href="#local-6989586621679396378"><span class="hs-identifier hs-var">sv</span></a></span><span> </span><span class="annot"><span class="annottext">ThreadId
+</span><a href="#local-6989586621679396374"><span class="hs-identifier hs-var">tid</span></a></span><span>
+</span><span id="line-77"></span><span>
+</span><span id="line-78"></span><span>    </span><span class="hs-keyword">where</span><span>
+</span><span id="line-79"></span><span>
+</span><span id="line-80"></span><span>    </span><span class="hs-pragma">{-# NOINLINE</span><span> </span><span class="annot"><a href="#local-6989586621679396372"><span class="hs-pragma hs-type">work</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-81"></span><span>    </span><span id="local-6989586621679396372"><span class="annot"><span class="annottext">work :: Maybe WorkerInfo -&gt; m ()
+</span><a href="#local-6989586621679396372"><span class="hs-identifier hs-var hs-var">work</span></a></span></span><span> </span><span id="local-6989586621679396365"><span class="annot"><span class="annottext">Maybe WorkerInfo
+</span><a href="#local-6989586621679396365"><span class="hs-identifier hs-var">info</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+Fold m a b -&gt; Stream m a -&gt; m b
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Type.html#fold"><span class="hs-identifier hs-var">D.fold</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) (t :: (* -&gt; *) -&gt; * -&gt; *) a.
+MonadIO m =&gt;
+SVar t m a -&gt; Maybe WorkerInfo -&gt; Fold m a ()
+</span><a href="Streamly.Internal.Data.Fold.SVar.html#write"><span class="hs-identifier hs-var">write</span></a></span><span> </span><span class="annot"><span class="annottext">SVar t m a
+</span><a href="#local-6989586621679396378"><span class="hs-identifier hs-var">sv</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe WorkerInfo
+</span><a href="#local-6989586621679396365"><span class="hs-identifier hs-var">info</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679396377"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-82"></span><span>
+</span><span id="line-83"></span><span>    </span><span class="hs-pragma">{-# NOINLINE</span><span> </span><span class="annot"><a href="#local-6989586621679396369"><span class="hs-pragma hs-type">workLim</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-84"></span><span>    </span><span id="local-6989586621679396369"><span class="annot"><span class="annottext">workLim :: Maybe WorkerInfo -&gt; m ()
+</span><a href="#local-6989586621679396369"><span class="hs-identifier hs-var hs-var">workLim</span></a></span></span><span> </span><span id="local-6989586621679396361"><span class="annot"><span class="annottext">Maybe WorkerInfo
+</span><a href="#local-6989586621679396361"><span class="hs-identifier hs-var">info</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+Fold m a b -&gt; Stream m a -&gt; m b
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Type.html#fold"><span class="hs-identifier hs-var">D.fold</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) (t :: (* -&gt; *) -&gt; * -&gt; *) a.
+MonadIO m =&gt;
+SVar t m a -&gt; Maybe WorkerInfo -&gt; Fold m a ()
+</span><a href="Streamly.Internal.Data.Fold.SVar.html#writeLimited"><span class="hs-identifier hs-var">writeLimited</span></a></span><span> </span><span class="annot"><span class="annottext">SVar t m a
+</span><a href="#local-6989586621679396378"><span class="hs-identifier hs-var">sv</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe WorkerInfo
+</span><a href="#local-6989586621679396361"><span class="hs-identifier hs-var">info</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679396377"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-85"></span><span>
+</span><span id="line-86"></span><span>    </span><span class="hs-pragma">{-# NOINLINE</span><span> </span><span class="annot"><a href="#local-6989586621679396375"><span class="hs-pragma hs-type">forkWithDiag</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-87"></span><span>    </span><span id="local-6989586621679396375"><span class="annot"><span class="annottext">forkWithDiag :: m ()
+</span><a href="#local-6989586621679396375"><span class="hs-identifier hs-var hs-var">forkWithDiag</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-88"></span><span>        </span><span class="hs-comment">-- We do not use workerCount in case of ParallelVar but still there is</span><span>
+</span><span id="line-89"></span><span>        </span><span class="hs-comment">-- no harm in maintaining it correctly.</span><span>
+</span><span id="line-90"></span><span>        </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall t. IORef t -&gt; (t -&gt; t) -&gt; IO ()
+</span><a href="Streamly.Internal.Data.Atomics.html#atomicModifyIORefCAS_"><span class="hs-identifier hs-var">atomicModifyIORefCAS_</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; IORef Int
+</span><a href="Streamly.Internal.Data.SVar.Type.html#workerCount"><span class="hs-identifier hs-var">workerCount</span></a></span><span> </span><span class="annot"><span class="annottext">SVar t m a
+</span><a href="#local-6989586621679396378"><span class="hs-identifier hs-var">sv</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679396336"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679396336"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679396336"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span>
+</span><span id="line-91"></span><span>        </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) (t :: (* -&gt; *) -&gt; * -&gt; *) a.
+MonadIO m =&gt;
+SVar t m a -&gt; m ()
+</span><a href="Streamly.Internal.Data.SVar.Dispatch.html#recordMaxWorkers"><span class="hs-identifier hs-var">recordMaxWorkers</span></a></span><span> </span><span class="annot"><span class="annottext">SVar t m a
+</span><a href="#local-6989586621679396378"><span class="hs-identifier hs-var">sv</span></a></span><span>
+</span><span id="line-92"></span><span>        </span><span class="hs-comment">-- This allocation matters when significant number of workers are being</span><span>
+</span><span id="line-93"></span><span>        </span><span class="hs-comment">-- sent. We allocate it only when needed. The overhead increases by 4x.</span><span>
+</span><span id="line-94"></span><span>        </span><span id="local-6989586621679396333"><span class="annot"><span class="annottext">Maybe WorkerInfo
+</span><a href="#local-6989586621679396333"><span class="hs-identifier hs-var">winfo</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span>
+</span><span id="line-95"></span><span>            </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; Maybe YieldRateInfo
+</span><a href="Streamly.Internal.Data.SVar.Type.html#yieldRateInfo"><span class="hs-identifier hs-var">yieldRateInfo</span></a></span><span> </span><span class="annot"><span class="annottext">SVar t m a
+</span><a href="#local-6989586621679396378"><span class="hs-identifier hs-var">sv</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-96"></span><span>                </span><span class="annot"><span class="annottext">Maybe YieldRateInfo
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-97"></span><span>                </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="annot"><span class="annottext">YieldRateInfo
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-98"></span><span>                    </span><span id="local-6989586621679396331"><span class="annot"><span class="annottext">IORef Count
+</span><a href="#local-6989586621679396331"><span class="hs-identifier hs-var">cntRef</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall a. a -&gt; IO (IORef a)
+</span><span class="hs-identifier hs-var">newIORef</span></span><span> </span><span class="annot"><span class="annottext">Count
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-99"></span><span>                    </span><span id="local-6989586621679396330"><span class="annot"><span class="annottext">AbsTime
+</span><a href="#local-6989586621679396330"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Clock -&gt; IO AbsTime
+</span><a href="Streamly.Internal.Data.Time.Clock.Type.html#getTime"><span class="hs-identifier hs-var">getTime</span></a></span><span> </span><span class="annot"><span class="annottext">Clock
+</span><a href="Streamly.Internal.Data.Time.Clock.Type.html#Monotonic"><span class="hs-identifier hs-var">Monotonic</span></a></span><span>
+</span><span id="line-100"></span><span>                    </span><span id="local-6989586621679396329"><span class="annot"><span class="annottext">IORef (Count, AbsTime)
+</span><a href="#local-6989586621679396329"><span class="hs-identifier hs-var">lat</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall a. a -&gt; IO (IORef a)
+</span><span class="hs-identifier hs-var">newIORef</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Count
+</span><span class="hs-number">0</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">AbsTime
+</span><a href="#local-6989586621679396330"><span class="hs-identifier hs-var">t</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-101"></span><span>                    </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#WorkerInfo"><span class="hs-identifier hs-type">WorkerInfo</span></a></span><span>
+</span><span id="line-102"></span><span>                        </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">workerYieldMax :: Count
+</span><a href="Streamly.Internal.Data.SVar.Type.html#workerYieldMax"><span class="hs-identifier hs-var">workerYieldMax</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Count
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-103"></span><span>                        </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">workerYieldCount :: IORef Count
+</span><a href="Streamly.Internal.Data.SVar.Type.html#workerYieldCount"><span class="hs-identifier hs-var">workerYieldCount</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IORef Count
+</span><a href="#local-6989586621679396331"><span class="hs-identifier hs-var">cntRef</span></a></span><span>
+</span><span id="line-104"></span><span>                        </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">workerLatencyStart :: IORef (Count, AbsTime)
+</span><a href="Streamly.Internal.Data.SVar.Type.html#workerLatencyStart"><span class="hs-identifier hs-var">workerLatencyStart</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IORef (Count, AbsTime)
+</span><a href="#local-6989586621679396329"><span class="hs-identifier hs-var">lat</span></a></span><span>
+</span><span id="line-105"></span><span>                        </span><span class="hs-special">}</span><span>
+</span><span id="line-106"></span><span>        </span><span id="local-6989586621679396324"><span class="annot"><span class="annottext">ThreadId
+</span><a href="#local-6989586621679396324"><span class="hs-identifier hs-var">tid</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span>
+</span><span id="line-107"></span><span>            </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+State t m a -&gt; Maybe Count
+</span><a href="Streamly.Internal.Data.SVar.Type.html#getYieldLimit"><span class="hs-identifier hs-var">getYieldLimit</span></a></span><span> </span><span class="annot"><span class="annottext">State t m a
+</span><a href="#local-6989586621679396379"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-108"></span><span>                </span><span class="annot"><span class="annottext">Maybe Count
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *).
+MonadBaseControl IO m =&gt;
+m () -&gt; RunInIO m -&gt; (SomeException -&gt; IO ()) -&gt; m ThreadId
+</span><a href="Streamly.Internal.Control.Concurrent.html#doFork"><span class="hs-identifier hs-var">doFork</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Maybe WorkerInfo -&gt; m ()
+</span><a href="#local-6989586621679396372"><span class="hs-identifier hs-var">work</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe WorkerInfo
+</span><a href="#local-6989586621679396333"><span class="hs-identifier hs-var">winfo</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-109"></span><span>                                  </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; RunInIO m
+</span><a href="Streamly.Internal.Data.SVar.Type.html#svarMrun"><span class="hs-identifier hs-var">svarMrun</span></a></span><span> </span><span class="annot"><span class="annottext">SVar t m a
+</span><a href="#local-6989586621679396378"><span class="hs-identifier hs-var">sv</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-110"></span><span>                                  </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; SomeException -&gt; IO ()
+</span><a href="Streamly.Internal.Data.SVar.Worker.html#handleChildException"><span class="hs-identifier hs-var">handleChildException</span></a></span><span> </span><span class="annot"><span class="annottext">SVar t m a
+</span><a href="#local-6989586621679396378"><span class="hs-identifier hs-var">sv</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-111"></span><span>                </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="annot"><span class="annottext">Count
+</span><span class="hs-identifier">_</span></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *).
+MonadBaseControl IO m =&gt;
+m () -&gt; RunInIO m -&gt; (SomeException -&gt; IO ()) -&gt; m ThreadId
+</span><a href="Streamly.Internal.Control.Concurrent.html#doFork"><span class="hs-identifier hs-var">doFork</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Maybe WorkerInfo -&gt; m ()
+</span><a href="#local-6989586621679396369"><span class="hs-identifier hs-var">workLim</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe WorkerInfo
+</span><a href="#local-6989586621679396333"><span class="hs-identifier hs-var">winfo</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-112"></span><span>                                  </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; RunInIO m
+</span><a href="Streamly.Internal.Data.SVar.Type.html#svarMrun"><span class="hs-identifier hs-var">svarMrun</span></a></span><span> </span><span class="annot"><span class="annottext">SVar t m a
+</span><a href="#local-6989586621679396378"><span class="hs-identifier hs-var">sv</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-113"></span><span>                                  </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; SomeException -&gt; IO ()
+</span><a href="Streamly.Internal.Data.SVar.Worker.html#handleChildException"><span class="hs-identifier hs-var">handleChildException</span></a></span><span> </span><span class="annot"><span class="annottext">SVar t m a
+</span><a href="#local-6989586621679396378"><span class="hs-identifier hs-var">sv</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-114"></span><span>        </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) (t :: (* -&gt; *) -&gt; * -&gt; *) a.
+MonadIO m =&gt;
+SVar t m a -&gt; ThreadId -&gt; m ()
+</span><a href="Streamly.Internal.Data.SVar.Dispatch.html#modifyThread"><span class="hs-identifier hs-var">modifyThread</span></a></span><span> </span><span class="annot"><span class="annottext">SVar t m a
+</span><a href="#local-6989586621679396378"><span class="hs-identifier hs-var">sv</span></a></span><span> </span><span class="annot"><span class="annottext">ThreadId
+</span><a href="#local-6989586621679396324"><span class="hs-identifier hs-var">tid</span></a></span><span>
+</span><span id="line-115"></span><span>
+</span><span id="line-116"></span><span class="hs-comment">-------------------------------------------------------------------------------</span><span>
+</span><span id="line-117"></span><span class="hs-comment">-- Support for running folds concurrently</span><span>
+</span><span id="line-118"></span><span class="hs-comment">-------------------------------------------------------------------------------</span><span>
+</span><span id="line-119"></span><span>
+</span><span id="line-120"></span><span class="hs-comment">-- $concurrentFolds</span><span>
+</span><span id="line-121"></span><span class="hs-comment">--</span><span>
+</span><span id="line-122"></span><span class="hs-comment">-- To run folds concurrently, we need to decouple the fold execution from the</span><span>
+</span><span id="line-123"></span><span class="hs-comment">-- stream production. We use the SVar to do that, we have a single worker</span><span>
+</span><span id="line-124"></span><span class="hs-comment">-- pushing the stream elements to the SVar and on the consumer side a fold</span><span>
+</span><span id="line-125"></span><span class="hs-comment">-- driver pulls the values and folds them.</span><span>
+</span><span id="line-126"></span><span class="hs-comment">--</span><span>
+</span><span id="line-127"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-128"></span><span class="hs-comment">--</span><span>
+</span><span id="line-129"></span><span class="hs-comment">-- Fold worker &lt;------SVar&lt;------input stream</span><span>
+</span><span id="line-130"></span><span class="hs-comment">--     |  exceptions  |</span><span>
+</span><span id="line-131"></span><span class="hs-comment">--     ---------------&gt;</span><span>
+</span><span id="line-132"></span><span class="hs-comment">--</span><span>
+</span><span id="line-133"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-134"></span><span class="hs-comment">--</span><span>
+</span><span id="line-135"></span><span class="hs-comment">-- We need a channel for pushing exceptions from the fold worker to the stream</span><span>
+</span><span id="line-136"></span><span class="hs-comment">-- pusher. The stream may be pushed to multiple folds at the same time. For</span><span>
+</span><span id="line-137"></span><span class="hs-comment">-- that we need one SVar per fold:</span><span>
+</span><span id="line-138"></span><span class="hs-comment">--</span><span>
+</span><span id="line-139"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-140"></span><span class="hs-comment">--</span><span>
+</span><span id="line-141"></span><span class="hs-comment">-- Fold worker &lt;------SVar&lt;---</span><span>
+</span><span id="line-142"></span><span class="hs-comment">--                    |       |</span><span>
+</span><span id="line-143"></span><span class="hs-comment">-- Fold worker &lt;------SVar&lt;------input stream</span><span>
+</span><span id="line-144"></span><span class="hs-comment">--                    |       |</span><span>
+</span><span id="line-145"></span><span class="hs-comment">-- Fold worker &lt;------SVar&lt;---</span><span>
+</span><span id="line-146"></span><span class="hs-comment">--</span><span>
+</span><span id="line-147"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-148"></span><span class="hs-comment">--</span><span>
+</span><span id="line-149"></span><span class="hs-comment">-- Unlike in case concurrent stream evaluation, the puller does not drive the</span><span>
+</span><span id="line-150"></span><span class="hs-comment">-- scheduling and concurrent execution of the stream. The stream is simply</span><span>
+</span><span id="line-151"></span><span class="hs-comment">-- pushed by the stream producer at its own rate. The fold worker just pulls it</span><span>
+</span><span id="line-152"></span><span class="hs-comment">-- and folds it.</span><span>
+</span><span id="line-153"></span><span class="hs-comment">--</span><span>
+</span><span id="line-154"></span><span class="hs-comment">-- Note: If the stream pusher terminates due to an exception, we do not</span><span>
+</span><span id="line-155"></span><span class="hs-comment">-- actively terminate the fold. It gets cleaned up by the GC.</span><span>
+</span><span id="line-156"></span><span>
+</span><span id="line-157"></span><span class="hs-comment">-------------------------------------------------------------------------------</span><span>
+</span><span id="line-158"></span><span class="hs-comment">-- Process events received by a fold consumer from a stream producer</span><span>
+</span><span id="line-159"></span><span class="hs-comment">-------------------------------------------------------------------------------</span><span>
+</span><span id="line-160"></span><span>
+</span><span id="line-161"></span><span class="hs-comment">-- | Pull a stream from an SVar to fold it. Like 'fromSVar' except that it does</span><span>
+</span><span id="line-162"></span><span class="hs-comment">-- not drive the evaluation of the stream. It just pulls whatever is available</span><span>
+</span><span id="line-163"></span><span class="hs-comment">-- on the SVar. Also, when the fold stops it sends a notification to the stream</span><span>
+</span><span id="line-164"></span><span class="hs-comment">-- pusher/producer. No exceptions are expected to be propagated from the stream</span><span>
+</span><span id="line-165"></span><span class="hs-comment">-- pusher to the fold puller.</span><span>
+</span><span id="line-166"></span><span class="hs-comment">--</span><span>
+</span><span id="line-167"></span><span class="hs-pragma">{-# NOINLINE</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#fromProducer"><span class="hs-pragma hs-type">fromProducer</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-168"></span><span class="annot"><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#fromProducer"><span class="hs-identifier hs-type">fromProducer</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-keyword">forall</span><span> </span><span id="local-6989586621679396539"><span class="annot"><a href="#local-6989586621679396539"><span class="hs-identifier hs-type">m</span></a></span></span><span> </span><span id="local-6989586621679396537"><span class="annot"><a href="#local-6989586621679396537"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-operator">.</span><span> </span><span class="annot"><a href="Streamly.Internal.Control.Concurrent.html#MonadAsync"><span class="hs-identifier hs-type">MonadAsync</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396539"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#SVar"><span class="hs-identifier hs-type">SVar</span></a></span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#Stream"><span class="hs-identifier hs-type">K.Stream</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396539"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396537"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#Stream"><span class="hs-identifier hs-type">K.Stream</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396539"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396537"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-169"></span><span id="fromProducer"><span class="annot"><span class="annottext">fromProducer :: forall (m :: * -&gt; *) a.
+MonadAsync m =&gt;
+SVar Stream m a -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#fromProducer"><span class="hs-identifier hs-var hs-var">fromProducer</span></a></span></span><span> </span><span id="local-6989586621679396317"><span class="annot"><span class="annottext">SVar Stream m a
+</span><a href="#local-6989586621679396317"><span class="hs-identifier hs-var">sv</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a.
+(forall r.
+ State Stream m a
+ -&gt; (a -&gt; Stream m a -&gt; m r) -&gt; (a -&gt; m r) -&gt; m r -&gt; m r)
+-&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#mkStream"><span class="hs-identifier hs-var">K.mkStream</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679396314"><span class="annot"><span class="annottext">State Stream m a
+</span><a href="#local-6989586621679396314"><span class="hs-identifier hs-var">st</span></a></span></span><span> </span><span id="local-6989586621679396313"><span class="annot"><span class="annottext">a -&gt; Stream m a -&gt; m r
+</span><a href="#local-6989586621679396313"><span class="hs-identifier hs-var">yld</span></a></span></span><span> </span><span id="local-6989586621679396312"><span class="annot"><span class="annottext">a -&gt; m r
+</span><a href="#local-6989586621679396312"><span class="hs-identifier hs-var">sng</span></a></span></span><span> </span><span id="local-6989586621679396311"><span class="annot"><span class="annottext">m r
+</span><a href="#local-6989586621679396311"><span class="hs-identifier hs-var">stp</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-170"></span><span>    </span><span id="local-6989586621679396310"><span class="annot"><span class="annottext">[ChildEvent a]
+</span><a href="#local-6989586621679396310"><span class="hs-identifier hs-var">list</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; m [ChildEvent a]
+</span><a href="Streamly.Internal.Data.SVar.Type.html#readOutputQ"><span class="hs-identifier hs-var">readOutputQ</span></a></span><span> </span><span class="annot"><span class="annottext">SVar Stream m a
+</span><a href="#local-6989586621679396317"><span class="hs-identifier hs-var">sv</span></a></span><span>
+</span><span id="line-171"></span><span>    </span><span class="hs-comment">-- Reversing the output is important to guarantee that we process the</span><span>
+</span><span id="line-172"></span><span>    </span><span class="hs-comment">-- outputs in the same order as they were generated by the constituent</span><span>
+</span><span id="line-173"></span><span>    </span><span class="hs-comment">-- streams.</span><span>
+</span><span id="line-174"></span><span>    </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a r.
+State Stream m a
+-&gt; (a -&gt; Stream m a -&gt; m r)
+-&gt; (a -&gt; m r)
+-&gt; m r
+-&gt; Stream m a
+-&gt; m r
+</span><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#foldStream"><span class="hs-identifier hs-var">K.foldStream</span></a></span><span> </span><span class="annot"><span class="annottext">State Stream m a
+</span><a href="#local-6989586621679396314"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; Stream m a -&gt; m r
+</span><a href="#local-6989586621679396313"><span class="hs-identifier hs-var">yld</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; m r
+</span><a href="#local-6989586621679396312"><span class="hs-identifier hs-var">sng</span></a></span><span> </span><span class="annot"><span class="annottext">m r
+</span><a href="#local-6989586621679396311"><span class="hs-identifier hs-var">stp</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[ChildEvent a] -&gt; Stream m a
+</span><a href="#local-6989586621679396307"><span class="hs-identifier hs-var">processEvents</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">reverse</span></span><span> </span><span class="annot"><span class="annottext">[ChildEvent a]
+</span><a href="#local-6989586621679396310"><span class="hs-identifier hs-var">list</span></a></span><span>
+</span><span id="line-175"></span><span>
+</span><span id="line-176"></span><span>    </span><span class="hs-keyword">where</span><span>
+</span><span id="line-177"></span><span>
+</span><span id="line-178"></span><span>    </span><span id="local-6989586621679396525"><span class="annot"><a href="#local-6989586621679396305"><span class="hs-identifier hs-type">allDone</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621679396539"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396525"><span class="hs-identifier hs-type">r</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679396539"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396525"><span class="hs-identifier hs-type">r</span></a></span></span><span>
+</span><span id="line-179"></span><span>    </span><span id="local-6989586621679396305"><span class="annot"><span class="annottext">allDone :: forall r. m r -&gt; m r
+</span><a href="#local-6989586621679396305"><span class="hs-identifier hs-var hs-var">allDone</span></a></span></span><span> </span><span id="local-6989586621679396295"><span class="annot"><span class="annottext">m r
+</span><a href="#local-6989586621679396295"><span class="hs-identifier hs-var">stp</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-180"></span><span>        </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *). Applicative f =&gt; Bool -&gt; f () -&gt; f ()
+</span><span class="hs-identifier hs-var">when</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; Bool
+</span><a href="Streamly.Internal.Data.SVar.Type.html#svarInspectMode"><span class="hs-identifier hs-var">svarInspectMode</span></a></span><span> </span><span class="annot"><span class="annottext">SVar Stream m a
+</span><a href="#local-6989586621679396317"><span class="hs-identifier hs-var">sv</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-181"></span><span>            </span><span id="local-6989586621679396294"><span class="annot"><span class="annottext">AbsTime
+</span><a href="#local-6989586621679396294"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Clock -&gt; IO AbsTime
+</span><a href="Streamly.Internal.Data.Time.Clock.Type.html#getTime"><span class="hs-identifier hs-var">getTime</span></a></span><span> </span><span class="annot"><span class="annottext">Clock
+</span><a href="Streamly.Internal.Data.Time.Clock.Type.html#Monotonic"><span class="hs-identifier hs-var">Monotonic</span></a></span><span>
+</span><span id="line-182"></span><span>            </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a. IORef a -&gt; a -&gt; IO ()
+</span><span class="hs-identifier hs-var">writeIORef</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SVarStats -&gt; IORef (Maybe AbsTime)
+</span><a href="Streamly.Internal.Data.SVar.Type.html#svarStopTime"><span class="hs-identifier hs-var">svarStopTime</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; SVarStats
+</span><a href="Streamly.Internal.Data.SVar.Type.html#svarStats"><span class="hs-identifier hs-var">svarStats</span></a></span><span> </span><span class="annot"><span class="annottext">SVar Stream m a
+</span><a href="#local-6989586621679396317"><span class="hs-identifier hs-var">sv</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">AbsTime
+</span><a href="#local-6989586621679396294"><span class="hs-identifier hs-var">t</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-183"></span><span>            </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; String -&gt; IO ()
+</span><a href="Streamly.Internal.Data.SVar.Dispatch.html#printSVar"><span class="hs-identifier hs-var">printSVar</span></a></span><span> </span><span class="annot"><span class="annottext">SVar Stream m a
+</span><a href="#local-6989586621679396317"><span class="hs-identifier hs-var">sv</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;SVar Done&quot;</span></span><span>
+</span><span id="line-184"></span><span>        </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) (t :: (* -&gt; *) -&gt; * -&gt; *) a.
+MonadIO m =&gt;
+SVar t m a -&gt; m ()
+</span><a href="Streamly.Internal.Data.SVar.Worker.html#sendStopToProducer"><span class="hs-identifier hs-var">sendStopToProducer</span></a></span><span> </span><span class="annot"><span class="annottext">SVar Stream m a
+</span><a href="#local-6989586621679396317"><span class="hs-identifier hs-var">sv</span></a></span><span>
+</span><span id="line-185"></span><span>        </span><span class="annot"><span class="annottext">m r
+</span><a href="#local-6989586621679396295"><span class="hs-identifier hs-var">stp</span></a></span><span>
+</span><span id="line-186"></span><span>
+</span><span id="line-187"></span><span>    </span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="#local-6989586621679396307"><span class="hs-pragma hs-type">processEvents</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-188"></span><span>    </span><span class="annot"><a href="#local-6989586621679396307"><span class="hs-identifier hs-type">processEvents</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#ChildEvent"><span class="hs-identifier hs-type">ChildEvent</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396537"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#Stream"><span class="hs-identifier hs-type">K.Stream</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396539"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396537"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-189"></span><span>    </span><span id="local-6989586621679396307"><span class="annot"><span class="annottext">processEvents :: [ChildEvent a] -&gt; Stream m a
+</span><a href="#local-6989586621679396307"><span class="hs-identifier hs-var hs-var">processEvents</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a.
+(forall r.
+ State Stream m a
+ -&gt; (a -&gt; Stream m a -&gt; m r) -&gt; (a -&gt; m r) -&gt; m r -&gt; m r)
+-&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#mkStream"><span class="hs-identifier hs-var">K.mkStream</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679396288"><span class="annot"><span class="annottext">State Stream m a
+</span><a href="#local-6989586621679396288"><span class="hs-identifier hs-var">st</span></a></span></span><span> </span><span id="local-6989586621679396287"><span class="annot"><span class="annottext">a -&gt; Stream m a -&gt; m r
+</span><a href="#local-6989586621679396287"><span class="hs-identifier hs-var">yld</span></a></span></span><span> </span><span id="local-6989586621679396286"><span class="annot"><span class="annottext">a -&gt; m r
+</span><a href="#local-6989586621679396286"><span class="hs-identifier hs-var">sng</span></a></span></span><span> </span><span id="local-6989586621679396285"><span class="annot"><span class="annottext">m r
+</span><a href="#local-6989586621679396285"><span class="hs-identifier hs-var">stp</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-190"></span><span>        </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a r.
+State Stream m a
+-&gt; (a -&gt; Stream m a -&gt; m r)
+-&gt; (a -&gt; m r)
+-&gt; m r
+-&gt; Stream m a
+-&gt; m r
+</span><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#foldStream"><span class="hs-identifier hs-var">K.foldStream</span></a></span><span> </span><span class="annot"><span class="annottext">State Stream m a
+</span><a href="#local-6989586621679396288"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; Stream m a -&gt; m r
+</span><a href="#local-6989586621679396287"><span class="hs-identifier hs-var">yld</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; m r
+</span><a href="#local-6989586621679396286"><span class="hs-identifier hs-var">sng</span></a></span><span> </span><span class="annot"><span class="annottext">m r
+</span><a href="#local-6989586621679396285"><span class="hs-identifier hs-var">stp</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a.
+MonadAsync m =&gt;
+SVar Stream m a -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#fromProducer"><span class="hs-identifier hs-var">fromProducer</span></a></span><span> </span><span class="annot"><span class="annottext">SVar Stream m a
+</span><a href="#local-6989586621679396317"><span class="hs-identifier hs-var">sv</span></a></span><span>
+</span><span id="line-191"></span><span>
+</span><span id="line-192"></span><span>    </span><span class="annot"><a href="#local-6989586621679396307"><span class="hs-identifier hs-var">processEvents</span></a></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679396284"><span class="annot"><span class="annottext">ChildEvent a
+</span><a href="#local-6989586621679396284"><span class="hs-identifier hs-var">ev</span></a></span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621679396283"><span class="annot"><span class="annottext">[ChildEvent a]
+</span><a href="#local-6989586621679396283"><span class="hs-identifier hs-var">es</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a.
+(forall r.
+ State Stream m a
+ -&gt; (a -&gt; Stream m a -&gt; m r) -&gt; (a -&gt; m r) -&gt; m r -&gt; m r)
+-&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#mkStream"><span class="hs-identifier hs-var">K.mkStream</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span class="annot"><span class="annottext">State Stream m a
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679396279"><span class="annot"><span class="annottext">a -&gt; Stream m a -&gt; m r
+</span><a href="#local-6989586621679396279"><span class="hs-identifier hs-var">yld</span></a></span></span><span> </span><span class="annot"><span class="annottext">a -&gt; m r
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679396278"><span class="annot"><span class="annottext">m r
+</span><a href="#local-6989586621679396278"><span class="hs-identifier hs-var">stp</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-193"></span><span>        </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679396277"><span class="annot"><span class="annottext">rest :: Stream m a
+</span><a href="#local-6989586621679396277"><span class="hs-identifier hs-var hs-var">rest</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[ChildEvent a] -&gt; Stream m a
+</span><a href="#local-6989586621679396307"><span class="hs-identifier hs-var">processEvents</span></a></span><span> </span><span class="annot"><span class="annottext">[ChildEvent a]
+</span><a href="#local-6989586621679396283"><span class="hs-identifier hs-var">es</span></a></span><span>
+</span><span id="line-194"></span><span>        </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">ChildEvent a
+</span><a href="#local-6989586621679396284"><span class="hs-identifier hs-var">ev</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-195"></span><span>            </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#ChildYield"><span class="hs-identifier hs-type">ChildYield</span></a></span><span> </span><span id="local-6989586621679396275"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679396275"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">a -&gt; Stream m a -&gt; m r
+</span><a href="#local-6989586621679396279"><span class="hs-identifier hs-var">yld</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679396275"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679396277"><span class="hs-identifier hs-var">rest</span></a></span><span>
+</span><span id="line-196"></span><span>            </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#ChildStop"><span class="hs-identifier hs-type">ChildStop</span></a></span><span> </span><span id="local-6989586621679396273"><span class="annot"><span class="annottext">ThreadId
+</span><a href="#local-6989586621679396273"><span class="hs-identifier hs-var">tid</span></a></span></span><span> </span><span id="local-6989586621679396272"><span class="annot"><span class="annottext">Maybe SomeException
+</span><a href="#local-6989586621679396272"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-197"></span><span>                </span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; ThreadId -&gt; m ()
+</span><a href="Streamly.Internal.Data.SVar.Type.html#accountThread"><span class="hs-identifier hs-var">accountThread</span></a></span><span> </span><span class="annot"><span class="annottext">SVar Stream m a
+</span><a href="#local-6989586621679396317"><span class="hs-identifier hs-var">sv</span></a></span><span> </span><span class="annot"><span class="annottext">ThreadId
+</span><a href="#local-6989586621679396273"><span class="hs-identifier hs-var">tid</span></a></span><span>
+</span><span id="line-198"></span><span>                </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Maybe SomeException
+</span><a href="#local-6989586621679396272"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-199"></span><span>                    </span><span class="annot"><span class="annottext">Maybe SomeException
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall r. m r -&gt; m r
+</span><a href="#local-6989586621679396305"><span class="hs-identifier hs-var">allDone</span></a></span><span> </span><span class="annot"><span class="annottext">m r
+</span><a href="#local-6989586621679396278"><span class="hs-identifier hs-var">stp</span></a></span><span>
+</span><span id="line-200"></span><span>                    </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="annot"><span class="annottext">SomeException
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall a. HasCallStack =&gt; String -&gt; a
+</span><span class="hs-identifier hs-var">error</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Bug: fromProducer: received exception&quot;</span></span><span>
+</span><span id="line-201"></span><span>
+</span><span id="line-202"></span><span class="hs-comment">-- | Create a Fold style SVar that runs a supplied fold function as the</span><span>
+</span><span id="line-203"></span><span class="hs-comment">-- consumer.  Any elements sent to the SVar are consumed by the supplied fold</span><span>
+</span><span id="line-204"></span><span class="hs-comment">-- function.</span><span>
+</span><span id="line-205"></span><span class="hs-comment">--</span><span>
+</span><span id="line-206"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#newFoldSVar"><span class="hs-pragma hs-type">newFoldSVar</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-207"></span><span id="local-6989586621679396509"><span id="local-6989586621679396511"><span id="local-6989586621679396512"><span class="annot"><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#newFoldSVar"><span class="hs-identifier hs-type">newFoldSVar</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.Control.Concurrent.html#MonadAsync"><span class="hs-identifier hs-type">MonadAsync</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396512"><span class="hs-identifier hs-type">m</span></a></span><span>
+</span><span id="line-208"></span><span>    </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#State"><span class="hs-identifier hs-type">State</span></a></span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#Stream"><span class="hs-identifier hs-type">K.Stream</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396512"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396511"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-type">SerialT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396512"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396511"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679396512"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396509"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679396512"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#SVar"><span class="hs-identifier hs-type">SVar</span></a></span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#Stream"><span class="hs-identifier hs-type">K.Stream</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396512"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396511"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span></span><span>
+</span><span id="line-209"></span><span id="newFoldSVar"><span class="annot"><span class="annottext">newFoldSVar :: forall (m :: * -&gt; *) a b.
+MonadAsync m =&gt;
+State Stream m a -&gt; (SerialT m a -&gt; m b) -&gt; m (SVar Stream m a)
+</span><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#newFoldSVar"><span class="hs-identifier hs-var hs-var">newFoldSVar</span></a></span></span><span> </span><span id="local-6989586621679396250"><span class="annot"><span class="annottext">State Stream m a
+</span><a href="#local-6989586621679396250"><span class="hs-identifier hs-var">stt</span></a></span></span><span> </span><span id="local-6989586621679396249"><span class="annot"><span class="annottext">SerialT m a -&gt; m b
+</span><a href="#local-6989586621679396249"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-210"></span><span>    </span><span class="hs-comment">-- Buffer size for the SVar is derived from the current state</span><span>
+</span><span id="line-211"></span><span>    </span><span id="local-6989586621679396248"><span class="annot"><span class="annottext">SVar Stream m a
+</span><a href="#local-6989586621679396248"><span class="hs-identifier hs-var">sv</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) (t :: (* -&gt; *) -&gt; * -&gt; *) a.
+MonadAsync m =&gt;
+SVarStopStyle -&gt; State t m a -&gt; m (SVar t m a)
+</span><a href="Streamly.Internal.Data.SVar.html#newParallelVar"><span class="hs-identifier hs-var">newParallelVar</span></a></span><span> </span><span class="annot"><span class="annottext">SVarStopStyle
+</span><a href="Streamly.Internal.Data.SVar.Type.html#StopAny"><span class="hs-identifier hs-var">StopAny</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a (n :: * -&gt; *) b.
+State t m a -&gt; State t n b
+</span><a href="Streamly.Internal.Data.SVar.Type.html#adaptState"><span class="hs-identifier hs-var">adaptState</span></a></span><span> </span><span class="annot"><span class="annottext">State Stream m a
+</span><a href="#local-6989586621679396250"><span class="hs-identifier hs-var">stt</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-212"></span><span>
+</span><span id="line-213"></span><span>    </span><span class="hs-comment">-- Add the producer thread-id to the SVar.</span><span>
+</span><span id="line-214"></span><span>    </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">IO ThreadId
+</span><span class="hs-identifier hs-var">myThreadId</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; (a -&gt; m b) -&gt; m b
+</span><span class="hs-operator hs-var">&gt;&gt;=</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) (t :: (* -&gt; *) -&gt; * -&gt; *) a.
+MonadIO m =&gt;
+SVar t m a -&gt; ThreadId -&gt; m ()
+</span><a href="Streamly.Internal.Data.SVar.Dispatch.html#modifyThread"><span class="hs-identifier hs-var">modifyThread</span></a></span><span> </span><span class="annot"><span class="annottext">SVar Stream m a
+</span><a href="#local-6989586621679396248"><span class="hs-identifier hs-var">sv</span></a></span><span>
+</span><span id="line-215"></span><span>
+</span><span id="line-216"></span><span>    </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Functor f =&gt; f a -&gt; f ()
+</span><span class="hs-identifier hs-var">void</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *).
+MonadBaseControl IO m =&gt;
+m () -&gt; RunInIO m -&gt; (SomeException -&gt; IO ()) -&gt; m ThreadId
+</span><a href="Streamly.Internal.Control.Concurrent.html#doFork"><span class="hs-identifier hs-var">doFork</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Functor f =&gt; f a -&gt; f ()
+</span><span class="hs-identifier hs-var">void</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SerialT m a -&gt; m b
+</span><a href="#local-6989586621679396249"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Stream m a -&gt; SerialT m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-var">SerialT</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a.
+MonadAsync m =&gt;
+SVar Stream m a -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#fromProducer"><span class="hs-identifier hs-var">fromProducer</span></a></span><span> </span><span class="annot"><span class="annottext">SVar Stream m a
+</span><a href="#local-6989586621679396248"><span class="hs-identifier hs-var">sv</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-217"></span><span>                  </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; RunInIO m
+</span><a href="Streamly.Internal.Data.SVar.Type.html#svarMrun"><span class="hs-identifier hs-var">svarMrun</span></a></span><span> </span><span class="annot"><span class="annottext">SVar Stream m a
+</span><a href="#local-6989586621679396248"><span class="hs-identifier hs-var">sv</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-218"></span><span>                  </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; SomeException -&gt; IO ()
+</span><a href="Streamly.Internal.Data.SVar.Worker.html#handleFoldException"><span class="hs-identifier hs-var">handleFoldException</span></a></span><span> </span><span class="annot"><span class="annottext">SVar Stream m a
+</span><a href="#local-6989586621679396248"><span class="hs-identifier hs-var">sv</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-219"></span><span>    </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">SVar Stream m a
+</span><a href="#local-6989586621679396248"><span class="hs-identifier hs-var">sv</span></a></span><span>
+</span><span id="line-220"></span><span>
+</span><span id="line-221"></span><span class="hs-keyword">data</span><span> </span><span id="FromSVarState"><span class="annot"><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#FromSVarState"><span class="hs-identifier hs-var">FromSVarState</span></a></span></span><span> </span><span id="local-6989586621679396474"><span class="annot"><a href="#local-6989586621679396474"><span class="hs-identifier hs-type">t</span></a></span></span><span> </span><span id="local-6989586621679396473"><span class="annot"><a href="#local-6989586621679396473"><span class="hs-identifier hs-type">m</span></a></span></span><span> </span><span id="local-6989586621679396472"><span class="annot"><a href="#local-6989586621679396472"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-222"></span><span>      </span><span id="FromSVarInit"><span class="annot"><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#FromSVarInit"><span class="hs-identifier hs-var">FromSVarInit</span></a></span></span><span>
+</span><span id="line-223"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="FromSVarRead"><span class="annot"><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#FromSVarRead"><span class="hs-identifier hs-var">FromSVarRead</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#SVar"><span class="hs-identifier hs-type">SVar</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396474"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396473"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396472"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-224"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="FromSVarLoop"><span class="annot"><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#FromSVarLoop"><span class="hs-identifier hs-var">FromSVarLoop</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#SVar"><span class="hs-identifier hs-type">SVar</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396474"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396473"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396472"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#ChildEvent"><span class="hs-identifier hs-type">ChildEvent</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396472"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-225"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="FromSVarDone"><span class="annot"><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#FromSVarDone"><span class="hs-identifier hs-var">FromSVarDone</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#SVar"><span class="hs-identifier hs-type">SVar</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396474"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396473"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396472"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-226"></span><span>
+</span><span id="line-227"></span><span class="hs-comment">-- | Like 'fromProducer' but generates a StreamD style stream instead of</span><span>
+</span><span id="line-228"></span><span class="hs-comment">-- StreamK.</span><span>
+</span><span id="line-229"></span><span class="hs-comment">--</span><span>
+</span><span id="line-230"></span><span class="hs-pragma">{-# INLINE_NORMAL fromProducerD #-}</span><span>
+</span><span id="line-231"></span><span id="local-6989586621679396487"><span id="local-6989586621679396488"><span id="local-6989586621679396489"><span class="annot"><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#fromProducerD"><span class="hs-identifier hs-type">fromProducerD</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Control.Concurrent.html#MonadAsync"><span class="hs-identifier hs-type">MonadAsync</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396489"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#SVar"><span class="hs-identifier hs-type">SVar</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396488"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396489"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396487"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamD.Type.html#Stream"><span class="hs-identifier hs-type">D.Stream</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396489"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396487"><span class="hs-identifier hs-type">a</span></a></span></span></span></span><span>
+</span><span id="line-232"></span><span id="fromProducerD"><span class="annot"><span class="annottext">fromProducerD :: forall (m :: * -&gt; *) (t :: (* -&gt; *) -&gt; * -&gt; *) a.
+MonadAsync m =&gt;
+SVar t m a -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#fromProducerD"><span class="hs-identifier hs-var hs-var">fromProducerD</span></a></span></span><span> </span><span id="local-6989586621679396234"><span class="annot"><span class="annottext">SVar t m a
+</span><a href="#local-6989586621679396234"><span class="hs-identifier hs-var">svar</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a s.
+(State Stream m a -&gt; s -&gt; m (Step s a)) -&gt; s -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Type.html#Stream"><span class="hs-identifier hs-var">D.Stream</span></a></span><span> </span><span class="annot"><span class="annottext">forall {m :: * -&gt; *} {p} {t :: (* -&gt; *) -&gt; * -&gt; *} {a}.
+MonadIO m =&gt;
+p -&gt; FromSVarState t m a -&gt; m (Step (FromSVarState t m a) a)
+</span><a href="#local-6989586621679396232"><span class="hs-identifier hs-var">step</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; FromSVarState t m a
+</span><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#FromSVarRead"><span class="hs-identifier hs-var">FromSVarRead</span></a></span><span> </span><span class="annot"><span class="annottext">SVar t m a
+</span><a href="#local-6989586621679396234"><span class="hs-identifier hs-var">svar</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-233"></span><span>    </span><span class="hs-keyword">where</span><span>
+</span><span id="line-234"></span><span>
+</span><span id="line-235"></span><span>    </span><span class="hs-pragma">{-# INLINE_LATE step #-}</span><span>
+</span><span id="line-236"></span><span>    </span><span id="local-6989586621679396232"><span class="annot"><span class="annottext">step :: p -&gt; FromSVarState t m a -&gt; m (Step (FromSVarState t m a) a)
+</span><a href="#local-6989586621679396232"><span class="hs-identifier hs-var hs-var">step</span></a></span></span><span> </span><span class="annot"><span class="annottext">p
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#FromSVarRead"><span class="hs-identifier hs-type">FromSVarRead</span></a></span><span> </span><span id="local-6989586621679396208"><span class="annot"><span class="annottext">SVar t m a
+</span><a href="#local-6989586621679396208"><span class="hs-identifier hs-var">sv</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-237"></span><span>        </span><span id="local-6989586621679396207"><span class="annot"><span class="annottext">[ChildEvent a]
+</span><a href="#local-6989586621679396207"><span class="hs-identifier hs-var">list</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; m [ChildEvent a]
+</span><a href="Streamly.Internal.Data.SVar.Type.html#readOutputQ"><span class="hs-identifier hs-var">readOutputQ</span></a></span><span> </span><span class="annot"><span class="annottext">SVar t m a
+</span><a href="#local-6989586621679396208"><span class="hs-identifier hs-var">sv</span></a></span><span>
+</span><span id="line-238"></span><span>        </span><span class="hs-comment">-- Reversing the output is important to guarantee that we process the</span><span>
+</span><span id="line-239"></span><span>        </span><span class="hs-comment">-- outputs in the same order as they were generated by the constituent</span><span>
+</span><span id="line-240"></span><span>        </span><span class="hs-comment">-- streams.</span><span>
+</span><span id="line-241"></span><span>        </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall s a. s -&gt; Step s a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Step.html#Skip"><span class="hs-identifier hs-var">D.Skip</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; [ChildEvent a] -&gt; FromSVarState t m a
+</span><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#FromSVarLoop"><span class="hs-identifier hs-var">FromSVarLoop</span></a></span><span> </span><span class="annot"><span class="annottext">SVar t m a
+</span><a href="#local-6989586621679396208"><span class="hs-identifier hs-var">sv</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">Prelude.reverse</span></span><span> </span><span class="annot"><span class="annottext">[ChildEvent a]
+</span><a href="#local-6989586621679396207"><span class="hs-identifier hs-var">list</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-242"></span><span>
+</span><span id="line-243"></span><span>    </span><span class="annot"><a href="#local-6989586621679396232"><span class="hs-identifier hs-var">step</span></a></span><span> </span><span class="annot"><span class="annottext">p
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#FromSVarLoop"><span class="hs-identifier hs-type">FromSVarLoop</span></a></span><span> </span><span id="local-6989586621679396205"><span class="annot"><span class="annottext">SVar t m a
+</span><a href="#local-6989586621679396205"><span class="hs-identifier hs-var">sv</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall s a. s -&gt; Step s a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Step.html#Skip"><span class="hs-identifier hs-var">D.Skip</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; FromSVarState t m a
+</span><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#FromSVarRead"><span class="hs-identifier hs-var">FromSVarRead</span></a></span><span> </span><span class="annot"><span class="annottext">SVar t m a
+</span><a href="#local-6989586621679396205"><span class="hs-identifier hs-var">sv</span></a></span><span>
+</span><span id="line-244"></span><span>    </span><span class="annot"><a href="#local-6989586621679396232"><span class="hs-identifier hs-var">step</span></a></span><span> </span><span class="annot"><span class="annottext">p
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#FromSVarLoop"><span class="hs-identifier hs-type">FromSVarLoop</span></a></span><span> </span><span id="local-6989586621679396204"><span class="annot"><span class="annottext">SVar t m a
+</span><a href="#local-6989586621679396204"><span class="hs-identifier hs-var">sv</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679396203"><span class="annot"><span class="annottext">ChildEvent a
+</span><a href="#local-6989586621679396203"><span class="hs-identifier hs-var">ev</span></a></span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621679396202"><span class="annot"><span class="annottext">[ChildEvent a]
+</span><a href="#local-6989586621679396202"><span class="hs-identifier hs-var">es</span></a></span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-245"></span><span>        </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">ChildEvent a
+</span><a href="#local-6989586621679396203"><span class="hs-identifier hs-var">ev</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-246"></span><span>            </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#ChildYield"><span class="hs-identifier hs-type">ChildYield</span></a></span><span> </span><span id="local-6989586621679396201"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679396201"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall s a. a -&gt; s -&gt; Step s a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Step.html#Yield"><span class="hs-identifier hs-var">D.Yield</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679396201"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; [ChildEvent a] -&gt; FromSVarState t m a
+</span><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#FromSVarLoop"><span class="hs-identifier hs-var">FromSVarLoop</span></a></span><span> </span><span class="annot"><span class="annottext">SVar t m a
+</span><a href="#local-6989586621679396204"><span class="hs-identifier hs-var">sv</span></a></span><span> </span><span class="annot"><span class="annottext">[ChildEvent a]
+</span><a href="#local-6989586621679396202"><span class="hs-identifier hs-var">es</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-247"></span><span>            </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#ChildStop"><span class="hs-identifier hs-type">ChildStop</span></a></span><span> </span><span id="local-6989586621679396199"><span class="annot"><span class="annottext">ThreadId
+</span><a href="#local-6989586621679396199"><span class="hs-identifier hs-var">tid</span></a></span></span><span> </span><span id="local-6989586621679396198"><span class="annot"><span class="annottext">Maybe SomeException
+</span><a href="#local-6989586621679396198"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-248"></span><span>                </span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; ThreadId -&gt; m ()
+</span><a href="Streamly.Internal.Data.SVar.Type.html#accountThread"><span class="hs-identifier hs-var">accountThread</span></a></span><span> </span><span class="annot"><span class="annottext">SVar t m a
+</span><a href="#local-6989586621679396204"><span class="hs-identifier hs-var">sv</span></a></span><span> </span><span class="annot"><span class="annottext">ThreadId
+</span><a href="#local-6989586621679396199"><span class="hs-identifier hs-var">tid</span></a></span><span>
+</span><span id="line-249"></span><span>                </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Maybe SomeException
+</span><a href="#local-6989586621679396198"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-250"></span><span>                    </span><span class="annot"><span class="annottext">Maybe SomeException
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-251"></span><span>                        </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) (t :: (* -&gt; *) -&gt; * -&gt; *) a.
+MonadIO m =&gt;
+SVar t m a -&gt; m ()
+</span><a href="Streamly.Internal.Data.SVar.Worker.html#sendStopToProducer"><span class="hs-identifier hs-var">sendStopToProducer</span></a></span><span> </span><span class="annot"><span class="annottext">SVar t m a
+</span><a href="#local-6989586621679396204"><span class="hs-identifier hs-var">sv</span></a></span><span>
+</span><span id="line-252"></span><span>                        </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall s a. s -&gt; Step s a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Step.html#Skip"><span class="hs-identifier hs-var">D.Skip</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; FromSVarState t m a
+</span><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#FromSVarDone"><span class="hs-identifier hs-var">FromSVarDone</span></a></span><span> </span><span class="annot"><span class="annottext">SVar t m a
+</span><a href="#local-6989586621679396204"><span class="hs-identifier hs-var">sv</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-253"></span><span>                    </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="annot"><span class="annottext">SomeException
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall a. HasCallStack =&gt; String -&gt; a
+</span><span class="hs-identifier hs-var">error</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Bug: fromProducer: received exception&quot;</span></span><span>
+</span><span id="line-254"></span><span>
+</span><span id="line-255"></span><span>    </span><span class="annot"><a href="#local-6989586621679396232"><span class="hs-identifier hs-var">step</span></a></span><span> </span><span class="annot"><span class="annottext">p
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#FromSVarDone"><span class="hs-identifier hs-type">FromSVarDone</span></a></span><span> </span><span id="local-6989586621679396197"><span class="annot"><span class="annottext">SVar t m a
+</span><a href="#local-6989586621679396197"><span class="hs-identifier hs-var">sv</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-256"></span><span>        </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *). Applicative f =&gt; Bool -&gt; f () -&gt; f ()
+</span><span class="hs-identifier hs-var">when</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; Bool
+</span><a href="Streamly.Internal.Data.SVar.Type.html#svarInspectMode"><span class="hs-identifier hs-var">svarInspectMode</span></a></span><span> </span><span class="annot"><span class="annottext">SVar t m a
+</span><a href="#local-6989586621679396197"><span class="hs-identifier hs-var">sv</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-257"></span><span>            </span><span id="local-6989586621679396196"><span class="annot"><span class="annottext">AbsTime
+</span><a href="#local-6989586621679396196"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Clock -&gt; IO AbsTime
+</span><a href="Streamly.Internal.Data.Time.Clock.Type.html#getTime"><span class="hs-identifier hs-var">getTime</span></a></span><span> </span><span class="annot"><span class="annottext">Clock
+</span><a href="Streamly.Internal.Data.Time.Clock.Type.html#Monotonic"><span class="hs-identifier hs-var">Monotonic</span></a></span><span>
+</span><span id="line-258"></span><span>            </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a. IORef a -&gt; a -&gt; IO ()
+</span><span class="hs-identifier hs-var">writeIORef</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SVarStats -&gt; IORef (Maybe AbsTime)
+</span><a href="Streamly.Internal.Data.SVar.Type.html#svarStopTime"><span class="hs-identifier hs-var">svarStopTime</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; SVarStats
+</span><a href="Streamly.Internal.Data.SVar.Type.html#svarStats"><span class="hs-identifier hs-var">svarStats</span></a></span><span> </span><span class="annot"><span class="annottext">SVar t m a
+</span><a href="#local-6989586621679396197"><span class="hs-identifier hs-var">sv</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">AbsTime
+</span><a href="#local-6989586621679396196"><span class="hs-identifier hs-var">t</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-259"></span><span>            </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; String -&gt; IO ()
+</span><a href="Streamly.Internal.Data.SVar.Dispatch.html#printSVar"><span class="hs-identifier hs-var">printSVar</span></a></span><span> </span><span class="annot"><span class="annottext">SVar t m a
+</span><a href="#local-6989586621679396197"><span class="hs-identifier hs-var">sv</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;SVar Done&quot;</span></span><span>
+</span><span id="line-260"></span><span>        </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">forall s a. Step s a
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Step.html#Stop"><span class="hs-identifier hs-var">D.Stop</span></a></span><span>
+</span><span id="line-261"></span><span>
+</span><span id="line-262"></span><span>    </span><span class="annot"><a href="#local-6989586621679396232"><span class="hs-identifier hs-var">step</span></a></span><span> </span><span class="annot"><span class="annottext">p
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">FromSVarState t m a
+</span><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#FromSVarInit"><span class="hs-identifier hs-var">FromSVarInit</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. HasCallStack =&gt; a
+</span><span class="hs-identifier hs-var">undefined</span></span><span>
+</span><span id="line-263"></span><span>
+</span><span id="line-264"></span><span class="hs-comment">-- | Like 'newFoldSVar' except that it uses a 'Fold' instead of a fold</span><span>
+</span><span id="line-265"></span><span class="hs-comment">-- function.</span><span>
+</span><span id="line-266"></span><span class="hs-comment">--</span><span>
+</span><span id="line-267"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#newFoldSVarF"><span class="hs-pragma hs-type">newFoldSVarF</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-268"></span><span id="local-6989586621679396464"><span id="local-6989586621679396465"><span id="local-6989586621679396466"><span id="local-6989586621679396467"><span class="annot"><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#newFoldSVarF"><span class="hs-identifier hs-type">newFoldSVarF</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.Control.Concurrent.html#MonadAsync"><span class="hs-identifier hs-type">MonadAsync</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396467"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#State"><span class="hs-identifier hs-type">State</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396466"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396467"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396465"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Fold.Type.html#Fold"><span class="hs-identifier hs-type">Fold</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396467"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396465"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396464"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679396467"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#SVar"><span class="hs-identifier hs-type">SVar</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396466"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396467"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396465"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span></span></span><span>
+</span><span id="line-269"></span><span id="newFoldSVarF"><span class="annot"><span class="annottext">newFoldSVarF :: forall (m :: * -&gt; *) (t :: (* -&gt; *) -&gt; * -&gt; *) a b.
+MonadAsync m =&gt;
+State t m a -&gt; Fold m a b -&gt; m (SVar t m a)
+</span><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#newFoldSVarF"><span class="hs-identifier hs-var hs-var">newFoldSVarF</span></a></span></span><span> </span><span id="local-6989586621679396176"><span class="annot"><span class="annottext">State t m a
+</span><a href="#local-6989586621679396176"><span class="hs-identifier hs-var">stt</span></a></span></span><span> </span><span id="local-6989586621679396175"><span class="annot"><span class="annottext">Fold m a b
+</span><a href="#local-6989586621679396175"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-270"></span><span>    </span><span class="hs-comment">-- Buffer size for the SVar is derived from the current state</span><span>
+</span><span id="line-271"></span><span>    </span><span id="local-6989586621679396174"><span class="annot"><span class="annottext">SVar t m a
+</span><a href="#local-6989586621679396174"><span class="hs-identifier hs-var">sv</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) (t :: (* -&gt; *) -&gt; * -&gt; *) a.
+MonadAsync m =&gt;
+SVarStopStyle -&gt; State t m a -&gt; m (SVar t m a)
+</span><a href="Streamly.Internal.Data.SVar.html#newParallelVar"><span class="hs-identifier hs-var">newParallelVar</span></a></span><span> </span><span class="annot"><span class="annottext">SVarStopStyle
+</span><a href="Streamly.Internal.Data.SVar.Type.html#StopAny"><span class="hs-identifier hs-var">StopAny</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a (n :: * -&gt; *) b.
+State t m a -&gt; State t n b
+</span><a href="Streamly.Internal.Data.SVar.Type.html#adaptState"><span class="hs-identifier hs-var">adaptState</span></a></span><span> </span><span class="annot"><span class="annottext">State t m a
+</span><a href="#local-6989586621679396176"><span class="hs-identifier hs-var">stt</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-272"></span><span>    </span><span class="hs-comment">-- Add the producer thread-id to the SVar.</span><span>
+</span><span id="line-273"></span><span>    </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">IO ThreadId
+</span><span class="hs-identifier hs-var">myThreadId</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; (a -&gt; m b) -&gt; m b
+</span><span class="hs-operator hs-var">&gt;&gt;=</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) (t :: (* -&gt; *) -&gt; * -&gt; *) a.
+MonadIO m =&gt;
+SVar t m a -&gt; ThreadId -&gt; m ()
+</span><a href="Streamly.Internal.Data.SVar.Dispatch.html#modifyThread"><span class="hs-identifier hs-var">modifyThread</span></a></span><span> </span><span class="annot"><span class="annottext">SVar t m a
+</span><a href="#local-6989586621679396174"><span class="hs-identifier hs-var">sv</span></a></span><span>
+</span><span id="line-274"></span><span>    </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Functor f =&gt; f a -&gt; f ()
+</span><span class="hs-identifier hs-var">void</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *).
+MonadBaseControl IO m =&gt;
+m () -&gt; RunInIO m -&gt; (SomeException -&gt; IO ()) -&gt; m ThreadId
+</span><a href="Streamly.Internal.Control.Concurrent.html#doFork"><span class="hs-identifier hs-var">doFork</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall {t :: (* -&gt; *) -&gt; * -&gt; *}. SVar t m a -&gt; m ()
+</span><a href="#local-6989586621679396173"><span class="hs-identifier hs-var">work</span></a></span><span> </span><span class="annot"><span class="annottext">SVar t m a
+</span><a href="#local-6989586621679396174"><span class="hs-identifier hs-var">sv</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; RunInIO m
+</span><a href="Streamly.Internal.Data.SVar.Type.html#svarMrun"><span class="hs-identifier hs-var">svarMrun</span></a></span><span> </span><span class="annot"><span class="annottext">SVar t m a
+</span><a href="#local-6989586621679396174"><span class="hs-identifier hs-var">sv</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; SomeException -&gt; IO ()
+</span><a href="Streamly.Internal.Data.SVar.Worker.html#handleFoldException"><span class="hs-identifier hs-var">handleFoldException</span></a></span><span> </span><span class="annot"><span class="annottext">SVar t m a
+</span><a href="#local-6989586621679396174"><span class="hs-identifier hs-var">sv</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-275"></span><span>    </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">SVar t m a
+</span><a href="#local-6989586621679396174"><span class="hs-identifier hs-var">sv</span></a></span><span>
+</span><span id="line-276"></span><span>
+</span><span id="line-277"></span><span>    </span><span class="hs-keyword">where</span><span>
+</span><span id="line-278"></span><span>
+</span><span id="line-279"></span><span>    </span><span class="hs-pragma">{-# NOINLINE</span><span> </span><span class="annot"><a href="#local-6989586621679396173"><span class="hs-pragma hs-type">work</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-280"></span><span>    </span><span id="local-6989586621679396173"><span class="annot"><span class="annottext">work :: SVar t m a -&gt; m ()
+</span><a href="#local-6989586621679396173"><span class="hs-identifier hs-var hs-var">work</span></a></span></span><span> </span><span id="local-6989586621679396166"><span class="annot"><span class="annottext">SVar t m a
+</span><a href="#local-6989586621679396166"><span class="hs-identifier hs-var">sv</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Functor f =&gt; f a -&gt; f ()
+</span><span class="hs-identifier hs-var">void</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+Fold m a b -&gt; Stream m a -&gt; m b
+</span><a href="Streamly.Internal.Data.Stream.StreamD.Type.html#fold"><span class="hs-identifier hs-var">D.fold</span></a></span><span> </span><span class="annot"><span class="annottext">Fold m a b
+</span><a href="#local-6989586621679396175"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) (t :: (* -&gt; *) -&gt; * -&gt; *) a.
+MonadAsync m =&gt;
+SVar t m a -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#fromProducerD"><span class="hs-identifier hs-var">fromProducerD</span></a></span><span> </span><span class="annot"><span class="annottext">SVar t m a
+</span><a href="#local-6989586621679396166"><span class="hs-identifier hs-var">sv</span></a></span><span>
+</span><span id="line-281"></span><span>
+</span><span id="line-282"></span><span class="hs-comment">-------------------------------------------------------------------------------</span><span>
+</span><span id="line-283"></span><span class="hs-comment">-- Process events received by the producer thread from the consumer side</span><span>
+</span><span id="line-284"></span><span class="hs-comment">-------------------------------------------------------------------------------</span><span>
+</span><span id="line-285"></span><span>
+</span><span id="line-286"></span><span class="hs-comment">-- XXX currently only one event is sent by a fold consumer to the stream</span><span>
+</span><span id="line-287"></span><span class="hs-comment">-- producer. But we can potentially have multiple events e.g. the fold step can</span><span>
+</span><span id="line-288"></span><span class="hs-comment">-- generate exception more than once and the producer can ignore those</span><span>
+</span><span id="line-289"></span><span class="hs-comment">-- exceptions or handle them and still keep driving the fold.</span><span>
+</span><span id="line-290"></span><span class="hs-comment">--</span><span>
+</span><span id="line-291"></span><span class="hs-comment">-- | Poll for events sent by the fold consumer to the stream pusher. The fold</span><span>
+</span><span id="line-292"></span><span class="hs-comment">-- consumer can send a &quot;Stop&quot; event or an exception. When a &quot;Stop&quot; is received</span><span>
+</span><span id="line-293"></span><span class="hs-comment">-- this function returns 'True'. If an exception is recieved then it throws the</span><span>
+</span><span id="line-294"></span><span class="hs-comment">-- exception.</span><span>
+</span><span id="line-295"></span><span class="hs-comment">--</span><span>
+</span><span id="line-296"></span><span class="hs-pragma">{-# NOINLINE</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#fromConsumer"><span class="hs-pragma hs-type">fromConsumer</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-297"></span><span id="local-6989586621679396456"><span id="local-6989586621679396457"><span class="annot"><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#fromConsumer"><span class="hs-identifier hs-type">fromConsumer</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.Control.Concurrent.html#MonadAsync"><span class="hs-identifier hs-type">MonadAsync</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396457"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#SVar"><span class="hs-identifier hs-type">SVar</span></a></span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#Stream"><span class="hs-identifier hs-type">K.Stream</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396457"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396456"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679396457"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span></span><span>
+</span><span id="line-298"></span><span id="fromConsumer"><span class="annot"><span class="annottext">fromConsumer :: forall (m :: * -&gt; *) a. MonadAsync m =&gt; SVar Stream m a -&gt; m Bool
+</span><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#fromConsumer"><span class="hs-identifier hs-var hs-var">fromConsumer</span></a></span></span><span> </span><span id="local-6989586621679396158"><span class="annot"><span class="annottext">SVar Stream m a
+</span><a href="#local-6989586621679396158"><span class="hs-identifier hs-var">sv</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-299"></span><span>    </span><span class="hs-special">(</span><span id="local-6989586621679396157"><span class="annot"><span class="annottext">[ChildEvent a]
+</span><a href="#local-6989586621679396157"><span class="hs-identifier hs-var">list</span></a></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a. IORef ([ChildEvent a], Int) -&gt; IO ([ChildEvent a], Int)
+</span><a href="Streamly.Internal.Data.SVar.Pull.html#readOutputQBasic"><span class="hs-identifier hs-var">readOutputQBasic</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; IORef ([ChildEvent a], Int)
+</span><a href="Streamly.Internal.Data.SVar.Type.html#outputQueueFromConsumer"><span class="hs-identifier hs-var">outputQueueFromConsumer</span></a></span><span> </span><span class="annot"><span class="annottext">SVar Stream m a
+</span><a href="#local-6989586621679396158"><span class="hs-identifier hs-var">sv</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-300"></span><span>    </span><span class="hs-comment">-- Reversing the output is important to guarantee that we process the</span><span>
+</span><span id="line-301"></span><span>    </span><span class="hs-comment">-- outputs in the same order as they were generated by the constituent</span><span>
+</span><span id="line-302"></span><span>    </span><span class="hs-comment">-- streams.</span><span>
+</span><span id="line-303"></span><span>    </span><span class="annot"><span class="annottext">forall {m :: * -&gt; *} {a}. MonadThrow m =&gt; [ChildEvent a] -&gt; m Bool
+</span><a href="#local-6989586621679396154"><span class="hs-identifier hs-var">processEvents</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">reverse</span></span><span> </span><span class="annot"><span class="annottext">[ChildEvent a]
+</span><a href="#local-6989586621679396157"><span class="hs-identifier hs-var">list</span></a></span><span>
+</span><span id="line-304"></span><span>
+</span><span id="line-305"></span><span>    </span><span class="hs-keyword">where</span><span>
+</span><span id="line-306"></span><span>
+</span><span id="line-307"></span><span>    </span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="#local-6989586621679396154"><span class="hs-pragma hs-type">processEvents</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-308"></span><span>    </span><span id="local-6989586621679396154"><span class="annot"><span class="annottext">processEvents :: [ChildEvent a] -&gt; m Bool
+</span><a href="#local-6989586621679396154"><span class="hs-identifier hs-var hs-var">processEvents</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-309"></span><span>    </span><span class="annot"><a href="#local-6989586621679396154"><span class="hs-identifier hs-var">processEvents</span></a></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679396143"><span class="annot"><span class="annottext">ChildEvent a
+</span><a href="#local-6989586621679396143"><span class="hs-identifier hs-var">ev</span></a></span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span class="annot"><span class="annottext">[ChildEvent a]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-310"></span><span>        </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">ChildEvent a
+</span><a href="#local-6989586621679396143"><span class="hs-identifier hs-var">ev</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-311"></span><span>            </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#ChildStop"><span class="hs-identifier hs-type">ChildStop</span></a></span><span> </span><span class="annot"><span class="annottext">ThreadId
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679396142"><span class="annot"><span class="annottext">Maybe SomeException
+</span><a href="#local-6989586621679396142"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-312"></span><span>                </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Maybe SomeException
+</span><a href="#local-6989586621679396142"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-313"></span><span>                    </span><span class="annot"><span class="annottext">Maybe SomeException
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-314"></span><span>                    </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621679396141"><span class="annot"><span class="annottext">SomeException
+</span><a href="#local-6989586621679396141"><span class="hs-identifier hs-var">ex</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) e a. (MonadThrow m, Exception e) =&gt; e -&gt; m a
+</span><span class="hs-identifier hs-var">throwM</span></span><span> </span><span class="annot"><span class="annottext">SomeException
+</span><a href="#local-6989586621679396141"><span class="hs-identifier hs-var">ex</span></a></span><span>
+</span><span id="line-315"></span><span>            </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#ChildYield"><span class="hs-identifier hs-type">ChildYield</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall a. HasCallStack =&gt; String -&gt; a
+</span><span class="hs-identifier hs-var">error</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Bug: fromConsumer: invalid ChildYield event&quot;</span></span><span>
+</span><span id="line-316"></span><span>
+</span><span id="line-317"></span><span class="hs-comment">-- | Push values from a stream to a fold worker via an SVar. Before pushing a</span><span>
+</span><span id="line-318"></span><span class="hs-comment">-- value to the SVar it polls for events received from the fold consumer.  If a</span><span>
+</span><span id="line-319"></span><span class="hs-comment">-- stop event is received then it returns 'True' otherwise false.  Propagates</span><span>
+</span><span id="line-320"></span><span class="hs-comment">-- exceptions received from the fold consumer.</span><span>
+</span><span id="line-321"></span><span class="hs-comment">--</span><span>
+</span><span id="line-322"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#pushToFold"><span class="hs-pragma hs-type">pushToFold</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-323"></span><span id="local-6989586621679396445"><span id="local-6989586621679396446"><span class="annot"><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#pushToFold"><span class="hs-identifier hs-type">pushToFold</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.Control.Concurrent.html#MonadAsync"><span class="hs-identifier hs-type">MonadAsync</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396446"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#SVar"><span class="hs-identifier hs-type">SVar</span></a></span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#Stream"><span class="hs-identifier hs-type">K.Stream</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396446"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396445"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679396445"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679396446"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span></span><span>
+</span><span id="line-324"></span><span id="pushToFold"><span class="annot"><span class="annottext">pushToFold :: forall (m :: * -&gt; *) a.
+MonadAsync m =&gt;
+SVar Stream m a -&gt; a -&gt; m Bool
+</span><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#pushToFold"><span class="hs-identifier hs-var hs-var">pushToFold</span></a></span></span><span> </span><span id="local-6989586621679396115"><span class="annot"><span class="annottext">SVar Stream m a
+</span><a href="#local-6989586621679396115"><span class="hs-identifier hs-var">sv</span></a></span></span><span> </span><span id="local-6989586621679396114"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679396114"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-325"></span><span>    </span><span class="hs-comment">-- Check for exceptions before decrement so that we do not</span><span>
+</span><span id="line-326"></span><span>    </span><span class="hs-comment">-- block forever if the child already exited with an exception.</span><span>
+</span><span id="line-327"></span><span>    </span><span class="hs-comment">--</span><span>
+</span><span id="line-328"></span><span>    </span><span class="hs-comment">-- We avoid a race between the consumer fold sending an event and we</span><span>
+</span><span id="line-329"></span><span>    </span><span class="hs-comment">-- blocking on decrementBufferLimit by waking up the producer thread in</span><span>
+</span><span id="line-330"></span><span>    </span><span class="hs-comment">-- sendToProducer before any event is sent by the fold to the producer</span><span>
+</span><span id="line-331"></span><span>    </span><span class="hs-comment">-- stream.</span><span>
+</span><span id="line-332"></span><span>    </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679396113"><span class="annot"><span class="annottext">qref :: IORef ([ChildEvent a], Int)
+</span><a href="#local-6989586621679396113"><span class="hs-identifier hs-var hs-var">qref</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; IORef ([ChildEvent a], Int)
+</span><a href="Streamly.Internal.Data.SVar.Type.html#outputQueueFromConsumer"><span class="hs-identifier hs-var">outputQueueFromConsumer</span></a></span><span> </span><span class="annot"><span class="annottext">SVar Stream m a
+</span><a href="#local-6989586621679396115"><span class="hs-identifier hs-var">sv</span></a></span><span>
+</span><span id="line-333"></span><span>    </span><span id="local-6989586621679396112"><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621679396112"><span class="hs-identifier hs-var">done</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-334"></span><span>        </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[ChildEvent a]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679396111"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679396111"><span class="hs-identifier hs-var">n</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a. IORef a -&gt; IO a
+</span><span class="hs-identifier hs-var">readIORef</span></span><span> </span><span class="annot"><span class="annottext">IORef ([ChildEvent a], Int)
+</span><a href="#local-6989586621679396113"><span class="hs-identifier hs-var">qref</span></a></span><span>
+</span><span id="line-335"></span><span>        </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679396111"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&gt;</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-336"></span><span>        </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. MonadAsync m =&gt; SVar Stream m a -&gt; m Bool
+</span><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#fromConsumer"><span class="hs-identifier hs-var">fromConsumer</span></a></span><span> </span><span class="annot"><span class="annottext">SVar Stream m a
+</span><a href="#local-6989586621679396115"><span class="hs-identifier hs-var">sv</span></a></span><span>
+</span><span id="line-337"></span><span>        </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-338"></span><span>    </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621679396112"><span class="hs-identifier hs-var">done</span></a></span><span>
+</span><span id="line-339"></span><span>    </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-340"></span><span>    </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-341"></span><span>        </span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; IO ()
+</span><a href="Streamly.Internal.Data.SVar.Worker.html#decrementBufferLimit"><span class="hs-identifier hs-var">decrementBufferLimit</span></a></span><span> </span><span class="annot"><span class="annottext">SVar Stream m a
+</span><a href="#local-6989586621679396115"><span class="hs-identifier hs-var">sv</span></a></span><span>
+</span><span id="line-342"></span><span>        </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Functor f =&gt; f a -&gt; f ()
+</span><span class="hs-identifier hs-var">void</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; ChildEvent a -&gt; IO Int
+</span><a href="Streamly.Internal.Data.SVar.Worker.html#send"><span class="hs-identifier hs-var">send</span></a></span><span> </span><span class="annot"><span class="annottext">SVar Stream m a
+</span><a href="#local-6989586621679396115"><span class="hs-identifier hs-var">sv</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. a -&gt; ChildEvent a
+</span><a href="Streamly.Internal.Data.SVar.Type.html#ChildYield"><span class="hs-identifier hs-var">ChildYield</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679396114"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-343"></span><span>        </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-344"></span><span>
+</span><span id="line-345"></span><span class="hs-comment">------------------------------------------------------------------------------</span><span>
+</span><span id="line-346"></span><span class="hs-comment">-- Clone and distribute a stream in parallel</span><span>
+</span><span id="line-347"></span><span class="hs-comment">------------------------------------------------------------------------------</span><span>
+</span><span id="line-348"></span><span>
+</span><span id="line-349"></span><span class="hs-comment">-- XXX this could be written in StreamD style for better efficiency with fusion.</span><span>
+</span><span id="line-350"></span><span class="hs-comment">--</span><span>
+</span><span id="line-351"></span><span class="hs-comment">-- | Tap a stream and send the elements to the specified SVar in addition to</span><span>
+</span><span id="line-352"></span><span class="hs-comment">-- yielding them again. The SVar runs a fold consumer. Elements are tapped and</span><span>
+</span><span id="line-353"></span><span class="hs-comment">-- sent to the SVar until the fold finishes. Any exceptions from the fold</span><span>
+</span><span id="line-354"></span><span class="hs-comment">-- evaluation are propagated in the current thread.</span><span>
+</span><span id="line-355"></span><span class="hs-comment">--</span><span>
+</span><span id="line-356"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-357"></span><span class="hs-comment">--</span><span>
+</span><span id="line-358"></span><span class="hs-comment">-- ------input stream---------output stream-----&gt;</span><span>
+</span><span id="line-359"></span><span class="hs-comment">--                    /|\\   |</span><span>
+</span><span id="line-360"></span><span class="hs-comment">--         exceptions  |    |  input</span><span>
+</span><span id="line-361"></span><span class="hs-comment">--                     |   \\|/</span><span>
+</span><span id="line-362"></span><span class="hs-comment">--                     ----SVar</span><span>
+</span><span id="line-363"></span><span class="hs-comment">--                          |</span><span>
+</span><span id="line-364"></span><span class="hs-comment">--                         Fold</span><span>
+</span><span id="line-365"></span><span class="hs-comment">--</span><span>
+</span><span id="line-366"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-367"></span><span class="hs-comment">--</span><span>
+</span><span id="line-368"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#teeToSVar"><span class="hs-pragma hs-type">teeToSVar</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-369"></span><span id="local-6989586621679396427"><span id="local-6989586621679396428"><span class="annot"><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#teeToSVar"><span class="hs-identifier hs-type">teeToSVar</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.Control.Concurrent.html#MonadAsync"><span class="hs-identifier hs-type">MonadAsync</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396428"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span>
+</span><span id="line-370"></span><span>    </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#SVar"><span class="hs-identifier hs-type">SVar</span></a></span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#Stream"><span class="hs-identifier hs-type">K.Stream</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396428"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396427"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-type">SerialT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396428"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396427"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-type">SerialT</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396428"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679396427"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-371"></span><span id="teeToSVar"><span class="annot"><span class="annottext">teeToSVar :: forall (m :: * -&gt; *) a.
+MonadAsync m =&gt;
+SVar Stream m a -&gt; SerialT m a -&gt; SerialT m a
+</span><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#teeToSVar"><span class="hs-identifier hs-var hs-var">teeToSVar</span></a></span></span><span> </span><span id="local-6989586621679396101"><span class="annot"><span class="annottext">SVar Stream m a
+</span><a href="#local-6989586621679396101"><span class="hs-identifier hs-var">svr</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-type">SerialT</span></a></span><span> </span><span id="local-6989586621679396100"><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679396100"><span class="hs-identifier hs-var">m</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Stream m a -&gt; SerialT m a
+</span><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-var">SerialT</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a.
+(forall r.
+ State Stream m a
+ -&gt; (a -&gt; Stream m a -&gt; m r) -&gt; (a -&gt; m r) -&gt; m r -&gt; m r)
+-&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#mkStream"><span class="hs-identifier hs-var">K.mkStream</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679396099"><span class="annot"><span class="annottext">State Stream m a
+</span><a href="#local-6989586621679396099"><span class="hs-identifier hs-var">st</span></a></span></span><span> </span><span id="local-6989586621679396098"><span class="annot"><span class="annottext">a -&gt; Stream m a -&gt; m r
+</span><a href="#local-6989586621679396098"><span class="hs-identifier hs-var">yld</span></a></span></span><span> </span><span id="local-6989586621679396097"><span class="annot"><span class="annottext">a -&gt; m r
+</span><a href="#local-6989586621679396097"><span class="hs-identifier hs-var">sng</span></a></span></span><span> </span><span id="local-6989586621679396096"><span class="annot"><span class="annottext">m r
+</span><a href="#local-6989586621679396096"><span class="hs-identifier hs-var">stp</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-372"></span><span>    </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a r.
+State Stream m a
+-&gt; (a -&gt; Stream m a -&gt; m r)
+-&gt; (a -&gt; m r)
+-&gt; m r
+-&gt; Stream m a
+-&gt; m r
+</span><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#foldStreamShared"><span class="hs-identifier hs-var">K.foldStreamShared</span></a></span><span> </span><span class="annot"><span class="annottext">State Stream m a
+</span><a href="#local-6989586621679396099"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; Stream m a -&gt; m r
+</span><a href="#local-6989586621679396098"><span class="hs-identifier hs-var">yld</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; m r
+</span><a href="#local-6989586621679396097"><span class="hs-identifier hs-var">sng</span></a></span><span> </span><span class="annot"><span class="annottext">m r
+</span><a href="#local-6989586621679396096"><span class="hs-identifier hs-var">stp</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bool -&gt; Stream m a -&gt; Stream m a
+</span><a href="#local-6989586621679396094"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span> </span><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679396100"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-373"></span><span>
+</span><span id="line-374"></span><span>    </span><span class="hs-keyword">where</span><span>
+</span><span id="line-375"></span><span>
+</span><span id="line-376"></span><span>    </span><span id="local-6989586621679396094"><span class="annot"><span class="annottext">go :: Bool -&gt; Stream m a -&gt; Stream m a
+</span><a href="#local-6989586621679396094"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span> </span><span id="local-6989586621679396093"><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679396093"><span class="hs-identifier hs-var">m0</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a.
+(forall r.
+ State Stream m a
+ -&gt; (a -&gt; Stream m a -&gt; m r) -&gt; (a -&gt; m r) -&gt; m r -&gt; m r)
+-&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#mkStream"><span class="hs-identifier hs-var">K.mkStream</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679396092"><span class="annot"><span class="annottext">State Stream m a
+</span><a href="#local-6989586621679396092"><span class="hs-identifier hs-var">st</span></a></span></span><span> </span><span id="local-6989586621679396091"><span class="annot"><span class="annottext">a -&gt; Stream m a -&gt; m r
+</span><a href="#local-6989586621679396091"><span class="hs-identifier hs-var">yld</span></a></span></span><span> </span><span class="annot"><span class="annottext">a -&gt; m r
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679396090"><span class="annot"><span class="annottext">m r
+</span><a href="#local-6989586621679396090"><span class="hs-identifier hs-var">stp</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-377"></span><span>        </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679396081"><span class="annot"><span class="annottext">drain :: m ()
+</span><a href="#local-6989586621679396081"><span class="hs-identifier hs-var hs-var">drain</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-378"></span><span>                </span><span class="hs-comment">-- In general, a Stop event would come equipped with the result</span><span>
+</span><span id="line-379"></span><span>                </span><span class="hs-comment">-- of the fold. It is not used here but it would be useful in</span><span>
+</span><span id="line-380"></span><span>                </span><span class="hs-comment">-- applicative and distribute.</span><span>
+</span><span id="line-381"></span><span>                </span><span id="local-6989586621679396080"><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621679396080"><span class="hs-identifier hs-var">done</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. MonadAsync m =&gt; SVar Stream m a -&gt; m Bool
+</span><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#fromConsumer"><span class="hs-identifier hs-var">fromConsumer</span></a></span><span> </span><span class="annot"><span class="annottext">SVar Stream m a
+</span><a href="#local-6989586621679396101"><span class="hs-identifier hs-var">svr</span></a></span><span>
+</span><span id="line-382"></span><span>                </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *). Applicative f =&gt; Bool -&gt; f () -&gt; f ()
+</span><span class="hs-identifier hs-var">when</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621679396080"><span class="hs-identifier hs-var">done</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-383"></span><span>                    </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; String -&gt; IO () -&gt; IO ()
+</span><a href="Streamly.Internal.Data.SVar.Dispatch.html#withDiagMVar"><span class="hs-identifier hs-var">withDiagMVar</span></a></span><span> </span><span class="annot"><span class="annottext">SVar Stream m a
+</span><a href="#local-6989586621679396101"><span class="hs-identifier hs-var">svr</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;teeToSVar: waiting to drain&quot;</span></span><span>
+</span><span id="line-384"></span><span>                           </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a. MVar a -&gt; IO a
+</span><span class="hs-identifier hs-var">takeMVar</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; MVar ()
+</span><a href="Streamly.Internal.Data.SVar.Type.html#outputDoorBellFromConsumer"><span class="hs-identifier hs-var">outputDoorBellFromConsumer</span></a></span><span> </span><span class="annot"><span class="annottext">SVar Stream m a
+</span><a href="#local-6989586621679396101"><span class="hs-identifier hs-var">svr</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-385"></span><span>                    </span><span class="annot"><span class="annottext">m ()
+</span><a href="#local-6989586621679396081"><span class="hs-identifier hs-var">drain</span></a></span><span>
+</span><span id="line-386"></span><span>
+</span><span id="line-387"></span><span>            </span><span id="local-6989586621679396074"><span class="annot"><span class="annottext">stopFold :: m ()
+</span><a href="#local-6989586621679396074"><span class="hs-identifier hs-var hs-var">stopFold</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-388"></span><span>                </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. MonadIO m =&gt; IO a -&gt; m a
+</span><span class="hs-identifier hs-var">liftIO</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; Maybe WorkerInfo -&gt; IO ()
+</span><a href="Streamly.Internal.Data.SVar.Worker.html#sendStop"><span class="hs-identifier hs-var">sendStop</span></a></span><span> </span><span class="annot"><span class="annottext">SVar Stream m a
+</span><a href="#local-6989586621679396101"><span class="hs-identifier hs-var">svr</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-389"></span><span>                </span><span class="hs-comment">-- drain/wait until a stop event arrives from the fold.</span><span>
+</span><span id="line-390"></span><span>                </span><span class="annot"><span class="annottext">m ()
+</span><a href="#local-6989586621679396081"><span class="hs-identifier hs-var">drain</span></a></span><span>
+</span><span id="line-391"></span><span>
+</span><span id="line-392"></span><span>            </span><span id="local-6989586621679396071"><span class="annot"><span class="annottext">stop :: m r
+</span><a href="#local-6989586621679396071"><span class="hs-identifier hs-var hs-var">stop</span></a></span></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m ()
+</span><a href="#local-6989586621679396074"><span class="hs-identifier hs-var">stopFold</span></a></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; m b -&gt; m b
+</span><span class="hs-operator hs-var">&gt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">m r
+</span><a href="#local-6989586621679396090"><span class="hs-identifier hs-var">stp</span></a></span><span>
+</span><span id="line-393"></span><span>            </span><span id="local-6989586621679396064"><span class="annot"><span class="annottext">single :: a -&gt; m r
+</span><a href="#local-6989586621679396064"><span class="hs-identifier hs-var hs-var">single</span></a></span></span><span> </span><span id="local-6989586621679396063"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679396063"><span class="hs-identifier hs-var">a</span></a></span></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-394"></span><span>                </span><span id="local-6989586621679396062"><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621679396062"><span class="hs-identifier hs-var">done</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a.
+MonadAsync m =&gt;
+SVar Stream m a -&gt; a -&gt; m Bool
+</span><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#pushToFold"><span class="hs-identifier hs-var">pushToFold</span></a></span><span> </span><span class="annot"><span class="annottext">SVar Stream m a
+</span><a href="#local-6989586621679396101"><span class="hs-identifier hs-var">svr</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679396063"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-395"></span><span>                </span><span class="annot"><span class="annottext">a -&gt; Stream m a -&gt; m r
+</span><a href="#local-6989586621679396091"><span class="hs-identifier hs-var">yld</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679396063"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bool -&gt; Stream m a -&gt; Stream m a
+</span><a href="#local-6989586621679396094"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621679396062"><span class="hs-identifier hs-var">done</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) b a. Applicative m =&gt; m b -&gt; Stream m a
+</span><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#nilM"><span class="hs-identifier hs-var">K.nilM</span></a></span><span> </span><span class="annot"><span class="annottext">m ()
+</span><a href="#local-6989586621679396074"><span class="hs-identifier hs-var">stopFold</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-396"></span><span>            </span><span id="local-6989586621679396055"><span class="annot"><span class="annottext">yieldk :: a -&gt; Stream m a -&gt; m r
+</span><a href="#local-6989586621679396055"><span class="hs-identifier hs-var hs-var">yieldk</span></a></span></span><span> </span><span id="local-6989586621679396054"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679396054"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679396053"><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679396053"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a.
+MonadAsync m =&gt;
+SVar Stream m a -&gt; a -&gt; m Bool
+</span><a href="Streamly.Internal.Data.Stream.SVar.Eliminate.html#pushToFold"><span class="hs-identifier hs-var">pushToFold</span></a></span><span> </span><span class="annot"><span class="annottext">SVar Stream m a
+</span><a href="#local-6989586621679396101"><span class="hs-identifier hs-var">svr</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679396054"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; (a -&gt; m b) -&gt; m b
+</span><span class="hs-operator hs-var">&gt;&gt;=</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679396052"><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621679396052"><span class="hs-identifier hs-var">done</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">a -&gt; Stream m a -&gt; m r
+</span><a href="#local-6989586621679396091"><span class="hs-identifier hs-var">yld</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679396054"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bool -&gt; Stream m a -&gt; Stream m a
+</span><a href="#local-6989586621679396094"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621679396052"><span class="hs-identifier hs-var">done</span></a></span><span> </span><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679396053"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-397"></span><span>         </span><span class="hs-keyword">in</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a r.
+State Stream m a
+-&gt; (a -&gt; Stream m a -&gt; m r)
+-&gt; (a -&gt; m r)
+-&gt; m r
+-&gt; Stream m a
+-&gt; m r
+</span><a href="Streamly.Internal.Data.Stream.StreamK.Type.html#foldStreamShared"><span class="hs-identifier hs-var">K.foldStreamShared</span></a></span><span> </span><span class="annot"><span class="annottext">State Stream m a
+</span><a href="#local-6989586621679396092"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; Stream m a -&gt; m r
+</span><a href="#local-6989586621679396055"><span class="hs-identifier hs-var">yieldk</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; m r
+</span><a href="#local-6989586621679396064"><span class="hs-identifier hs-var">single</span></a></span><span> </span><span class="annot"><span class="annottext">m r
+</span><a href="#local-6989586621679396071"><span class="hs-identifier hs-var">stop</span></a></span><span> </span><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679396093"><span class="hs-identifier hs-var">m0</span></a></span><span>
+</span><span id="line-398"></span><span>
+</span><span id="line-399"></span><span>    </span><span class="annot"><a href="#local-6989586621679396094"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span> </span><span id="local-6989586621679396051"><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679396051"><span class="hs-identifier hs-var">m0</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Stream m a
+</span><a href="#local-6989586621679396051"><span class="hs-identifier hs-var">m0</span></a></span><span>
+</span><span id="line-400"></span></pre></body></html>

@@ -630,6 +630,59 @@ instance (GHC.Show.Show slc, GHC.Show.Show tr, GHC.Show.Show s, GHC.Show.Show f)
 instance (GHC.Show.Show slc, GHC.Show.Show tr, GHC.Show.Show s, GHC.Show.Show f, GHC.Show.Show h) => GHC.Show.Show (GreedyParser.ActionDouble slc tr s f h)
 instance (GHC.Show.Show slc, GHC.Show.Show o) => GHC.Show.Show (GreedyParser.GreedyState tr tr' slc o)
 
+module Harmony.ChordLabel
+
+-- | DCML Chord Types
+data ChordType
+Major :: ChordType
+Minor :: ChordType
+DominantSeventh :: ChordType
+Diminished :: ChordType
+FullDiminished :: ChordType
+MinorSeventh :: ChordType
+HalfDiminished :: ChordType
+MajorSeventh :: ChordType
+Augmented :: ChordType
+GermanSixth :: ChordType
+ItalianSixth :: ChordType
+FrenchSixth :: ChordType
+MinorMajorSeventh :: ChordType
+AugmentedSeventh :: ChordType
+data ChordLabel
+ChordLabel :: ChordType -> SPC -> ChordLabel
+[chordType] :: ChordLabel -> ChordType
+[rootNote] :: ChordLabel -> SPC
+mkLbl :: Int -> ChordType -> ChordLabel
+instance GHC.Classes.Ord Harmony.ChordLabel.ChordType
+instance GHC.Enum.Bounded Harmony.ChordLabel.ChordType
+instance GHC.Enum.Enum Harmony.ChordLabel.ChordType
+instance GHC.Classes.Eq Harmony.ChordLabel.ChordType
+instance GHC.Classes.Ord Harmony.ChordLabel.ChordLabel
+instance GHC.Classes.Eq Harmony.ChordLabel.ChordLabel
+instance GHC.Generics.Generic Harmony.ChordLabel.ChordLabel
+instance GHC.Show.Show Harmony.ChordLabel.ChordLabel
+instance GHC.Read.Read Harmony.ChordLabel.ChordType
+instance GHC.Show.Show Harmony.ChordLabel.ChordType
+
+module Harmony.Params
+data Params
+Params :: Vector Double -> Vector (Vector Double) -> Vector (Vector Double) -> Vector Double -> Vector Double -> Double -> Double -> Params
+[params_p_harmony] :: Params -> Vector Double
+[params_p_chordtones] :: Params -> Vector (Vector Double)
+[params_p_ornaments] :: Params -> Vector (Vector Double)
+[alpha_p_ict] :: Params -> Vector Double
+[beta_p_ict] :: Params -> Vector Double
+[alpha_rate_notes] :: Params -> Double
+[beta_rate_notes] :: Params -> Double
+params :: Params
+chordToneParams :: Vector (Vector Double)
+ornamentParams :: Vector (Vector Double)
+labelParams :: Vector Double
+instance GHC.Show.Show Harmony.Params.Params
+instance GHC.Generics.Generic Harmony.Params.Params
+
+module HarmonyModel
+
 
 -- | A simple implementation of multisets as hash maps to counts. Supports
 --   just what is needed for protovoice slices.
@@ -959,20 +1012,13 @@ instance (GHC.Classes.Eq n, Data.Hashable.Class.Hashable n, Musicology.Pitch.Cla
 instance Musicology.Pitch.Class.Notation n => GHC.Show.Show (PVGrammar.Notes n)
 instance (Musicology.Pitch.Class.Notation n, GHC.Classes.Eq n, Data.Hashable.Class.Hashable n) => Data.Aeson.Types.FromJSON.FromJSON (PVGrammar.Notes n)
 
+
+-- | This module contains
 module PBHModel
 data HarmonicProfileData
 HarmonicProfileData :: Params -> [String] -> HarmonicProfileData
 [params] :: HarmonicProfileData -> Params
 [chordtypes] :: HarmonicProfileData -> [String]
-data Params
-Params :: [Double] -> [[Double]] -> [[Double]] -> [Double] -> [Double] -> Double -> Double -> Params
-[params_p_harmony] :: Params -> [Double]
-[params_p_chordtones] :: Params -> [[Double]]
-[params_p_ornaments] :: Params -> [[Double]]
-[alpha_p_ict] :: Params -> [Double]
-[beta_p_ict] :: Params -> [Double]
-[alpha_rate_notes] :: Params -> Double
-[beta_rate_notes] :: Params -> Double
 
 -- | Load the paramaters from the JSON
 loadParams :: FilePath -> IO HarmonicProfileData
@@ -980,13 +1026,21 @@ data ChordLabel
 ChordLabel :: String -> SPC -> ChordLabel
 [chordType] :: ChordLabel -> String
 [rootNote] :: ChordLabel -> SPC
-mkLbl :: Int -> String -> ChordLabel
-scoreSegments :: HarmonicProfileData -> (Notes SPitch -> ChordLabel -> Double) -> [Notes SPitch] -> [ChordLabel] -> Double
 
 -- | Provides a score measuring how much the slice matches the chord
 --   annoation
-scoreSegment' :: HarmonicProfileData -> Notes SPitch -> ChordLabel -> Double
+evaluateSlice :: HarmonicProfileData -> Notes SIC -> String -> Double
+mostLikelyChordFromSlice :: HarmonicProfileData -> Notes SPitch -> (SPC, String, Double)
+chordToneLogLikelihood :: HarmonicProfileData -> ChordLabel -> SIC -> Double
+multinomialLogProb :: [Double] -> [Double] -> Double
+categoricalLogProb :: Int -> [Double] -> Double
 transposeNote :: Pitch SIC -> SPitch -> SIC
+ornamentLogLikelihood :: HarmonicProfileData -> ChordLabel -> SIC -> Double
+ornamentLogLikelihoodDouble :: HarmonicProfileData -> ChordLabel -> ChordLabel -> SPitch -> Double
+sliceChordLogLikelihood :: HarmonicProfileData -> ChordLabel -> Notes SIC -> Double
+chordToneLogLikelihoodDouble :: HarmonicProfileData -> ChordLabel -> ChordLabel -> SPitch -> Double
+sliceChordWeightedLogLikelihoods :: HarmonicProfileData -> Notes SPitch -> [(Double, SPC, Int)]
+sliceChordWeightedLogLikelihood :: HarmonicProfileData -> String -> Notes SIC -> Double
 
 -- | Provides a score measuring how much the slice matches the chord
 --   annoation
@@ -994,57 +1048,91 @@ scoreSegment :: HarmonicProfileData -> Notes SPitch -> ChordLabel -> Double
 
 -- | Provides a score measuring how much the slice matches the chord
 --   annoation
-evaluateSlice :: HarmonicProfileData -> Notes SIC -> String -> Double
-mostLikelyChordFromSlice :: HarmonicProfileData -> Notes SPitch -> (SPC, String, Double)
-maxi :: (Ord a, Num b, Enum b) => [a] -> (a, b)
-allChords :: [[Double]] -> [(Double, SPC, Int)]
-sliceChordWeightedLogLikelihood :: HarmonicProfileData -> String -> Notes SIC -> Double
-chordIndexFromLabel :: HarmonicProfileData -> String -> Maybe Int
-sliceChordLogLikelihood :: HarmonicProfileData -> ChordLabel -> Notes SIC -> Double
-allIntervals :: [SIC]
-allNotes :: [SPC]
-sliceChordWeightedLogLikelihoods :: HarmonicProfileData -> Notes SPitch -> [(Double, SPC, Int)]
-genSliceVector :: Notes SIC -> [Double]
-ornamentLogLikelihood :: HarmonicProfileData -> ChordLabel -> SIC -> Double
-chordToneLogLikelihood :: HarmonicProfileData -> ChordLabel -> SIC -> Double
-genMixture :: [Double] -> [Double] -> [Double]
-ornamentLogLikelihoodDouble :: HarmonicProfileData -> ChordLabel -> ChordLabel -> SPitch -> Double
-chordToneLogLikelihoodDouble :: HarmonicProfileData -> ChordLabel -> ChordLabel -> SPitch -> Double
-getOrnamentParams :: HarmonicProfileData -> [[Double]]
-getChordToneParams :: HarmonicProfileData -> [[Double]]
-getHarmonyParams :: HarmonicProfileData -> [Double]
-normaliseList :: Fractional a => [a] -> [a]
-multinomialLogProb :: [Double] -> [Double] -> Double
-categoricalLogProb :: Int -> [Double] -> Double
+scoreSegment' :: HarmonicProfileData -> Notes SPitch -> ChordLabel -> Double
+scoreSegments :: HarmonicProfileData -> (HarmonicProfileData -> Notes SPitch -> ChordLabel -> Double) -> [Notes SPitch] -> [ChordLabel] -> Double
+instance GHC.Classes.Eq PBHModel.ChordLabel
+instance GHC.Generics.Generic PBHModel.ChordLabel
 instance GHC.Show.Show PBHModel.Params
 instance GHC.Generics.Generic PBHModel.Params
 instance GHC.Show.Show PBHModel.HarmonicProfileData
 instance GHC.Generics.Generic PBHModel.HarmonicProfileData
-instance GHC.Classes.Eq PBHModel.ChordLabel
-instance GHC.Show.Show PBHModel.ChordLabel
-instance GHC.Generics.Generic PBHModel.ChordLabel
 instance Data.Aeson.Types.FromJSON.FromJSON PBHModel.HarmonicProfileData
 instance Data.Aeson.Types.FromJSON.FromJSON PBHModel.Params
+instance GHC.Show.Show PBHModel.ChordLabel
 
+
+-- | This module contains
+module Harmony
+
+-- | Provides a score measuring how much the slice matches the chord
+--   annoation
+evaluateSlice :: Notes SIC -> ChordType -> Double
+mostLikelyLabelFromSliceWithProb :: Notes SPitch -> (ChordLabel, Double)
+mostLikelyLabelFromSlice :: Notes SPitch -> ChordLabel
+labelLikelihoodGivenSlice :: ChordLabel -> Notes SPitch -> Double
+allLabelLikelihoodsGivenSlice :: Notes SPitch -> Vector (Double, ChordLabel)
+transposeSlice :: Pitch SIC -> Notes SPitch -> Notes SIC
+multinomialLogProb :: Vector Double -> Vector Double -> Double
+categoricalLogProb :: Int -> Vector Double -> Double
+scoreSegment' :: Notes SPitch -> ChordLabel -> Double
+scoreSegments :: [Notes SPitch] -> [ChordLabel] -> Double
+
+
+-- | A parser for the protovoice model, representials partial reductions as
+--   a search state that can be traversed by applying operations such as
+--   <tt>Unspread</tt>, <tt>Unfreeze</tt> and <a>Unsplit</a>.
 module HeuristicParser
+
+-- | Slice datatype for parsing
 newtype Slice ns
 Slice :: ns -> Slice ns
+
+-- | Content of the Slice
 [sContent] :: Slice ns -> ns
+
+-- | Data type for a slice "wrapped" with additional information. Contains
+--   the content alongside the guess of the most likely chord label, and
+--   our confidence in that label.
 data SliceWrapped ns
 SliceWrapped :: ns -> ChordLabel -> Double -> SliceWrapped ns
 [sWContent] :: SliceWrapped ns -> ns
 [sLbl] :: SliceWrapped ns -> ChordLabel
 [sLblProb] :: SliceWrapped ns -> Double
+
+-- | Type for functions that <tt>wrap</tt> slices with additional
+--   information
 newtype SliceWrapper ns
 SliceWrapper :: (ns -> SliceWrapped ns) -> SliceWrapper ns
+
+-- | Converts a slice into a wrapped slice, giving additional information
+--   such as a guess of the chord it represents.
 [wrapSlice] :: SliceWrapper ns -> ns -> SliceWrapped ns
+
+-- | Returns a <a>SliceWrapper</a> that guesses the most likely chord for a
+--   slice
+sliceWrapper :: SliceWrapper (Notes SPitch)
 idWrapper :: SliceWrapper ns
-type Boundary = Bool
+
+-- | Transition wrapper datatype. Wraps a transition with a flag indicating
+--   whether or not the transition is the 2nd right parent of a spread, and
+--   another flag marking whether or not this transition is at a boundary
+--   between segments
 data Trans es
 Trans :: !es -> !Bool -> !Boundary -> Trans es
+
+-- | The value inside the transition, i.e. protovoice edges
 [tContent] :: Trans es -> !es
+
+-- | Marks if this transition is the 2nd right parent of a spread
 [t2nd] :: Trans es -> !Bool
+
+-- | Marks whether or not this transition is at a boundary between two
+--   segments
 [tBoundary] :: Trans es -> !Boundary
+
+-- | Boolean type synonym representing if a transition is a boundary
+--   between two segments
+type Boundary = Bool
 
 -- | The state of the search between steps. Generally, the current
 --   reduction consists of frozen transitions between the ⋊ and the current
@@ -1093,8 +1181,6 @@ Trans :: !es -> !Bool -> !Boundary -> Trans es
 --   
 --   Types: es' : Unparsed/frozen transitions es : Unfrozen transitions ns
 --   : Evaluated slice content o : Operation type
---   
---   The state of the search between steps
 data SearchState es es' ns o
 SSFrozen :: !Path (Maybe es', Bool) (SliceWrapped ns) -> SearchState es es' ns o
 SSSemiOpen :: !Path (Maybe es', Bool) (SliceWrapped ns) -> !SliceWrapped ns -> !Path (Trans es) (SliceWrapped ns) -> ![o] -> SearchState es es' ns o
@@ -1111,20 +1197,7 @@ SSSemiOpen :: !Path (Maybe es', Bool) (SliceWrapped ns) -> !SliceWrapped ns -> !
 -- | derivation from current reduction to original surface
 [_ssDeriv] :: SearchState es es' ns o -> ![o]
 SSOpen :: !Path (Trans es) (SliceWrapped ns) -> ![o] -> SearchState es es' ns o
-
--- | Helper function for showing the frozen part of a piece.
-showFrozen :: Show slc => Path (Maybe es', Bool) slc -> String
-
--- | Helper function for showing the open part of a piece.
-showOpen :: Show slc => Path (Trans es') slc -> String
-
--- | Returns a list of possible next states given the current state.
-exploreStates :: forall es es' ns ns' s f h. (Show s, Show f, Show h, Show es, Show es', Show ns, Show ns') => SliceWrapper ns -> Eval es es' ns ns' (Leftmost s f h) -> SearchState es es' ns (Leftmost s f h) -> ExceptT String IO [SearchState es es' ns (Leftmost s f h)]
-heursiticSearchGoalTest :: SearchState es es' ns o -> Bool
-printPathFromState :: (Show es, Show ns) => SearchState es es' ns o -> String
-getOpsFromState :: SearchState es es' ns o -> [o]
-getPathLengthFromState :: SearchState es es' ns o -> Int
-getPathFromState :: SearchState es es' ns o -> Maybe (Path es ns)
+type SearchState' = SearchState (Edges SPitch) [Edge SPitch] (Notes SPitch) (Leftmost (Split SPitch) Freeze (Spread SPitch))
 
 -- | A parsing action (reduction step) with a single parent transition.
 --   Combines the parent elements with a single-transition derivation
@@ -1137,6 +1210,45 @@ ActionSingle :: (StartStop ns, Trans tr, StartStop ns) -> LeftmostSingle s f -> 
 --   operation.
 data ActionDouble ns tr s f h
 ActionDouble :: (StartStop ns, Trans tr, ns, Trans tr, StartStop ns) -> LeftmostDouble s f h -> ActionDouble ns tr s f h
+
+-- | Returns a list of possible next states given the current state. Works
+--   by applying the inverse of the following operations, as returned by
+--   the protovoiceEvaluator. &gt; &gt; freeze left: split left: split
+--   right: spread: &gt; ...=[]——[]——[]—... ...=[]——[]——[]—...
+--   ...=[]——[]——[]—... ...=[]——[]——[]—... &gt; ...=[]==[]——[]—... <i> </i>
+--   <i> </i> &gt; [] [] []——[]
+exploreStates :: forall es es' ns ns' s f h. (Show s, Show f, Show h, Show es, Show es', Show ns, Show ns') => SliceWrapper ns -> Eval es es' ns ns' (Leftmost s f h) -> SearchState es es' ns (Leftmost s f h) -> ExceptT String IO [SearchState es es' ns (Leftmost s f h)]
+
+-- | Returns <a>True</a> if the parse is complete and has been reduced to
+--   only one slice per segment
+goalTest :: [ChordLabel] -> SearchState es es' ns o -> Bool
+
+-- | Returns <a>True</a> if the parse is complete, and has been reduced to
+--   only one slice
+goalTestSBS :: SearchState es es' ns o -> Bool
+
+-- | Goal test for a search: Only complete once there is a single slice per
+--   segment
+heursiticSearchGoalTest :: SearchState es es' ns o -> Bool
+getPathFromState :: SearchState es es' ns o -> Maybe (Path es ns)
+getPathLengthFromState :: SearchState es es' ns o -> Int
+getPathFromState' :: SearchState es es' ns o -> Maybe (Path es (SliceWrapped ns))
+getSlicesFromState :: SearchState es es' ns o -> Maybe [SliceWrapped ns]
+
+-- | Returns the latest operation that has been applied, or Nothing if no
+--   operations have been applied
+getOpFromState :: SearchState es es' ns o -> Maybe o
+
+-- | Returns a list of all operations that have been taken up to the state
+--   given
+getOpsFromState :: SearchState es es' ns o -> [o]
+
+-- | Calculate a naive accuracy metric for two lists using equality
+chordAccuracy :: (Eq a, Show a) => [a] -> [a] -> Double
+
+-- | Returns the most likely chord labels for each input group of notes
+guessChords :: [Notes SPitch] -> [ChordLabel]
+showOp :: (Show s, Show f, Show h) => [Leftmost s f h] -> String
 instance GHC.Classes.Eq ns => GHC.Classes.Eq (HeuristicParser.Slice ns)
 instance GHC.Classes.Eq ns => GHC.Classes.Eq (HeuristicParser.SliceWrapped ns)
 instance GHC.Classes.Eq es => GHC.Classes.Eq (HeuristicParser.Trans es)
@@ -1147,21 +1259,17 @@ instance GHC.Show.Show es => GHC.Show.Show (HeuristicParser.Trans es)
 instance GHC.Show.Show ns => GHC.Show.Show (HeuristicParser.SliceWrapped ns)
 instance GHC.Show.Show ns => GHC.Show.Show (HeuristicParser.Slice ns)
 
-module HeuristicSearch
-data HeuristicSearch s c
-HeuristicSearch :: [(c, s)] -> ((Maybe s, s) -> ExceptT String IO c) -> (s -> Bool) -> HeuristicSearch s c
-[frontier] :: HeuristicSearch s c -> [(c, s)]
-[heuristic] :: HeuristicSearch s c -> (Maybe s, s) -> ExceptT String IO c
-[goal] :: HeuristicSearch s c -> s -> Bool
-heuristicSearchInit :: s -> ((Maybe s, s) -> ExceptT String IO c) -> c -> (s -> Bool) -> HeuristicSearch s c
+module Algorithm.RandomChoiceSearch
+
+-- | Entry point to the search algorithm Picks random choice from a split
+--   or spread operation Skewed towards splits.
+randomChoiceSearch :: Show state => state -> (state -> ExceptT String IO [state]) -> (state -> Bool) -> (state -> String) -> ExceptT String IO state
+
+module Algorithm.HeuristicSearch
 
 -- | Entry point to the search algorithm
-heuristicSearch :: Show state => state -> (state -> ExceptT String IO [state]) -> (state -> Bool) -> ((Maybe state, state) -> ExceptT String IO Double) -> (state -> String) -> ExceptT String IO state
-getLowestCostState :: [(Double, state)] -> state
-popFromHeap :: HeapItem a b => Heap a b -> (b, Heap a b)
-genHeap :: Ord a => [(a, b)] -> MinPrioHeap a b
-insertHeapLimitedBy :: HeapItem pol item => Int -> item -> HeapT (Prio pol item) (Val pol item) -> HeapT (Prio pol item) (Val pol item)
-insertLimitedBy :: HeapItem pol item => Int -> item -> HeapT (Prio pol item) (Val pol item) -> HeapT (Prio pol item) (Val pol item)
+heuristicSearch :: SearchState' -> (SearchState' -> ExceptT String IO [SearchState']) -> (SearchState' -> Bool) -> ((Maybe SearchState', SearchState') -> ExceptT String IO Double) -> (SearchState' -> String) -> ExceptT String IO SearchState'
+instance GHC.Classes.Eq Algorithm.HeuristicSearch.PvOp
 
 
 -- | This module contains functions for the generative aspects of
@@ -1296,6 +1404,7 @@ protoVoiceEvaluator :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation
 -- | A restricted version of the PV evaluator that prohibits split
 --   operations in which one of the parent slices is repeated entirely.
 protoVoiceEvaluatorNoRepSplit :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n) => Eval (Edges n) (t (Edge n)) (Notes n) (t2 n) (PVLeftmost n)
+protoVoiceEvaluatorLimitedSize :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n) => Int -> Eval (Edges n) (t (Edge n)) (Notes n) (t2 n) (PVLeftmost n)
 
 -- | An evaluator for protovoices that produces values in the
 --   <a>Derivations</a> semiring.
@@ -1359,11 +1468,86 @@ instance (GHC.Show.Show a, GHC.Show.Show b, GHC.Show.Show c, GHC.Show.Show d) =>
 instance (GHC.Classes.Ord a, GHC.Classes.Ord b, GHC.Classes.Ord c, GHC.Classes.Ord d) => GHC.Classes.Ord (PVGrammar.Parse.Elaboration a b c d)
 instance (GHC.Classes.Eq a, GHC.Classes.Eq b, GHC.Classes.Eq c, GHC.Classes.Eq d) => GHC.Classes.Eq (PVGrammar.Parse.Elaboration a b c d)
 
+
+-- | This module contains
 module Heuristics
-type State ns = SearchState (Edges ns) [Edge ns] (Notes ns) (PVLeftmost ns)
 applyHeuristic :: ((Maybe (State SPitch), State SPitch) -> ExceptT String IO Double) -> (Maybe (State SPitch), State SPitch) -> ExceptT String IO Double
-testOp :: ActionDouble ns tr (Split SPC) f h
-testHeuristic :: HarmonicProfileData -> (Maybe (State SPitch), State SPitch) -> ExceptT String IO Double
+
+-- | First Heuristic Prototype
+testHeuristic :: (Maybe (State SPitch), State SPitch) -> ExceptT String IO Double
+type State ns = SearchState (Edges ns) [Edge ns] (Notes ns) (PVLeftmost ns)
+
+
+-- | This module contains functionality for reading chord and slice data
+--   from csv files, as output by 'preprocess.py'. This also contains
+--   functionality for writing the results of the parses to json files, to
+--   be read by 'results.py'
+module FileHandling
+
+-- | Slice type for reading from csv
+type InputSlice ns = ([(ns, RightTied)], Bool)
+
+-- | Create a <a>Path</a> given a list of slices
+pathFromSlices :: forall ns o. Eval (Edges ns) [Edge ns] (Notes ns) [ns] o -> SliceWrapper (Notes ns) -> [InputSlice ns] -> Path (Maybe [Edge ns], Bool) (SliceWrapped (Notes ns))
+
+-- | Concatenates all results for a given piece into an object, inlucuding
+--   the piece and corpus in the JSON value.
+concatResults :: String -> String -> [ChordLabel] -> [Value] -> Value
+
+-- | Loads slices from filepath
+slicesFromFile' :: FilePath -> IO [(Slice', Bool)]
+
+-- | Loads chord annotations from filepath
+chordsFromFile :: FilePath -> IO [ChordLabel]
+
+-- | Write JSON value to the given file
+writeJSONToFile :: ToJSON a => FilePath -> a -> IO ()
+
+-- | Coverts the results of a parsing algorithm to a JSON value
+writeResultsToJSON :: [Notes SPitch] -> [ChordLabel] -> Maybe [PVLeftmost SPitch] -> Accuracy -> LogLikelihood -> String -> Time -> Value
+
+-- | Used when the algorithm fails. Contains NANs in all fields.
+nullResultToJSON :: Show a => a -> Value
+splitSlicesIntoSegments :: forall ns o. Eval (Edges ns) [Edge ns] (Notes ns) [ns] o -> SliceWrapper (Notes ns) -> [InputSlice ns] -> [[InputSlice ns]]
+instance Data.Csv.Conversion.FromNamedRecord FileHandling.ChordLabel'
+instance Data.Csv.Conversion.FromNamedRecord FileHandling.SalamiNote
+instance Data.Csv.Conversion.FromField Musicology.Core.RightTied
+instance Data.Csv.Conversion.FromField GHC.Types.Bool
+
+module Algorithm.RandomSampleParser
+
+-- | Generates a path of random notes for the given number of segments
+randomSamplePath :: Int -> IO (Path (Edges SPitch) (Notes SPitch))
+
+-- | Generates a path of random notes from each segement for the given
+--   number of segments
+randomSamplePathSBS :: [[InputSlice SPitch]] -> IO (Path (Edges SPitch) (Notes SPitch))
+
+module Algorithm
+data AlgoInput
+AlgoInput :: Eval (Edges SPitch) [Edge SPitch] (Notes SPitch) [SPitch] (PVLeftmost SPitch) -> [InputSlice SPitch] -> [ChordLabel] -> AlgoInput
+class (Show a, Eq a) => ParseAlgo a
+runParse :: ParseAlgo a => a -> AlgoInput -> IO (Maybe AlgoResult)
+data AlgoResult
+AlgoResult :: [Notes SPitch] -> Maybe [PVLeftmost SPitch] -> [ChordLabel] -> AlgoResult
+[arTop] :: AlgoResult -> [Notes SPitch]
+[arOps] :: AlgoResult -> Maybe [PVLeftmost SPitch]
+[arLabels] :: AlgoResult -> [ChordLabel]
+data AlgoType
+RandomParse :: AlgoType
+RandomParseSBS :: AlgoType
+RandomSample :: AlgoType
+RandomSampleSBS :: AlgoType
+Heuristic1 :: AlgoType
+HeuristicSBS1 :: AlgoType
+All :: AlgoType
+instance GHC.Show.Show Algorithm.AlgoResult
+instance GHC.Classes.Eq Algorithm.AlgoType
+instance GHC.Show.Show Algorithm.AlgoType
+instance GHC.Read.Read Algorithm.AlgoType
+instance Algorithm.ParseAlgo Algorithm.AlgoType
+
+module Core
 
 
 -- | This module contains a simple (and musically rather naive)
@@ -1482,39 +1666,6 @@ instance GHC.Generics.Generic (PVGrammar.Prob.Simple.PVParamsInner f)
 instance (GHC.Show.Show (f Inference.Conjugate.Beta), GHC.Show.Show (f Inference.Conjugate.Beta), GHC.Show.Show (f Inference.Conjugate.Beta), GHC.Show.Show (f (Inference.Conjugate.Dirichlet 3)), GHC.Show.Show (f Inference.Conjugate.Beta)) => GHC.Show.Show (PVGrammar.Prob.Simple.PVParamsInner f)
 instance GHC.Generics.Generic (PVGrammar.Prob.Simple.PVParamsOuter f)
 instance GHC.Show.Show (f Inference.Conjugate.Beta) => GHC.Show.Show (PVGrammar.Prob.Simple.PVParamsOuter f)
-
-module RandomChoiceSearch
-data RandomSearch s
-RandomSearch :: s -> (s -> Bool) -> RandomSearch s
-[rsHead] :: RandomSearch s -> s
-[rsGoal] :: RandomSearch s -> s -> Bool
-randomSearchInit :: s -> (s -> Bool) -> RandomSearch s
-
--- | Entry point to the search algorithm Picks random choice from a split
---   or spread operation Skewed towards splits.
-randomChoiceSearch :: Show state => state -> (state -> ExceptT String IO [state]) -> (state -> Bool) -> (state -> String) -> ExceptT String IO state
-pickRandom :: StatefulGen g m => g -> [slc] -> m (Maybe slc)
-
-module RandomSampleParser
-
--- | Generates a path of random notes for the given number of segments
-randomSamplePath :: Int -> IO (Path (Edges SPitch) (Notes SPitch))
-genSlice :: StatefulGen g IO => g -> IO (Notes SPitch)
-pickRandom :: StatefulGen g m => g -> [slc] -> m (Maybe slc)
-
-module FileHandling
-type InputSlice ns = ([(ns, RightTied)], Bool)
-pathFromSlices :: forall ns o. Eval (Edges ns) [Edge ns] (Notes ns) [ns] o -> SliceWrapper (Notes ns) -> [InputSlice ns] -> Path (Maybe [Edge ns], Bool) (SliceWrapped (Notes ns))
-
--- | Loads slices from filepath
-slicesFromFile' :: FilePath -> IO [(Slice', Bool)]
-
--- | Loads chord annotations from filepath
-chordsFromFile :: FilePath -> IO [ChordLabel]
-instance Data.Csv.Conversion.FromNamedRecord FileHandling.ChordLabel'
-instance Data.Csv.Conversion.FromNamedRecord FileHandling.SalamiNote
-instance Data.Csv.Conversion.FromField Musicology.Core.RightTied
-instance Data.Csv.Conversion.FromField GHC.Types.Bool
 
 
 -- | <i>This module is deprecated, use <a>Scoring.FunTyped</a> instead.</i>

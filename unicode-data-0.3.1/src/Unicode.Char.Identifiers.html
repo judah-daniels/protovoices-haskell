@@ -1,0 +1,82 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-- |</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- Module      : Unicode.Char.Identifiers</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Copyright   : (c) 2021 Composewell Technologies and Contributors</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- License     : Apache-2.0</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- Maintainer  : streamly@composewell.com</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Stability   : experimental</span><span>
+</span><span id="line-7"></span><span class="hs-comment">--</span><span>
+</span><span id="line-8"></span><span class="hs-comment">-- Unicode Identifier and Pattern Syntax property functions based on</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- [Unicode Standard Annex #31](https://www.unicode.org/reports/tr31/)</span><span>
+</span><span id="line-10"></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Unicode.Char.Identifiers</span><span>
+</span><span id="line-12"></span><span>    </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Unicode.Char.Identifiers.html#isIDContinue"><span class="hs-identifier">isIDContinue</span></a></span><span>
+</span><span id="line-13"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.Identifiers.html#isIDStart"><span class="hs-identifier">isIDStart</span></a></span><span>
+</span><span id="line-14"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.Identifiers.html#isXIDContinue"><span class="hs-identifier">isXIDContinue</span></a></span><span>
+</span><span id="line-15"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.Identifiers.html#isXIDStart"><span class="hs-identifier">isXIDStart</span></a></span><span>
+</span><span id="line-16"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.Identifiers.html#isPatternSyntax"><span class="hs-identifier">isPatternSyntax</span></a></span><span>
+</span><span id="line-17"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.Identifiers.html#isPatternWhitespace"><span class="hs-identifier">isPatternWhitespace</span></a></span><span>
+</span><span id="line-18"></span><span>    </span><span class="hs-special">)</span><span>
+</span><span id="line-19"></span><span class="hs-keyword">where</span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Unicode.Internal.Char.DerivedCoreProperties.html"><span class="hs-identifier">Unicode.Internal.Char.DerivedCoreProperties</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">P</span></span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Unicode.Internal.Char.PropList.html"><span class="hs-identifier">Unicode.Internal.Char.PropList</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">P</span></span><span>
+</span><span id="line-23"></span><span>
+</span><span id="line-24"></span><span class="hs-comment">-- | Returns 'True' if a character is an identifier continue character.</span><span>
+</span><span id="line-25"></span><span class="hs-comment">--</span><span>
+</span><span id="line-26"></span><span class="hs-comment">-- @since 0.2.0</span><span>
+</span><span id="line-27"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Unicode.Char.Identifiers.html#isIDContinue"><span class="hs-pragma hs-type">isIDContinue</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-28"></span><span class="annot"><a href="Unicode.Char.Identifiers.html#isIDContinue"><span class="hs-identifier hs-type">isIDContinue</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-29"></span><span id="isIDContinue"><span class="annot"><span class="annottext">isIDContinue :: Char -&gt; Bool
+</span><a href="Unicode.Char.Identifiers.html#isIDContinue"><span class="hs-identifier hs-var hs-var">isIDContinue</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><a href="Unicode.Internal.Char.DerivedCoreProperties.html#isID_Continue"><span class="hs-identifier hs-var">P.isID_Continue</span></a></span><span>
+</span><span id="line-30"></span><span>
+</span><span id="line-31"></span><span class="hs-comment">-- | Returns 'True' if a character is an identifier start character.</span><span>
+</span><span id="line-32"></span><span class="hs-comment">--</span><span>
+</span><span id="line-33"></span><span class="hs-comment">-- @since 0.2.0</span><span>
+</span><span id="line-34"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Unicode.Char.Identifiers.html#isIDStart"><span class="hs-pragma hs-type">isIDStart</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-35"></span><span class="annot"><a href="Unicode.Char.Identifiers.html#isIDStart"><span class="hs-identifier hs-type">isIDStart</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-36"></span><span id="isIDStart"><span class="annot"><span class="annottext">isIDStart :: Char -&gt; Bool
+</span><a href="Unicode.Char.Identifiers.html#isIDStart"><span class="hs-identifier hs-var hs-var">isIDStart</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><a href="Unicode.Internal.Char.DerivedCoreProperties.html#isID_Start"><span class="hs-identifier hs-var">P.isID_Start</span></a></span><span>
+</span><span id="line-37"></span><span>
+</span><span id="line-38"></span><span class="hs-comment">-- | Returns 'True' if a character is an identifier continue character,</span><span>
+</span><span id="line-39"></span><span class="hs-comment">-- using the NFKC modifications detailed in</span><span>
+</span><span id="line-40"></span><span class="hs-comment">-- [UAX #31, 5.1](https://www.unicode.org/reports/tr31/#NFKC_Modifications).</span><span>
+</span><span id="line-41"></span><span class="hs-comment">--</span><span>
+</span><span id="line-42"></span><span class="hs-comment">-- @since 0.2.0</span><span>
+</span><span id="line-43"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Unicode.Char.Identifiers.html#isXIDContinue"><span class="hs-pragma hs-type">isXIDContinue</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-44"></span><span class="annot"><a href="Unicode.Char.Identifiers.html#isXIDContinue"><span class="hs-identifier hs-type">isXIDContinue</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-45"></span><span id="isXIDContinue"><span class="annot"><span class="annottext">isXIDContinue :: Char -&gt; Bool
+</span><a href="Unicode.Char.Identifiers.html#isXIDContinue"><span class="hs-identifier hs-var hs-var">isXIDContinue</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><a href="Unicode.Internal.Char.DerivedCoreProperties.html#isXID_Continue"><span class="hs-identifier hs-var">P.isXID_Continue</span></a></span><span>
+</span><span id="line-46"></span><span>
+</span><span id="line-47"></span><span>
+</span><span id="line-48"></span><span class="hs-comment">-- | Returns 'True' if a character is an identifier start character,</span><span>
+</span><span id="line-49"></span><span class="hs-comment">-- using the NFKC modifications detailed in</span><span>
+</span><span id="line-50"></span><span class="hs-comment">-- [UAX #31, 5.1](https://www.unicode.org/reports/tr31/#NFKC_Modifications).</span><span>
+</span><span id="line-51"></span><span class="hs-comment">--</span><span>
+</span><span id="line-52"></span><span class="hs-comment">-- @since 0.2.0</span><span>
+</span><span id="line-53"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Unicode.Char.Identifiers.html#isXIDStart"><span class="hs-pragma hs-type">isXIDStart</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-54"></span><span class="annot"><a href="Unicode.Char.Identifiers.html#isXIDStart"><span class="hs-identifier hs-type">isXIDStart</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-55"></span><span id="isXIDStart"><span class="annot"><span class="annottext">isXIDStart :: Char -&gt; Bool
+</span><a href="Unicode.Char.Identifiers.html#isXIDStart"><span class="hs-identifier hs-var hs-var">isXIDStart</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><a href="Unicode.Internal.Char.DerivedCoreProperties.html#isXID_Start"><span class="hs-identifier hs-var">P.isXID_Start</span></a></span><span>
+</span><span id="line-56"></span><span>
+</span><span id="line-57"></span><span class="hs-comment">-- | Returns 'True' if a character is a pattern syntax character.</span><span>
+</span><span id="line-58"></span><span class="hs-comment">--</span><span>
+</span><span id="line-59"></span><span class="hs-comment">-- @since 0.2.0</span><span>
+</span><span id="line-60"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Unicode.Char.Identifiers.html#isPatternSyntax"><span class="hs-pragma hs-type">isPatternSyntax</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-61"></span><span class="annot"><a href="Unicode.Char.Identifiers.html#isPatternSyntax"><span class="hs-identifier hs-type">isPatternSyntax</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-62"></span><span id="isPatternSyntax"><span class="annot"><span class="annottext">isPatternSyntax :: Char -&gt; Bool
+</span><a href="Unicode.Char.Identifiers.html#isPatternSyntax"><span class="hs-identifier hs-var hs-var">isPatternSyntax</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><a href="Unicode.Internal.Char.PropList.html#isPattern_Syntax"><span class="hs-identifier hs-var">P.isPattern_Syntax</span></a></span><span>
+</span><span id="line-63"></span><span>
+</span><span id="line-64"></span><span class="hs-comment">-- | Returns 'True' if a character is a pattern whitespace character.</span><span>
+</span><span id="line-65"></span><span class="hs-comment">--</span><span>
+</span><span id="line-66"></span><span class="hs-comment">-- @since 0.2.0</span><span>
+</span><span id="line-67"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Unicode.Char.Identifiers.html#isPatternWhitespace"><span class="hs-pragma hs-type">isPatternWhitespace</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-68"></span><span class="annot"><a href="Unicode.Char.Identifiers.html#isPatternWhitespace"><span class="hs-identifier hs-type">isPatternWhitespace</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-69"></span><span id="isPatternWhitespace"><span class="annot"><span class="annottext">isPatternWhitespace :: Char -&gt; Bool
+</span><a href="Unicode.Char.Identifiers.html#isPatternWhitespace"><span class="hs-identifier hs-var hs-var">isPatternWhitespace</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><a href="Unicode.Internal.Char.PropList.html#isPattern_White_Space"><span class="hs-identifier hs-var">P.isPattern_White_Space</span></a></span><span>
+</span><span id="line-70"></span></pre></body></html>

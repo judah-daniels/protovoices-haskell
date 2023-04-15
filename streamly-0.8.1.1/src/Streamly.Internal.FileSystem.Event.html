@@ -1,0 +1,261 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-- |</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- Module      : Streamly.FileSystem.Event</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Copyright   : (c) 2020 Composewell Technologies</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- License     : BSD-3-Clause</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- Maintainer  : streamly@composewell.com</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Stability   : pre-release</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Portability : GHC</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- File system event notification API portable across Linux, macOS and Windows</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- platforms.</span><span>
+</span><span id="line-11"></span><span class="hs-comment">--</span><span>
+</span><span id="line-12"></span><span class="hs-comment">-- Note that recursive directory tree watch does not work reliably on Linux</span><span>
+</span><span id="line-13"></span><span class="hs-comment">-- (see notes in the Linux module), therefore, recursive watch API is not</span><span>
+</span><span id="line-14"></span><span class="hs-comment">-- provided in this module. However, you can use it from the platform specific</span><span>
+</span><span id="line-15"></span><span class="hs-comment">-- modules.</span><span>
+</span><span id="line-16"></span><span class="hs-comment">--</span><span>
+</span><span id="line-17"></span><span class="hs-comment">-- For platform specific APIs please see the following modules:</span><span>
+</span><span id="line-18"></span><span class="hs-comment">--</span><span>
+</span><span id="line-19"></span><span class="hs-comment">-- * &quot;Streamly.Internal.FileSystem.Event.Darwin&quot;</span><span>
+</span><span id="line-20"></span><span class="hs-comment">-- * &quot;Streamly.Internal.FileSystem.Event.Linux&quot;</span><span>
+</span><span id="line-21"></span><span class="hs-comment">-- * &quot;Streamly.Internal.FileSystem.Event.Windows&quot;</span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Streamly.Internal.FileSystem.Event</span><span>
+</span><span id="line-24"></span><span>    </span><span class="hs-special">(</span><span>
+</span><span id="line-25"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Creating a Watch</span></span><span>
+</span><span id="line-26"></span><span>
+</span><span id="line-27"></span><span>      </span><span class="annot"><a href="Streamly.Internal.FileSystem.Event.html#watch"><span class="hs-identifier">watch</span></a></span><span>
+</span><span id="line-28"></span><span>    </span><span class="hs-comment">-- , watchRecursive</span><span>
+</span><span id="line-29"></span><span>
+</span><span id="line-30"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Handling Events</span></span><span>
+</span><span id="line-31"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.FileSystem.Event.Linux.html#Event"><span class="hs-identifier">Event</span></a></span><span>
+</span><span id="line-32"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.FileSystem.Event.html#getAbsPath"><span class="hs-identifier">getAbsPath</span></a></span><span>
+</span><span id="line-33"></span><span>
+</span><span id="line-34"></span><span>    </span><span class="annot"><span class="hs-comment">-- ** Item CRUD events</span></span><span>
+</span><span id="line-35"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.FileSystem.Event.html#isCreated"><span class="hs-identifier">isCreated</span></a></span><span>
+</span><span id="line-36"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.FileSystem.Event.html#isDeleted"><span class="hs-identifier">isDeleted</span></a></span><span>
+</span><span id="line-37"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.FileSystem.Event.html#isMoved"><span class="hs-identifier">isMoved</span></a></span><span>
+</span><span id="line-38"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.FileSystem.Event.html#isModified"><span class="hs-identifier">isModified</span></a></span><span>
+</span><span id="line-39"></span><span>
+</span><span id="line-40"></span><span>    </span><span class="annot"><span class="hs-comment">-- ** Exception Conditions</span></span><span>
+</span><span id="line-41"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.FileSystem.Event.html#isEventsLost"><span class="hs-identifier">isEventsLost</span></a></span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span>    </span><span class="annot"><span class="hs-comment">-- ** Debugging</span></span><span>
+</span><span id="line-44"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.FileSystem.Event.html#showEvent"><span class="hs-identifier">showEvent</span></a></span><span>
+</span><span id="line-45"></span><span>    </span><span class="hs-special">)</span><span>
+</span><span id="line-46"></span><span class="hs-keyword">where</span><span>
+</span><span id="line-47"></span><span>
+</span><span id="line-48"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.List.NonEmpty</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">NonEmpty</span></span><span class="hs-special">)</span><span>
+</span><span id="line-49"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Word</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Word8</span></span><span class="hs-special">)</span><span>
+</span><span id="line-50"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Array.Foreign.html"><span class="hs-identifier">Streamly.Internal.Data.Array.Foreign</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Array.Foreign.Type.html#Array"><span class="hs-identifier">Array</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-51"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Streamly.Prelude.html"><span class="hs-identifier">Streamly.Prelude</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier">SerialT</span></a></span><span class="hs-special">)</span><span class="hs-cpp">
+
+#if defined(CABAL_OS_DARWIN)
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Streamly.Internal.FileSystem.Event.Darwin</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">Event</span><span class="hs-special">)</span><span>
+</span><span id="line-55"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Streamly.Internal.FileSystem.Event.Darwin</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">Event</span><span class="hs-cpp">
+#elif defined(CABAL_OS_LINUX)
+</span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Streamly.Internal.FileSystem.Event.Linux.html"><span class="hs-identifier">Streamly.Internal.FileSystem.Event.Linux</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.FileSystem.Event.Linux.html#Event"><span class="hs-identifier">Event</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-58"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Streamly.Internal.FileSystem.Event.Linux.html"><span class="hs-identifier">Streamly.Internal.FileSystem.Event.Linux</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Event</span></span><span class="hs-cpp">
+#elif defined(CABAL_OS_WINDOWS)
+</span><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Streamly.Internal.FileSystem.Event.Windows</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">Event</span><span class="hs-special">)</span><span>
+</span><span id="line-61"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-identifier">Streamly.Internal.FileSystem.Event.Windows</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="hs-identifier">Event</span><span class="hs-cpp">
+#else
+</span><span class="hs-cpp">#error &quot;FS Events not supported on this platform&quot;
+</span><span class="hs-cpp">#endif
+</span><span>
+</span><span id="line-66"></span><span class="hs-comment">-- XXX Ensure that defaultConfig is the same for all platforms.</span><span>
+</span><span id="line-67"></span><span class="hs-comment">--</span><span>
+</span><span id="line-68"></span><span class="hs-comment">-- XXX Ensure that equivalent events are generated on all platforms when same</span><span>
+</span><span id="line-69"></span><span class="hs-comment">-- operations are done. Document any differences in behavior on different</span><span>
+</span><span id="line-70"></span><span class="hs-comment">-- platforms. Any events that are not common to all platforms should be</span><span>
+</span><span id="line-71"></span><span class="hs-comment">-- filtered out.</span><span>
+</span><span id="line-72"></span><span class="hs-comment">--</span><span>
+</span><span id="line-73"></span><span class="hs-comment">-- XXX Only need to set common event types for macOS/Linux/Windows</span><span>
+</span><span id="line-74"></span><span class="hs-comment">-- XXX write a test, that generates all types of events that can possibly</span><span>
+</span><span id="line-75"></span><span class="hs-comment">-- occur on each platform. Then create a common test that only checks</span><span>
+</span><span id="line-76"></span><span class="hs-comment">-- for the common subset of those.</span><span>
+</span><span id="line-77"></span><span>
+</span><span id="line-78"></span><span class="hs-comment">-------------------------------------------------------------------------------</span><span>
+</span><span id="line-79"></span><span class="hs-comment">-- Creating a watch</span><span>
+</span><span id="line-80"></span><span class="hs-comment">-------------------------------------------------------------------------------</span><span>
+</span><span id="line-81"></span><span>
+</span><span id="line-82"></span><span class="hs-comment">-- macOS and Windows seem to do a path level watch i.e. they watch the path</span><span>
+</span><span id="line-83"></span><span class="hs-comment">-- rather than the underlying inode, possibly they can map the inode back to a</span><span>
+</span><span id="line-84"></span><span class="hs-comment">-- path?.  On Linux we cannot keep watching a watch root if the inode it is</span><span>
+</span><span id="line-85"></span><span class="hs-comment">-- pointing to has moved. However, the inode continues to be watched in this</span><span>
+</span><span id="line-86"></span><span class="hs-comment">-- case instead of the path, which is not the case for macOS.</span><span>
+</span><span id="line-87"></span><span class="hs-comment">--</span><span>
+</span><span id="line-88"></span><span class="hs-comment">-- To make the behavior same for all platforms, for the Linux case we will have</span><span>
+</span><span id="line-89"></span><span class="hs-comment">-- to stop watching the inode if it moves from under the path</span><span>
+</span><span id="line-90"></span><span class="hs-comment">-- (setUnwatchMoved).  And on macOS we can stop watching  a path if the inode</span><span>
+</span><span id="line-91"></span><span class="hs-comment">-- under it changes i.e. just filter out events for that path.</span><span>
+</span><span id="line-92"></span><span class="hs-comment">--</span><span>
+</span><span id="line-93"></span><span class="hs-comment">-- Also, to make the behavior of Linux same as macOS we need to set</span><span>
+</span><span id="line-94"></span><span class="hs-comment">-- setFollowSymLinks on Linux.</span><span>
+</span><span id="line-95"></span><span>
+</span><span id="line-96"></span><span class="hs-comment">-- XXX Verify all the cases mentioned below using test cases.</span><span>
+</span><span id="line-97"></span><span class="hs-comment">-- XXX Make it fail if the watch root is a file. It works on macOS and Linux</span><span>
+</span><span id="line-98"></span><span class="hs-comment">-- but does not work on Windows.</span><span>
+</span><span id="line-99"></span><span>
+</span><span id="line-100"></span><span class="hs-comment">-- | Start monitoring a list of directories or symbolic links to directories</span><span>
+</span><span id="line-101"></span><span class="hs-comment">-- for file system events.  Monitoring starts from the current time onwards.</span><span>
+</span><span id="line-102"></span><span class="hs-comment">-- The paths are specified as UTF-8 encoded 'Array' of 'Word8'.</span><span>
+</span><span id="line-103"></span><span class="hs-comment">--</span><span>
+</span><span id="line-104"></span><span class="hs-comment">-- If a watch root is a symbolic link then the target of the link is watched.</span><span>
+</span><span id="line-105"></span><span class="hs-comment">-- Fails if the watched path does not exist. If the user does not have</span><span>
+</span><span id="line-106"></span><span class="hs-comment">-- permissions (read and execute?) on the watch root then no events are</span><span>
+</span><span id="line-107"></span><span class="hs-comment">-- generated.  No events are generated if the watch root itself is renamed or</span><span>
+</span><span id="line-108"></span><span class="hs-comment">-- deleted.</span><span>
+</span><span id="line-109"></span><span class="hs-comment">--</span><span>
+</span><span id="line-110"></span><span class="hs-comment">-- This API watches for changes in the watch root directory only, any changes</span><span>
+</span><span id="line-111"></span><span class="hs-comment">-- in the subdirectories of the watch root are not watched. However, on macOS</span><span>
+</span><span id="line-112"></span><span class="hs-comment">-- the watch is always recursive, but do not rely on that behavior, it may</span><span>
+</span><span id="line-113"></span><span class="hs-comment">-- change without notice in future. If you want to use recursive watch please</span><span>
+</span><span id="line-114"></span><span class="hs-comment">-- use platform specific modules.</span><span>
+</span><span id="line-115"></span><span class="hs-comment">--</span><span>
+</span><span id="line-116"></span><span class="hs-comment">-- /Pre-release/</span><span>
+</span><span id="line-117"></span><span class="hs-comment">--</span><span>
+</span><span id="line-118"></span><span class="annot"><a href="Streamly.Internal.FileSystem.Event.html#watch"><span class="hs-identifier hs-type">watch</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">NonEmpty</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Array.Foreign.Type.html#Array"><span class="hs-identifier hs-type">Array</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word8</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-type">SerialT</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="Streamly.Internal.FileSystem.Event.Linux.html#Event"><span class="hs-identifier hs-type">Event</span></a></span><span class="hs-cpp">
+#if defined(CABAL_OS_DARWIN)
+</span><span class="hs-identifier">watch</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">Event.watchRecursive</span><span class="hs-cpp">
+#else
+</span><span id="watch"><span class="annot"><span class="annottext">watch :: NonEmpty (Array Word8) -&gt; SerialT IO Event
+</span><a href="Streamly.Internal.FileSystem.Event.html#watch"><span class="hs-identifier hs-var hs-var">watch</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">NonEmpty (Array Word8) -&gt; SerialT IO Event
+</span><a href="Streamly.Internal.FileSystem.Event.Linux.html#watch"><span class="hs-identifier hs-var">Event.watch</span></a></span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-125"></span><span class="hs-comment">-- | Like 'watch' except that if a watched path is a directory the whole</span><span>
+</span><span id="line-126"></span><span class="hs-comment">-- directory tree under it is watched recursively.</span><span>
+</span><span id="line-127"></span><span class="hs-comment">--</span><span>
+</span><span id="line-128"></span><span class="hs-comment">-- On Linux 'watchRecursive' may be more expensive than 'watch'.</span><span>
+</span><span id="line-129"></span><span class="hs-comment">--</span><span>
+</span><span id="line-130"></span><span class="hs-comment">-- /Pre-release/</span><span>
+</span><span id="line-131"></span><span class="hs-comment">--</span><span>
+</span><span id="line-132"></span><span class="annot"><a href="Streamly.Internal.FileSystem.Event.html#_watchRecursive"><span class="hs-identifier hs-type">_watchRecursive</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">NonEmpty</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Array.Foreign.Type.html#Array"><span class="hs-identifier hs-type">Array</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word8</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Stream.Serial.html#SerialT"><span class="hs-identifier hs-type">SerialT</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="Streamly.Internal.FileSystem.Event.Linux.html#Event"><span class="hs-identifier hs-type">Event</span></a></span><span>
+</span><span id="line-133"></span><span id="_watchRecursive"><span class="annot"><span class="annottext">_watchRecursive :: NonEmpty (Array Word8) -&gt; SerialT IO Event
+</span><a href="Streamly.Internal.FileSystem.Event.html#_watchRecursive"><span class="hs-identifier hs-var hs-var">_watchRecursive</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">NonEmpty (Array Word8) -&gt; SerialT IO Event
+</span><a href="Streamly.Internal.FileSystem.Event.Linux.html#watchRecursive"><span class="hs-identifier hs-var">Event.watchRecursive</span></a></span><span>
+</span><span id="line-134"></span><span>
+</span><span id="line-135"></span><span class="hs-comment">-------------------------------------------------------------------------------</span><span>
+</span><span id="line-136"></span><span class="hs-comment">-- Handling Events</span><span>
+</span><span id="line-137"></span><span class="hs-comment">-------------------------------------------------------------------------------</span><span>
+</span><span id="line-138"></span><span>
+</span><span id="line-139"></span><span class="hs-comment">-- XXX Ensure that on all paltforms the path has same conventions. That is do</span><span>
+</span><span id="line-140"></span><span class="hs-comment">-- not have a trailing path separator on one platfrom and not on another.</span><span>
+</span><span id="line-141"></span><span class="hs-comment">--</span><span>
+</span><span id="line-142"></span><span class="hs-comment">-- XXX We should use getRelPath instead so that the behavior when the root is a</span><span>
+</span><span id="line-143"></span><span class="hs-comment">-- symlink becomes platform independent.</span><span>
+</span><span id="line-144"></span><span class="hs-comment">--</span><span>
+</span><span id="line-145"></span><span class="hs-comment">-- | Get the absolute path of the file system object for which the event is</span><span>
+</span><span id="line-146"></span><span class="hs-comment">-- generated. The path is a UTF-8 encoded array of bytes.</span><span>
+</span><span id="line-147"></span><span class="hs-comment">--</span><span>
+</span><span id="line-148"></span><span class="hs-comment">-- When the watch root is a symlink the behavior is different on different</span><span>
+</span><span id="line-149"></span><span class="hs-comment">-- platforms:</span><span>
+</span><span id="line-150"></span><span class="hs-comment">--</span><span>
+</span><span id="line-151"></span><span class="hs-comment">-- * On Linux and Windows, the absolute path returned is via the original</span><span>
+</span><span id="line-152"></span><span class="hs-comment">-- symlink.</span><span>
+</span><span id="line-153"></span><span class="hs-comment">--</span><span>
+</span><span id="line-154"></span><span class="hs-comment">-- * On macOS the absolute path returned is via the real path of the root after</span><span>
+</span><span id="line-155"></span><span class="hs-comment">-- resolving the symlink.</span><span>
+</span><span id="line-156"></span><span class="hs-comment">--</span><span>
+</span><span id="line-157"></span><span class="hs-comment">-- This API is subject to removal in future, to be replaced by a platform</span><span>
+</span><span id="line-158"></span><span class="hs-comment">-- independent @getRelPath@.</span><span>
+</span><span id="line-159"></span><span class="hs-comment">--</span><span>
+</span><span id="line-160"></span><span class="hs-comment">-- /Pre-release/</span><span>
+</span><span id="line-161"></span><span class="hs-comment">--</span><span>
+</span><span id="line-162"></span><span class="annot"><a href="Streamly.Internal.FileSystem.Event.html#getAbsPath"><span class="hs-identifier hs-type">getAbsPath</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.FileSystem.Event.Linux.html#Event"><span class="hs-identifier hs-type">Event</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Array.Foreign.Type.html#Array"><span class="hs-identifier hs-type">Array</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word8</span></span><span>
+</span><span id="line-163"></span><span id="getAbsPath"><span class="annot"><span class="annottext">getAbsPath :: Event -&gt; Array Word8
+</span><a href="Streamly.Internal.FileSystem.Event.html#getAbsPath"><span class="hs-identifier hs-var hs-var">getAbsPath</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Event -&gt; Array Word8
+</span><a href="Streamly.Internal.FileSystem.Event.Linux.html#getAbsPath"><span class="hs-identifier hs-var">Event.getAbsPath</span></a></span><span>
+</span><span id="line-164"></span><span>
+</span><span id="line-165"></span><span class="hs-comment">-- | Determine whether the event indicates creation of an object within the</span><span>
+</span><span id="line-166"></span><span class="hs-comment">-- monitored path. This event is generated when any file system object is</span><span>
+</span><span id="line-167"></span><span class="hs-comment">-- created.</span><span>
+</span><span id="line-168"></span><span class="hs-comment">--</span><span>
+</span><span id="line-169"></span><span class="hs-comment">-- For hard links the behavior is different on different operating systems. On</span><span>
+</span><span id="line-170"></span><span class="hs-comment">-- macOS hard linking does not generate a create event, it generates an</span><span>
+</span><span id="line-171"></span><span class="hs-comment">-- 'isInodeAttrsChanged' event on the directory instead (see the Darwin</span><span>
+</span><span id="line-172"></span><span class="hs-comment">-- module). On Linux and Windows hard linking generates a create event.</span><span>
+</span><span id="line-173"></span><span class="hs-comment">--</span><span>
+</span><span id="line-174"></span><span class="hs-comment">-- /Pre-release/</span><span>
+</span><span id="line-175"></span><span class="hs-comment">--</span><span>
+</span><span id="line-176"></span><span class="annot"><a href="Streamly.Internal.FileSystem.Event.html#isCreated"><span class="hs-identifier hs-type">isCreated</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.FileSystem.Event.Linux.html#Event"><span class="hs-identifier hs-type">Event</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-177"></span><span id="isCreated"><span class="annot"><span class="annottext">isCreated :: Event -&gt; Bool
+</span><a href="Streamly.Internal.FileSystem.Event.html#isCreated"><span class="hs-identifier hs-var hs-var">isCreated</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Event -&gt; Bool
+</span><a href="Streamly.Internal.FileSystem.Event.Linux.html#isCreated"><span class="hs-identifier hs-var">Event.isCreated</span></a></span><span>
+</span><span id="line-178"></span><span>
+</span><span id="line-179"></span><span class="hs-comment">-- XXX To make the behavior consistent, can we block the event on watch root on</span><span>
+</span><span id="line-180"></span><span class="hs-comment">-- macOS?</span><span>
+</span><span id="line-181"></span><span class="hs-comment">--</span><span>
+</span><span id="line-182"></span><span class="hs-comment">-- | Determine whether the event indicates deletion of an object within the</span><span>
+</span><span id="line-183"></span><span class="hs-comment">-- monitored path. On Linux and Windows hard link deletion generates a delete</span><span>
+</span><span id="line-184"></span><span class="hs-comment">-- event.</span><span>
+</span><span id="line-185"></span><span class="hs-comment">--</span><span>
+</span><span id="line-186"></span><span class="hs-comment">-- On Linux and Windows, this event does not occur when the watch root itself</span><span>
+</span><span id="line-187"></span><span class="hs-comment">-- is deleted. On macOS it occurs on deleting the watch root when it is not a</span><span>
+</span><span id="line-188"></span><span class="hs-comment">-- symbolic link.</span><span>
+</span><span id="line-189"></span><span class="hs-comment">--</span><span>
+</span><span id="line-190"></span><span class="hs-comment">-- See also 'isRootDeleted' event for Linux.</span><span>
+</span><span id="line-191"></span><span class="hs-comment">--</span><span>
+</span><span id="line-192"></span><span class="hs-comment">-- /Pre-release/</span><span>
+</span><span id="line-193"></span><span class="hs-comment">--</span><span>
+</span><span id="line-194"></span><span class="annot"><a href="Streamly.Internal.FileSystem.Event.html#isDeleted"><span class="hs-identifier hs-type">isDeleted</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.FileSystem.Event.Linux.html#Event"><span class="hs-identifier hs-type">Event</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-195"></span><span id="isDeleted"><span class="annot"><span class="annottext">isDeleted :: Event -&gt; Bool
+</span><a href="Streamly.Internal.FileSystem.Event.html#isDeleted"><span class="hs-identifier hs-var hs-var">isDeleted</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Event -&gt; Bool
+</span><a href="Streamly.Internal.FileSystem.Event.Linux.html#isDeleted"><span class="hs-identifier hs-var">Event.isDeleted</span></a></span><span>
+</span><span id="line-196"></span><span>
+</span><span id="line-197"></span><span class="hs-comment">-- | Determine whether the event indicates rename of an object within the</span><span>
+</span><span id="line-198"></span><span class="hs-comment">-- monitored path. This event is generated when an object is renamed within the</span><span>
+</span><span id="line-199"></span><span class="hs-comment">-- watched directory or if it is moved out of or in the watched directory.</span><span>
+</span><span id="line-200"></span><span class="hs-comment">-- Moving hard links is no different than other types of objects.</span><span>
+</span><span id="line-201"></span><span class="hs-comment">--</span><span>
+</span><span id="line-202"></span><span class="hs-comment">-- /Pre-release/</span><span>
+</span><span id="line-203"></span><span class="hs-comment">--</span><span>
+</span><span id="line-204"></span><span class="annot"><a href="Streamly.Internal.FileSystem.Event.html#isMoved"><span class="hs-identifier hs-type">isMoved</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.FileSystem.Event.Linux.html#Event"><span class="hs-identifier hs-type">Event</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-205"></span><span id="isMoved"><span class="annot"><span class="annottext">isMoved :: Event -&gt; Bool
+</span><a href="Streamly.Internal.FileSystem.Event.html#isMoved"><span class="hs-identifier hs-var hs-var">isMoved</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Event -&gt; Bool
+</span><a href="Streamly.Internal.FileSystem.Event.Linux.html#isMoved"><span class="hs-identifier hs-var">Event.isMoved</span></a></span><span>
+</span><span id="line-206"></span><span>
+</span><span id="line-207"></span><span class="hs-comment">-- XXX Make the Windows behavior consistent with other platforms by removing</span><span>
+</span><span id="line-208"></span><span class="hs-comment">-- the event from directories.</span><span>
+</span><span id="line-209"></span><span class="hs-comment">--</span><span>
+</span><span id="line-210"></span><span class="hs-comment">-- | Determine whether the event indicates modification of an object within the</span><span>
+</span><span id="line-211"></span><span class="hs-comment">-- monitored path. This event is generated on file modification on all</span><span>
+</span><span id="line-212"></span><span class="hs-comment">-- platforms.</span><span>
+</span><span id="line-213"></span><span class="hs-comment">--</span><span>
+</span><span id="line-214"></span><span class="hs-comment">-- On Linux and macOS this event is never generated for directories.  On</span><span>
+</span><span id="line-215"></span><span class="hs-comment">-- Windows (in recursive watch mode) this event is generated for directories as</span><span>
+</span><span id="line-216"></span><span class="hs-comment">-- well when an object is created in or deleted from the directory.</span><span>
+</span><span id="line-217"></span><span class="hs-comment">--</span><span>
+</span><span id="line-218"></span><span class="hs-comment">-- /Pre-release/</span><span>
+</span><span id="line-219"></span><span class="hs-comment">--</span><span>
+</span><span id="line-220"></span><span class="annot"><a href="Streamly.Internal.FileSystem.Event.html#isModified"><span class="hs-identifier hs-type">isModified</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.FileSystem.Event.Linux.html#Event"><span class="hs-identifier hs-type">Event</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-221"></span><span id="isModified"><span class="annot"><span class="annottext">isModified :: Event -&gt; Bool
+</span><a href="Streamly.Internal.FileSystem.Event.html#isModified"><span class="hs-identifier hs-var hs-var">isModified</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Event -&gt; Bool
+</span><a href="Streamly.Internal.FileSystem.Event.Linux.html#isModified"><span class="hs-identifier hs-var">Event.isModified</span></a></span><span>
+</span><span id="line-222"></span><span>
+</span><span id="line-223"></span><span class="hs-comment">-- | An event that indicates that some events before this may have been lost,</span><span>
+</span><span id="line-224"></span><span class="hs-comment">-- therefore, we need to take some recovery action.</span><span>
+</span><span id="line-225"></span><span class="hs-comment">--</span><span>
+</span><span id="line-226"></span><span class="hs-comment">-- /Pre-release/</span><span>
+</span><span id="line-227"></span><span class="hs-comment">--</span><span>
+</span><span id="line-228"></span><span class="annot"><a href="Streamly.Internal.FileSystem.Event.html#isEventsLost"><span class="hs-identifier hs-type">isEventsLost</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.FileSystem.Event.Linux.html#Event"><span class="hs-identifier hs-type">Event</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-229"></span><span id="isEventsLost"><span class="annot"><span class="annottext">isEventsLost :: Event -&gt; Bool
+</span><a href="Streamly.Internal.FileSystem.Event.html#isEventsLost"><span class="hs-identifier hs-var hs-var">isEventsLost</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Event -&gt; Bool
+</span><a href="Streamly.Internal.FileSystem.Event.Linux.html#isEventsLost"><span class="hs-identifier hs-var">Event.isEventsLost</span></a></span><span>
+</span><span id="line-230"></span><span>
+</span><span id="line-231"></span><span class="hs-comment">-------------------------------------------------------------------------------</span><span>
+</span><span id="line-232"></span><span class="hs-comment">-- Debugging</span><span>
+</span><span id="line-233"></span><span class="hs-comment">-------------------------------------------------------------------------------</span><span>
+</span><span id="line-234"></span><span>
+</span><span id="line-235"></span><span class="hs-comment">-- | Convert an 'Event' record to a String representation. Note that the output</span><span>
+</span><span id="line-236"></span><span class="hs-comment">-- of this function may be different on different platforms because it may</span><span>
+</span><span id="line-237"></span><span class="hs-comment">-- contain platform specific details.</span><span>
+</span><span id="line-238"></span><span class="hs-comment">--</span><span>
+</span><span id="line-239"></span><span class="hs-comment">-- /Internal/</span><span>
+</span><span id="line-240"></span><span class="hs-comment">--</span><span>
+</span><span id="line-241"></span><span class="annot"><a href="Streamly.Internal.FileSystem.Event.html#showEvent"><span class="hs-identifier hs-type">showEvent</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.FileSystem.Event.Linux.html#Event"><span class="hs-identifier hs-type">Event</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-242"></span><span id="showEvent"><span class="annot"><span class="annottext">showEvent :: Event -&gt; String
+</span><a href="Streamly.Internal.FileSystem.Event.html#showEvent"><span class="hs-identifier hs-var hs-var">showEvent</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Event -&gt; String
+</span><a href="Streamly.Internal.FileSystem.Event.Linux.html#showEvent"><span class="hs-identifier hs-var">Event.showEvent</span></a></span><span>
+</span><span id="line-243"></span></pre></body></html>

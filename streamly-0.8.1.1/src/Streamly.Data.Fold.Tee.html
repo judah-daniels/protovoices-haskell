@@ -1,0 +1,42 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-- |</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- Module      : Streamly.Data.Fold.Tee</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Copyright   : (c) 2021 Composewell Technologies</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- License     : BSD-3-Clause</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- Maintainer  : streamly@composewell.com</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Stability   : released</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Portability : GHC</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- The 'Tee' type is a newtype wrapper over the 'Streamly.Data.Fold.Fold' type providing</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- distributive 'Applicative', 'Semigroup', 'Monoid', 'Num', 'Floating' and</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-- 'Fractional' instances. The input received by the composed 'Tee' is</span><span>
+</span><span id="line-12"></span><span class="hs-comment">-- replicated and distributed to both the constituent Tees.</span><span>
+</span><span id="line-13"></span><span class="hs-comment">--</span><span>
+</span><span id="line-14"></span><span class="hs-comment">-- For example, to compute the average of numbers in a stream without going</span><span>
+</span><span id="line-15"></span><span class="hs-comment">-- through the stream twice:</span><span>
+</span><span id="line-16"></span><span class="hs-comment">--</span><span>
+</span><span id="line-17"></span><span class="hs-comment">-- &gt;&gt;&gt; import Streamly.Data.Fold.Tee (Tee(..))</span><span>
+</span><span id="line-18"></span><span class="hs-comment">-- &gt;&gt;&gt; import qualified Streamly.Prelude as Stream</span><span>
+</span><span id="line-19"></span><span class="hs-comment">-- &gt;&gt;&gt; import qualified Streamly.Data.Fold as Fold</span><span>
+</span><span id="line-20"></span><span class="hs-comment">--</span><span>
+</span><span id="line-21"></span><span class="hs-comment">-- &gt;&gt;&gt; avg = (/) &lt;$&gt; (Tee Fold.sum) &lt;*&gt; (Tee $ fmap fromIntegral Fold.length)</span><span>
+</span><span id="line-22"></span><span class="hs-comment">-- &gt;&gt;&gt; Stream.fold (toFold avg) $ Stream.fromList [1.0..100.0]</span><span>
+</span><span id="line-23"></span><span class="hs-comment">-- 50.5</span><span>
+</span><span id="line-24"></span><span class="hs-comment">--</span><span>
+</span><span id="line-25"></span><span class="hs-comment">-- Similarly, the 'Semigroup' and 'Monoid' instances of 'Tee' distribute the</span><span>
+</span><span id="line-26"></span><span class="hs-comment">-- input to both the folds and combine the outputs using Monoid or Semigroup</span><span>
+</span><span id="line-27"></span><span class="hs-comment">-- instances of the output types:</span><span>
+</span><span id="line-28"></span><span class="hs-comment">--</span><span>
+</span><span id="line-29"></span><span class="hs-comment">-- &gt;&gt;&gt; import Data.Monoid (Sum(..))</span><span>
+</span><span id="line-30"></span><span class="hs-comment">-- &gt;&gt;&gt; t = Tee Fold.head &lt;&gt; Tee Fold.last</span><span>
+</span><span id="line-31"></span><span class="hs-comment">-- &gt;&gt;&gt; Stream.fold (toFold t) (fmap Sum $ Stream.enumerateFromTo 1.0 100.0)</span><span>
+</span><span id="line-32"></span><span class="hs-comment">-- Just (Sum {getSum = 101.0})</span><span>
+</span><span id="line-33"></span><span class="hs-comment">--</span><span>
+</span><span id="line-34"></span><span class="hs-comment">-- The 'Num', 'Floating', and 'Fractional' instances work in the same way.</span><span>
+</span><span id="line-35"></span><span class="hs-comment">--</span><span>
+</span><span id="line-36"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Streamly.Data.Fold.Tee</span><span>
+</span><span id="line-37"></span><span>    </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Fold.Tee.html#Tee"><span class="hs-identifier">Tee</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-38"></span><span>    </span><span class="hs-special">)</span><span>
+</span><span id="line-39"></span><span class="hs-keyword">where</span><span>
+</span><span id="line-40"></span><span>
+</span><span id="line-41"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Fold.Tee.html"><span class="hs-identifier">Streamly.Internal.Data.Fold.Tee</span></a></span><span>
+</span><span id="line-42"></span></pre></body></html>

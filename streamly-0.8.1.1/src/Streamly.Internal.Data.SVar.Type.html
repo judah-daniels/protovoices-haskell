@@ -1,0 +1,1029 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-- |</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- Module      : Streamly.Internal.Data.SVar.Type</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Copyright   : (c) 2017 Composewell Technologies</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- License     : BSD-3-Clause</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- Maintainer  : streamly@composewell.com</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Stability   : experimental</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Portability : GHC</span><span>
+</span><span id="line-8"></span><span>
+</span><span id="line-9"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Streamly.Internal.Data.SVar.Type</span><span>
+</span><span id="line-10"></span><span>    </span><span class="hs-special">(</span><span>
+</span><span id="line-11"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Parent child communication</span></span><span>
+</span><span id="line-12"></span><span>      </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#ThreadAbort"><span class="hs-identifier">ThreadAbort</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-13"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#ChildEvent"><span class="hs-identifier">ChildEvent</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-14"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#AheadHeapEntry"><span class="hs-identifier">AheadHeapEntry</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span>    </span><span class="annot"><span class="hs-comment">-- * SVar</span></span><span>
+</span><span id="line-17"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#Count"><span class="hs-identifier">Count</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-18"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#Limit"><span class="hs-identifier">Limit</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-19"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#SVarStyle"><span class="hs-identifier">SVarStyle</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-20"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#SVarStopStyle"><span class="hs-identifier">SVarStopStyle</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-21"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#SVarStats"><span class="hs-identifier">SVarStats</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-22"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#WorkerInfo"><span class="hs-identifier">WorkerInfo</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-23"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#PushBufferPolicy"><span class="hs-identifier">PushBufferPolicy</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-24"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#LatencyRange"><span class="hs-identifier">LatencyRange</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-25"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#YieldRateInfo"><span class="hs-identifier">YieldRateInfo</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-26"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#SVar"><span class="hs-identifier">SVar</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span>    </span><span class="annot"><span class="hs-comment">-- * State threaded around the stream</span></span><span>
+</span><span id="line-29"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#Rate"><span class="hs-identifier">Rate</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-30"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#State"><span class="hs-identifier">State</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#streamVar"><span class="hs-identifier">streamVar</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span>    </span><span class="annot"><span class="hs-comment">-- ** Default State</span></span><span>
+</span><span id="line-33"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#magicMaxBuffer"><span class="hs-identifier">magicMaxBuffer</span></a></span><span>
+</span><span id="line-34"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#defState"><span class="hs-identifier">defState</span></a></span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span>    </span><span class="annot"><span class="hs-comment">-- ** Type cast</span></span><span>
+</span><span id="line-37"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#adaptState"><span class="hs-identifier">adaptState</span></a></span><span>
+</span><span id="line-38"></span><span>
+</span><span id="line-39"></span><span>    </span><span class="annot"><span class="hs-comment">-- ** State accessors</span></span><span>
+</span><span id="line-40"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#getMaxThreads"><span class="hs-identifier">getMaxThreads</span></a></span><span>
+</span><span id="line-41"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#setMaxThreads"><span class="hs-identifier">setMaxThreads</span></a></span><span>
+</span><span id="line-42"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#getMaxBuffer"><span class="hs-identifier">getMaxBuffer</span></a></span><span>
+</span><span id="line-43"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#setMaxBuffer"><span class="hs-identifier">setMaxBuffer</span></a></span><span>
+</span><span id="line-44"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#getStreamRate"><span class="hs-identifier">getStreamRate</span></a></span><span>
+</span><span id="line-45"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#setStreamRate"><span class="hs-identifier">setStreamRate</span></a></span><span>
+</span><span id="line-46"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#getStreamLatency"><span class="hs-identifier">getStreamLatency</span></a></span><span>
+</span><span id="line-47"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#setStreamLatency"><span class="hs-identifier">setStreamLatency</span></a></span><span>
+</span><span id="line-48"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#getYieldLimit"><span class="hs-identifier">getYieldLimit</span></a></span><span>
+</span><span id="line-49"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#setYieldLimit"><span class="hs-identifier">setYieldLimit</span></a></span><span>
+</span><span id="line-50"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#getInspectMode"><span class="hs-identifier">getInspectMode</span></a></span><span>
+</span><span id="line-51"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#setInspectMode"><span class="hs-identifier">setInspectMode</span></a></span><span>
+</span><span id="line-52"></span><span>    </span><span class="hs-special">)</span><span>
+</span><span id="line-53"></span><span class="hs-keyword">where</span><span>
+</span><span id="line-54"></span><span>
+</span><span id="line-55"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Concurrent</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">ThreadId</span></span><span class="hs-special">)</span><span>
+</span><span id="line-56"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Concurrent.MVar</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">MVar</span></span><span class="hs-special">)</span><span>
+</span><span id="line-57"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Exception</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">SomeException</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">Exception</span></span><span class="hs-special">)</span><span>
+</span><span id="line-58"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Heap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Heap</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">Entry</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-59"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Int</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Int64</span></span><span class="hs-special">)</span><span>
+</span><span id="line-60"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.IORef</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">IORef</span></span><span class="hs-special">)</span><span>
+</span><span id="line-61"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Kind</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Type</span></span><span class="hs-special">)</span><span>
+</span><span id="line-62"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Set</span></span><span class="hs-special">)</span><span>
+</span><span id="line-63"></span><span>
+</span><span id="line-64"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Time.Units.html"><span class="hs-identifier">Streamly.Internal.Data.Time.Units</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Time.Units.html#AbsTime"><span class="hs-identifier">AbsTime</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Time.Units.html#NanoSecond64"><span class="hs-identifier">NanoSecond64</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-65"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Streamly.Internal.Control.Concurrent.html"><span class="hs-identifier">Streamly.Internal.Control.Concurrent</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Control.Concurrent.html#RunInIO"><span class="hs-identifier">RunInIO</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-66"></span><span>
+</span><span id="line-67"></span><span class="hs-keyword">newtype</span><span> </span><span id="Count"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#Count"><span class="hs-identifier hs-var">Count</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Count"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#Count"><span class="hs-identifier hs-var">Count</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int64</span></span><span>
+</span><span id="line-68"></span><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span> </span><span id="local-6989586621679368921"><span id="local-6989586621679368926"><span class="annot"><span class="annottext">Count -&gt; Count -&gt; Bool
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+/= :: Count -&gt; Count -&gt; Bool
+$c/= :: Count -&gt; Count -&gt; Bool
+== :: Count -&gt; Count -&gt; Bool
+$c== :: Count -&gt; Count -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span>
+</span><span id="line-69"></span><span>             </span><span class="hs-special">,</span><span> </span><span id="local-6989586621679368902"><span id="local-6989586621679368910"><span id="local-6989586621679368913"><span id="local-6989586621679368915"><span class="annot"><span class="annottext">ReadPrec [Count]
+ReadPrec Count
+Int -&gt; ReadS Count
+ReadS [Count]
+forall a.
+(Int -&gt; ReadS a)
+-&gt; ReadS [a] -&gt; ReadPrec a -&gt; ReadPrec [a] -&gt; Read a
+readListPrec :: ReadPrec [Count]
+$creadListPrec :: ReadPrec [Count]
+readPrec :: ReadPrec Count
+$creadPrec :: ReadPrec Count
+readList :: ReadS [Count]
+$creadList :: ReadS [Count]
+readsPrec :: Int -&gt; ReadS Count
+$creadsPrec :: Int -&gt; ReadS Count
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Read</span></span></span></span></span></span><span>
+</span><span id="line-70"></span><span>             </span><span class="hs-special">,</span><span> </span><span id="local-6989586621679368890"><span id="local-6989586621679368892"><span id="local-6989586621679368898"><span class="annot"><span class="annottext">Int -&gt; Count -&gt; ShowS
+[Count] -&gt; ShowS
+Count -&gt; String
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+showList :: [Count] -&gt; ShowS
+$cshowList :: [Count] -&gt; ShowS
+show :: Count -&gt; String
+$cshow :: Count -&gt; String
+showsPrec :: Int -&gt; Count -&gt; ShowS
+$cshowsPrec :: Int -&gt; Count -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span>
+</span><span id="line-71"></span><span>             </span><span class="hs-special">,</span><span> </span><span id="local-6989586621679368858"><span id="local-6989586621679368862"><span id="local-6989586621679368866"><span id="local-6989586621679368870"><span id="local-6989586621679368874"><span id="local-6989586621679368878"><span id="local-6989586621679368882"><span id="local-6989586621679368887"><span class="annot"><span class="annottext">Int -&gt; Count
+Count -&gt; Int
+Count -&gt; [Count]
+Count -&gt; Count
+Count -&gt; Count -&gt; [Count]
+Count -&gt; Count -&gt; Count -&gt; [Count]
+forall a.
+(a -&gt; a)
+-&gt; (a -&gt; a)
+-&gt; (Int -&gt; a)
+-&gt; (a -&gt; Int)
+-&gt; (a -&gt; [a])
+-&gt; (a -&gt; a -&gt; [a])
+-&gt; (a -&gt; a -&gt; [a])
+-&gt; (a -&gt; a -&gt; a -&gt; [a])
+-&gt; Enum a
+enumFromThenTo :: Count -&gt; Count -&gt; Count -&gt; [Count]
+$cenumFromThenTo :: Count -&gt; Count -&gt; Count -&gt; [Count]
+enumFromTo :: Count -&gt; Count -&gt; [Count]
+$cenumFromTo :: Count -&gt; Count -&gt; [Count]
+enumFromThen :: Count -&gt; Count -&gt; [Count]
+$cenumFromThen :: Count -&gt; Count -&gt; [Count]
+enumFrom :: Count -&gt; [Count]
+$cenumFrom :: Count -&gt; [Count]
+fromEnum :: Count -&gt; Int
+$cfromEnum :: Count -&gt; Int
+toEnum :: Int -&gt; Count
+$ctoEnum :: Int -&gt; Count
+pred :: Count -&gt; Count
+$cpred :: Count -&gt; Count
+succ :: Count -&gt; Count
+$csucc :: Count -&gt; Count
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Enum</span></span></span></span></span></span></span></span></span></span><span>
+</span><span id="line-72"></span><span>             </span><span class="hs-special">,</span><span> </span><span id="local-6989586621679368847"><span id="local-6989586621679368852"><span class="annot"><span class="annottext">Count
+forall a. a -&gt; a -&gt; Bounded a
+maxBound :: Count
+$cmaxBound :: Count
+minBound :: Count
+$cminBound :: Count
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Bounded</span></span></span></span><span>
+</span><span id="line-73"></span><span>             </span><span class="hs-special">,</span><span> </span><span id="local-6989586621679368816"><span id="local-6989586621679368820"><span id="local-6989586621679368824"><span id="local-6989586621679368828"><span id="local-6989586621679368832"><span id="local-6989586621679368836"><span id="local-6989586621679368841"><span class="annot"><span class="annottext">Integer -&gt; Count
+Count -&gt; Count
+Count -&gt; Count -&gt; Count
+forall a.
+(a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a)
+-&gt; (a -&gt; a)
+-&gt; (a -&gt; a)
+-&gt; (Integer -&gt; a)
+-&gt; Num a
+fromInteger :: Integer -&gt; Count
+$cfromInteger :: Integer -&gt; Count
+signum :: Count -&gt; Count
+$csignum :: Count -&gt; Count
+abs :: Count -&gt; Count
+$cabs :: Count -&gt; Count
+negate :: Count -&gt; Count
+$cnegate :: Count -&gt; Count
+* :: Count -&gt; Count -&gt; Count
+$c* :: Count -&gt; Count -&gt; Count
+- :: Count -&gt; Count -&gt; Count
+$c- :: Count -&gt; Count -&gt; Count
++ :: Count -&gt; Count -&gt; Count
+$c+ :: Count -&gt; Count -&gt; Count
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Num</span></span></span></span></span></span></span></span></span><span>
+</span><span id="line-74"></span><span>             </span><span class="hs-special">,</span><span> </span><span id="local-6989586621679368805"><span class="annot"><span class="annottext">Num Count
+Ord Count
+Count -&gt; Rational
+forall a. Num a -&gt; Ord a -&gt; (a -&gt; Rational) -&gt; Real a
+toRational :: Count -&gt; Rational
+$ctoRational :: Count -&gt; Rational
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Real</span></span></span><span>
+</span><span id="line-75"></span><span>             </span><span class="hs-special">,</span><span> </span><span id="local-6989586621679368769"><span id="local-6989586621679368773"><span id="local-6989586621679368777"><span id="local-6989586621679368781"><span id="local-6989586621679368785"><span id="local-6989586621679368789"><span id="local-6989586621679368794"><span class="annot"><span class="annottext">Enum Count
+Real Count
+Count -&gt; Integer
+Count -&gt; Count -&gt; (Count, Count)
+Count -&gt; Count -&gt; Count
+forall a.
+Real a
+-&gt; Enum a
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; (a, a))
+-&gt; (a -&gt; a -&gt; (a, a))
+-&gt; (a -&gt; Integer)
+-&gt; Integral a
+toInteger :: Count -&gt; Integer
+$ctoInteger :: Count -&gt; Integer
+divMod :: Count -&gt; Count -&gt; (Count, Count)
+$cdivMod :: Count -&gt; Count -&gt; (Count, Count)
+quotRem :: Count -&gt; Count -&gt; (Count, Count)
+$cquotRem :: Count -&gt; Count -&gt; (Count, Count)
+mod :: Count -&gt; Count -&gt; Count
+$cmod :: Count -&gt; Count -&gt; Count
+div :: Count -&gt; Count -&gt; Count
+$cdiv :: Count -&gt; Count -&gt; Count
+rem :: Count -&gt; Count -&gt; Count
+$crem :: Count -&gt; Count -&gt; Count
+quot :: Count -&gt; Count -&gt; Count
+$cquot :: Count -&gt; Count -&gt; Count
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Integral</span></span></span></span></span></span></span></span></span><span>
+</span><span id="line-76"></span><span>             </span><span class="hs-special">,</span><span> </span><span id="local-6989586621679368736"><span id="local-6989586621679368740"><span id="local-6989586621679368744"><span id="local-6989586621679368748"><span id="local-6989586621679368752"><span id="local-6989586621679368756"><span id="local-6989586621679368761"><span class="annot"><span class="annottext">Eq Count
+Count -&gt; Count -&gt; Bool
+Count -&gt; Count -&gt; Ordering
+Count -&gt; Count -&gt; Count
+forall a.
+Eq a
+-&gt; (a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+min :: Count -&gt; Count -&gt; Count
+$cmin :: Count -&gt; Count -&gt; Count
+max :: Count -&gt; Count -&gt; Count
+$cmax :: Count -&gt; Count -&gt; Count
+&gt;= :: Count -&gt; Count -&gt; Bool
+$c&gt;= :: Count -&gt; Count -&gt; Bool
+&gt; :: Count -&gt; Count -&gt; Bool
+$c&gt; :: Count -&gt; Count -&gt; Bool
+&lt;= :: Count -&gt; Count -&gt; Bool
+$c&lt;= :: Count -&gt; Count -&gt; Bool
+&lt; :: Count -&gt; Count -&gt; Bool
+$c&lt; :: Count -&gt; Count -&gt; Bool
+compare :: Count -&gt; Count -&gt; Ordering
+$ccompare :: Count -&gt; Count -&gt; Ordering
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span>
+</span><span id="line-77"></span><span>             </span><span class="hs-special">)</span><span>
+</span><span id="line-78"></span><span>
+</span><span id="line-79"></span><span class="hs-comment">------------------------------------------------------------------------------</span><span>
+</span><span id="line-80"></span><span class="hs-comment">-- Parent child thread communication type</span><span>
+</span><span id="line-81"></span><span class="hs-comment">------------------------------------------------------------------------------</span><span>
+</span><span id="line-82"></span><span>
+</span><span id="line-83"></span><span class="hs-keyword">data</span><span> </span><span id="ThreadAbort"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#ThreadAbort"><span class="hs-identifier hs-var">ThreadAbort</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="ThreadAbort"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#ThreadAbort"><span class="hs-identifier hs-var">ThreadAbort</span></a></span></span><span> </span><span class="hs-keyword">deriving</span><span> </span><span id="local-6989586621679368726"><span id="local-6989586621679368728"><span id="local-6989586621679368730"><span class="annot"><span class="annottext">Int -&gt; ThreadAbort -&gt; ShowS
+[ThreadAbort] -&gt; ShowS
+ThreadAbort -&gt; String
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+showList :: [ThreadAbort] -&gt; ShowS
+$cshowList :: [ThreadAbort] -&gt; ShowS
+show :: ThreadAbort -&gt; String
+$cshow :: ThreadAbort -&gt; String
+showsPrec :: Int -&gt; ThreadAbort -&gt; ShowS
+$cshowsPrec :: Int -&gt; ThreadAbort -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span>
+</span><span id="line-84"></span><span>
+</span><span id="line-85"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679368716"><span id="local-6989586621679368718"><span id="local-6989586621679368720"><span class="annot"><span class="hs-identifier hs-type">Exception</span></span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#ThreadAbort"><span class="hs-identifier hs-type">ThreadAbort</span></a></span></span></span></span><span>
+</span><span id="line-86"></span><span>
+</span><span id="line-87"></span><span class="hs-comment">-- | Events that a child thread may send to a parent thread.</span><span>
+</span><span id="line-88"></span><span class="hs-keyword">data</span><span> </span><span id="ChildEvent"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#ChildEvent"><span class="hs-identifier hs-var">ChildEvent</span></a></span></span><span> </span><span id="local-6989586621679368714"><span class="annot"><a href="#local-6989586621679368714"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-89"></span><span>      </span><span id="ChildYield"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#ChildYield"><span class="hs-identifier hs-var">ChildYield</span></a></span></span><span> </span><span class="annot"><a href="#local-6989586621679368714"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-90"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="ChildStop"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#ChildStop"><span class="hs-identifier hs-var">ChildStop</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">ThreadId</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">SomeException</span></span><span class="hs-special">)</span><span>
+</span><span id="line-91"></span><span>
+</span><span id="line-92"></span><span class="hs-comment">-- | Sorting out-of-turn outputs in a heap for Ahead style streams</span><span>
+</span><span id="line-93"></span><span class="hs-keyword">data</span><span> </span><span id="AheadHeapEntry"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#AheadHeapEntry"><span class="hs-identifier hs-var">AheadHeapEntry</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679368711"><span class="annot"><a href="#local-6989586621679368711"><span class="hs-identifier hs-type">t</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Type</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Type</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Type</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Type</span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679368710"><span class="annot"><a href="#local-6989586621679368710"><span class="hs-identifier hs-type">m</span></a></span></span><span> </span><span id="local-6989586621679368709"><span class="annot"><a href="#local-6989586621679368709"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-94"></span><span>      </span><span id="AheadEntryNull"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#AheadEntryNull"><span class="hs-identifier hs-var">AheadEntryNull</span></a></span></span><span>
+</span><span id="line-95"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="AheadEntryPure"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#AheadEntryPure"><span class="hs-identifier hs-var">AheadEntryPure</span></a></span></span><span> </span><span class="annot"><a href="#local-6989586621679368709"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-96"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="AheadEntryStream"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#AheadEntryStream"><span class="hs-identifier hs-var">AheadEntryStream</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Control.Concurrent.html#RunInIO"><span class="hs-identifier hs-type">RunInIO</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679368710"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621679368711"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679368710"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679368709"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-cpp">
+#undef Type
+</span><span>
+</span><span id="line-99"></span><span class="hs-comment">------------------------------------------------------------------------------</span><span>
+</span><span id="line-100"></span><span class="hs-comment">-- SVar: the state for thread management</span><span>
+</span><span id="line-101"></span><span class="hs-comment">------------------------------------------------------------------------------</span><span>
+</span><span id="line-102"></span><span>
+</span><span id="line-103"></span><span class="hs-comment">-- | Identify the type of the SVar. Two computations using the same style can</span><span>
+</span><span id="line-104"></span><span class="hs-comment">-- be scheduled on the same SVar.</span><span>
+</span><span id="line-105"></span><span class="hs-keyword">data</span><span> </span><span id="SVarStyle"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#SVarStyle"><span class="hs-identifier hs-var">SVarStyle</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-106"></span><span>      </span><span id="AsyncVar"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#AsyncVar"><span class="hs-identifier hs-var">AsyncVar</span></a></span></span><span>             </span><span class="hs-comment">-- depth first concurrent</span><span>
+</span><span id="line-107"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="WAsyncVar"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#WAsyncVar"><span class="hs-identifier hs-var">WAsyncVar</span></a></span></span><span>            </span><span class="hs-comment">-- breadth first concurrent</span><span>
+</span><span id="line-108"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="ParallelVar"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#ParallelVar"><span class="hs-identifier hs-var">ParallelVar</span></a></span></span><span>          </span><span class="hs-comment">-- all parallel</span><span>
+</span><span id="line-109"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="AheadVar"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#AheadVar"><span class="hs-identifier hs-var">AheadVar</span></a></span></span><span>             </span><span class="hs-comment">-- Concurrent look ahead</span><span>
+</span><span id="line-110"></span><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679368698"><span id="local-6989586621679368700"><span class="annot"><span class="annottext">SVarStyle -&gt; SVarStyle -&gt; Bool
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+/= :: SVarStyle -&gt; SVarStyle -&gt; Bool
+$c/= :: SVarStyle -&gt; SVarStyle -&gt; Bool
+== :: SVarStyle -&gt; SVarStyle -&gt; Bool
+$c== :: SVarStyle -&gt; SVarStyle -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679368692"><span id="local-6989586621679368694"><span id="local-6989586621679368696"><span class="annot"><span class="annottext">Int -&gt; SVarStyle -&gt; ShowS
+[SVarStyle] -&gt; ShowS
+SVarStyle -&gt; String
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+showList :: [SVarStyle] -&gt; ShowS
+$cshowList :: [SVarStyle] -&gt; ShowS
+show :: SVarStyle -&gt; String
+$cshow :: SVarStyle -&gt; String
+showsPrec :: Int -&gt; SVarStyle -&gt; ShowS
+$cshowsPrec :: Int -&gt; SVarStyle -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-111"></span><span>
+</span><span id="line-112"></span><span class="hs-comment">-- | An SVar or a Stream Var is a conduit to the output from multiple streams</span><span>
+</span><span id="line-113"></span><span class="hs-comment">-- running concurrently and asynchronously. An SVar can be thought of as an</span><span>
+</span><span id="line-114"></span><span class="hs-comment">-- asynchronous IO handle. We can write any number of streams to an SVar in a</span><span>
+</span><span id="line-115"></span><span class="hs-comment">-- non-blocking manner and then read them back at any time at any pace.  The</span><span>
+</span><span id="line-116"></span><span class="hs-comment">-- SVar would run the streams asynchronously and accumulate results. An SVar</span><span>
+</span><span id="line-117"></span><span class="hs-comment">-- may not really execute the stream completely and accumulate all the results.</span><span>
+</span><span id="line-118"></span><span class="hs-comment">-- However, it ensures that the reader can read the results at whatever paces</span><span>
+</span><span id="line-119"></span><span class="hs-comment">-- it wants to read. The SVar monitors and adapts to the consumer's pace.</span><span>
+</span><span id="line-120"></span><span class="hs-comment">--</span><span>
+</span><span id="line-121"></span><span class="hs-comment">-- An SVar is a mini scheduler, it has an associated workLoop that holds the</span><span>
+</span><span id="line-122"></span><span class="hs-comment">-- stream tasks to be picked and run by a pool of worker threads. It has an</span><span>
+</span><span id="line-123"></span><span class="hs-comment">-- associated output queue where the output stream elements are placed by the</span><span>
+</span><span id="line-124"></span><span class="hs-comment">-- worker threads. A outputDoorBell is used by the worker threads to intimate the</span><span>
+</span><span id="line-125"></span><span class="hs-comment">-- consumer thread about availability of new results in the output queue. More</span><span>
+</span><span id="line-126"></span><span class="hs-comment">-- workers are added to the SVar by 'fromStreamVar' on demand if the output</span><span>
+</span><span id="line-127"></span><span class="hs-comment">-- produced is not keeping pace with the consumer. On bounded SVars, workers</span><span>
+</span><span id="line-128"></span><span class="hs-comment">-- block on the output queue to provide throttling of the producer  when the</span><span>
+</span><span id="line-129"></span><span class="hs-comment">-- consumer is not pulling fast enough.  The number of workers may even get</span><span>
+</span><span id="line-130"></span><span class="hs-comment">-- reduced depending on the consuming pace.</span><span>
+</span><span id="line-131"></span><span class="hs-comment">--</span><span>
+</span><span id="line-132"></span><span class="hs-comment">-- New work is enqueued either at the time of creation of the SVar or as a</span><span>
+</span><span id="line-133"></span><span class="hs-comment">-- result of executing the parallel combinators i.e. '&lt;|' and '&lt;|&gt;' when the</span><span>
+</span><span id="line-134"></span><span class="hs-comment">-- already enqueued computations get evaluated. See 'joinStreamVarAsync'.</span><span>
+</span><span id="line-135"></span><span>
+</span><span id="line-136"></span><span class="hs-comment">-- We measure the individual worker latencies to estimate the number of workers</span><span>
+</span><span id="line-137"></span><span class="hs-comment">-- needed or the amount of time we have to sleep between dispatches to achieve</span><span>
+</span><span id="line-138"></span><span class="hs-comment">-- a particular rate when controlled pace mode it used.</span><span>
+</span><span id="line-139"></span><span class="hs-keyword">data</span><span> </span><span id="WorkerInfo"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#WorkerInfo"><span class="hs-identifier hs-var">WorkerInfo</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="WorkerInfo"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#WorkerInfo"><span class="hs-identifier hs-var">WorkerInfo</span></a></span></span><span>
+</span><span id="line-140"></span><span>    </span><span class="hs-special">{</span><span> </span><span id="workerYieldMax"><span class="annot"><span class="annottext">WorkerInfo -&gt; Count
+</span><a href="Streamly.Internal.Data.SVar.Type.html#workerYieldMax"><span class="hs-identifier hs-var hs-var">workerYieldMax</span></a></span></span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#Count"><span class="hs-identifier hs-type">Count</span></a></span><span> </span><span class="hs-comment">-- 0 means unlimited</span><span>
+</span><span id="line-141"></span><span>    </span><span class="hs-comment">-- total number of yields by the worker till now</span><span>
+</span><span id="line-142"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="workerYieldCount"><span class="annot"><span class="annottext">WorkerInfo -&gt; IORef Count
+</span><a href="Streamly.Internal.Data.SVar.Type.html#workerYieldCount"><span class="hs-identifier hs-var hs-var">workerYieldCount</span></a></span></span><span>    </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IORef</span></span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#Count"><span class="hs-identifier hs-type">Count</span></a></span><span>
+</span><span id="line-143"></span><span>    </span><span class="hs-comment">-- yieldCount at start, timestamp</span><span>
+</span><span id="line-144"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="workerLatencyStart"><span class="annot"><span class="annottext">WorkerInfo -&gt; IORef (Count, AbsTime)
+</span><a href="Streamly.Internal.Data.SVar.Type.html#workerLatencyStart"><span class="hs-identifier hs-var hs-var">workerLatencyStart</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IORef</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#Count"><span class="hs-identifier hs-type">Count</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Time.Units.html#AbsTime"><span class="hs-identifier hs-type">AbsTime</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-145"></span><span>    </span><span class="hs-special">}</span><span>
+</span><span id="line-146"></span><span>
+</span><span id="line-147"></span><span class="hs-keyword">data</span><span> </span><span id="LatencyRange"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#LatencyRange"><span class="hs-identifier hs-var">LatencyRange</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="LatencyRange"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#LatencyRange"><span class="hs-identifier hs-var">LatencyRange</span></a></span></span><span>
+</span><span id="line-148"></span><span>    </span><span class="hs-special">{</span><span> </span><span id="minLatency"><span class="annot"><span class="annottext">LatencyRange -&gt; NanoSecond64
+</span><a href="Streamly.Internal.Data.SVar.Type.html#minLatency"><span class="hs-identifier hs-var hs-var">minLatency</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Time.Units.html#NanoSecond64"><span class="hs-identifier hs-type">NanoSecond64</span></a></span><span>
+</span><span id="line-149"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="maxLatency"><span class="annot"><span class="annottext">LatencyRange -&gt; NanoSecond64
+</span><a href="Streamly.Internal.Data.SVar.Type.html#maxLatency"><span class="hs-identifier hs-var hs-var">maxLatency</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Time.Units.html#NanoSecond64"><span class="hs-identifier hs-type">NanoSecond64</span></a></span><span>
+</span><span id="line-150"></span><span>    </span><span class="hs-special">}</span><span> </span><span class="hs-keyword">deriving</span><span> </span><span id="local-6989586621679368675"><span id="local-6989586621679368677"><span id="local-6989586621679368683"><span class="annot"><span class="annottext">Int -&gt; LatencyRange -&gt; ShowS
+[LatencyRange] -&gt; ShowS
+LatencyRange -&gt; String
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+showList :: [LatencyRange] -&gt; ShowS
+$cshowList :: [LatencyRange] -&gt; ShowS
+show :: LatencyRange -&gt; String
+$cshow :: LatencyRange -&gt; String
+showsPrec :: Int -&gt; LatencyRange -&gt; ShowS
+$cshowsPrec :: Int -&gt; LatencyRange -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span>
+</span><span id="line-151"></span><span>
+</span><span id="line-152"></span><span class="hs-comment">-- Rate control.</span><span>
+</span><span id="line-153"></span><span class="hs-keyword">data</span><span> </span><span id="YieldRateInfo"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#YieldRateInfo"><span class="hs-identifier hs-var">YieldRateInfo</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="YieldRateInfo"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#YieldRateInfo"><span class="hs-identifier hs-var">YieldRateInfo</span></a></span></span><span>
+</span><span id="line-154"></span><span>    </span><span class="hs-special">{</span><span> </span><span id="svarLatencyTarget"><span class="annot"><span class="annottext">YieldRateInfo -&gt; NanoSecond64
+</span><a href="Streamly.Internal.Data.SVar.Type.html#svarLatencyTarget"><span class="hs-identifier hs-var hs-var">svarLatencyTarget</span></a></span></span><span>    </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Time.Units.html#NanoSecond64"><span class="hs-identifier hs-type">NanoSecond64</span></a></span><span>
+</span><span id="line-155"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="svarLatencyRange"><span class="annot"><span class="annottext">YieldRateInfo -&gt; LatencyRange
+</span><a href="Streamly.Internal.Data.SVar.Type.html#svarLatencyRange"><span class="hs-identifier hs-var hs-var">svarLatencyRange</span></a></span></span><span>     </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#LatencyRange"><span class="hs-identifier hs-type">LatencyRange</span></a></span><span>
+</span><span id="line-156"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="svarRateBuffer"><span class="annot"><span class="annottext">YieldRateInfo -&gt; Int
+</span><a href="Streamly.Internal.Data.SVar.Type.html#svarRateBuffer"><span class="hs-identifier hs-var hs-var">svarRateBuffer</span></a></span></span><span>       </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-157"></span><span>
+</span><span id="line-158"></span><span>    </span><span class="hs-comment">-- [LOCKING] Unlocked access. Modified by the consumer thread and unsafely</span><span>
+</span><span id="line-159"></span><span>    </span><span class="hs-comment">-- read by the worker threads</span><span>
+</span><span id="line-160"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="svarGainedLostYields"><span class="annot"><span class="annottext">YieldRateInfo -&gt; IORef Count
+</span><a href="Streamly.Internal.Data.SVar.Type.html#svarGainedLostYields"><span class="hs-identifier hs-var hs-var">svarGainedLostYields</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IORef</span></span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#Count"><span class="hs-identifier hs-type">Count</span></a></span><span>
+</span><span id="line-161"></span><span>
+</span><span id="line-162"></span><span>    </span><span class="hs-comment">-- Actual latency/througput as seen from the consumer side, we count the</span><span>
+</span><span id="line-163"></span><span>    </span><span class="hs-comment">-- yields and the time it took to generates those yields. This is used to</span><span>
+</span><span id="line-164"></span><span>    </span><span class="hs-comment">-- increase or decrease the number of workers needed to achieve the desired</span><span>
+</span><span id="line-165"></span><span>    </span><span class="hs-comment">-- rate. The idle time of workers is adjusted in this, so that we only</span><span>
+</span><span id="line-166"></span><span>    </span><span class="hs-comment">-- account for the rate when the consumer actually demands data.</span><span>
+</span><span id="line-167"></span><span>    </span><span class="hs-comment">-- XXX interval latency is enough, we can move this under diagnostics build</span><span>
+</span><span id="line-168"></span><span>    </span><span class="hs-comment">-- [LOCKING] Unlocked access. Modified by the consumer thread and unsafely</span><span>
+</span><span id="line-169"></span><span>    </span><span class="hs-comment">-- read by the worker threads</span><span>
+</span><span id="line-170"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="svarAllTimeLatency"><span class="annot"><span class="annottext">YieldRateInfo -&gt; IORef (Count, AbsTime)
+</span><a href="Streamly.Internal.Data.SVar.Type.html#svarAllTimeLatency"><span class="hs-identifier hs-var hs-var">svarAllTimeLatency</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IORef</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#Count"><span class="hs-identifier hs-type">Count</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Time.Units.html#AbsTime"><span class="hs-identifier hs-type">AbsTime</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-171"></span><span>
+</span><span id="line-172"></span><span>    </span><span class="hs-comment">-- XXX Worker latency specified by the user to be used before the first</span><span>
+</span><span id="line-173"></span><span>    </span><span class="hs-comment">-- actual measurement arrives. Not yet implemented</span><span>
+</span><span id="line-174"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="workerBootstrapLatency"><span class="annot"><span class="annottext">YieldRateInfo -&gt; Maybe NanoSecond64
+</span><a href="Streamly.Internal.Data.SVar.Type.html#workerBootstrapLatency"><span class="hs-identifier hs-var hs-var">workerBootstrapLatency</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Time.Units.html#NanoSecond64"><span class="hs-identifier hs-type">NanoSecond64</span></a></span><span>
+</span><span id="line-175"></span><span>
+</span><span id="line-176"></span><span>    </span><span class="hs-comment">-- After how many yields the worker should update the latency information.</span><span>
+</span><span id="line-177"></span><span>    </span><span class="hs-comment">-- If the latency is high, this count is kept lower and vice-versa.  XXX If</span><span>
+</span><span id="line-178"></span><span>    </span><span class="hs-comment">-- the latency suddenly becomes too high this count may remain too high for</span><span>
+</span><span id="line-179"></span><span>    </span><span class="hs-comment">-- long time, in such cases the consumer can change it.</span><span>
+</span><span id="line-180"></span><span>    </span><span class="hs-comment">-- 0 means no latency computation</span><span>
+</span><span id="line-181"></span><span>    </span><span class="hs-comment">-- XXX this is derivable from workerMeasuredLatency, can be removed.</span><span>
+</span><span id="line-182"></span><span>    </span><span class="hs-comment">-- [LOCKING] Unlocked access. Modified by the consumer thread and unsafely</span><span>
+</span><span id="line-183"></span><span>    </span><span class="hs-comment">-- read by the worker threads</span><span>
+</span><span id="line-184"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="workerPollingInterval"><span class="annot"><span class="annottext">YieldRateInfo -&gt; IORef Count
+</span><a href="Streamly.Internal.Data.SVar.Type.html#workerPollingInterval"><span class="hs-identifier hs-var hs-var">workerPollingInterval</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IORef</span></span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#Count"><span class="hs-identifier hs-type">Count</span></a></span><span>
+</span><span id="line-185"></span><span>
+</span><span id="line-186"></span><span>    </span><span class="hs-comment">-- This is in progress latency stats maintained by the workers which we</span><span>
+</span><span id="line-187"></span><span>    </span><span class="hs-comment">-- empty into workerCollectedLatency stats at certain intervals - whenever</span><span>
+</span><span id="line-188"></span><span>    </span><span class="hs-comment">-- we process the stream elements yielded in this period. The first count</span><span>
+</span><span id="line-189"></span><span>    </span><span class="hs-comment">-- is all yields, the second count is only those yields for which the</span><span>
+</span><span id="line-190"></span><span>    </span><span class="hs-comment">-- latency was measured to be non-zero (note that if the timer resolution</span><span>
+</span><span id="line-191"></span><span>    </span><span class="hs-comment">-- is low the measured latency may be zero e.g. on JS platform).</span><span>
+</span><span id="line-192"></span><span>    </span><span class="hs-comment">-- [LOCKING] Locked access. Modified by the consumer thread as well as</span><span>
+</span><span id="line-193"></span><span>    </span><span class="hs-comment">-- worker threads. Workers modify it periodically based on</span><span>
+</span><span id="line-194"></span><span>    </span><span class="hs-comment">-- workerPollingInterval and not on every yield to reduce the locking</span><span>
+</span><span id="line-195"></span><span>    </span><span class="hs-comment">-- overhead.</span><span>
+</span><span id="line-196"></span><span>    </span><span class="hs-comment">-- (allYieldCount, yieldCount, timeTaken)</span><span>
+</span><span id="line-197"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="workerPendingLatency"><span class="annot"><span class="annottext">YieldRateInfo -&gt; IORef (Count, Count, NanoSecond64)
+</span><a href="Streamly.Internal.Data.SVar.Type.html#workerPendingLatency"><span class="hs-identifier hs-var hs-var">workerPendingLatency</span></a></span></span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IORef</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#Count"><span class="hs-identifier hs-type">Count</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#Count"><span class="hs-identifier hs-type">Count</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Time.Units.html#NanoSecond64"><span class="hs-identifier hs-type">NanoSecond64</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-198"></span><span>
+</span><span id="line-199"></span><span>    </span><span class="hs-comment">-- This is the second level stat which is an accmulation from</span><span>
+</span><span id="line-200"></span><span>    </span><span class="hs-comment">-- workerPendingLatency stats. We keep accumulating latencies in this</span><span>
+</span><span id="line-201"></span><span>    </span><span class="hs-comment">-- bucket until we have stats for a sufficient period and then we reset it</span><span>
+</span><span id="line-202"></span><span>    </span><span class="hs-comment">-- to start collecting for the next period and retain the computed average</span><span>
+</span><span id="line-203"></span><span>    </span><span class="hs-comment">-- latency for the last period in workerMeasuredLatency.</span><span>
+</span><span id="line-204"></span><span>    </span><span class="hs-comment">-- [LOCKING] Unlocked access. Modified by the consumer thread and unsafely</span><span>
+</span><span id="line-205"></span><span>    </span><span class="hs-comment">-- read by the worker threads</span><span>
+</span><span id="line-206"></span><span>    </span><span class="hs-comment">-- (allYieldCount, yieldCount, timeTaken)</span><span>
+</span><span id="line-207"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="workerCollectedLatency"><span class="annot"><span class="annottext">YieldRateInfo -&gt; IORef (Count, Count, NanoSecond64)
+</span><a href="Streamly.Internal.Data.SVar.Type.html#workerCollectedLatency"><span class="hs-identifier hs-var hs-var">workerCollectedLatency</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IORef</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#Count"><span class="hs-identifier hs-type">Count</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#Count"><span class="hs-identifier hs-type">Count</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Time.Units.html#NanoSecond64"><span class="hs-identifier hs-type">NanoSecond64</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-208"></span><span>
+</span><span id="line-209"></span><span>    </span><span class="hs-comment">-- Latency as measured by workers, aggregated for the last period.</span><span>
+</span><span id="line-210"></span><span>    </span><span class="hs-comment">-- [LOCKING] Unlocked access. Modified by the consumer thread and unsafely</span><span>
+</span><span id="line-211"></span><span>    </span><span class="hs-comment">-- read by the worker threads</span><span>
+</span><span id="line-212"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="workerMeasuredLatency"><span class="annot"><span class="annottext">YieldRateInfo -&gt; IORef NanoSecond64
+</span><a href="Streamly.Internal.Data.SVar.Type.html#workerMeasuredLatency"><span class="hs-identifier hs-var hs-var">workerMeasuredLatency</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IORef</span></span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Time.Units.html#NanoSecond64"><span class="hs-identifier hs-type">NanoSecond64</span></a></span><span>
+</span><span id="line-213"></span><span>    </span><span class="hs-special">}</span><span>
+</span><span id="line-214"></span><span>
+</span><span id="line-215"></span><span class="hs-keyword">data</span><span> </span><span id="SVarStats"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#SVarStats"><span class="hs-identifier hs-var">SVarStats</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="SVarStats"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#SVarStats"><span class="hs-identifier hs-var">SVarStats</span></a></span></span><span> </span><span class="hs-special">{</span><span>
+</span><span id="line-216"></span><span>      </span><span id="totalDispatches"><span class="annot"><span class="annottext">SVarStats -&gt; IORef Int
+</span><a href="Streamly.Internal.Data.SVar.Type.html#totalDispatches"><span class="hs-identifier hs-var hs-var">totalDispatches</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IORef</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-217"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="maxWorkers"><span class="annot"><span class="annottext">SVarStats -&gt; IORef Int
+</span><a href="Streamly.Internal.Data.SVar.Type.html#maxWorkers"><span class="hs-identifier hs-var hs-var">maxWorkers</span></a></span></span><span>       </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IORef</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-218"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="maxOutQSize"><span class="annot"><span class="annottext">SVarStats -&gt; IORef Int
+</span><a href="Streamly.Internal.Data.SVar.Type.html#maxOutQSize"><span class="hs-identifier hs-var hs-var">maxOutQSize</span></a></span></span><span>      </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IORef</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-219"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="maxHeapSize"><span class="annot"><span class="annottext">SVarStats -&gt; IORef Int
+</span><a href="Streamly.Internal.Data.SVar.Type.html#maxHeapSize"><span class="hs-identifier hs-var hs-var">maxHeapSize</span></a></span></span><span>      </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IORef</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-220"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="maxWorkQSize"><span class="annot"><span class="annottext">SVarStats -&gt; IORef Int
+</span><a href="Streamly.Internal.Data.SVar.Type.html#maxWorkQSize"><span class="hs-identifier hs-var hs-var">maxWorkQSize</span></a></span></span><span>     </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IORef</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-221"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="avgWorkerLatency"><span class="annot"><span class="annottext">SVarStats -&gt; IORef (Count, NanoSecond64)
+</span><a href="Streamly.Internal.Data.SVar.Type.html#avgWorkerLatency"><span class="hs-identifier hs-var hs-var">avgWorkerLatency</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IORef</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#Count"><span class="hs-identifier hs-type">Count</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Time.Units.html#NanoSecond64"><span class="hs-identifier hs-type">NanoSecond64</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-222"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="minWorkerLatency"><span class="annot"><span class="annottext">SVarStats -&gt; IORef NanoSecond64
+</span><a href="Streamly.Internal.Data.SVar.Type.html#minWorkerLatency"><span class="hs-identifier hs-var hs-var">minWorkerLatency</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IORef</span></span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Time.Units.html#NanoSecond64"><span class="hs-identifier hs-type">NanoSecond64</span></a></span><span>
+</span><span id="line-223"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="maxWorkerLatency"><span class="annot"><span class="annottext">SVarStats -&gt; IORef NanoSecond64
+</span><a href="Streamly.Internal.Data.SVar.Type.html#maxWorkerLatency"><span class="hs-identifier hs-var hs-var">maxWorkerLatency</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IORef</span></span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Time.Units.html#NanoSecond64"><span class="hs-identifier hs-type">NanoSecond64</span></a></span><span>
+</span><span id="line-224"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="svarStopTime"><span class="annot"><span class="annottext">SVarStats -&gt; IORef (Maybe AbsTime)
+</span><a href="Streamly.Internal.Data.SVar.Type.html#svarStopTime"><span class="hs-identifier hs-var hs-var">svarStopTime</span></a></span></span><span>     </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IORef</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Time.Units.html#AbsTime"><span class="hs-identifier hs-type">AbsTime</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-225"></span><span class="hs-special">}</span><span>
+</span><span id="line-226"></span><span>
+</span><span id="line-227"></span><span class="hs-comment">-- This is essentially a 'Maybe Word' type</span><span>
+</span><span id="line-228"></span><span class="hs-keyword">data</span><span> </span><span id="Limit"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#Limit"><span class="hs-identifier hs-var">Limit</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Unlimited"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#Unlimited"><span class="hs-identifier hs-var">Unlimited</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Limited"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#Limited"><span class="hs-identifier hs-var">Limited</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word</span></span><span> </span><span class="hs-keyword">deriving</span><span> </span><span id="local-6989586621679368643"><span id="local-6989586621679368645"><span id="local-6989586621679368650"><span class="annot"><span class="annottext">Int -&gt; Limit -&gt; ShowS
+[Limit] -&gt; ShowS
+Limit -&gt; String
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+showList :: [Limit] -&gt; ShowS
+$cshowList :: [Limit] -&gt; ShowS
+show :: Limit -&gt; String
+$cshow :: Limit -&gt; String
+showsPrec :: Int -&gt; Limit -&gt; ShowS
+$cshowsPrec :: Int -&gt; Limit -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span>
+</span><span id="line-229"></span><span>
+</span><span id="line-230"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679368640"><span class="annot"><span class="hs-identifier hs-type">Eq</span></span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#Limit"><span class="hs-identifier hs-type">Limit</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-231"></span><span>    </span><span class="annot"><span class="annottext">Limit
+</span><a href="Streamly.Internal.Data.SVar.Type.html#Unlimited"><span class="hs-identifier hs-var">Unlimited</span></a></span><span> </span><span id="local-6989586621679368637"><span class="annot"><span class="annottext">== :: Limit -&gt; Limit -&gt; Bool
+</span><span class="hs-operator hs-var hs-var hs-var hs-var">==</span></span></span><span> </span><span class="annot"><span class="annottext">Limit
+</span><a href="Streamly.Internal.Data.SVar.Type.html#Unlimited"><span class="hs-identifier hs-var">Unlimited</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-232"></span><span>    </span><span class="annot"><span class="annottext">Limit
+</span><a href="Streamly.Internal.Data.SVar.Type.html#Unlimited"><span class="hs-identifier hs-var">Unlimited</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#Limited"><span class="hs-identifier hs-type">Limited</span></a></span><span> </span><span class="annot"><span class="annottext">Word
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-233"></span><span>    </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#Limited"><span class="hs-identifier hs-type">Limited</span></a></span><span> </span><span class="annot"><span class="annottext">Word
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Limit
+</span><a href="Streamly.Internal.Data.SVar.Type.html#Unlimited"><span class="hs-identifier hs-var">Unlimited</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-234"></span><span>    </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#Limited"><span class="hs-identifier hs-type">Limited</span></a></span><span> </span><span id="local-6989586621679368636"><span class="annot"><span class="annottext">Word
+</span><a href="#local-6989586621679368636"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="annot"><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#Limited"><span class="hs-identifier hs-type">Limited</span></a></span><span> </span><span id="local-6989586621679368635"><span class="annot"><span class="annottext">Word
+</span><a href="#local-6989586621679368635"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word
+</span><a href="#local-6989586621679368636"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Word
+</span><a href="#local-6989586621679368635"><span class="hs-identifier hs-var">y</span></a></span><span>
+</span><span id="line-235"></span><span>
+</span><span id="line-236"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679368620"><span id="local-6989586621679368622"><span id="local-6989586621679368624"><span id="local-6989586621679368626"><span id="local-6989586621679368629"><span id="local-6989586621679368631"><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#Limit"><span class="hs-identifier hs-type">Limit</span></a></span></span></span></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-237"></span><span>    </span><span class="annot"><span class="annottext">Limit
+</span><a href="Streamly.Internal.Data.SVar.Type.html#Unlimited"><span class="hs-identifier hs-var">Unlimited</span></a></span><span> </span><span id="local-6989586621679368617"><span class="annot"><span class="annottext">&lt;= :: Limit -&gt; Limit -&gt; Bool
+</span><span class="hs-operator hs-var hs-var hs-var hs-var">&lt;=</span></span></span><span> </span><span class="annot"><span class="annottext">Limit
+</span><a href="Streamly.Internal.Data.SVar.Type.html#Unlimited"><span class="hs-identifier hs-var">Unlimited</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-238"></span><span>    </span><span class="annot"><span class="annottext">Limit
+</span><a href="Streamly.Internal.Data.SVar.Type.html#Unlimited"><span class="hs-identifier hs-var">Unlimited</span></a></span><span> </span><span class="annot"><span class="hs-operator hs-var">&lt;=</span></span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#Limited"><span class="hs-identifier hs-type">Limited</span></a></span><span> </span><span class="annot"><span class="annottext">Word
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-239"></span><span>    </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#Limited"><span class="hs-identifier hs-type">Limited</span></a></span><span> </span><span class="annot"><span class="annottext">Word
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="hs-operator hs-var">&lt;=</span></span><span> </span><span class="annot"><span class="annottext">Limit
+</span><a href="Streamly.Internal.Data.SVar.Type.html#Unlimited"><span class="hs-identifier hs-var">Unlimited</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-240"></span><span>    </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#Limited"><span class="hs-identifier hs-type">Limited</span></a></span><span> </span><span id="local-6989586621679368615"><span class="annot"><span class="annottext">Word
+</span><a href="#local-6989586621679368615"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="annot"><span class="hs-operator hs-var">&lt;=</span></span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#Limited"><span class="hs-identifier hs-type">Limited</span></a></span><span> </span><span id="local-6989586621679368614"><span class="annot"><span class="annottext">Word
+</span><a href="#local-6989586621679368614"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word
+</span><a href="#local-6989586621679368615"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;=</span></span><span> </span><span class="annot"><span class="annottext">Word
+</span><a href="#local-6989586621679368614"><span class="hs-identifier hs-var">y</span></a></span><span>
+</span><span id="line-241"></span><span>
+</span><span id="line-242"></span><span class="hs-comment">-- When to stop the composed stream.</span><span>
+</span><span id="line-243"></span><span class="hs-keyword">data</span><span> </span><span id="SVarStopStyle"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#SVarStopStyle"><span class="hs-identifier hs-var">SVarStopStyle</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-244"></span><span>      </span><span id="StopNone"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#StopNone"><span class="hs-identifier hs-var">StopNone</span></a></span></span><span> </span><span class="hs-comment">-- stops only when all streams are finished</span><span>
+</span><span id="line-245"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="StopAny"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#StopAny"><span class="hs-identifier hs-var">StopAny</span></a></span></span><span>  </span><span class="hs-comment">-- stop when any stream finishes</span><span>
+</span><span id="line-246"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="StopBy"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#StopBy"><span class="hs-identifier hs-var">StopBy</span></a></span></span><span>   </span><span class="hs-comment">-- stop when a specific stream finishes</span><span>
+</span><span id="line-247"></span><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679368607"><span id="local-6989586621679368609"><span class="annot"><span class="annottext">SVarStopStyle -&gt; SVarStopStyle -&gt; Bool
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+/= :: SVarStopStyle -&gt; SVarStopStyle -&gt; Bool
+$c/= :: SVarStopStyle -&gt; SVarStopStyle -&gt; Bool
+== :: SVarStopStyle -&gt; SVarStopStyle -&gt; Bool
+$c== :: SVarStopStyle -&gt; SVarStopStyle -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679368601"><span id="local-6989586621679368603"><span id="local-6989586621679368605"><span class="annot"><span class="annottext">Int -&gt; SVarStopStyle -&gt; ShowS
+[SVarStopStyle] -&gt; ShowS
+SVarStopStyle -&gt; String
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+showList :: [SVarStopStyle] -&gt; ShowS
+$cshowList :: [SVarStopStyle] -&gt; ShowS
+show :: SVarStopStyle -&gt; String
+$cshow :: SVarStopStyle -&gt; String
+showsPrec :: Int -&gt; SVarStopStyle -&gt; ShowS
+$cshowsPrec :: Int -&gt; SVarStopStyle -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-248"></span><span>
+</span><span id="line-249"></span><span class="hs-comment">-- | Buffering policy for persistent push workers (in ParallelT).  In a pull</span><span>
+</span><span id="line-250"></span><span class="hs-comment">-- style SVar (in AsyncT, AheadT etc.), the consumer side dispatches workers on</span><span>
+</span><span id="line-251"></span><span class="hs-comment">-- demand, workers terminate if the buffer is full or if the consumer is not</span><span>
+</span><span id="line-252"></span><span class="hs-comment">-- cosuming fast enough.  In a push style SVar, a worker is dispatched only</span><span>
+</span><span id="line-253"></span><span class="hs-comment">-- once, workers are persistent and keep pushing work to the consumer via a</span><span>
+</span><span id="line-254"></span><span class="hs-comment">-- bounded buffer. If the buffer becomes full the worker either blocks, or it</span><span>
+</span><span id="line-255"></span><span class="hs-comment">-- can drop an item from the buffer to make space.</span><span>
+</span><span id="line-256"></span><span class="hs-comment">--</span><span>
+</span><span id="line-257"></span><span class="hs-comment">-- Pull style SVars are useful in lazy stream evaluation whereas push style</span><span>
+</span><span id="line-258"></span><span class="hs-comment">-- SVars are useful in strict left Folds.</span><span>
+</span><span id="line-259"></span><span class="hs-comment">--</span><span>
+</span><span id="line-260"></span><span class="hs-comment">-- XXX Maybe we can separate the implementation in two different types instead</span><span>
+</span><span id="line-261"></span><span class="hs-comment">-- of using a common SVar type.</span><span>
+</span><span id="line-262"></span><span class="hs-comment">--</span><span>
+</span><span id="line-263"></span><span class="hs-keyword">data</span><span> </span><span id="PushBufferPolicy"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#PushBufferPolicy"><span class="hs-identifier hs-var">PushBufferPolicy</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-264"></span><span>      </span><span id="PushBufferDropNew"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#PushBufferDropNew"><span class="hs-identifier hs-var">PushBufferDropNew</span></a></span></span><span>  </span><span class="hs-comment">-- drop the latest element and continue</span><span>
+</span><span id="line-265"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="PushBufferDropOld"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#PushBufferDropOld"><span class="hs-identifier hs-var">PushBufferDropOld</span></a></span></span><span>  </span><span class="hs-comment">-- drop the oldest element and continue</span><span>
+</span><span id="line-266"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="PushBufferBlock"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#PushBufferBlock"><span class="hs-identifier hs-var">PushBufferBlock</span></a></span></span><span>    </span><span class="hs-comment">-- block the thread until space</span><span>
+</span><span id="line-267"></span><span>                         </span><span class="hs-comment">-- becomes available</span><span>
+</span><span id="line-268"></span><span>
+</span><span id="line-269"></span><span class="hs-comment">-- IMPORTANT NOTE: we cannot update the SVar after generating it as we have</span><span>
+</span><span id="line-270"></span><span class="hs-comment">-- references to the original SVar stored in several functions which will keep</span><span>
+</span><span id="line-271"></span><span class="hs-comment">-- pointing to the original data and the new updates won't reflect there.</span><span>
+</span><span id="line-272"></span><span class="hs-comment">-- Any updateable parts must be kept in mutable references (IORef).</span><span>
+</span><span id="line-273"></span><span class="hs-comment">--</span><span>
+</span><span id="line-274"></span><span class="hs-keyword">data</span><span> </span><span id="SVar"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#SVar"><span class="hs-identifier hs-var">SVar</span></a></span></span><span> </span><span id="local-6989586621679369165"><span class="annot"><a href="#local-6989586621679369165"><span class="hs-identifier hs-type">t</span></a></span></span><span> </span><span id="local-6989586621679369164"><span class="annot"><a href="#local-6989586621679369164"><span class="hs-identifier hs-type">m</span></a></span></span><span> </span><span id="local-6989586621679369163"><span class="annot"><a href="#local-6989586621679369163"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="SVar"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#SVar"><span class="hs-identifier hs-var">SVar</span></a></span></span><span>
+</span><span id="line-275"></span><span>    </span><span class="hs-special">{</span><span>
+</span><span id="line-276"></span><span>    </span><span class="hs-comment">-- Read only state</span><span>
+</span><span id="line-277"></span><span>      </span><span id="svarStyle"><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; SVarStyle
+</span><a href="Streamly.Internal.Data.SVar.Type.html#svarStyle"><span class="hs-identifier hs-var hs-var">svarStyle</span></a></span></span><span>       </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#SVarStyle"><span class="hs-identifier hs-type">SVarStyle</span></a></span><span>
+</span><span id="line-278"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="svarMrun"><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; RunInIO m
+</span><a href="Streamly.Internal.Data.SVar.Type.html#svarMrun"><span class="hs-identifier hs-var hs-var">svarMrun</span></a></span></span><span>        </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.Control.Concurrent.html#RunInIO"><span class="hs-identifier hs-type">RunInIO</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679369164"><span class="hs-identifier hs-type">m</span></a></span><span>
+</span><span id="line-279"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="svarStopStyle"><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; SVarStopStyle
+</span><a href="Streamly.Internal.Data.SVar.Type.html#svarStopStyle"><span class="hs-identifier hs-var hs-var">svarStopStyle</span></a></span></span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#SVarStopStyle"><span class="hs-identifier hs-type">SVarStopStyle</span></a></span><span>
+</span><span id="line-280"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="svarStopBy"><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; IORef ThreadId
+</span><a href="Streamly.Internal.Data.SVar.Type.html#svarStopBy"><span class="hs-identifier hs-var hs-var">svarStopBy</span></a></span></span><span>      </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IORef</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">ThreadId</span></span><span>
+</span><span id="line-281"></span><span>
+</span><span id="line-282"></span><span>    </span><span class="hs-comment">-- Shared output queue (events, length)</span><span>
+</span><span id="line-283"></span><span>    </span><span class="hs-comment">-- XXX For better efficiency we can try a preallocated array type (perhaps</span><span>
+</span><span id="line-284"></span><span>    </span><span class="hs-comment">-- something like a vector) that allows an O(1) append. That way we will</span><span>
+</span><span id="line-285"></span><span>    </span><span class="hs-comment">-- avoid constructing and reversing the list. Possibly we can also avoid</span><span>
+</span><span id="line-286"></span><span>    </span><span class="hs-comment">-- the GC copying overhead. When the size increases we should be able to</span><span>
+</span><span id="line-287"></span><span>    </span><span class="hs-comment">-- allocate the array in chunks.</span><span>
+</span><span id="line-288"></span><span>    </span><span class="hs-comment">--</span><span>
+</span><span id="line-289"></span><span>    </span><span class="hs-comment">-- [LOCKING] Frequent locked access. This is updated by workers on each</span><span>
+</span><span id="line-290"></span><span>    </span><span class="hs-comment">-- yield and once in a while read by the consumer thread. This could have</span><span>
+</span><span id="line-291"></span><span>    </span><span class="hs-comment">-- big locking overhead if the number of workers is high.</span><span>
+</span><span id="line-292"></span><span>    </span><span class="hs-comment">--</span><span>
+</span><span id="line-293"></span><span>    </span><span class="hs-comment">-- XXX We can use a per-CPU data structure to reduce the locking overhead.</span><span>
+</span><span id="line-294"></span><span>    </span><span class="hs-comment">-- However, a per-cpu structure cannot guarantee the exact sequence in</span><span>
+</span><span id="line-295"></span><span>    </span><span class="hs-comment">-- which the elements were added, though that may not be important.</span><span>
+</span><span id="line-296"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="outputQueue"><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; IORef ([ChildEvent a], Int)
+</span><a href="Streamly.Internal.Data.SVar.Type.html#outputQueue"><span class="hs-identifier hs-var hs-var">outputQueue</span></a></span></span><span>    </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IORef</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#ChildEvent"><span class="hs-identifier hs-type">ChildEvent</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679369163"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">)</span><span>
+</span><span id="line-297"></span><span>
+</span><span id="line-298"></span><span>    </span><span class="hs-comment">-- [LOCKING] Infrequent MVar. Used when the outputQ transitions from empty</span><span>
+</span><span id="line-299"></span><span>    </span><span class="hs-comment">-- to non-empty, or a work item is queued by a worker to the work queue and</span><span>
+</span><span id="line-300"></span><span>    </span><span class="hs-comment">-- needDoorBell is set by the consumer.</span><span>
+</span><span id="line-301"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="outputDoorBell"><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; MVar ()
+</span><a href="Streamly.Internal.Data.SVar.Type.html#outputDoorBell"><span class="hs-identifier hs-var hs-var">outputDoorBell</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MVar</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>  </span><span class="hs-comment">-- signal the consumer about output</span><span>
+</span><span id="line-302"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="readOutputQ"><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; m [ChildEvent a]
+</span><a href="Streamly.Internal.Data.SVar.Type.html#readOutputQ"><span class="hs-identifier hs-var hs-var">readOutputQ</span></a></span></span><span>    </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621679369164"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#ChildEvent"><span class="hs-identifier hs-type">ChildEvent</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679369163"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-303"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="postProcess"><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; m Bool
+</span><a href="Streamly.Internal.Data.SVar.Type.html#postProcess"><span class="hs-identifier hs-var hs-var">postProcess</span></a></span></span><span>    </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621679369164"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-304"></span><span>
+</span><span id="line-305"></span><span>    </span><span class="hs-comment">-- channel to send events from the consumer to the worker. Used to send</span><span>
+</span><span id="line-306"></span><span>    </span><span class="hs-comment">-- exceptions from a fold driver to the fold computation running as a</span><span>
+</span><span id="line-307"></span><span>    </span><span class="hs-comment">-- consumer thread in the concurrent fold cases. Currently only one event</span><span>
+</span><span id="line-308"></span><span>    </span><span class="hs-comment">-- is sent by the fold so we do not really need a queue for it.</span><span>
+</span><span id="line-309"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="outputQueueFromConsumer"><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; IORef ([ChildEvent a], Int)
+</span><a href="Streamly.Internal.Data.SVar.Type.html#outputQueueFromConsumer"><span class="hs-identifier hs-var hs-var">outputQueueFromConsumer</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IORef</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#ChildEvent"><span class="hs-identifier hs-type">ChildEvent</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679369163"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">)</span><span>
+</span><span id="line-310"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="outputDoorBellFromConsumer"><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; MVar ()
+</span><a href="Streamly.Internal.Data.SVar.Type.html#outputDoorBellFromConsumer"><span class="hs-identifier hs-var hs-var">outputDoorBellFromConsumer</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MVar</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-311"></span><span>
+</span><span id="line-312"></span><span>    </span><span class="hs-comment">-- Combined/aggregate parameters</span><span>
+</span><span id="line-313"></span><span>    </span><span class="hs-comment">-- This is truncated to maxBufferLimit if set to more than that. Otherwise</span><span>
+</span><span id="line-314"></span><span>    </span><span class="hs-comment">-- potentially each worker may yield one value to the buffer in the worst</span><span>
+</span><span id="line-315"></span><span>    </span><span class="hs-comment">-- case exceeding the requested buffer size.</span><span>
+</span><span id="line-316"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="maxWorkerLimit"><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; Limit
+</span><a href="Streamly.Internal.Data.SVar.Type.html#maxWorkerLimit"><span class="hs-identifier hs-var hs-var">maxWorkerLimit</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#Limit"><span class="hs-identifier hs-type">Limit</span></a></span><span>
+</span><span id="line-317"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="maxBufferLimit"><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; Limit
+</span><a href="Streamly.Internal.Data.SVar.Type.html#maxBufferLimit"><span class="hs-identifier hs-var hs-var">maxBufferLimit</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#Limit"><span class="hs-identifier hs-type">Limit</span></a></span><span>
+</span><span id="line-318"></span><span>    </span><span class="hs-comment">-- These two are valid and used only when maxBufferLimit is Limited.</span><span>
+</span><span id="line-319"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="pushBufferSpace"><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; IORef Count
+</span><a href="Streamly.Internal.Data.SVar.Type.html#pushBufferSpace"><span class="hs-identifier hs-var hs-var">pushBufferSpace</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IORef</span></span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#Count"><span class="hs-identifier hs-type">Count</span></a></span><span>
+</span><span id="line-320"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="pushBufferPolicy"><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; PushBufferPolicy
+</span><a href="Streamly.Internal.Data.SVar.Type.html#pushBufferPolicy"><span class="hs-identifier hs-var hs-var">pushBufferPolicy</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#PushBufferPolicy"><span class="hs-identifier hs-type">PushBufferPolicy</span></a></span><span>
+</span><span id="line-321"></span><span>    </span><span class="hs-comment">-- [LOCKING] The consumer puts this MVar after emptying the buffer, workers</span><span>
+</span><span id="line-322"></span><span>    </span><span class="hs-comment">-- block on it when the buffer becomes full. No overhead unless the buffer</span><span>
+</span><span id="line-323"></span><span>    </span><span class="hs-comment">-- becomes full.</span><span>
+</span><span id="line-324"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="pushBufferMVar"><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; MVar ()
+</span><a href="Streamly.Internal.Data.SVar.Type.html#pushBufferMVar"><span class="hs-identifier hs-var hs-var">pushBufferMVar</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MVar</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-325"></span><span>
+</span><span id="line-326"></span><span>    </span><span class="hs-comment">-- [LOCKING] Read only access by consumer when dispatching a worker.</span><span>
+</span><span id="line-327"></span><span>    </span><span class="hs-comment">-- Decremented by workers when picking work and undo decrement if the</span><span>
+</span><span id="line-328"></span><span>    </span><span class="hs-comment">-- worker does not yield a value.</span><span>
+</span><span id="line-329"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="remainingWork"><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; Maybe (IORef Count)
+</span><a href="Streamly.Internal.Data.SVar.Type.html#remainingWork"><span class="hs-identifier hs-var hs-var">remainingWork</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">IORef</span></span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#Count"><span class="hs-identifier hs-type">Count</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-330"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="yieldRateInfo"><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; Maybe YieldRateInfo
+</span><a href="Streamly.Internal.Data.SVar.Type.html#yieldRateInfo"><span class="hs-identifier hs-var hs-var">yieldRateInfo</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#YieldRateInfo"><span class="hs-identifier hs-type">YieldRateInfo</span></a></span><span>
+</span><span id="line-331"></span><span>
+</span><span id="line-332"></span><span>    </span><span class="hs-comment">-- Used only by bounded SVar types</span><span>
+</span><span id="line-333"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="enqueue"><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; (RunInIO m, t m a) -&gt; IO ()
+</span><a href="Streamly.Internal.Data.SVar.Type.html#enqueue"><span class="hs-identifier hs-var hs-var">enqueue</span></a></span></span><span>        </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Control.Concurrent.html#RunInIO"><span class="hs-identifier hs-type">RunInIO</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679369164"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621679369165"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679369164"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679369163"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-334"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="isWorkDone"><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; IO Bool
+</span><a href="Streamly.Internal.Data.SVar.Type.html#isWorkDone"><span class="hs-identifier hs-var hs-var">isWorkDone</span></a></span></span><span>     </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-335"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="isQueueDone"><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; IO Bool
+</span><a href="Streamly.Internal.Data.SVar.Type.html#isQueueDone"><span class="hs-identifier hs-var hs-var">isQueueDone</span></a></span></span><span>    </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-336"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="needDoorBell"><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; IORef Bool
+</span><a href="Streamly.Internal.Data.SVar.Type.html#needDoorBell"><span class="hs-identifier hs-var hs-var">needDoorBell</span></a></span></span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IORef</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-337"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="workLoop"><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; Maybe WorkerInfo -&gt; m ()
+</span><a href="Streamly.Internal.Data.SVar.Type.html#workLoop"><span class="hs-identifier hs-var hs-var">workLoop</span></a></span></span><span>       </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#WorkerInfo"><span class="hs-identifier hs-type">WorkerInfo</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679369164"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-338"></span><span>
+</span><span id="line-339"></span><span>    </span><span class="hs-comment">-- Shared, thread tracking</span><span>
+</span><span id="line-340"></span><span>    </span><span class="hs-comment">-- [LOCKING] Updated unlocked only by consumer thread in case of</span><span>
+</span><span id="line-341"></span><span>    </span><span class="hs-comment">-- Async/Ahead style SVars. Updated locked by worker threads in case of</span><span>
+</span><span id="line-342"></span><span>    </span><span class="hs-comment">-- Parallel style.</span><span>
+</span><span id="line-343"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="workerThreads"><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; IORef (Set ThreadId)
+</span><a href="Streamly.Internal.Data.SVar.Type.html#workerThreads"><span class="hs-identifier hs-var hs-var">workerThreads</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IORef</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Set</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">ThreadId</span></span><span class="hs-special">)</span><span>
+</span><span id="line-344"></span><span>    </span><span class="hs-comment">-- [LOCKING] Updated locked by consumer thread when dispatching a worker</span><span>
+</span><span id="line-345"></span><span>    </span><span class="hs-comment">-- and by the worker threads when the thread stops. This is read unsafely</span><span>
+</span><span id="line-346"></span><span>    </span><span class="hs-comment">-- at several places where we want to rely on an approximate value.</span><span>
+</span><span id="line-347"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="workerCount"><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; IORef Int
+</span><a href="Streamly.Internal.Data.SVar.Type.html#workerCount"><span class="hs-identifier hs-var hs-var">workerCount</span></a></span></span><span>    </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IORef</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-348"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="accountThread"><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; ThreadId -&gt; m ()
+</span><a href="Streamly.Internal.Data.SVar.Type.html#accountThread"><span class="hs-identifier hs-var hs-var">accountThread</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ThreadId</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679369164"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-349"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="workerStopMVar"><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; MVar ()
+</span><a href="Streamly.Internal.Data.SVar.Type.html#workerStopMVar"><span class="hs-identifier hs-var hs-var">workerStopMVar</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MVar</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-350"></span><span>
+</span><span id="line-351"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="svarStats"><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; SVarStats
+</span><a href="Streamly.Internal.Data.SVar.Type.html#svarStats"><span class="hs-identifier hs-var hs-var">svarStats</span></a></span></span><span>      </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#SVarStats"><span class="hs-identifier hs-type">SVarStats</span></a></span><span>
+</span><span id="line-352"></span><span>    </span><span class="hs-comment">-- to track garbage collection of SVar</span><span>
+</span><span id="line-353"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="svarRef"><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; Maybe (IORef ())
+</span><a href="Streamly.Internal.Data.SVar.Type.html#svarRef"><span class="hs-identifier hs-var hs-var">svarRef</span></a></span></span><span>        </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">IORef</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-354"></span><span>
+</span><span id="line-355"></span><span>    </span><span class="hs-comment">-- Only for diagnostics</span><span>
+</span><span id="line-356"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="svarInspectMode"><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; Bool
+</span><a href="Streamly.Internal.Data.SVar.Type.html#svarInspectMode"><span class="hs-identifier hs-var hs-var">svarInspectMode</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-357"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="svarCreator"><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; ThreadId
+</span><a href="Streamly.Internal.Data.SVar.Type.html#svarCreator"><span class="hs-identifier hs-var hs-var">svarCreator</span></a></span></span><span>    </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ThreadId</span></span><span>
+</span><span id="line-358"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="outputHeap"><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a
+-&gt; IORef (Heap (Entry Int (AheadHeapEntry t m a)), Maybe Int)
+</span><a href="Streamly.Internal.Data.SVar.Type.html#outputHeap"><span class="hs-identifier hs-var hs-var">outputHeap</span></a></span></span><span>     </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IORef</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Heap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Entry</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#AheadHeapEntry"><span class="hs-identifier hs-type">AheadHeapEntry</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679369165"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679369164"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679369163"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-359"></span><span>                              </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">)</span><span>
+</span><span id="line-360"></span><span>    </span><span class="hs-comment">-- Shared work queue (stream, seqNo)</span><span>
+</span><span id="line-361"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="aheadWorkQueue"><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+SVar t m a -&gt; IORef ([t m a], Int)
+</span><a href="Streamly.Internal.Data.SVar.Type.html#aheadWorkQueue"><span class="hs-identifier hs-var hs-var">aheadWorkQueue</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IORef</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679369165"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679369164"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679369163"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">)</span><span>
+</span><span id="line-362"></span><span>    </span><span class="hs-special">}</span><span>
+</span><span id="line-363"></span><span>
+</span><span id="line-364"></span><span class="hs-comment">-------------------------------------------------------------------------------</span><span>
+</span><span id="line-365"></span><span class="hs-comment">-- Overall state threaded around a stream</span><span>
+</span><span id="line-366"></span><span class="hs-comment">-------------------------------------------------------------------------------</span><span>
+</span><span id="line-367"></span><span>
+</span><span id="line-368"></span><span class="hs-comment">-- | Specifies the stream yield rate in yields per second (@Hertz@).</span><span>
+</span><span id="line-369"></span><span class="hs-comment">-- We keep accumulating yield credits at 'rateGoal'. At any point of time we</span><span>
+</span><span id="line-370"></span><span class="hs-comment">-- allow only as many yields as we have accumulated as per 'rateGoal' since the</span><span>
+</span><span id="line-371"></span><span class="hs-comment">-- start of time. If the consumer or the producer is slower or faster, the</span><span>
+</span><span id="line-372"></span><span class="hs-comment">-- actual rate may fall behind or exceed 'rateGoal'.  We try to recover the gap</span><span>
+</span><span id="line-373"></span><span class="hs-comment">-- between the two by increasing or decreasing the pull rate from the producer.</span><span>
+</span><span id="line-374"></span><span class="hs-comment">-- However, if the gap becomes more than 'rateBuffer' we try to recover only as</span><span>
+</span><span id="line-375"></span><span class="hs-comment">-- much as 'rateBuffer'.</span><span>
+</span><span id="line-376"></span><span class="hs-comment">--</span><span>
+</span><span id="line-377"></span><span class="hs-comment">-- 'rateLow' puts a bound on how low the instantaneous rate can go when</span><span>
+</span><span id="line-378"></span><span class="hs-comment">-- recovering the rate gap.  In other words, it determines the maximum yield</span><span>
+</span><span id="line-379"></span><span class="hs-comment">-- latency.  Similarly, 'rateHigh' puts a bound on how high the instantaneous</span><span>
+</span><span id="line-380"></span><span class="hs-comment">-- rate can go when recovering the rate gap.  In other words, it determines the</span><span>
+</span><span id="line-381"></span><span class="hs-comment">-- minimum yield latency. We reduce the latency by increasing concurrency,</span><span>
+</span><span id="line-382"></span><span class="hs-comment">-- therefore we can say that it puts an upper bound on concurrency.</span><span>
+</span><span id="line-383"></span><span class="hs-comment">--</span><span>
+</span><span id="line-384"></span><span class="hs-comment">-- If the 'rateGoal' is 0 or negative the stream never yields a value.</span><span>
+</span><span id="line-385"></span><span class="hs-comment">-- If the 'rateBuffer' is 0 or negative we do not attempt to recover.</span><span>
+</span><span id="line-386"></span><span class="hs-comment">--</span><span>
+</span><span id="line-387"></span><span class="hs-comment">-- /Since: 0.5.0 (&quot;Streamly&quot;)/</span><span>
+</span><span id="line-388"></span><span class="hs-comment">--</span><span>
+</span><span id="line-389"></span><span class="hs-comment">-- @since 0.8.0</span><span>
+</span><span id="line-390"></span><span class="hs-keyword">data</span><span> </span><span id="Rate"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#Rate"><span class="hs-identifier hs-var">Rate</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Rate"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#Rate"><span class="hs-identifier hs-var">Rate</span></a></span></span><span>
+</span><span id="line-391"></span><span>    </span><span class="hs-special">{</span><span> </span><span id="rateLow"><span class="annot"><span class="annottext">Rate -&gt; Double
+</span><a href="Streamly.Internal.Data.SVar.Type.html#rateLow"><span class="hs-identifier hs-var hs-var">rateLow</span></a></span></span><span>    </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span> </span><span class="hs-comment">-- ^ The lower rate limit</span><span>
+</span><span id="line-392"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="rateGoal"><span class="annot"><span class="annottext">Rate -&gt; Double
+</span><a href="Streamly.Internal.Data.SVar.Type.html#rateGoal"><span class="hs-identifier hs-var hs-var">rateGoal</span></a></span></span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span> </span><span class="hs-comment">-- ^ The target rate we want to achieve</span><span>
+</span><span id="line-393"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="rateHigh"><span class="annot"><span class="annottext">Rate -&gt; Double
+</span><a href="Streamly.Internal.Data.SVar.Type.html#rateHigh"><span class="hs-identifier hs-var hs-var">rateHigh</span></a></span></span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span> </span><span class="hs-comment">-- ^ The upper rate limit</span><span>
+</span><span id="line-394"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="rateBuffer"><span class="annot"><span class="annottext">Rate -&gt; Int
+</span><a href="Streamly.Internal.Data.SVar.Type.html#rateBuffer"><span class="hs-identifier hs-var hs-var">rateBuffer</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>    </span><span class="hs-comment">-- ^ Maximum slack from the goal</span><span>
+</span><span id="line-395"></span><span>    </span><span class="hs-special">}</span><span>
+</span><span id="line-396"></span><span>
+</span><span id="line-397"></span><span class="hs-comment">-- XXX we can put the resettable fields in a oneShotConfig field and others in</span><span>
+</span><span id="line-398"></span><span class="hs-comment">-- a persistentConfig field. That way reset would be fast and scalable</span><span>
+</span><span id="line-399"></span><span class="hs-comment">-- irrespective of the number of fields.</span><span>
+</span><span id="line-400"></span><span class="hs-comment">--</span><span>
+</span><span id="line-401"></span><span class="hs-comment">-- XXX make all these Limited types and use phantom types to distinguish them</span><span>
+</span><span id="line-402"></span><span class="hs-keyword">data</span><span> </span><span id="State"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#State"><span class="hs-identifier hs-var">State</span></a></span></span><span> </span><span id="local-6989586621679369055"><span class="annot"><a href="#local-6989586621679369055"><span class="hs-identifier hs-type">t</span></a></span></span><span> </span><span id="local-6989586621679369054"><span class="annot"><a href="#local-6989586621679369054"><span class="hs-identifier hs-type">m</span></a></span></span><span> </span><span id="local-6989586621679369053"><span class="annot"><a href="#local-6989586621679369053"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="State"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#State"><span class="hs-identifier hs-var">State</span></a></span></span><span>
+</span><span id="line-403"></span><span>    </span><span class="hs-special">{</span><span> </span><span class="hs-comment">-- one shot configuration, automatically reset for each API call</span><span>
+</span><span id="line-404"></span><span>      </span><span id="streamVar"><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+State t m a -&gt; Maybe (SVar t m a)
+</span><a href="Streamly.Internal.Data.SVar.Type.html#streamVar"><span class="hs-identifier hs-var hs-var">streamVar</span></a></span></span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#SVar"><span class="hs-identifier hs-type">SVar</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679369055"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679369054"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679369053"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-405"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="_yieldLimit"><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+State t m a -&gt; Maybe Count
+</span><a href="Streamly.Internal.Data.SVar.Type.html#_yieldLimit"><span class="hs-identifier hs-var hs-var">_yieldLimit</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#Count"><span class="hs-identifier hs-type">Count</span></a></span><span>
+</span><span id="line-406"></span><span>
+</span><span id="line-407"></span><span>    </span><span class="hs-comment">-- persistent configuration, state that remains valid until changed by</span><span>
+</span><span id="line-408"></span><span>    </span><span class="hs-comment">-- an explicit setting via a combinator.</span><span>
+</span><span id="line-409"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="_threadsHigh"><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+State t m a -&gt; Limit
+</span><a href="Streamly.Internal.Data.SVar.Type.html#_threadsHigh"><span class="hs-identifier hs-var hs-var">_threadsHigh</span></a></span></span><span>    </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#Limit"><span class="hs-identifier hs-type">Limit</span></a></span><span>
+</span><span id="line-410"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="_bufferHigh"><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+State t m a -&gt; Limit
+</span><a href="Streamly.Internal.Data.SVar.Type.html#_bufferHigh"><span class="hs-identifier hs-var hs-var">_bufferHigh</span></a></span></span><span>     </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#Limit"><span class="hs-identifier hs-type">Limit</span></a></span><span>
+</span><span id="line-411"></span><span>    </span><span class="hs-comment">-- XXX these two can be collapsed into a single type</span><span>
+</span><span id="line-412"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="_streamLatency"><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+State t m a -&gt; Maybe NanoSecond64
+</span><a href="Streamly.Internal.Data.SVar.Type.html#_streamLatency"><span class="hs-identifier hs-var hs-var">_streamLatency</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Time.Units.html#NanoSecond64"><span class="hs-identifier hs-type">NanoSecond64</span></a></span><span> </span><span class="hs-comment">-- bootstrap latency</span><span>
+</span><span id="line-413"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="_maxStreamRate"><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+State t m a -&gt; Maybe Rate
+</span><a href="Streamly.Internal.Data.SVar.Type.html#_maxStreamRate"><span class="hs-identifier hs-var hs-var">_maxStreamRate</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#Rate"><span class="hs-identifier hs-type">Rate</span></a></span><span>
+</span><span id="line-414"></span><span>    </span><span class="hs-special">,</span><span> </span><span id="_inspectMode"><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+State t m a -&gt; Bool
+</span><a href="Streamly.Internal.Data.SVar.Type.html#_inspectMode"><span class="hs-identifier hs-var hs-var">_inspectMode</span></a></span></span><span>    </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-415"></span><span>    </span><span class="hs-special">}</span><span>
+</span><span id="line-416"></span><span>
+</span><span id="line-417"></span><span class="hs-comment">-------------------------------------------------------------------------------</span><span>
+</span><span id="line-418"></span><span class="hs-comment">-- State defaults and reset</span><span>
+</span><span id="line-419"></span><span class="hs-comment">-------------------------------------------------------------------------------</span><span>
+</span><span id="line-420"></span><span>
+</span><span id="line-421"></span><span class="hs-comment">-- A magical value for the buffer size arrived at by running the smallest</span><span>
+</span><span id="line-422"></span><span class="hs-comment">-- possible task and measuring the optimal value of the buffer for that.  This</span><span>
+</span><span id="line-423"></span><span class="hs-comment">-- is obviously dependent on hardware, this figure is based on a 2.2GHz intel</span><span>
+</span><span id="line-424"></span><span class="hs-comment">-- core-i7 processor.</span><span>
+</span><span id="line-425"></span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#magicMaxBuffer"><span class="hs-identifier hs-type">magicMaxBuffer</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word</span></span><span>
+</span><span id="line-426"></span><span id="magicMaxBuffer"><span class="annot"><span class="annottext">magicMaxBuffer :: Word
+</span><a href="Streamly.Internal.Data.SVar.Type.html#magicMaxBuffer"><span class="hs-identifier hs-var hs-var">magicMaxBuffer</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word
+</span><span class="hs-number">1500</span></span><span>
+</span><span id="line-427"></span><span>
+</span><span id="line-428"></span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#defaultMaxThreads"><span class="hs-identifier hs-type">defaultMaxThreads</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#defaultMaxBuffer"><span class="hs-identifier hs-type">defaultMaxBuffer</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#Limit"><span class="hs-identifier hs-type">Limit</span></a></span><span>
+</span><span id="line-429"></span><span id="defaultMaxThreads"><span class="annot"><span class="annottext">defaultMaxThreads :: Limit
+</span><a href="Streamly.Internal.Data.SVar.Type.html#defaultMaxThreads"><span class="hs-identifier hs-var hs-var">defaultMaxThreads</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word -&gt; Limit
+</span><a href="Streamly.Internal.Data.SVar.Type.html#Limited"><span class="hs-identifier hs-var">Limited</span></a></span><span> </span><span class="annot"><span class="annottext">Word
+</span><a href="Streamly.Internal.Data.SVar.Type.html#magicMaxBuffer"><span class="hs-identifier hs-var">magicMaxBuffer</span></a></span><span>
+</span><span id="line-430"></span><span id="defaultMaxBuffer"><span class="annot"><span class="annottext">defaultMaxBuffer :: Limit
+</span><a href="Streamly.Internal.Data.SVar.Type.html#defaultMaxBuffer"><span class="hs-identifier hs-var hs-var">defaultMaxBuffer</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word -&gt; Limit
+</span><a href="Streamly.Internal.Data.SVar.Type.html#Limited"><span class="hs-identifier hs-var">Limited</span></a></span><span> </span><span class="annot"><span class="annottext">Word
+</span><a href="Streamly.Internal.Data.SVar.Type.html#magicMaxBuffer"><span class="hs-identifier hs-var">magicMaxBuffer</span></a></span><span>
+</span><span id="line-431"></span><span>
+</span><span id="line-432"></span><span class="hs-comment">-- The fields prefixed by an _ are not to be accessed or updated directly but</span><span>
+</span><span id="line-433"></span><span class="hs-comment">-- via smart accessor APIs.</span><span>
+</span><span id="line-434"></span><span id="local-6989586621679369028"><span id="local-6989586621679369029"><span id="local-6989586621679369030"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#defState"><span class="hs-identifier hs-type">defState</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#State"><span class="hs-identifier hs-type">State</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679369030"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679369029"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679369028"><span class="hs-identifier hs-type">a</span></a></span></span></span></span><span>
+</span><span id="line-435"></span><span id="defState"><span class="annot"><span class="annottext">defState :: forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a. State t m a
+</span><a href="Streamly.Internal.Data.SVar.Type.html#defState"><span class="hs-identifier hs-var hs-var">defState</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#State"><span class="hs-identifier hs-type">State</span></a></span><span>
+</span><span id="line-436"></span><span>    </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">streamVar :: Maybe (SVar t m a)
+</span><a href="Streamly.Internal.Data.SVar.Type.html#streamVar"><span class="hs-identifier hs-var">streamVar</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-437"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_yieldLimit :: Maybe Count
+</span><a href="Streamly.Internal.Data.SVar.Type.html#_yieldLimit"><span class="hs-identifier hs-var">_yieldLimit</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-438"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_threadsHigh :: Limit
+</span><a href="Streamly.Internal.Data.SVar.Type.html#_threadsHigh"><span class="hs-identifier hs-var">_threadsHigh</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Limit
+</span><a href="Streamly.Internal.Data.SVar.Type.html#defaultMaxThreads"><span class="hs-identifier hs-var">defaultMaxThreads</span></a></span><span>
+</span><span id="line-439"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_bufferHigh :: Limit
+</span><a href="Streamly.Internal.Data.SVar.Type.html#_bufferHigh"><span class="hs-identifier hs-var">_bufferHigh</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Limit
+</span><a href="Streamly.Internal.Data.SVar.Type.html#defaultMaxBuffer"><span class="hs-identifier hs-var">defaultMaxBuffer</span></a></span><span>
+</span><span id="line-440"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_maxStreamRate :: Maybe Rate
+</span><a href="Streamly.Internal.Data.SVar.Type.html#_maxStreamRate"><span class="hs-identifier hs-var">_maxStreamRate</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-441"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_streamLatency :: Maybe NanoSecond64
+</span><a href="Streamly.Internal.Data.SVar.Type.html#_streamLatency"><span class="hs-identifier hs-var">_streamLatency</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-442"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_inspectMode :: Bool
+</span><a href="Streamly.Internal.Data.SVar.Type.html#_inspectMode"><span class="hs-identifier hs-var">_inspectMode</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-443"></span><span>    </span><span class="hs-special">}</span><span>
+</span><span id="line-444"></span><span>
+</span><span id="line-445"></span><span class="hs-comment">-- XXX if perf gets affected we can have all the Nothing params in a single</span><span>
+</span><span id="line-446"></span><span class="hs-comment">-- structure so that we reset is fast. We can also use rewrite rules such that</span><span>
+</span><span id="line-447"></span><span class="hs-comment">-- reset occurs only in concurrent streams to reduce the impact on serial</span><span>
+</span><span id="line-448"></span><span class="hs-comment">-- streams.</span><span>
+</span><span id="line-449"></span><span class="hs-comment">-- We can optimize this so that we clear it only if it is a Just value, it</span><span>
+</span><span id="line-450"></span><span class="hs-comment">-- results in slightly better perf for zip/zipM but the performance of scan</span><span>
+</span><span id="line-451"></span><span class="hs-comment">-- worsens a lot, it does not fuse.</span><span>
+</span><span id="line-452"></span><span class="hs-comment">--</span><span>
+</span><span id="line-453"></span><span class="hs-comment">-- XXX This has a side effect of clearing the SVar and yieldLimit, therefore it</span><span>
+</span><span id="line-454"></span><span class="hs-comment">-- should not be used to convert from the same type to the same type, unless</span><span>
+</span><span id="line-455"></span><span class="hs-comment">-- you want to clear the SVar. For clearing the SVar you should be using the</span><span>
+</span><span id="line-456"></span><span class="hs-comment">-- appropriate unStream functions instead.</span><span>
+</span><span id="line-457"></span><span class="hs-comment">--</span><span>
+</span><span id="line-458"></span><span class="hs-comment">-- | Adapt the stream state from one type to another.</span><span>
+</span><span id="line-459"></span><span id="local-6989586621679369019"><span id="local-6989586621679369020"><span id="local-6989586621679369021"><span id="local-6989586621679369022"><span id="local-6989586621679369023"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#adaptState"><span class="hs-identifier hs-type">adaptState</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#State"><span class="hs-identifier hs-type">State</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679369023"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679369022"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679369021"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#State"><span class="hs-identifier hs-type">State</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679369023"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679369020"><span class="hs-identifier hs-type">n</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679369019"><span class="hs-identifier hs-type">b</span></a></span></span></span></span></span></span><span>
+</span><span id="line-460"></span><span id="adaptState"><span class="annot"><span class="annottext">adaptState :: forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a (n :: * -&gt; *) b.
+State t m a -&gt; State t n b
+</span><a href="Streamly.Internal.Data.SVar.Type.html#adaptState"><span class="hs-identifier hs-var hs-var">adaptState</span></a></span></span><span> </span><span id="local-6989586621679368550"><span class="annot"><span class="annottext">State t m a
+</span><a href="#local-6989586621679368550"><span class="hs-identifier hs-var">st</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">State t m a
+</span><a href="#local-6989586621679368550"><span class="hs-identifier hs-var">st</span></a></span><span>
+</span><span id="line-461"></span><span>    </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">streamVar :: Maybe (SVar t n b)
+</span><a href="Streamly.Internal.Data.SVar.Type.html#streamVar"><span class="hs-identifier hs-var">streamVar</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-462"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">_yieldLimit :: Maybe Count
+</span><a href="Streamly.Internal.Data.SVar.Type.html#_yieldLimit"><span class="hs-identifier hs-var">_yieldLimit</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-463"></span><span>    </span><span class="hs-special">}</span><span>
+</span><span id="line-464"></span><span>
+</span><span id="line-465"></span><span class="hs-comment">-------------------------------------------------------------------------------</span><span>
+</span><span id="line-466"></span><span class="hs-comment">-- Smart get/set routines for State</span><span>
+</span><span id="line-467"></span><span class="hs-comment">-------------------------------------------------------------------------------</span><span>
+</span><span id="line-468"></span><span>
+</span><span id="line-469"></span><span class="hs-comment">-- Use get/set routines instead of directly accessing the State fields</span><span>
+</span><span id="line-470"></span><span id="local-6989586621679369011"><span id="local-6989586621679369012"><span id="local-6989586621679369013"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#setYieldLimit"><span class="hs-identifier hs-type">setYieldLimit</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int64</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#State"><span class="hs-identifier hs-type">State</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679369013"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679369012"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679369011"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#State"><span class="hs-identifier hs-type">State</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679369013"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679369012"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679369011"><span class="hs-identifier hs-type">a</span></a></span></span></span></span><span>
+</span><span id="line-471"></span><span id="setYieldLimit"><span class="annot"><span class="annottext">setYieldLimit :: forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+Maybe Int64 -&gt; State t m a -&gt; State t m a
+</span><a href="Streamly.Internal.Data.SVar.Type.html#setYieldLimit"><span class="hs-identifier hs-var hs-var">setYieldLimit</span></a></span></span><span> </span><span id="local-6989586621679368544"><span class="annot"><span class="annottext">Maybe Int64
+</span><a href="#local-6989586621679368544"><span class="hs-identifier hs-var">lim</span></a></span></span><span> </span><span id="local-6989586621679368543"><span class="annot"><span class="annottext">State t m a
+</span><a href="#local-6989586621679368543"><span class="hs-identifier hs-var">st</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-472"></span><span>    </span><span class="annot"><span class="annottext">State t m a
+</span><a href="#local-6989586621679368543"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">_yieldLimit :: Maybe Count
+</span><a href="Streamly.Internal.Data.SVar.Type.html#_yieldLimit"><span class="hs-identifier hs-var">_yieldLimit</span></a></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-473"></span><span>            </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Maybe Int64
+</span><a href="#local-6989586621679368544"><span class="hs-identifier hs-var">lim</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-474"></span><span>                </span><span class="annot"><span class="annottext">Maybe Int64
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-475"></span><span>                </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621679368542"><span class="annot"><span class="annottext">Int64
+</span><a href="#local-6989586621679368542"><span class="hs-identifier hs-var">n</span></a></span></span><span>  </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-476"></span><span>                    </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Int64
+</span><a href="#local-6989586621679368542"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;=</span></span><span> </span><span class="annot"><span class="annottext">Int64
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-477"></span><span>                    </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">Count
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-478"></span><span>                    </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">Int64
+</span><a href="#local-6989586621679368542"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-479"></span><span>       </span><span class="hs-special">}</span><span>
+</span><span id="line-480"></span><span>
+</span><span id="line-481"></span><span id="local-6989586621679368539"><span id="local-6989586621679368540"><span id="local-6989586621679368541"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#getYieldLimit"><span class="hs-identifier hs-type">getYieldLimit</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#State"><span class="hs-identifier hs-type">State</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679368541"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679368540"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679368539"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#Count"><span class="hs-identifier hs-type">Count</span></a></span></span></span></span><span>
+</span><span id="line-482"></span><span id="getYieldLimit"><span class="annot"><span class="annottext">getYieldLimit :: forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+State t m a -&gt; Maybe Count
+</span><a href="Streamly.Internal.Data.SVar.Type.html#getYieldLimit"><span class="hs-identifier hs-var hs-var">getYieldLimit</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+State t m a -&gt; Maybe Count
+</span><a href="Streamly.Internal.Data.SVar.Type.html#_yieldLimit"><span class="hs-identifier hs-var">_yieldLimit</span></a></span><span>
+</span><span id="line-483"></span><span>
+</span><span id="line-484"></span><span id="local-6989586621679369003"><span id="local-6989586621679369004"><span id="local-6989586621679369005"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#setMaxThreads"><span class="hs-identifier hs-type">setMaxThreads</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#State"><span class="hs-identifier hs-type">State</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679369005"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679369004"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679369003"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#State"><span class="hs-identifier hs-type">State</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679369005"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679369004"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679369003"><span class="hs-identifier hs-type">a</span></a></span></span></span></span><span>
+</span><span id="line-485"></span><span id="setMaxThreads"><span class="annot"><span class="annottext">setMaxThreads :: forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+Int -&gt; State t m a -&gt; State t m a
+</span><a href="Streamly.Internal.Data.SVar.Type.html#setMaxThreads"><span class="hs-identifier hs-var hs-var">setMaxThreads</span></a></span></span><span> </span><span id="local-6989586621679368528"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679368528"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span id="local-6989586621679368527"><span class="annot"><span class="annottext">State t m a
+</span><a href="#local-6989586621679368527"><span class="hs-identifier hs-var">st</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-486"></span><span>    </span><span class="annot"><span class="annottext">State t m a
+</span><a href="#local-6989586621679368527"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">_threadsHigh :: Limit
+</span><a href="Streamly.Internal.Data.SVar.Type.html#_threadsHigh"><span class="hs-identifier hs-var">_threadsHigh</span></a></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-487"></span><span>            </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679368528"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-488"></span><span>            </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">Limit
+</span><a href="Streamly.Internal.Data.SVar.Type.html#Unlimited"><span class="hs-identifier hs-var">Unlimited</span></a></span><span>
+</span><span id="line-489"></span><span>            </span><span class="hs-keyword">else</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679368528"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-490"></span><span>                 </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">Limit
+</span><a href="Streamly.Internal.Data.SVar.Type.html#defaultMaxThreads"><span class="hs-identifier hs-var">defaultMaxThreads</span></a></span><span>
+</span><span id="line-491"></span><span>                 </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">Word -&gt; Limit
+</span><a href="Streamly.Internal.Data.SVar.Type.html#Limited"><span class="hs-identifier hs-var">Limited</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679368528"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-492"></span><span>       </span><span class="hs-special">}</span><span>
+</span><span id="line-493"></span><span>
+</span><span id="line-494"></span><span id="local-6989586621679368523"><span id="local-6989586621679368524"><span id="local-6989586621679368525"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#getMaxThreads"><span class="hs-identifier hs-type">getMaxThreads</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#State"><span class="hs-identifier hs-type">State</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679368525"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679368524"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679368523"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#Limit"><span class="hs-identifier hs-type">Limit</span></a></span></span></span></span><span>
+</span><span id="line-495"></span><span id="getMaxThreads"><span class="annot"><span class="annottext">getMaxThreads :: forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+State t m a -&gt; Limit
+</span><a href="Streamly.Internal.Data.SVar.Type.html#getMaxThreads"><span class="hs-identifier hs-var hs-var">getMaxThreads</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+State t m a -&gt; Limit
+</span><a href="Streamly.Internal.Data.SVar.Type.html#_threadsHigh"><span class="hs-identifier hs-var">_threadsHigh</span></a></span><span>
+</span><span id="line-496"></span><span>
+</span><span id="line-497"></span><span id="local-6989586621679368520"><span id="local-6989586621679368521"><span id="local-6989586621679368522"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#setMaxBuffer"><span class="hs-identifier hs-type">setMaxBuffer</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#State"><span class="hs-identifier hs-type">State</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679368522"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679368521"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679368520"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#State"><span class="hs-identifier hs-type">State</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679368522"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679368521"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679368520"><span class="hs-identifier hs-type">a</span></a></span></span></span></span><span>
+</span><span id="line-498"></span><span id="setMaxBuffer"><span class="annot"><span class="annottext">setMaxBuffer :: forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+Int -&gt; State t m a -&gt; State t m a
+</span><a href="Streamly.Internal.Data.SVar.Type.html#setMaxBuffer"><span class="hs-identifier hs-var hs-var">setMaxBuffer</span></a></span></span><span> </span><span id="local-6989586621679368513"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679368513"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span id="local-6989586621679368512"><span class="annot"><span class="annottext">State t m a
+</span><a href="#local-6989586621679368512"><span class="hs-identifier hs-var">st</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-499"></span><span>    </span><span class="annot"><span class="annottext">State t m a
+</span><a href="#local-6989586621679368512"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">_bufferHigh :: Limit
+</span><a href="Streamly.Internal.Data.SVar.Type.html#_bufferHigh"><span class="hs-identifier hs-var">_bufferHigh</span></a></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-500"></span><span>            </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679368513"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-501"></span><span>            </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">Limit
+</span><a href="Streamly.Internal.Data.SVar.Type.html#Unlimited"><span class="hs-identifier hs-var">Unlimited</span></a></span><span>
+</span><span id="line-502"></span><span>            </span><span class="hs-keyword">else</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679368513"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-503"></span><span>                 </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">Limit
+</span><a href="Streamly.Internal.Data.SVar.Type.html#defaultMaxBuffer"><span class="hs-identifier hs-var">defaultMaxBuffer</span></a></span><span>
+</span><span id="line-504"></span><span>                 </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">Word -&gt; Limit
+</span><a href="Streamly.Internal.Data.SVar.Type.html#Limited"><span class="hs-identifier hs-var">Limited</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679368513"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-505"></span><span>       </span><span class="hs-special">}</span><span>
+</span><span id="line-506"></span><span>
+</span><span id="line-507"></span><span id="local-6989586621679368509"><span id="local-6989586621679368510"><span id="local-6989586621679368511"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#getMaxBuffer"><span class="hs-identifier hs-type">getMaxBuffer</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#State"><span class="hs-identifier hs-type">State</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679368511"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679368510"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679368509"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#Limit"><span class="hs-identifier hs-type">Limit</span></a></span></span></span></span><span>
+</span><span id="line-508"></span><span id="getMaxBuffer"><span class="annot"><span class="annottext">getMaxBuffer :: forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+State t m a -&gt; Limit
+</span><a href="Streamly.Internal.Data.SVar.Type.html#getMaxBuffer"><span class="hs-identifier hs-var hs-var">getMaxBuffer</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+State t m a -&gt; Limit
+</span><a href="Streamly.Internal.Data.SVar.Type.html#_bufferHigh"><span class="hs-identifier hs-var">_bufferHigh</span></a></span><span>
+</span><span id="line-509"></span><span>
+</span><span id="line-510"></span><span id="local-6989586621679368994"><span id="local-6989586621679368995"><span id="local-6989586621679368996"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#setStreamRate"><span class="hs-identifier hs-type">setStreamRate</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#Rate"><span class="hs-identifier hs-type">Rate</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#State"><span class="hs-identifier hs-type">State</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679368996"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679368995"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679368994"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#State"><span class="hs-identifier hs-type">State</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679368996"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679368995"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679368994"><span class="hs-identifier hs-type">a</span></a></span></span></span></span><span>
+</span><span id="line-511"></span><span id="setStreamRate"><span class="annot"><span class="annottext">setStreamRate :: forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+Maybe Rate -&gt; State t m a -&gt; State t m a
+</span><a href="Streamly.Internal.Data.SVar.Type.html#setStreamRate"><span class="hs-identifier hs-var hs-var">setStreamRate</span></a></span></span><span> </span><span id="local-6989586621679368508"><span class="annot"><span class="annottext">Maybe Rate
+</span><a href="#local-6989586621679368508"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span id="local-6989586621679368507"><span class="annot"><span class="annottext">State t m a
+</span><a href="#local-6989586621679368507"><span class="hs-identifier hs-var">st</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">State t m a
+</span><a href="#local-6989586621679368507"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">_maxStreamRate :: Maybe Rate
+</span><a href="Streamly.Internal.Data.SVar.Type.html#_maxStreamRate"><span class="hs-identifier hs-var">_maxStreamRate</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe Rate
+</span><a href="#local-6989586621679368508"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-512"></span><span>
+</span><span id="line-513"></span><span id="local-6989586621679368504"><span id="local-6989586621679368505"><span id="local-6989586621679368506"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#getStreamRate"><span class="hs-identifier hs-type">getStreamRate</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#State"><span class="hs-identifier hs-type">State</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679368506"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679368505"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679368504"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#Rate"><span class="hs-identifier hs-type">Rate</span></a></span></span></span></span><span>
+</span><span id="line-514"></span><span id="getStreamRate"><span class="annot"><span class="annottext">getStreamRate :: forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+State t m a -&gt; Maybe Rate
+</span><a href="Streamly.Internal.Data.SVar.Type.html#getStreamRate"><span class="hs-identifier hs-var hs-var">getStreamRate</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+State t m a -&gt; Maybe Rate
+</span><a href="Streamly.Internal.Data.SVar.Type.html#_maxStreamRate"><span class="hs-identifier hs-var">_maxStreamRate</span></a></span><span>
+</span><span id="line-515"></span><span>
+</span><span id="line-516"></span><span id="local-6989586621679368501"><span id="local-6989586621679368502"><span id="local-6989586621679368503"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#setStreamLatency"><span class="hs-identifier hs-type">setStreamLatency</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#State"><span class="hs-identifier hs-type">State</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679368503"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679368502"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679368501"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#State"><span class="hs-identifier hs-type">State</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679368503"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679368502"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679368501"><span class="hs-identifier hs-type">a</span></a></span></span></span></span><span>
+</span><span id="line-517"></span><span id="setStreamLatency"><span class="annot"><span class="annottext">setStreamLatency :: forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+Int -&gt; State t m a -&gt; State t m a
+</span><a href="Streamly.Internal.Data.SVar.Type.html#setStreamLatency"><span class="hs-identifier hs-var hs-var">setStreamLatency</span></a></span></span><span> </span><span id="local-6989586621679368495"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679368495"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span id="local-6989586621679368494"><span class="annot"><span class="annottext">State t m a
+</span><a href="#local-6989586621679368494"><span class="hs-identifier hs-var">st</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-518"></span><span>    </span><span class="annot"><span class="annottext">State t m a
+</span><a href="#local-6989586621679368494"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">_streamLatency :: Maybe NanoSecond64
+</span><a href="Streamly.Internal.Data.SVar.Type.html#_streamLatency"><span class="hs-identifier hs-var">_streamLatency</span></a></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-519"></span><span>            </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679368495"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;=</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-520"></span><span>            </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-521"></span><span>            </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679368495"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-522"></span><span>       </span><span class="hs-special">}</span><span>
+</span><span id="line-523"></span><span>
+</span><span id="line-524"></span><span id="local-6989586621679368491"><span id="local-6989586621679368492"><span id="local-6989586621679368493"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#getStreamLatency"><span class="hs-identifier hs-type">getStreamLatency</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#State"><span class="hs-identifier hs-type">State</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679368493"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679368492"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679368491"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Time.Units.html#NanoSecond64"><span class="hs-identifier hs-type">NanoSecond64</span></a></span></span></span></span><span>
+</span><span id="line-525"></span><span id="getStreamLatency"><span class="annot"><span class="annottext">getStreamLatency :: forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+State t m a -&gt; Maybe NanoSecond64
+</span><a href="Streamly.Internal.Data.SVar.Type.html#getStreamLatency"><span class="hs-identifier hs-var hs-var">getStreamLatency</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+State t m a -&gt; Maybe NanoSecond64
+</span><a href="Streamly.Internal.Data.SVar.Type.html#_streamLatency"><span class="hs-identifier hs-var">_streamLatency</span></a></span><span>
+</span><span id="line-526"></span><span>
+</span><span id="line-527"></span><span id="local-6989586621679368985"><span id="local-6989586621679368986"><span id="local-6989586621679368987"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#setInspectMode"><span class="hs-identifier hs-type">setInspectMode</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#State"><span class="hs-identifier hs-type">State</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679368987"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679368986"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679368985"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#State"><span class="hs-identifier hs-type">State</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679368987"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679368986"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679368985"><span class="hs-identifier hs-type">a</span></a></span></span></span></span><span>
+</span><span id="line-528"></span><span id="setInspectMode"><span class="annot"><span class="annottext">setInspectMode :: forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+State t m a -&gt; State t m a
+</span><a href="Streamly.Internal.Data.SVar.Type.html#setInspectMode"><span class="hs-identifier hs-var hs-var">setInspectMode</span></a></span></span><span> </span><span id="local-6989586621679368490"><span class="annot"><span class="annottext">State t m a
+</span><a href="#local-6989586621679368490"><span class="hs-identifier hs-var">st</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">State t m a
+</span><a href="#local-6989586621679368490"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">_inspectMode :: Bool
+</span><a href="Streamly.Internal.Data.SVar.Type.html#_inspectMode"><span class="hs-identifier hs-var">_inspectMode</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-529"></span><span>
+</span><span id="line-530"></span><span id="local-6989586621679368487"><span id="local-6989586621679368488"><span id="local-6989586621679368489"><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#getInspectMode"><span class="hs-identifier hs-type">getInspectMode</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.SVar.Type.html#State"><span class="hs-identifier hs-type">State</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679368489"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679368488"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679368487"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span></span></span><span>
+</span><span id="line-531"></span><span id="getInspectMode"><span class="annot"><span class="annottext">getInspectMode :: forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+State t m a -&gt; Bool
+</span><a href="Streamly.Internal.Data.SVar.Type.html#getInspectMode"><span class="hs-identifier hs-var hs-var">getInspectMode</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+State t m a -&gt; Bool
+</span><a href="Streamly.Internal.Data.SVar.Type.html#_inspectMode"><span class="hs-identifier hs-var">_inspectMode</span></a></span><span>
+</span><span id="line-532"></span></pre></body></html>

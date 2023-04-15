@@ -1,0 +1,1024 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span id="local-6989586621679414996"><span id="local-6989586621679414997"><span id="local-6989586621679414998"></span></span></span><span class="hs-pragma">{-# LANGUAGE LambdaCase #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- Module      : Unicode.Char.General</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- Copyright   : (c) 2020 Composewell Technologies and Contributors</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- License     : Apache-2.0</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Maintainer  : streamly@composewell.com</span><span>
+</span><span id="line-8"></span><span class="hs-comment">-- Stability   : experimental</span><span>
+</span><span id="line-9"></span><span class="hs-comment">--</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- General character property related functions.</span><span>
+</span><span id="line-11"></span><span class="hs-comment">--</span><span>
+</span><span id="line-12"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Unicode.Char.General</span><span>
+</span><span id="line-13"></span><span>    </span><span class="hs-special">(</span><span>
+</span><span id="line-14"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Unicode general categories</span></span><span>
+</span><span id="line-15"></span><span>      </span><span class="annot"><a href="Unicode.Char.General.html#GeneralCategory"><span class="hs-identifier">GeneralCategory</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-16"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.General.html#generalCategoryAbbr"><span class="hs-identifier">generalCategoryAbbr</span></a></span><span>
+</span><span id="line-17"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.General.html#generalCategory"><span class="hs-identifier">generalCategory</span></a></span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Character classification</span></span><span>
+</span><span id="line-20"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.General.html#isAlphabetic"><span class="hs-identifier">isAlphabetic</span></a></span><span>
+</span><span id="line-21"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.General.html#isAlphaNum"><span class="hs-identifier">isAlphaNum</span></a></span><span>
+</span><span id="line-22"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.General.html#isControl"><span class="hs-identifier">isControl</span></a></span><span>
+</span><span id="line-23"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.General.html#isMark"><span class="hs-identifier">isMark</span></a></span><span>
+</span><span id="line-24"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.General.html#isPrint"><span class="hs-identifier">isPrint</span></a></span><span>
+</span><span id="line-25"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.General.html#isPunctuation"><span class="hs-identifier">isPunctuation</span></a></span><span>
+</span><span id="line-26"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.General.html#isSeparator"><span class="hs-identifier">isSeparator</span></a></span><span>
+</span><span id="line-27"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.General.html#isSymbol"><span class="hs-identifier">isSymbol</span></a></span><span>
+</span><span id="line-28"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.General.html#isWhiteSpace"><span class="hs-identifier">isWhiteSpace</span></a></span><span>
+</span><span id="line-29"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.General.html#isLetter"><span class="hs-identifier">isLetter</span></a></span><span>
+</span><span id="line-30"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.General.html#isSpace"><span class="hs-identifier">isSpace</span></a></span><span>
+</span><span id="line-31"></span><span>    </span><span class="annot"><span class="hs-comment">-- ** Re-export</span></span><span>
+</span><span id="line-32"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">isAscii</span></span><span>
+</span><span id="line-33"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">isLatin1</span></span><span>
+</span><span id="line-34"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">isAsciiUpper</span></span><span>
+</span><span id="line-35"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">isAsciiLower</span></span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Korean Hangul Characters</span></span><span>
+</span><span id="line-38"></span><span>    </span><span class="hs-comment">-- | The Hangul script used in the Korean writing system consists of</span><span>
+</span><span id="line-39"></span><span>    </span><span class="hs-comment">-- individual consonant and vowel letters (jamo) that are visually combined</span><span>
+</span><span id="line-40"></span><span>    </span><span class="hs-comment">-- into square display cells to form entire syllable  blocks.  Hangul</span><span>
+</span><span id="line-41"></span><span>    </span><span class="hs-comment">-- syllables  may  be  encoded  directly  as  precomposed  combinations of</span><span>
+</span><span id="line-42"></span><span>    </span><span class="hs-comment">-- individual jamo or as decomposed sequences of conjoining jamo. Modern</span><span>
+</span><span id="line-43"></span><span>    </span><span class="hs-comment">-- Hangul syllable blocks can be expressed with either two or three jamo,</span><span>
+</span><span id="line-44"></span><span>    </span><span class="hs-comment">-- either in the  form  consonant + vowel  or  in  the  form  consonant +</span><span>
+</span><span id="line-45"></span><span>    </span><span class="hs-comment">-- vowel + consonant. The leading consonant is represented as L, the vowel</span><span>
+</span><span id="line-46"></span><span>    </span><span class="hs-comment">-- as V and the trailing consonant as T.</span><span>
+</span><span id="line-47"></span><span>    </span><span class="hs-comment">--</span><span>
+</span><span id="line-48"></span><span>    </span><span class="hs-comment">-- The Unicode Standard contains both a large set of precomposed modern</span><span>
+</span><span id="line-49"></span><span>    </span><span class="hs-comment">-- Hangul syllables and a set of conjoining Hangul jamo, which can be used</span><span>
+</span><span id="line-50"></span><span>    </span><span class="hs-comment">-- to encode archaic Korean syllable blocks as well as modern Korean</span><span>
+</span><span id="line-51"></span><span>    </span><span class="hs-comment">-- syllable blocks.</span><span>
+</span><span id="line-52"></span><span>    </span><span class="hs-comment">--</span><span>
+</span><span id="line-53"></span><span>    </span><span class="hs-comment">-- Hangul characters can be composed or decomposed algorithmically instead</span><span>
+</span><span id="line-54"></span><span>    </span><span class="hs-comment">-- of via mappings.  These APIs are used mainly for Unicode normalization</span><span>
+</span><span id="line-55"></span><span>    </span><span class="hs-comment">-- of Hangul text.</span><span>
+</span><span id="line-56"></span><span>    </span><span class="hs-comment">--</span><span>
+</span><span id="line-57"></span><span>    </span><span class="hs-comment">-- Please refer to the following resources for more information:</span><span>
+</span><span id="line-58"></span><span>    </span><span class="hs-comment">--</span><span>
+</span><span id="line-59"></span><span>    </span><span class="hs-comment">-- * The @Hangul@ section of the @East Asia@ chapter of the [Unicode Standard](https://www.unicode.org/versions/latest)</span><span>
+</span><span id="line-60"></span><span>    </span><span class="hs-comment">-- * Conformance chapter of the [Unicode Standard](https://www.unicode.org/versions/latest)</span><span>
+</span><span id="line-61"></span><span>    </span><span class="hs-comment">-- * [Unicode&#174; Standard Annex #15 - Unicode Normalization Forms](https://www.unicode.org/reports/tr15)</span><span>
+</span><span id="line-62"></span><span>    </span><span class="hs-comment">-- * UCD file @HangulSyllableType.txt@</span><span>
+</span><span id="line-63"></span><span>    </span><span class="hs-comment">-- * https://en.wikipedia.org/wiki/Hangul_Jamo_(Unicode_block)</span><span>
+</span><span id="line-64"></span><span>    </span><span class="hs-comment">-- * https://en.wikipedia.org/wiki/List_of_Hangul_jamo</span><span>
+</span><span id="line-65"></span><span>
+</span><span id="line-66"></span><span>    </span><span class="annot"><span class="hs-comment">-- ** Conjoining Jamo</span></span><span>
+</span><span id="line-67"></span><span>    </span><span class="annot"><span class="hs-comment">-- | Jamo L, V and T letters.</span></span><span>
+</span><span id="line-68"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.General.html#isJamo"><span class="hs-identifier">isJamo</span></a></span><span>
+</span><span id="line-69"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.General.html#jamoNCount"><span class="hs-identifier">jamoNCount</span></a></span><span>
+</span><span id="line-70"></span><span>
+</span><span id="line-71"></span><span>    </span><span class="annot"><span class="hs-comment">-- *** Jamo Leading (L)</span></span><span>
+</span><span id="line-72"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.General.html#jamoLFirst"><span class="hs-identifier">jamoLFirst</span></a></span><span>
+</span><span id="line-73"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.General.html#jamoLCount"><span class="hs-identifier">jamoLCount</span></a></span><span>
+</span><span id="line-74"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.General.html#jamoLIndex"><span class="hs-identifier">jamoLIndex</span></a></span><span>
+</span><span id="line-75"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.General.html#jamoLLast"><span class="hs-identifier">jamoLLast</span></a></span><span>
+</span><span id="line-76"></span><span>
+</span><span id="line-77"></span><span>    </span><span class="annot"><span class="hs-comment">-- *** Jamo Vowel (V)</span></span><span>
+</span><span id="line-78"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.General.html#jamoVFirst"><span class="hs-identifier">jamoVFirst</span></a></span><span>
+</span><span id="line-79"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.General.html#jamoVCount"><span class="hs-identifier">jamoVCount</span></a></span><span>
+</span><span id="line-80"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.General.html#jamoVIndex"><span class="hs-identifier">jamoVIndex</span></a></span><span>
+</span><span id="line-81"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.General.html#jamoVLast"><span class="hs-identifier">jamoVLast</span></a></span><span>
+</span><span id="line-82"></span><span>
+</span><span id="line-83"></span><span>    </span><span class="annot"><span class="hs-comment">-- *** Jamo Trailing (T)</span></span><span>
+</span><span id="line-84"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.General.html#jamoTFirst"><span class="hs-identifier">jamoTFirst</span></a></span><span>
+</span><span id="line-85"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.General.html#jamoTCount"><span class="hs-identifier">jamoTCount</span></a></span><span>
+</span><span id="line-86"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.General.html#jamoTIndex"><span class="hs-identifier">jamoTIndex</span></a></span><span>
+</span><span id="line-87"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.General.html#jamoTLast"><span class="hs-identifier">jamoTLast</span></a></span><span>
+</span><span id="line-88"></span><span>
+</span><span id="line-89"></span><span>    </span><span class="annot"><span class="hs-comment">-- ** Hangul Syllables</span></span><span>
+</span><span id="line-90"></span><span>    </span><span class="annot"><span class="hs-comment">-- | Precomposed Hangul syllables.</span></span><span>
+</span><span id="line-91"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.General.html#hangulFirst"><span class="hs-identifier">hangulFirst</span></a></span><span>
+</span><span id="line-92"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.General.html#hangulLast"><span class="hs-identifier">hangulLast</span></a></span><span>
+</span><span id="line-93"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.General.html#isHangul"><span class="hs-identifier">isHangul</span></a></span><span>
+</span><span id="line-94"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.General.html#isHangulLV"><span class="hs-identifier">isHangulLV</span></a></span><span>
+</span><span id="line-95"></span><span>    </span><span class="hs-special">)</span><span>
+</span><span id="line-96"></span><span class="hs-keyword">where</span><span>
+</span><span id="line-97"></span><span>
+</span><span id="line-98"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Exception</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">assert</span></span><span class="hs-special">)</span><span>
+</span><span id="line-99"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Char</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">isAscii</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">isLatin1</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">isAsciiUpper</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">isAsciiLower</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">ord</span></span><span class="hs-special">)</span><span>
+</span><span id="line-100"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Ix</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Ix</span></span><span class="hs-special">)</span><span>
+</span><span id="line-101"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Unicode.Internal.Division.html"><span class="hs-identifier">Unicode.Internal.Division</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Unicode.Internal.Division.html#quotRem28"><span class="hs-identifier">quotRem28</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-102"></span><span>
+</span><span id="line-103"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Unicode.Internal.Char.DerivedCoreProperties.html"><span class="hs-identifier">Unicode.Internal.Char.DerivedCoreProperties</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">P</span></span><span>
+</span><span id="line-104"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Unicode.Internal.Char.PropList.html"><span class="hs-identifier">Unicode.Internal.Char.PropList</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">P</span></span><span>
+</span><span id="line-105"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Unicode.Internal.Char.UnicodeData.GeneralCategory.html"><span class="hs-identifier">Unicode.Internal.Char.UnicodeData.GeneralCategory</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">UC</span></span><span>
+</span><span id="line-106"></span><span>
+</span><span id="line-107"></span><span class="hs-comment">{-| Unicode General Categories.
+
+These classes are defined in the
+[Unicode Character Database](http://www.unicode.org/reports/tr44/tr44-14.html#GC_Values_Table),
+part of the Unicode standard
+
+__Note:__ the classes must be in the same order they are listed in the Unicode Standard,
+because some functions (e.g. 'generalCategory') rely on the 'Enum' instance.
+
+@since 0.3.0
+-}</span><span>
+</span><span id="line-118"></span><span class="hs-keyword">data</span><span> </span><span id="GeneralCategory"><span class="annot"><a href="Unicode.Char.General.html#GeneralCategory"><span class="hs-identifier hs-var">GeneralCategory</span></a></span></span><span>
+</span><span id="line-119"></span><span>    </span><span class="hs-comment">-- L: Letter</span><span>
+</span><span id="line-120"></span><span>    </span><span class="hs-glyph">=</span><span> </span><span id="UppercaseLetter"><span class="annot"><a href="Unicode.Char.General.html#UppercaseLetter"><span class="hs-identifier hs-var">UppercaseLetter</span></a></span></span><span>       </span><span class="hs-comment">-- ^ @Lu@: Letter, Uppercase</span><span>
+</span><span id="line-121"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="LowercaseLetter"><span class="annot"><a href="Unicode.Char.General.html#LowercaseLetter"><span class="hs-identifier hs-var">LowercaseLetter</span></a></span></span><span>       </span><span class="hs-comment">-- ^ @Ll@: Letter, Lowercase</span><span>
+</span><span id="line-122"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="TitlecaseLetter"><span class="annot"><a href="Unicode.Char.General.html#TitlecaseLetter"><span class="hs-identifier hs-var">TitlecaseLetter</span></a></span></span><span>       </span><span class="hs-comment">-- ^ @Lt@: Letter, Titlecase</span><span>
+</span><span id="line-123"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="ModifierLetter"><span class="annot"><a href="Unicode.Char.General.html#ModifierLetter"><span class="hs-identifier hs-var">ModifierLetter</span></a></span></span><span>        </span><span class="hs-comment">-- ^ @Lm@: Letter, Modifier</span><span>
+</span><span id="line-124"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="OtherLetter"><span class="annot"><a href="Unicode.Char.General.html#OtherLetter"><span class="hs-identifier hs-var">OtherLetter</span></a></span></span><span>           </span><span class="hs-comment">-- ^ @Lo@: Letter, Other</span><span>
+</span><span id="line-125"></span><span>
+</span><span id="line-126"></span><span>    </span><span class="hs-comment">-- M: Mark</span><span>
+</span><span id="line-127"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="NonSpacingMark"><span class="annot"><a href="Unicode.Char.General.html#NonSpacingMark"><span class="hs-identifier hs-var">NonSpacingMark</span></a></span></span><span>        </span><span class="hs-comment">-- ^ @Mn@: Mark, Non-Spacing</span><span>
+</span><span id="line-128"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="SpacingCombiningMark"><span class="annot"><a href="Unicode.Char.General.html#SpacingCombiningMark"><span class="hs-identifier hs-var">SpacingCombiningMark</span></a></span></span><span>  </span><span class="hs-comment">-- ^ @Mc@: Mark, Spacing Combining</span><span>
+</span><span id="line-129"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="EnclosingMark"><span class="annot"><a href="Unicode.Char.General.html#EnclosingMark"><span class="hs-identifier hs-var">EnclosingMark</span></a></span></span><span>         </span><span class="hs-comment">-- ^ @Me@: Mark, Enclosing</span><span>
+</span><span id="line-130"></span><span>
+</span><span id="line-131"></span><span>    </span><span class="hs-comment">-- N: Number</span><span>
+</span><span id="line-132"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="DecimalNumber"><span class="annot"><a href="Unicode.Char.General.html#DecimalNumber"><span class="hs-identifier hs-var">DecimalNumber</span></a></span></span><span>         </span><span class="hs-comment">-- ^ @Nd@: Number, Decimal</span><span>
+</span><span id="line-133"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="LetterNumber"><span class="annot"><a href="Unicode.Char.General.html#LetterNumber"><span class="hs-identifier hs-var">LetterNumber</span></a></span></span><span>          </span><span class="hs-comment">-- ^ @Nl@: Number, Letter</span><span>
+</span><span id="line-134"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="OtherNumber"><span class="annot"><a href="Unicode.Char.General.html#OtherNumber"><span class="hs-identifier hs-var">OtherNumber</span></a></span></span><span>           </span><span class="hs-comment">-- ^ @No@: Number, Other</span><span>
+</span><span id="line-135"></span><span>
+</span><span id="line-136"></span><span>    </span><span class="hs-comment">-- P: Punctuation</span><span>
+</span><span id="line-137"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="ConnectorPunctuation"><span class="annot"><a href="Unicode.Char.General.html#ConnectorPunctuation"><span class="hs-identifier hs-var">ConnectorPunctuation</span></a></span></span><span>  </span><span class="hs-comment">-- ^ @Pc@: Punctuation, Connector</span><span>
+</span><span id="line-138"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="DashPunctuation"><span class="annot"><a href="Unicode.Char.General.html#DashPunctuation"><span class="hs-identifier hs-var">DashPunctuation</span></a></span></span><span>       </span><span class="hs-comment">-- ^ @Pd@: Punctuation, Dash</span><span>
+</span><span id="line-139"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="OpenPunctuation"><span class="annot"><a href="Unicode.Char.General.html#OpenPunctuation"><span class="hs-identifier hs-var">OpenPunctuation</span></a></span></span><span>       </span><span class="hs-comment">-- ^ @Ps@: Punctuation, Open</span><span>
+</span><span id="line-140"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="ClosePunctuation"><span class="annot"><a href="Unicode.Char.General.html#ClosePunctuation"><span class="hs-identifier hs-var">ClosePunctuation</span></a></span></span><span>      </span><span class="hs-comment">-- ^ @Pe@: Punctuation, Close</span><span>
+</span><span id="line-141"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="InitialQuote"><span class="annot"><a href="Unicode.Char.General.html#InitialQuote"><span class="hs-identifier hs-var">InitialQuote</span></a></span></span><span>          </span><span class="hs-comment">-- ^ @Pi@: Punctuation, Initial quote</span><span>
+</span><span id="line-142"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="FinalQuote"><span class="annot"><a href="Unicode.Char.General.html#FinalQuote"><span class="hs-identifier hs-var">FinalQuote</span></a></span></span><span>            </span><span class="hs-comment">-- ^ @Pf@: Punctuation, Final quote</span><span>
+</span><span id="line-143"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="OtherPunctuation"><span class="annot"><a href="Unicode.Char.General.html#OtherPunctuation"><span class="hs-identifier hs-var">OtherPunctuation</span></a></span></span><span>      </span><span class="hs-comment">-- ^ @Po@: Punctuation, Other</span><span>
+</span><span id="line-144"></span><span>
+</span><span id="line-145"></span><span>    </span><span class="hs-comment">-- S: Symbol</span><span>
+</span><span id="line-146"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="MathSymbol"><span class="annot"><a href="Unicode.Char.General.html#MathSymbol"><span class="hs-identifier hs-var">MathSymbol</span></a></span></span><span>            </span><span class="hs-comment">-- ^ @Sm@: Symbol, Math</span><span>
+</span><span id="line-147"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="CurrencySymbol"><span class="annot"><a href="Unicode.Char.General.html#CurrencySymbol"><span class="hs-identifier hs-var">CurrencySymbol</span></a></span></span><span>        </span><span class="hs-comment">-- ^ @Sc@: Symbol, Currency</span><span>
+</span><span id="line-148"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="ModifierSymbol"><span class="annot"><a href="Unicode.Char.General.html#ModifierSymbol"><span class="hs-identifier hs-var">ModifierSymbol</span></a></span></span><span>        </span><span class="hs-comment">-- ^ @Sk@: Symbol, Modifier</span><span>
+</span><span id="line-149"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="OtherSymbol"><span class="annot"><a href="Unicode.Char.General.html#OtherSymbol"><span class="hs-identifier hs-var">OtherSymbol</span></a></span></span><span>           </span><span class="hs-comment">-- ^ @So@: Symbol, Other</span><span>
+</span><span id="line-150"></span><span>
+</span><span id="line-151"></span><span>    </span><span class="hs-comment">-- Z: Separator</span><span>
+</span><span id="line-152"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="Space"><span class="annot"><a href="Unicode.Char.General.html#Space"><span class="hs-identifier hs-var">Space</span></a></span></span><span>                 </span><span class="hs-comment">-- ^ @Zs@: Separator, Space</span><span>
+</span><span id="line-153"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="LineSeparator"><span class="annot"><a href="Unicode.Char.General.html#LineSeparator"><span class="hs-identifier hs-var">LineSeparator</span></a></span></span><span>         </span><span class="hs-comment">-- ^ @Zl@: Separator, Line</span><span>
+</span><span id="line-154"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="ParagraphSeparator"><span class="annot"><a href="Unicode.Char.General.html#ParagraphSeparator"><span class="hs-identifier hs-var">ParagraphSeparator</span></a></span></span><span>    </span><span class="hs-comment">-- ^ @Zp@: Separator, Paragraph</span><span>
+</span><span id="line-155"></span><span>
+</span><span id="line-156"></span><span>    </span><span class="hs-comment">-- C: Other</span><span>
+</span><span id="line-157"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="Control"><span class="annot"><a href="Unicode.Char.General.html#Control"><span class="hs-identifier hs-var">Control</span></a></span></span><span>               </span><span class="hs-comment">-- ^ @Cc@: Other, Control</span><span>
+</span><span id="line-158"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="Format"><span class="annot"><a href="Unicode.Char.General.html#Format"><span class="hs-identifier hs-var">Format</span></a></span></span><span>                </span><span class="hs-comment">-- ^ @Cf@: Other, Format</span><span>
+</span><span id="line-159"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="Surrogate"><span class="annot"><a href="Unicode.Char.General.html#Surrogate"><span class="hs-identifier hs-var">Surrogate</span></a></span></span><span>             </span><span class="hs-comment">-- ^ @Cs@: Other, Surrogate</span><span>
+</span><span id="line-160"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="PrivateUse"><span class="annot"><a href="Unicode.Char.General.html#PrivateUse"><span class="hs-identifier hs-var">PrivateUse</span></a></span></span><span>            </span><span class="hs-comment">-- ^ @Co@: Other, Private Use</span><span>
+</span><span id="line-161"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="NotAssigned"><span class="annot"><a href="Unicode.Char.General.html#NotAssigned"><span class="hs-identifier hs-var">NotAssigned</span></a></span></span><span>           </span><span class="hs-comment">-- ^ @Cn@: Other, Not Assigned</span><span>
+</span><span id="line-162"></span><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span> </span><span id="local-6989586621679414885"><span id="local-6989586621679414887"><span id="local-6989586621679414889"><span class="annot"><span class="annottext">Int -&gt; GeneralCategory -&gt; ShowS
+[GeneralCategory] -&gt; ShowS
+GeneralCategory -&gt; String
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+showList :: [GeneralCategory] -&gt; ShowS
+$cshowList :: [GeneralCategory] -&gt; ShowS
+show :: GeneralCategory -&gt; String
+$cshow :: GeneralCategory -&gt; String
+showsPrec :: Int -&gt; GeneralCategory -&gt; ShowS
+$cshowsPrec :: Int -&gt; GeneralCategory -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span>
+</span><span id="line-163"></span><span>            </span><span class="hs-special">,</span><span> </span><span id="local-6989586621679414880"><span id="local-6989586621679414882"><span class="annot"><span class="annottext">GeneralCategory -&gt; GeneralCategory -&gt; Bool
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+/= :: GeneralCategory -&gt; GeneralCategory -&gt; Bool
+$c/= :: GeneralCategory -&gt; GeneralCategory -&gt; Bool
+== :: GeneralCategory -&gt; GeneralCategory -&gt; Bool
+$c== :: GeneralCategory -&gt; GeneralCategory -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span>
+</span><span id="line-164"></span><span>            </span><span class="hs-special">,</span><span> </span><span id="local-6989586621679414860"><span id="local-6989586621679414862"><span id="local-6989586621679414865"><span id="local-6989586621679414868"><span id="local-6989586621679414871"><span id="local-6989586621679414873"><span id="local-6989586621679414875"><span class="annot"><span class="annottext">Eq GeneralCategory
+GeneralCategory -&gt; GeneralCategory -&gt; Bool
+GeneralCategory -&gt; GeneralCategory -&gt; Ordering
+GeneralCategory -&gt; GeneralCategory -&gt; GeneralCategory
+forall a.
+Eq a
+-&gt; (a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+min :: GeneralCategory -&gt; GeneralCategory -&gt; GeneralCategory
+$cmin :: GeneralCategory -&gt; GeneralCategory -&gt; GeneralCategory
+max :: GeneralCategory -&gt; GeneralCategory -&gt; GeneralCategory
+$cmax :: GeneralCategory -&gt; GeneralCategory -&gt; GeneralCategory
+&gt;= :: GeneralCategory -&gt; GeneralCategory -&gt; Bool
+$c&gt;= :: GeneralCategory -&gt; GeneralCategory -&gt; Bool
+&gt; :: GeneralCategory -&gt; GeneralCategory -&gt; Bool
+$c&gt; :: GeneralCategory -&gt; GeneralCategory -&gt; Bool
+&lt;= :: GeneralCategory -&gt; GeneralCategory -&gt; Bool
+$c&lt;= :: GeneralCategory -&gt; GeneralCategory -&gt; Bool
+&lt; :: GeneralCategory -&gt; GeneralCategory -&gt; Bool
+$c&lt; :: GeneralCategory -&gt; GeneralCategory -&gt; Bool
+compare :: GeneralCategory -&gt; GeneralCategory -&gt; Ordering
+$ccompare :: GeneralCategory -&gt; GeneralCategory -&gt; Ordering
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span>
+</span><span id="line-165"></span><span>            </span><span class="hs-special">,</span><span> </span><span id="local-6989586621679414824"><span id="local-6989586621679414826"><span id="local-6989586621679414830"><span id="local-6989586621679414834"><span id="local-6989586621679414836"><span id="local-6989586621679414845"><span id="local-6989586621679414851"><span id="local-6989586621679414857"><span class="annot"><span class="annottext">Int -&gt; GeneralCategory
+GeneralCategory -&gt; Int
+GeneralCategory -&gt; [GeneralCategory]
+GeneralCategory -&gt; GeneralCategory
+GeneralCategory -&gt; GeneralCategory -&gt; [GeneralCategory]
+GeneralCategory
+-&gt; GeneralCategory -&gt; GeneralCategory -&gt; [GeneralCategory]
+forall a.
+(a -&gt; a)
+-&gt; (a -&gt; a)
+-&gt; (Int -&gt; a)
+-&gt; (a -&gt; Int)
+-&gt; (a -&gt; [a])
+-&gt; (a -&gt; a -&gt; [a])
+-&gt; (a -&gt; a -&gt; [a])
+-&gt; (a -&gt; a -&gt; a -&gt; [a])
+-&gt; Enum a
+enumFromThenTo :: GeneralCategory
+-&gt; GeneralCategory -&gt; GeneralCategory -&gt; [GeneralCategory]
+$cenumFromThenTo :: GeneralCategory
+-&gt; GeneralCategory -&gt; GeneralCategory -&gt; [GeneralCategory]
+enumFromTo :: GeneralCategory -&gt; GeneralCategory -&gt; [GeneralCategory]
+$cenumFromTo :: GeneralCategory -&gt; GeneralCategory -&gt; [GeneralCategory]
+enumFromThen :: GeneralCategory -&gt; GeneralCategory -&gt; [GeneralCategory]
+$cenumFromThen :: GeneralCategory -&gt; GeneralCategory -&gt; [GeneralCategory]
+enumFrom :: GeneralCategory -&gt; [GeneralCategory]
+$cenumFrom :: GeneralCategory -&gt; [GeneralCategory]
+fromEnum :: GeneralCategory -&gt; Int
+$cfromEnum :: GeneralCategory -&gt; Int
+toEnum :: Int -&gt; GeneralCategory
+$ctoEnum :: Int -&gt; GeneralCategory
+pred :: GeneralCategory -&gt; GeneralCategory
+$cpred :: GeneralCategory -&gt; GeneralCategory
+succ :: GeneralCategory -&gt; GeneralCategory
+$csucc :: GeneralCategory -&gt; GeneralCategory
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Enum</span></span></span></span></span></span></span></span></span></span><span>
+</span><span id="line-166"></span><span>            </span><span class="hs-special">,</span><span> </span><span id="local-6989586621679414819"><span id="local-6989586621679414821"><span class="annot"><span class="annottext">GeneralCategory
+forall a. a -&gt; a -&gt; Bounded a
+maxBound :: GeneralCategory
+$cmaxBound :: GeneralCategory
+minBound :: GeneralCategory
+$cminBound :: GeneralCategory
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Bounded</span></span></span></span><span>
+</span><span id="line-167"></span><span>            </span><span class="hs-special">,</span><span> </span><span id="local-6989586621679414802"><span id="local-6989586621679414804"><span id="local-6989586621679414806"><span id="local-6989586621679414808"><span id="local-6989586621679414810"><span id="local-6989586621679414813"><span class="annot"><span class="annottext">Ord GeneralCategory
+(GeneralCategory, GeneralCategory) -&gt; Int
+(GeneralCategory, GeneralCategory) -&gt; [GeneralCategory]
+(GeneralCategory, GeneralCategory) -&gt; GeneralCategory -&gt; Bool
+(GeneralCategory, GeneralCategory) -&gt; GeneralCategory -&gt; Int
+forall a.
+Ord a
+-&gt; ((a, a) -&gt; [a])
+-&gt; ((a, a) -&gt; a -&gt; Int)
+-&gt; ((a, a) -&gt; a -&gt; Int)
+-&gt; ((a, a) -&gt; a -&gt; Bool)
+-&gt; ((a, a) -&gt; Int)
+-&gt; ((a, a) -&gt; Int)
+-&gt; Ix a
+unsafeRangeSize :: (GeneralCategory, GeneralCategory) -&gt; Int
+$cunsafeRangeSize :: (GeneralCategory, GeneralCategory) -&gt; Int
+rangeSize :: (GeneralCategory, GeneralCategory) -&gt; Int
+$crangeSize :: (GeneralCategory, GeneralCategory) -&gt; Int
+inRange :: (GeneralCategory, GeneralCategory) -&gt; GeneralCategory -&gt; Bool
+$cinRange :: (GeneralCategory, GeneralCategory) -&gt; GeneralCategory -&gt; Bool
+unsafeIndex :: (GeneralCategory, GeneralCategory) -&gt; GeneralCategory -&gt; Int
+$cunsafeIndex :: (GeneralCategory, GeneralCategory) -&gt; GeneralCategory -&gt; Int
+index :: (GeneralCategory, GeneralCategory) -&gt; GeneralCategory -&gt; Int
+$cindex :: (GeneralCategory, GeneralCategory) -&gt; GeneralCategory -&gt; Int
+range :: (GeneralCategory, GeneralCategory) -&gt; [GeneralCategory]
+$crange :: (GeneralCategory, GeneralCategory) -&gt; [GeneralCategory]
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ix</span></span></span></span></span></span></span></span><span>
+</span><span id="line-168"></span><span>            </span><span class="hs-special">)</span><span>
+</span><span id="line-169"></span><span>
+</span><span id="line-170"></span><span class="hs-comment">-- | Abbreviation of 'GeneralCategory' used in the Unicode standard.</span><span>
+</span><span id="line-171"></span><span class="hs-comment">--</span><span>
+</span><span id="line-172"></span><span class="hs-comment">-- @since 0.3.0</span><span>
+</span><span id="line-173"></span><span class="annot"><a href="Unicode.Char.General.html#generalCategoryAbbr"><span class="hs-identifier hs-type">generalCategoryAbbr</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Unicode.Char.General.html#GeneralCategory"><span class="hs-identifier hs-type">GeneralCategory</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-174"></span><span id="generalCategoryAbbr"><span class="annot"><span class="annottext">generalCategoryAbbr :: GeneralCategory -&gt; String
+</span><a href="Unicode.Char.General.html#generalCategoryAbbr"><span class="hs-identifier hs-var hs-var">generalCategoryAbbr</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">\</span><span class="hs-glyph">case</span><span>
+</span><span id="line-175"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#UppercaseLetter"><span class="hs-identifier hs-var">UppercaseLetter</span></a></span><span>      </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Lu&quot;</span></span><span>
+</span><span id="line-176"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#LowercaseLetter"><span class="hs-identifier hs-var">LowercaseLetter</span></a></span><span>      </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Ll&quot;</span></span><span>
+</span><span id="line-177"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#TitlecaseLetter"><span class="hs-identifier hs-var">TitlecaseLetter</span></a></span><span>      </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Lt&quot;</span></span><span>
+</span><span id="line-178"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#ModifierLetter"><span class="hs-identifier hs-var">ModifierLetter</span></a></span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Lm&quot;</span></span><span>
+</span><span id="line-179"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#OtherLetter"><span class="hs-identifier hs-var">OtherLetter</span></a></span><span>          </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Lo&quot;</span></span><span>
+</span><span id="line-180"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#NonSpacingMark"><span class="hs-identifier hs-var">NonSpacingMark</span></a></span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Mn&quot;</span></span><span>
+</span><span id="line-181"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#SpacingCombiningMark"><span class="hs-identifier hs-var">SpacingCombiningMark</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Mc&quot;</span></span><span>
+</span><span id="line-182"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#EnclosingMark"><span class="hs-identifier hs-var">EnclosingMark</span></a></span><span>        </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Me&quot;</span></span><span>
+</span><span id="line-183"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#DecimalNumber"><span class="hs-identifier hs-var">DecimalNumber</span></a></span><span>        </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Nd&quot;</span></span><span>
+</span><span id="line-184"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#LetterNumber"><span class="hs-identifier hs-var">LetterNumber</span></a></span><span>         </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Nl&quot;</span></span><span>
+</span><span id="line-185"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#OtherNumber"><span class="hs-identifier hs-var">OtherNumber</span></a></span><span>          </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;No&quot;</span></span><span>
+</span><span id="line-186"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#ConnectorPunctuation"><span class="hs-identifier hs-var">ConnectorPunctuation</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Pc&quot;</span></span><span>
+</span><span id="line-187"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#DashPunctuation"><span class="hs-identifier hs-var">DashPunctuation</span></a></span><span>      </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Pd&quot;</span></span><span>
+</span><span id="line-188"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#OpenPunctuation"><span class="hs-identifier hs-var">OpenPunctuation</span></a></span><span>      </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Ps&quot;</span></span><span>
+</span><span id="line-189"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#ClosePunctuation"><span class="hs-identifier hs-var">ClosePunctuation</span></a></span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Pe&quot;</span></span><span>
+</span><span id="line-190"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#InitialQuote"><span class="hs-identifier hs-var">InitialQuote</span></a></span><span>         </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Pi&quot;</span></span><span>
+</span><span id="line-191"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#FinalQuote"><span class="hs-identifier hs-var">FinalQuote</span></a></span><span>           </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Pf&quot;</span></span><span>
+</span><span id="line-192"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#OtherPunctuation"><span class="hs-identifier hs-var">OtherPunctuation</span></a></span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Po&quot;</span></span><span>
+</span><span id="line-193"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#MathSymbol"><span class="hs-identifier hs-var">MathSymbol</span></a></span><span>           </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Sm&quot;</span></span><span>
+</span><span id="line-194"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#CurrencySymbol"><span class="hs-identifier hs-var">CurrencySymbol</span></a></span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Sc&quot;</span></span><span>
+</span><span id="line-195"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#ModifierSymbol"><span class="hs-identifier hs-var">ModifierSymbol</span></a></span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Sk&quot;</span></span><span>
+</span><span id="line-196"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#OtherSymbol"><span class="hs-identifier hs-var">OtherSymbol</span></a></span><span>          </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;So&quot;</span></span><span>
+</span><span id="line-197"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#Space"><span class="hs-identifier hs-var">Space</span></a></span><span>                </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Zs&quot;</span></span><span>
+</span><span id="line-198"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#LineSeparator"><span class="hs-identifier hs-var">LineSeparator</span></a></span><span>        </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Zl&quot;</span></span><span>
+</span><span id="line-199"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#ParagraphSeparator"><span class="hs-identifier hs-var">ParagraphSeparator</span></a></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Zp&quot;</span></span><span>
+</span><span id="line-200"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#Control"><span class="hs-identifier hs-var">Control</span></a></span><span>              </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Cc&quot;</span></span><span>
+</span><span id="line-201"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#Format"><span class="hs-identifier hs-var">Format</span></a></span><span>               </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Cf&quot;</span></span><span>
+</span><span id="line-202"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#Surrogate"><span class="hs-identifier hs-var">Surrogate</span></a></span><span>            </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Cs&quot;</span></span><span>
+</span><span id="line-203"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#PrivateUse"><span class="hs-identifier hs-var">PrivateUse</span></a></span><span>           </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Co&quot;</span></span><span>
+</span><span id="line-204"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#NotAssigned"><span class="hs-identifier hs-var">NotAssigned</span></a></span><span>          </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Cn&quot;</span></span><span>
+</span><span id="line-205"></span><span>
+</span><span id="line-206"></span><span class="hs-comment">{-| The Unicode general category of the character.
+
+This property is defined in the column 2 of the @UnicodeData@ table.
+
+This relies on the 'Enum' instance of 'GeneralCategory', which must remain in the
+same order as the categories are presented in the Unicode standard.
+
+prop&gt; show (generalCategory c) == show (Data.Char.generalCategory c)
+
+@since 0.3.0
+-}</span><span>
+</span><span id="line-217"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Unicode.Char.General.html#generalCategory"><span class="hs-pragma hs-type">generalCategory</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-218"></span><span class="annot"><a href="Unicode.Char.General.html#generalCategory"><span class="hs-identifier hs-type">generalCategory</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Unicode.Char.General.html#GeneralCategory"><span class="hs-identifier hs-type">GeneralCategory</span></a></span><span>
+</span><span id="line-219"></span><span id="generalCategory"><span class="annot"><span class="annottext">generalCategory :: Char -&gt; GeneralCategory
+</span><a href="Unicode.Char.General.html#generalCategory"><span class="hs-identifier hs-var hs-var">generalCategory</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. Enum a =&gt; Int -&gt; a
+</span><span class="hs-identifier hs-var">toEnum</span></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Char -&gt; Int
+</span><a href="Unicode.Internal.Char.UnicodeData.GeneralCategory.html#generalCategory"><span class="hs-identifier hs-var">UC.generalCategory</span></a></span><span>
+</span><span id="line-220"></span><span>
+</span><span id="line-221"></span><span class="hs-comment">{-| Returns 'True' for alphabetic Unicode characters (lower-case, upper-case
+and title-case letters, plus letters of caseless scripts and modifiers
+letters).
+
+__Note:__ this function is /not/ equivalent to
+'Unicode.Char.General.Compat.isAlpha' / 'Unicode.Char.General.Compat.isLetter':
+
+* 'Unicode.Char.General.Compat.isAlpha' matches the following general categories:
+
+    * 'UppercaseLetter' (@Lu@)
+    * 'LowercaseLetter' (@Ll@)
+    * 'TitlecaseLetter' (@Lt@)
+    * 'ModifierLetter' (@Lm@)
+    * 'OtherLetter' (@Lo@)
+
+* whereas 'isAlphabetic' matches:
+
+    * @Uppercase@ [property](https://www.unicode.org/reports/tr44/#Uppercase)
+    * @Lowercase@ [property](https://www.unicode.org/reports/tr44/#Lowercase)
+    * 'TitlecaseLetter' (@Lt@)
+    * 'ModifierLetter' (@Lm@)
+    * 'OtherLetter' (@Lo@)
+    * 'LetterNumber' (@Nl@)
+    * @Other_Alphabetic@ [property](https://www.unicode.org/reports/tr44/#Other_Alphabetic)
+
+@since 0.3.0
+-}</span><span>
+</span><span id="line-248"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Unicode.Char.General.html#isAlphabetic"><span class="hs-pragma hs-type">isAlphabetic</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-249"></span><span class="annot"><a href="Unicode.Char.General.html#isAlphabetic"><span class="hs-identifier hs-type">isAlphabetic</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-250"></span><span id="isAlphabetic"><span class="annot"><span class="annottext">isAlphabetic :: Char -&gt; Bool
+</span><a href="Unicode.Char.General.html#isAlphabetic"><span class="hs-identifier hs-var hs-var">isAlphabetic</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><a href="Unicode.Internal.Char.DerivedCoreProperties.html#isAlphabetic"><span class="hs-identifier hs-var">P.isAlphabetic</span></a></span><span>
+</span><span id="line-251"></span><span>
+</span><span id="line-252"></span><span class="hs-comment">{-| Selects alphabetic or numeric Unicode characters.
+
+This function returns 'True' if its argument has one of the
+following 'GeneralCategory's, or 'False' otherwise:
+
+* 'UppercaseLetter'
+* 'LowercaseLetter'
+* 'TitlecaseLetter'
+* 'ModifierLetter'
+* 'OtherLetter'
+* 'DecimalNumber'
+* 'LetterNumber'
+* 'OtherNumber'
+
+prop&gt; isAlphaNum c == Data.Char.isAlphaNum c
+
+@since 0.3.0
+-}</span><span>
+</span><span id="line-270"></span><span class="annot"><a href="Unicode.Char.General.html#isAlphaNum"><span class="hs-identifier hs-type">isAlphaNum</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-271"></span><span id="isAlphaNum"><span class="annot"><span class="annottext">isAlphaNum :: Char -&gt; Bool
+</span><a href="Unicode.Char.General.html#isAlphaNum"><span class="hs-identifier hs-var hs-var">isAlphaNum</span></a></span></span><span> </span><span id="local-6989586621679414796"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679414796"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Char -&gt; GeneralCategory
+</span><a href="Unicode.Char.General.html#generalCategory"><span class="hs-identifier hs-var">generalCategory</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679414796"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-272"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#UppercaseLetter"><span class="hs-identifier hs-var">UppercaseLetter</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-273"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#LowercaseLetter"><span class="hs-identifier hs-var">LowercaseLetter</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-274"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#TitlecaseLetter"><span class="hs-identifier hs-var">TitlecaseLetter</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-275"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#ModifierLetter"><span class="hs-identifier hs-var">ModifierLetter</span></a></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-276"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#OtherLetter"><span class="hs-identifier hs-var">OtherLetter</span></a></span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-277"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#DecimalNumber"><span class="hs-identifier hs-var">DecimalNumber</span></a></span><span>   </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-278"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#LetterNumber"><span class="hs-identifier hs-var">LetterNumber</span></a></span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-279"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#OtherNumber"><span class="hs-identifier hs-var">OtherNumber</span></a></span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-280"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><span class="hs-identifier">_</span></span><span>               </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-281"></span><span>
+</span><span id="line-282"></span><span class="hs-comment">{-| Selects control characters, which are the non-printing characters
+of the Latin-1 subset of Unicode.
+
+This function returns 'True' if its argument has the 'GeneralCategory' 'Control'.
+
+prop&gt; isControl c == Data.Char.isControl c
+
+@since 0.3.0
+-}</span><span>
+</span><span id="line-291"></span><span class="annot"><a href="Unicode.Char.General.html#isControl"><span class="hs-identifier hs-type">isControl</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-292"></span><span id="isControl"><span class="annot"><span class="annottext">isControl :: Char -&gt; Bool
+</span><a href="Unicode.Char.General.html#isControl"><span class="hs-identifier hs-var hs-var">isControl</span></a></span></span><span> </span><span id="local-6989586621679414795"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679414795"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Char -&gt; GeneralCategory
+</span><a href="Unicode.Char.General.html#generalCategory"><span class="hs-identifier hs-var">generalCategory</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679414795"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-293"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#Control"><span class="hs-identifier hs-var">Control</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-294"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><span class="hs-identifier">_</span></span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-295"></span><span>
+</span><span id="line-296"></span><span class="hs-comment">{-| Selects Unicode mark characters, for example accents and the
+like, which combine with preceding characters.
+
+This function returns 'True' if its argument has one of the
+following 'GeneralCategory's, or 'False' otherwise:
+
+* 'NonSpacingMark'
+* 'SpacingCombiningMark'
+* 'EnclosingMark'
+
+prop&gt; isMark c == Data.Char.isMark c
+
+@since 0.3.0
+-}</span><span>
+</span><span id="line-310"></span><span class="annot"><a href="Unicode.Char.General.html#isMark"><span class="hs-identifier hs-type">isMark</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-311"></span><span id="isMark"><span class="annot"><span class="annottext">isMark :: Char -&gt; Bool
+</span><a href="Unicode.Char.General.html#isMark"><span class="hs-identifier hs-var hs-var">isMark</span></a></span></span><span> </span><span id="local-6989586621679414794"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679414794"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Char -&gt; GeneralCategory
+</span><a href="Unicode.Char.General.html#generalCategory"><span class="hs-identifier hs-var">generalCategory</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679414794"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-312"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#NonSpacingMark"><span class="hs-identifier hs-var">NonSpacingMark</span></a></span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-313"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#SpacingCombiningMark"><span class="hs-identifier hs-var">SpacingCombiningMark</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-314"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#EnclosingMark"><span class="hs-identifier hs-var">EnclosingMark</span></a></span><span>        </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-315"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><span class="hs-identifier">_</span></span><span>                    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-316"></span><span>
+</span><span id="line-317"></span><span class="hs-comment">{-| Selects printable Unicode characters (letters, numbers, marks, punctuation,
+symbols and spaces).
+
+This function returns 'False' if its argument has one of the
+following 'GeneralCategory's, or 'True' otherwise:
+
+* 'LineSeparator'
+* 'ParagraphSeparator'
+* 'Control'
+* 'Format'
+* 'Surrogate'
+* 'PrivateUse'
+* 'NotAssigned'
+
+prop&gt; isPrint c == Data.Char.isPrint c
+
+@since 0.3.0
+-}</span><span>
+</span><span id="line-335"></span><span class="annot"><a href="Unicode.Char.General.html#isPrint"><span class="hs-identifier hs-type">isPrint</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-336"></span><span id="isPrint"><span class="annot"><span class="annottext">isPrint :: Char -&gt; Bool
+</span><a href="Unicode.Char.General.html#isPrint"><span class="hs-identifier hs-var hs-var">isPrint</span></a></span></span><span> </span><span id="local-6989586621679414793"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679414793"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Char -&gt; GeneralCategory
+</span><a href="Unicode.Char.General.html#generalCategory"><span class="hs-identifier hs-var">generalCategory</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679414793"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-337"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#LineSeparator"><span class="hs-identifier hs-var">LineSeparator</span></a></span><span>      </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-338"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#ParagraphSeparator"><span class="hs-identifier hs-var">ParagraphSeparator</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-339"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#Control"><span class="hs-identifier hs-var">Control</span></a></span><span>            </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-340"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#Format"><span class="hs-identifier hs-var">Format</span></a></span><span>             </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-341"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#Surrogate"><span class="hs-identifier hs-var">Surrogate</span></a></span><span>          </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-342"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#PrivateUse"><span class="hs-identifier hs-var">PrivateUse</span></a></span><span>         </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-343"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#NotAssigned"><span class="hs-identifier hs-var">NotAssigned</span></a></span><span>        </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-344"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><span class="hs-identifier">_</span></span><span>                  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-345"></span><span>
+</span><span id="line-346"></span><span class="hs-comment">{-| Selects Unicode punctuation characters, including various kinds
+of connectors, brackets and quotes.
+
+This function returns 'True' if its argument has one of the
+following 'GeneralCategory's, or 'False' otherwise:
+
+* 'ConnectorPunctuation'
+* 'DashPunctuation'
+* 'OpenPunctuation'
+* 'ClosePunctuation'
+* 'InitialQuote'
+* 'FinalQuote'
+* 'OtherPunctuation'
+
+prop&gt; isPunctuation c == Data.Char.isPunctuation c
+
+@since 0.3.0
+-}</span><span>
+</span><span id="line-364"></span><span class="annot"><a href="Unicode.Char.General.html#isPunctuation"><span class="hs-identifier hs-type">isPunctuation</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-365"></span><span id="isPunctuation"><span class="annot"><span class="annottext">isPunctuation :: Char -&gt; Bool
+</span><a href="Unicode.Char.General.html#isPunctuation"><span class="hs-identifier hs-var hs-var">isPunctuation</span></a></span></span><span> </span><span id="local-6989586621679414792"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679414792"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Char -&gt; GeneralCategory
+</span><a href="Unicode.Char.General.html#generalCategory"><span class="hs-identifier hs-var">generalCategory</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679414792"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-366"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#ConnectorPunctuation"><span class="hs-identifier hs-var">ConnectorPunctuation</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-367"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#DashPunctuation"><span class="hs-identifier hs-var">DashPunctuation</span></a></span><span>      </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-368"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#OpenPunctuation"><span class="hs-identifier hs-var">OpenPunctuation</span></a></span><span>      </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-369"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#ClosePunctuation"><span class="hs-identifier hs-var">ClosePunctuation</span></a></span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-370"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#InitialQuote"><span class="hs-identifier hs-var">InitialQuote</span></a></span><span>         </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-371"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#FinalQuote"><span class="hs-identifier hs-var">FinalQuote</span></a></span><span>           </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-372"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#OtherPunctuation"><span class="hs-identifier hs-var">OtherPunctuation</span></a></span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-373"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><span class="hs-identifier">_</span></span><span>                    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-374"></span><span>
+</span><span id="line-375"></span><span class="hs-comment">{- | Returns 'True' for any whitespace characters, and the control
+characters @\\t@, @\\n@, @\\r@, @\\f@, @\\v@.
+
+See: [Unicode @White_Space@](https://www.unicode.org/reports/tr44/#White_Space).
+
+__Note:__ 'isWhiteSpace' is /not/ equivalent to 'Unicode.Char.General.Compat.isSpace'.
+'isWhiteSpace' selects the same characters from 'isSpace' plus the following:
+
+* @U+0085@ NEXT LINE (NEL)
+* @U+2028@ LINE SEPARATOR
+* @U+2029@ PARAGRAPH SEPARATOR
+
+@since 0.3.0
+-}</span><span>
+</span><span id="line-389"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Unicode.Char.General.html#isWhiteSpace"><span class="hs-pragma hs-type">isWhiteSpace</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-390"></span><span class="annot"><a href="Unicode.Char.General.html#isWhiteSpace"><span class="hs-identifier hs-type">isWhiteSpace</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-391"></span><span id="isWhiteSpace"><span class="annot"><span class="annottext">isWhiteSpace :: Char -&gt; Bool
+</span><a href="Unicode.Char.General.html#isWhiteSpace"><span class="hs-identifier hs-var hs-var">isWhiteSpace</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><a href="Unicode.Internal.Char.PropList.html#isWhite_Space"><span class="hs-identifier hs-var">P.isWhite_Space</span></a></span><span>
+</span><span id="line-392"></span><span>
+</span><span id="line-393"></span><span class="hs-comment">{-| Selects Unicode space and separator characters.
+
+This function returns 'True' if its argument has one of the
+following 'GeneralCategory's, or 'False' otherwise:
+
+* 'Space'
+* 'LineSeparator'
+* 'ParagraphSeparator'
+
+prop&gt; isSeparator c == Data.Char.isSeparator c
+
+@since 0.3.0
+-}</span><span>
+</span><span id="line-406"></span><span class="annot"><a href="Unicode.Char.General.html#isSeparator"><span class="hs-identifier hs-type">isSeparator</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-407"></span><span id="isSeparator"><span class="annot"><span class="annottext">isSeparator :: Char -&gt; Bool
+</span><a href="Unicode.Char.General.html#isSeparator"><span class="hs-identifier hs-var hs-var">isSeparator</span></a></span></span><span> </span><span id="local-6989586621679414790"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679414790"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Char -&gt; GeneralCategory
+</span><a href="Unicode.Char.General.html#generalCategory"><span class="hs-identifier hs-var">generalCategory</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679414790"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-408"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#Space"><span class="hs-identifier hs-var">Space</span></a></span><span>              </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-409"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#LineSeparator"><span class="hs-identifier hs-var">LineSeparator</span></a></span><span>      </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-410"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#ParagraphSeparator"><span class="hs-identifier hs-var">ParagraphSeparator</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-411"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><span class="hs-identifier">_</span></span><span>                  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-412"></span><span>
+</span><span id="line-413"></span><span class="hs-comment">{-| Selects Unicode symbol characters, including mathematical and currency symbols.
+
+This function returns 'True' if its argument has one of the
+following 'GeneralCategory's, or 'False' otherwise:
+* 'MathSymbol'
+* 'CurrencySymbol'
+* 'ModifierSymbol'
+* 'OtherSymbol'
+
+prop&gt; isSymbol c == Data.Char.isSymbol c
+
+@since 0.3.0
+-}</span><span>
+</span><span id="line-426"></span><span class="annot"><a href="Unicode.Char.General.html#isSymbol"><span class="hs-identifier hs-type">isSymbol</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-427"></span><span id="isSymbol"><span class="annot"><span class="annottext">isSymbol :: Char -&gt; Bool
+</span><a href="Unicode.Char.General.html#isSymbol"><span class="hs-identifier hs-var hs-var">isSymbol</span></a></span></span><span> </span><span id="local-6989586621679414789"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679414789"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Char -&gt; GeneralCategory
+</span><a href="Unicode.Char.General.html#generalCategory"><span class="hs-identifier hs-var">generalCategory</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679414789"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-428"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#MathSymbol"><span class="hs-identifier hs-var">MathSymbol</span></a></span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-429"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#CurrencySymbol"><span class="hs-identifier hs-var">CurrencySymbol</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-430"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#ModifierSymbol"><span class="hs-identifier hs-var">ModifierSymbol</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-431"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><a href="Unicode.Char.General.html#OtherSymbol"><span class="hs-identifier hs-var">OtherSymbol</span></a></span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-432"></span><span>    </span><span class="annot"><span class="annottext">GeneralCategory
+</span><span class="hs-identifier">_</span></span><span>              </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-433"></span><span>
+</span><span id="line-434"></span><span class="hs-comment">-- | Returns 'True' for alphabetic Unicode characters (lower-case, upper-case</span><span>
+</span><span id="line-435"></span><span class="hs-comment">-- and title-case letters, plus letters of caseless scripts and modifiers</span><span>
+</span><span id="line-436"></span><span class="hs-comment">-- letters).</span><span>
+</span><span id="line-437"></span><span class="hs-comment">--</span><span>
+</span><span id="line-438"></span><span class="hs-comment">-- @since 0.1.0</span><span>
+</span><span id="line-439"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Unicode.Char.General.html#isLetter"><span class="hs-pragma hs-type">isLetter</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-440"></span><span class="hs-pragma">{-# DEPRECATED</span><span> </span><span class="hs-pragma">isLetter</span><span> </span><span class="hs-pragma">&quot;Use isAlphabetic instead. Note that the behavior of this function does not match base:Data.Char.isLetter. See Unicode.Char.General.Compat for behavior compatible with base:Data.Char.&quot;</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-441"></span><span class="annot"><a href="Unicode.Char.General.html#isLetter"><span class="hs-identifier hs-type">isLetter</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-442"></span><span id="isLetter"><span class="annot"><span class="annottext">isLetter :: Char -&gt; Bool
+</span><a href="Unicode.Char.General.html#isLetter"><span class="hs-identifier hs-var hs-var">isLetter</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><a href="Unicode.Internal.Char.DerivedCoreProperties.html#isAlphabetic"><span class="hs-identifier hs-var">P.isAlphabetic</span></a></span><span>
+</span><span id="line-443"></span><span>
+</span><span id="line-444"></span><span class="hs-comment">-- | Returns 'True' for any whitespace characters, and the control</span><span>
+</span><span id="line-445"></span><span class="hs-comment">-- characters @\\t@, @\\n@, @\\r@, @\\f@, @\\v@.</span><span>
+</span><span id="line-446"></span><span class="hs-comment">--</span><span>
+</span><span id="line-447"></span><span class="hs-comment">-- @since 0.1.0</span><span>
+</span><span id="line-448"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Unicode.Char.General.html#isSpace"><span class="hs-pragma hs-type">isSpace</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-449"></span><span class="hs-pragma">{-# DEPRECATED</span><span> </span><span class="hs-pragma">isSpace</span><span> </span><span class="hs-pragma">&quot;Use isWhiteSpace instead. Note that the behavior of this function does not match base:Data.Char.isSpace. See Unicode.Char.General.Compat for behavior compatible with base:Data.Char.&quot;</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-450"></span><span class="annot"><a href="Unicode.Char.General.html#isSpace"><span class="hs-identifier hs-type">isSpace</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-451"></span><span id="isSpace"><span class="annot"><span class="annottext">isSpace :: Char -&gt; Bool
+</span><a href="Unicode.Char.General.html#isSpace"><span class="hs-identifier hs-var hs-var">isSpace</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><a href="Unicode.Internal.Char.PropList.html#isWhite_Space"><span class="hs-identifier hs-var">P.isWhite_Space</span></a></span><span>
+</span><span id="line-452"></span><span>
+</span><span id="line-453"></span><span class="hs-comment">-------------------------------------------------------------------------------</span><span>
+</span><span id="line-454"></span><span class="hs-comment">-- Korean Hangul</span><span>
+</span><span id="line-455"></span><span class="hs-comment">-------------------------------------------------------------------------------</span><span>
+</span><span id="line-456"></span><span>
+</span><span id="line-457"></span><span class="hs-comment">-- jamo leading</span><span>
+</span><span id="line-458"></span><span class="annot"><a href="Unicode.Char.General.html#jamoLFirst"><span class="hs-identifier hs-type">jamoLFirst</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.General.html#jamoLCount"><span class="hs-identifier hs-type">jamoLCount</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.General.html#jamoLLast"><span class="hs-identifier hs-type">jamoLLast</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-459"></span><span>
+</span><span id="line-460"></span><span class="hs-comment">-- | First leading consonant jamo.</span><span>
+</span><span id="line-461"></span><span class="hs-comment">--</span><span>
+</span><span id="line-462"></span><span class="hs-comment">-- @since 0.1.0</span><span>
+</span><span id="line-463"></span><span id="jamoLFirst"><span class="annot"><span class="annottext">jamoLFirst :: Int
+</span><a href="Unicode.Char.General.html#jamoLFirst"><span class="hs-identifier hs-var hs-var">jamoLFirst</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0x1100</span></span><span>
+</span><span id="line-464"></span><span>
+</span><span id="line-465"></span><span class="hs-comment">-- | Total count of leading consonant jamo.</span><span>
+</span><span id="line-466"></span><span class="hs-comment">--</span><span>
+</span><span id="line-467"></span><span class="hs-comment">-- @since 0.3.0</span><span>
+</span><span id="line-468"></span><span id="jamoLCount"><span class="annot"><span class="annottext">jamoLCount :: Int
+</span><a href="Unicode.Char.General.html#jamoLCount"><span class="hs-identifier hs-var hs-var">jamoLCount</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">19</span></span><span>
+</span><span id="line-469"></span><span>
+</span><span id="line-470"></span><span class="hs-comment">-- | Last leading consonant jamo.</span><span>
+</span><span id="line-471"></span><span class="hs-comment">--</span><span>
+</span><span id="line-472"></span><span class="hs-comment">-- @since 0.1.0</span><span>
+</span><span id="line-473"></span><span id="jamoLLast"><span class="annot"><span class="annottext">jamoLLast :: Int
+</span><a href="Unicode.Char.General.html#jamoLLast"><span class="hs-identifier hs-var hs-var">jamoLLast</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="Unicode.Char.General.html#jamoLFirst"><span class="hs-identifier hs-var">jamoLFirst</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="Unicode.Char.General.html#jamoLCount"><span class="hs-identifier hs-var">jamoLCount</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span>
+</span><span id="line-474"></span><span>
+</span><span id="line-475"></span><span class="hs-comment">-- jamo vowel</span><span>
+</span><span id="line-476"></span><span class="annot"><a href="Unicode.Char.General.html#jamoVFirst"><span class="hs-identifier hs-type">jamoVFirst</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.General.html#jamoVCount"><span class="hs-identifier hs-type">jamoVCount</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.General.html#jamoVLast"><span class="hs-identifier hs-type">jamoVLast</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-477"></span><span>
+</span><span id="line-478"></span><span class="hs-comment">-- | First vowel jamo.</span><span>
+</span><span id="line-479"></span><span class="hs-comment">--</span><span>
+</span><span id="line-480"></span><span class="hs-comment">-- @since 0.1.0</span><span>
+</span><span id="line-481"></span><span id="jamoVFirst"><span class="annot"><span class="annottext">jamoVFirst :: Int
+</span><a href="Unicode.Char.General.html#jamoVFirst"><span class="hs-identifier hs-var hs-var">jamoVFirst</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0x1161</span></span><span>
+</span><span id="line-482"></span><span>
+</span><span id="line-483"></span><span class="hs-comment">-- | Total count of vowel jamo.</span><span>
+</span><span id="line-484"></span><span class="hs-comment">--</span><span>
+</span><span id="line-485"></span><span class="hs-comment">-- @since 0.1.0</span><span>
+</span><span id="line-486"></span><span id="jamoVCount"><span class="annot"><span class="annottext">jamoVCount :: Int
+</span><a href="Unicode.Char.General.html#jamoVCount"><span class="hs-identifier hs-var hs-var">jamoVCount</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">21</span></span><span>
+</span><span id="line-487"></span><span>
+</span><span id="line-488"></span><span class="hs-comment">-- | Last vowel jamo.</span><span>
+</span><span id="line-489"></span><span class="hs-comment">--</span><span>
+</span><span id="line-490"></span><span class="hs-comment">-- @since 0.1.0</span><span>
+</span><span id="line-491"></span><span id="jamoVLast"><span class="annot"><span class="annottext">jamoVLast :: Int
+</span><a href="Unicode.Char.General.html#jamoVLast"><span class="hs-identifier hs-var hs-var">jamoVLast</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="Unicode.Char.General.html#jamoVFirst"><span class="hs-identifier hs-var">jamoVFirst</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="Unicode.Char.General.html#jamoVCount"><span class="hs-identifier hs-var">jamoVCount</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span>
+</span><span id="line-492"></span><span>
+</span><span id="line-493"></span><span class="hs-comment">-- jamo trailing</span><span>
+</span><span id="line-494"></span><span class="annot"><a href="Unicode.Char.General.html#jamoTFirst"><span class="hs-identifier hs-type">jamoTFirst</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.General.html#jamoTCount"><span class="hs-identifier hs-type">jamoTCount</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-495"></span><span>
+</span><span id="line-496"></span><span class="hs-comment">-- | The first trailing consonant jamo.</span><span>
+</span><span id="line-497"></span><span class="hs-comment">--</span><span>
+</span><span id="line-498"></span><span class="hs-comment">-- Note that 'jamoTFirst' does not represent a valid T, it represents a missing</span><span>
+</span><span id="line-499"></span><span class="hs-comment">-- T i.e. LV without a T. See comments under 'jamoTIndex' .</span><span>
+</span><span id="line-500"></span><span class="hs-comment">--</span><span>
+</span><span id="line-501"></span><span class="hs-comment">-- @since 0.1.0</span><span>
+</span><span id="line-502"></span><span id="jamoTFirst"><span class="annot"><span class="annottext">jamoTFirst :: Int
+</span><a href="Unicode.Char.General.html#jamoTFirst"><span class="hs-identifier hs-var hs-var">jamoTFirst</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0x11a7</span></span><span>
+</span><span id="line-503"></span><span>
+</span><span id="line-504"></span><span class="hs-comment">-- | Total count of trailing consonant jamo.</span><span>
+</span><span id="line-505"></span><span class="hs-comment">--</span><span>
+</span><span id="line-506"></span><span class="hs-comment">-- @since 0.1.0</span><span>
+</span><span id="line-507"></span><span id="jamoTCount"><span class="annot"><span class="annottext">jamoTCount :: Int
+</span><a href="Unicode.Char.General.html#jamoTCount"><span class="hs-identifier hs-var hs-var">jamoTCount</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">28</span></span><span>
+</span><span id="line-508"></span><span>
+</span><span id="line-509"></span><span class="hs-comment">-- | Last trailing consonant jamo.</span><span>
+</span><span id="line-510"></span><span class="hs-comment">--</span><span>
+</span><span id="line-511"></span><span class="hs-comment">-- @since 0.1.0</span><span>
+</span><span id="line-512"></span><span class="annot"><a href="Unicode.Char.General.html#jamoTLast"><span class="hs-identifier hs-type">jamoTLast</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-513"></span><span id="jamoTLast"><span class="annot"><span class="annottext">jamoTLast :: Int
+</span><a href="Unicode.Char.General.html#jamoTLast"><span class="hs-identifier hs-var hs-var">jamoTLast</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="Unicode.Char.General.html#jamoTFirst"><span class="hs-identifier hs-var">jamoTFirst</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="Unicode.Char.General.html#jamoTCount"><span class="hs-identifier hs-var">jamoTCount</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span>
+</span><span id="line-514"></span><span>
+</span><span id="line-515"></span><span class="hs-comment">-- | Total count of all jamo characters.</span><span>
+</span><span id="line-516"></span><span class="hs-comment">--</span><span>
+</span><span id="line-517"></span><span class="hs-comment">-- @jamoNCount = jamoVCount * jamoTCount@</span><span>
+</span><span id="line-518"></span><span class="hs-comment">--</span><span>
+</span><span id="line-519"></span><span class="hs-comment">-- @since 0.1.0</span><span>
+</span><span id="line-520"></span><span class="annot"><a href="Unicode.Char.General.html#jamoNCount"><span class="hs-identifier hs-type">jamoNCount</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-521"></span><span id="jamoNCount"><span class="annot"><span class="annottext">jamoNCount :: Int
+</span><a href="Unicode.Char.General.html#jamoNCount"><span class="hs-identifier hs-var hs-var">jamoNCount</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">588</span></span><span>
+</span><span id="line-522"></span><span>
+</span><span id="line-523"></span><span class="hs-comment">-- Hangul</span><span>
+</span><span id="line-524"></span><span class="annot"><a href="Unicode.Char.General.html#hangulFirst"><span class="hs-identifier hs-type">hangulFirst</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Char.General.html#hangulLast"><span class="hs-identifier hs-type">hangulLast</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-525"></span><span>
+</span><span id="line-526"></span><span class="hs-comment">-- | Codepoint of the first pre-composed Hangul character.</span><span>
+</span><span id="line-527"></span><span class="hs-comment">--</span><span>
+</span><span id="line-528"></span><span class="hs-comment">-- @since 0.1.0</span><span>
+</span><span id="line-529"></span><span id="hangulFirst"><span class="annot"><span class="annottext">hangulFirst :: Int
+</span><a href="Unicode.Char.General.html#hangulFirst"><span class="hs-identifier hs-var hs-var">hangulFirst</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0xac00</span></span><span>
+</span><span id="line-530"></span><span>
+</span><span id="line-531"></span><span class="hs-comment">-- | Codepoint of the last Hangul character.</span><span>
+</span><span id="line-532"></span><span class="hs-comment">--</span><span>
+</span><span id="line-533"></span><span class="hs-comment">-- @since 0.1.0</span><span>
+</span><span id="line-534"></span><span id="hangulLast"><span class="annot"><span class="annottext">hangulLast :: Int
+</span><a href="Unicode.Char.General.html#hangulLast"><span class="hs-identifier hs-var hs-var">hangulLast</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="Unicode.Char.General.html#hangulFirst"><span class="hs-identifier hs-var">hangulFirst</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="Unicode.Char.General.html#jamoLCount"><span class="hs-identifier hs-var">jamoLCount</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="Unicode.Char.General.html#jamoVCount"><span class="hs-identifier hs-var">jamoVCount</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="Unicode.Char.General.html#jamoTCount"><span class="hs-identifier hs-var">jamoTCount</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span>
+</span><span id="line-535"></span><span>
+</span><span id="line-536"></span><span class="hs-comment">-- | Determine if the given character is a precomposed Hangul syllable.</span><span>
+</span><span id="line-537"></span><span class="hs-comment">--</span><span>
+</span><span id="line-538"></span><span class="hs-comment">-- @since 0.1.0</span><span>
+</span><span id="line-539"></span><span class="annot"><a href="Unicode.Char.General.html#isHangul"><span class="hs-identifier hs-type">isHangul</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-540"></span><span id="isHangul"><span class="annot"><span class="annottext">isHangul :: Char -&gt; Bool
+</span><a href="Unicode.Char.General.html#isHangul"><span class="hs-identifier hs-var hs-var">isHangul</span></a></span></span><span> </span><span id="local-6989586621679414786"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679414786"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679414785"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&gt;=</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="Unicode.Char.General.html#hangulFirst"><span class="hs-identifier hs-var">hangulFirst</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679414785"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;=</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="Unicode.Char.General.html#hangulLast"><span class="hs-identifier hs-var">hangulLast</span></a></span><span>
+</span><span id="line-541"></span><span>    </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621679414785"><span class="annot"><span class="annottext">n :: Int
+</span><a href="#local-6989586621679414785"><span class="hs-identifier hs-var hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Int
+</span><span class="hs-identifier hs-var">ord</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679414786"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-542"></span><span>
+</span><span id="line-543"></span><span class="hs-comment">-- | Determine if the given character is a Hangul LV syllable.</span><span>
+</span><span id="line-544"></span><span class="hs-comment">--</span><span>
+</span><span id="line-545"></span><span class="hs-comment">-- __Note:__ this function requires a precomposed Hangul syllable but does /not/</span><span>
+</span><span id="line-546"></span><span class="hs-comment">-- check it. Use 'isHangul' to check the input character before passing it to</span><span>
+</span><span id="line-547"></span><span class="hs-comment">-- 'isHangulLV'.</span><span>
+</span><span id="line-548"></span><span class="hs-comment">--</span><span>
+</span><span id="line-549"></span><span class="hs-comment">-- @since 0.1.0</span><span>
+</span><span id="line-550"></span><span class="annot"><a href="Unicode.Char.General.html#isHangulLV"><span class="hs-identifier hs-type">isHangulLV</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-551"></span><span id="isHangulLV"><span class="annot"><span class="annottext">isHangulLV :: Char -&gt; Bool
+</span><a href="Unicode.Char.General.html#isHangulLV"><span class="hs-identifier hs-var hs-var">isHangulLV</span></a></span></span><span> </span><span id="local-6989586621679414782"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679414782"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. (?callStack::CallStack) =&gt; Bool -&gt; a -&gt; a
+</span><span class="hs-identifier hs-var hs-var">assert</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="Unicode.Char.General.html#jamoTCount"><span class="hs-identifier hs-var">jamoTCount</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">28</span></span><span class="hs-special">)</span><span>
+</span><span id="line-552"></span><span>    </span><span class="annot"><span class="annottext">forall a b. (a, b) -&gt; b
+</span><span class="hs-identifier hs-var">snd</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; (Int, Int)
+</span><a href="Unicode.Internal.Division.html#quotRem28"><span class="hs-identifier hs-var">quotRem28</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char -&gt; Int
+</span><span class="hs-identifier hs-var">ord</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679414782"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="Unicode.Char.General.html#hangulFirst"><span class="hs-identifier hs-var">hangulFirst</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-553"></span><span>
+</span><span id="line-554"></span><span class="hs-comment">-- | Determine whether a character is a jamo L, V or T character.</span><span>
+</span><span id="line-555"></span><span class="hs-comment">--</span><span>
+</span><span id="line-556"></span><span class="hs-comment">-- @since 0.1.0</span><span>
+</span><span id="line-557"></span><span class="annot"><a href="Unicode.Char.General.html#isJamo"><span class="hs-identifier hs-type">isJamo</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-558"></span><span id="isJamo"><span class="annot"><span class="annottext">isJamo :: Char -&gt; Bool
+</span><a href="Unicode.Char.General.html#isJamo"><span class="hs-identifier hs-var hs-var">isJamo</span></a></span></span><span> </span><span id="local-6989586621679414781"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679414781"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679414780"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&gt;=</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="Unicode.Char.General.html#jamoLFirst"><span class="hs-identifier hs-var">jamoLFirst</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679414780"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;=</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="Unicode.Char.General.html#jamoTLast"><span class="hs-identifier hs-var">jamoTLast</span></a></span><span>
+</span><span id="line-559"></span><span>    </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621679414780"><span class="annot"><span class="annottext">n :: Int
+</span><a href="#local-6989586621679414780"><span class="hs-identifier hs-var hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Int
+</span><span class="hs-identifier hs-var">ord</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679414781"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-560"></span><span>
+</span><span id="line-561"></span><span class="hs-comment">-- | Given a Unicode character, if it is a leading jamo, return its index in</span><span>
+</span><span id="line-562"></span><span class="hs-comment">-- the list of leading jamo consonants, otherwise return 'Nothing'.</span><span>
+</span><span id="line-563"></span><span class="hs-comment">--</span><span>
+</span><span id="line-564"></span><span class="hs-comment">-- @since 0.1.0</span><span>
+</span><span id="line-565"></span><span class="annot"><a href="Unicode.Char.General.html#jamoLIndex"><span class="hs-identifier hs-type">jamoLIndex</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-566"></span><span id="jamoLIndex"><span class="annot"><span class="annottext">jamoLIndex :: Char -&gt; Maybe Int
+</span><a href="Unicode.Char.General.html#jamoLIndex"><span class="hs-identifier hs-var hs-var">jamoLIndex</span></a></span></span><span> </span><span id="local-6989586621679414779"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679414779"><span class="hs-identifier hs-var">c</span></a></span></span><span>
+</span><span id="line-567"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679414778"><span class="hs-identifier hs-var">index</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&gt;=</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679414778"><span class="hs-identifier hs-var">index</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="Unicode.Char.General.html#jamoLCount"><span class="hs-identifier hs-var">jamoLCount</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679414778"><span class="hs-identifier hs-var">index</span></a></span><span>
+</span><span id="line-568"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-569"></span><span>    </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621679414778"><span class="annot"><span class="annottext">index :: Int
+</span><a href="#local-6989586621679414778"><span class="hs-identifier hs-var hs-var">index</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Int
+</span><span class="hs-identifier hs-var">ord</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679414779"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="Unicode.Char.General.html#jamoLFirst"><span class="hs-identifier hs-var">jamoLFirst</span></a></span><span>
+</span><span id="line-570"></span><span>
+</span><span id="line-571"></span><span class="hs-comment">-- | Given a Unicode character, if it is a vowel jamo, return its index in the</span><span>
+</span><span id="line-572"></span><span class="hs-comment">-- list of vowel jamo, otherwise return 'Nothing'.</span><span>
+</span><span id="line-573"></span><span class="hs-comment">--</span><span>
+</span><span id="line-574"></span><span class="hs-comment">-- @since 0.1.0</span><span>
+</span><span id="line-575"></span><span class="annot"><a href="Unicode.Char.General.html#jamoVIndex"><span class="hs-identifier hs-type">jamoVIndex</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-576"></span><span id="jamoVIndex"><span class="annot"><span class="annottext">jamoVIndex :: Char -&gt; Maybe Int
+</span><a href="Unicode.Char.General.html#jamoVIndex"><span class="hs-identifier hs-var hs-var">jamoVIndex</span></a></span></span><span> </span><span id="local-6989586621679414775"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679414775"><span class="hs-identifier hs-var">c</span></a></span></span><span>
+</span><span id="line-577"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679414774"><span class="hs-identifier hs-var">index</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&gt;=</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679414774"><span class="hs-identifier hs-var">index</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="Unicode.Char.General.html#jamoVCount"><span class="hs-identifier hs-var">jamoVCount</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679414774"><span class="hs-identifier hs-var">index</span></a></span><span>
+</span><span id="line-578"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-579"></span><span>    </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621679414774"><span class="annot"><span class="annottext">index :: Int
+</span><a href="#local-6989586621679414774"><span class="hs-identifier hs-var hs-var">index</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Int
+</span><span class="hs-identifier hs-var">ord</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679414775"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="Unicode.Char.General.html#jamoVFirst"><span class="hs-identifier hs-var">jamoVFirst</span></a></span><span>
+</span><span id="line-580"></span><span>
+</span><span id="line-581"></span><span class="hs-comment">-- | Given a Unicode character, if it is a trailing jamo consonant, return its</span><span>
+</span><span id="line-582"></span><span class="hs-comment">-- index in the list of trailing jamo consonants, otherwise return 'Nothing'.</span><span>
+</span><span id="line-583"></span><span class="hs-comment">--</span><span>
+</span><span id="line-584"></span><span class="hs-comment">-- Note that index 0 is not a valid index for a trailing consonant. Index 0</span><span>
+</span><span id="line-585"></span><span class="hs-comment">-- corresponds to an LV syllable, without a T.  See &quot;Hangul Syllable</span><span>
+</span><span id="line-586"></span><span class="hs-comment">-- Decomposition&quot; in the Conformance chapter of the Unicode standard for more</span><span>
+</span><span id="line-587"></span><span class="hs-comment">-- details.</span><span>
+</span><span id="line-588"></span><span class="hs-comment">--</span><span>
+</span><span id="line-589"></span><span class="hs-comment">-- @since 0.1.0</span><span>
+</span><span id="line-590"></span><span class="annot"><a href="Unicode.Char.General.html#jamoTIndex"><span class="hs-identifier hs-type">jamoTIndex</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-591"></span><span id="jamoTIndex"><span class="annot"><span class="annottext">jamoTIndex :: Char -&gt; Maybe Int
+</span><a href="Unicode.Char.General.html#jamoTIndex"><span class="hs-identifier hs-var hs-var">jamoTIndex</span></a></span></span><span> </span><span id="local-6989586621679414772"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679414772"><span class="hs-identifier hs-var">c</span></a></span></span><span>
+</span><span id="line-592"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679414771"><span class="hs-identifier hs-var">index</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&gt;</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679414771"><span class="hs-identifier hs-var">index</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="Unicode.Char.General.html#jamoTCount"><span class="hs-identifier hs-var">jamoTCount</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679414771"><span class="hs-identifier hs-var">index</span></a></span><span>
+</span><span id="line-593"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-594"></span><span>    </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621679414771"><span class="annot"><span class="annottext">index :: Int
+</span><a href="#local-6989586621679414771"><span class="hs-identifier hs-var hs-var">index</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Int
+</span><span class="hs-identifier hs-var">ord</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679414772"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="Unicode.Char.General.html#jamoTFirst"><span class="hs-identifier hs-var">jamoTFirst</span></a></span><span>
+</span><span id="line-595"></span></pre></body></html>

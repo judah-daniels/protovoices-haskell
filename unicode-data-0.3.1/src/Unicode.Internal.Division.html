@@ -1,0 +1,152 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-- |</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- Module      : Unicode.Internal.Division</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Copyright   : (c) 2020 Andrew Lelechenko</span><span>
+</span><span id="line-4"></span><span class="hs-comment">--</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- License     : BSD-3-Clause</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Maintainer  : streamly@composewell.com</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Stability   : experimental</span><span>
+</span><span id="line-8"></span><span class="hs-comment">-- Portability : GHC</span><span>
+</span><span id="line-9"></span><span class="hs-comment">--</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- Fast division by known constants.</span><span>
+</span><span id="line-11"></span><span class="hs-comment">--</span><span>
+</span><span id="line-12"></span><span class="hs-comment">-- Division by a constant can be replaced by a double-word multiplication.</span><span>
+</span><span id="line-13"></span><span class="hs-comment">-- Roughly speaking, instead of dividing by x, multiply by 2^64/x,</span><span>
+</span><span id="line-14"></span><span class="hs-comment">-- obtaining 128-bit-long product, and take upper 64 bits. The peculiar</span><span>
+</span><span id="line-15"></span><span class="hs-comment">-- details can be found in Hacker's Delight, Ch. 10.</span><span>
+</span><span id="line-16"></span><span class="hs-comment">--</span><span>
+</span><span id="line-17"></span><span class="hs-comment">-- Even GHC 8.10 does not provide a primitive for a signed double-word</span><span>
+</span><span id="line-18"></span><span class="hs-comment">-- multiplication, but since our applications does not involve negative</span><span>
+</span><span id="line-19"></span><span class="hs-comment">-- integers, we convert 'Int' to 'Word' and use 'GHC.Exts.timesWord#'.</span><span>
+</span><span id="line-20"></span><span class="hs-comment">--</span><span>
+</span><span id="line-21"></span><span class="hs-comment">-- Textbook unsigned division by 21 or 28 becomes involved, when an argument</span><span>
+</span><span id="line-22"></span><span class="hs-comment">-- is allowed to take the full range of 'Word' up to 2^64. Luckily, in our</span><span>
+</span><span id="line-23"></span><span class="hs-comment">-- case the argument was casted from 'Int', so we can guarantee that it is</span><span>
+</span><span id="line-24"></span><span class="hs-comment">-- below 2^63.</span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Unicode.Internal.Division</span><span>
+</span><span id="line-27"></span><span>    </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Unicode.Internal.Division.html#quotRem21"><span class="hs-identifier">quotRem21</span></a></span><span>
+</span><span id="line-28"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Unicode.Internal.Division.html#quotRem28"><span class="hs-identifier">quotRem28</span></a></span><span>
+</span><span id="line-29"></span><span>    </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-30"></span><span>
+</span><span id="line-31"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Bits</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Bits</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">FiniteBits</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-32"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.Exts</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Word</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">timesWord2#</span></span><span class="hs-special">)</span><span>
+</span><span id="line-33"></span><span>
+</span><span id="line-34"></span><span class="annot"><a href="Unicode.Internal.Division.html#highMul"><span class="hs-identifier hs-type">highMul</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word</span></span><span>
+</span><span id="line-35"></span><span id="highMul"><span class="annot"><span class="annottext">highMul :: Word -&gt; Word -&gt; Word
+</span><a href="Unicode.Internal.Division.html#highMul"><span class="hs-identifier hs-var hs-var">highMul</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">W#</span></span><span> </span><span id="local-6989586621679414729"><span class="annot"><span class="annottext">Word#
+</span><a href="#local-6989586621679414729"><span class="hs-identifier hs-var">x#</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">W#</span></span><span> </span><span id="local-6989586621679414728"><span class="annot"><span class="annottext">Word#
+</span><a href="#local-6989586621679414728"><span class="hs-identifier hs-var">y#</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word# -&gt; Word
+</span><span class="hs-identifier hs-var">W#</span></span><span> </span><span class="annot"><span class="annottext">Word#
+</span><a href="#local-6989586621679414727"><span class="hs-identifier hs-var">high#</span></a></span><span>
+</span><span id="line-36"></span><span>    </span><span class="hs-keyword">where</span><span>
+</span><span id="line-37"></span><span>        </span><span class="hs-glyph">!</span><span class="hs-special">(#</span><span> </span><span id="local-6989586621679414727"><span class="annot"><span class="annottext">Word#
+</span><a href="#local-6989586621679414727"><span class="hs-identifier hs-var">high#</span></a></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Word#
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-special">#)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word# -&gt; Word# -&gt; (# Word#, Word# #)
+</span><span class="hs-identifier hs-var">timesWord2#</span></span><span> </span><span class="annot"><span class="annottext">Word#
+</span><a href="#local-6989586621679414729"><span class="hs-identifier hs-var">x#</span></a></span><span> </span><span class="annot"><span class="annottext">Word#
+</span><a href="#local-6989586621679414728"><span class="hs-identifier hs-var">y#</span></a></span><span>
+</span><span id="line-38"></span><span>
+</span><span id="line-39"></span><span class="hs-comment">-- | Input must be non-negative.</span><span>
+</span><span id="line-40"></span><span class="hs-comment">--</span><span>
+</span><span id="line-41"></span><span class="hs-comment">-- Instead of division by 21, we compute</span><span>
+</span><span id="line-42"></span><span class="hs-comment">-- floor(floor((2^68+17)/21 * n) / 2^68) = floor((2^68+17)/21 * n/2^68) =</span><span>
+</span><span id="line-43"></span><span class="hs-comment">-- floor(n/21 + (n/2^63 * 17/32)/21) = floor(n/21),</span><span>
+</span><span id="line-44"></span><span class="hs-comment">-- because n/2^63 * 17/32 &lt; 1.</span><span>
+</span><span id="line-45"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Unicode.Internal.Division.html#quotRem21"><span class="hs-pragma hs-type">quotRem21</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-46"></span><span class="annot"><a href="Unicode.Internal.Division.html#quotRem21"><span class="hs-identifier hs-type">quotRem21</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">)</span><span>
+</span><span id="line-47"></span><span id="quotRem21"><span class="annot"><span class="annottext">quotRem21 :: Int -&gt; (Int, Int)
+</span><a href="Unicode.Internal.Division.html#quotRem21"><span class="hs-identifier hs-var hs-var">quotRem21</span></a></span></span><span> </span><span id="local-6989586621679414726"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679414726"><span class="hs-identifier hs-var">n</span></a></span></span><span>
+</span><span id="line-48"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">forall b. FiniteBits b =&gt; b -&gt; Int
+</span><span class="hs-identifier hs-var">finiteBitSize</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Word
+</span><span class="hs-number">0</span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">/=</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">64</span></span><span>
+</span><span id="line-49"></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679414726"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Integral a =&gt; a -&gt; a -&gt; (a, a)
+</span><span class="hs-operator hs-var">`quotRem`</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">21</span></span><span>
+</span><span id="line-50"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span>
+</span><span id="line-51"></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">Word
+</span><a href="#local-6989586621679414722"><span class="hs-identifier hs-var">q</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Word
+</span><a href="#local-6989586621679414721"><span class="hs-identifier hs-var">w</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Word
+</span><span class="hs-number">21</span></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">Word
+</span><a href="#local-6989586621679414722"><span class="hs-identifier hs-var">q</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-52"></span><span>    </span><span class="hs-keyword">where</span><span>
+</span><span id="line-53"></span><span>        </span><span id="local-6989586621679414721"><span class="annot"><span class="annottext">w :: Word
+</span><a href="#local-6989586621679414721"><span class="hs-identifier hs-var hs-var">w</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679414726"><span class="hs-identifier hs-var">n</span></a></span><span>
+</span><span id="line-54"></span><span>        </span><span id="local-6989586621679414717"><span class="annot"><span class="annottext">high :: Word
+</span><a href="#local-6989586621679414717"><span class="hs-identifier hs-var hs-var">high</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word -&gt; Word -&gt; Word
+</span><a href="Unicode.Internal.Division.html#highMul"><span class="hs-identifier hs-var">highMul</span></a></span><span> </span><span class="annot"><span class="annottext">Word
+</span><a href="#local-6989586621679414721"><span class="hs-identifier hs-var">w</span></a></span><span> </span><span class="annot"><span class="annottext">Word
+</span><span class="hs-number">14054662151397753613</span></span><span> </span><span class="hs-comment">-- (2^68+17)/21</span><span>
+</span><span id="line-55"></span><span>        </span><span id="local-6989586621679414722"><span class="annot"><span class="annottext">q :: Word
+</span><a href="#local-6989586621679414722"><span class="hs-identifier hs-var hs-var">q</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word
+</span><a href="#local-6989586621679414717"><span class="hs-identifier hs-var">high</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Bits a =&gt; a -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">`shiftR`</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">4</span></span><span>
+</span><span id="line-56"></span><span>
+</span><span id="line-57"></span><span class="hs-comment">-- | Input must be non-negative.</span><span>
+</span><span id="line-58"></span><span class="hs-comment">--</span><span>
+</span><span id="line-59"></span><span class="hs-comment">-- Instead of division by 28, we compute</span><span>
+</span><span id="line-60"></span><span class="hs-comment">-- floor(floor((2^65+3)/7 * n) / 2^67) = floor((2^65+3)/7 * n/2^67) =</span><span>
+</span><span id="line-61"></span><span class="hs-comment">-- floor(n/28 + (n/2^63 * 3/4)/28) = floor(n/28),</span><span>
+</span><span id="line-62"></span><span class="hs-comment">-- because n/2^63 * 3/4 &lt; 1.</span><span>
+</span><span id="line-63"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Unicode.Internal.Division.html#quotRem28"><span class="hs-pragma hs-type">quotRem28</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-64"></span><span class="annot"><a href="Unicode.Internal.Division.html#quotRem28"><span class="hs-identifier hs-type">quotRem28</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">)</span><span>
+</span><span id="line-65"></span><span id="quotRem28"><span class="annot"><span class="annottext">quotRem28 :: Int -&gt; (Int, Int)
+</span><a href="Unicode.Internal.Division.html#quotRem28"><span class="hs-identifier hs-var hs-var">quotRem28</span></a></span></span><span> </span><span id="local-6989586621679414713"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679414713"><span class="hs-identifier hs-var">n</span></a></span></span><span>
+</span><span id="line-66"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">forall b. FiniteBits b =&gt; b -&gt; Int
+</span><span class="hs-identifier hs-var">finiteBitSize</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Word
+</span><span class="hs-number">0</span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">/=</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">64</span></span><span>
+</span><span id="line-67"></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679414713"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Integral a =&gt; a -&gt; a -&gt; (a, a)
+</span><span class="hs-operator hs-var">`quotRem`</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">28</span></span><span>
+</span><span id="line-68"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span>
+</span><span id="line-69"></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">Word
+</span><a href="#local-6989586621679414712"><span class="hs-identifier hs-var">q</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">Word
+</span><a href="#local-6989586621679414711"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-70"></span><span>    </span><span class="hs-keyword">where</span><span>
+</span><span id="line-71"></span><span>        </span><span id="local-6989586621679414708"><span class="annot"><span class="annottext">w :: Word
+</span><a href="#local-6989586621679414708"><span class="hs-identifier hs-var hs-var">w</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679414713"><span class="hs-identifier hs-var">n</span></a></span><span>
+</span><span id="line-72"></span><span>        </span><span id="local-6989586621679414707"><span class="annot"><span class="annottext">high :: Word
+</span><a href="#local-6989586621679414707"><span class="hs-identifier hs-var hs-var">high</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word -&gt; Word -&gt; Word
+</span><a href="Unicode.Internal.Division.html#highMul"><span class="hs-identifier hs-var">highMul</span></a></span><span> </span><span class="annot"><span class="annottext">Word
+</span><a href="#local-6989586621679414708"><span class="hs-identifier hs-var">w</span></a></span><span> </span><span class="annot"><span class="annottext">Word
+</span><span class="hs-number">5270498306774157605</span></span><span> </span><span class="hs-comment">-- (2^65+3)/7</span><span>
+</span><span id="line-73"></span><span>        </span><span id="local-6989586621679414712"><span class="annot"><span class="annottext">q :: Word
+</span><a href="#local-6989586621679414712"><span class="hs-identifier hs-var hs-var">q</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word
+</span><a href="#local-6989586621679414707"><span class="hs-identifier hs-var">high</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Bits a =&gt; a -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">`shiftR`</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">3</span></span><span>
+</span><span id="line-74"></span><span>        </span><span id="local-6989586621679414702"><span class="annot"><span class="annottext">prod :: Word
+</span><a href="#local-6989586621679414702"><span class="hs-identifier hs-var hs-var">prod</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Word
+</span><a href="#local-6989586621679414712"><span class="hs-identifier hs-var">q</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Bits a =&gt; a -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">`shiftL`</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">3</span></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Word
+</span><a href="#local-6989586621679414712"><span class="hs-identifier hs-var">q</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall a. Bits a =&gt; a -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">`shiftL`</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">2</span></span><span>
+</span><span id="line-75"></span><span>        </span><span id="local-6989586621679414711"><span class="annot"><span class="annottext">r :: Word
+</span><a href="#local-6989586621679414711"><span class="hs-identifier hs-var hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word
+</span><a href="#local-6989586621679414708"><span class="hs-identifier hs-var">w</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Word
+</span><a href="#local-6989586621679414702"><span class="hs-identifier hs-var">prod</span></a></span><span>
+</span><span id="line-76"></span></pre></body></html>

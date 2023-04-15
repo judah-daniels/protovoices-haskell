@@ -1,0 +1,315 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-- |</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- Module      : Streamly.Internal.Unicode.Char.Parser</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- Copyright   : (c) 2021 Composewell Technologies</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- License     : BSD-3-Clause</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- Maintainer  : streamly@composewell.com</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Stability   : experimental</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Portability : GHC</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- To parse a text input, use the decode routines from</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- &quot;Streamly.Unicode.Stream&quot; module to convert an input byte stream to a</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-- Unicode Char stream and then use these parsers on the Char stream.</span><span>
+</span><span id="line-12"></span><span>
+</span><span id="line-13"></span><span class="hs-comment">-- XXX Add explicit export list.</span><span>
+</span><span id="line-14"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Streamly.Internal.Unicode.Char.Parser</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Applicative</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Alternative</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Catch</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">MonadCatch</span></span><span class="hs-special">)</span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Bits</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Bits</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-operator">(.|.)</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">shiftL</span></span><span class="hs-special">)</span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Char</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">ord</span></span><span class="hs-special">)</span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Parser.html"><span class="hs-identifier">Streamly.Internal.Data.Parser</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Streamly.Internal.Data.Parser.ParserK.Type.html#Parser"><span class="hs-identifier">Parser</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Char</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Char</span></span><span>
+</span><span id="line-23"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Parser.html"><span class="hs-identifier">Streamly.Internal.Data.Parser</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Parser</span></span><span>
+</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Fold.html"><span class="hs-identifier">Streamly.Internal.Data.Fold</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Fold</span></span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span class="hs-comment">--------------------------------------------------------------------------------</span><span>
+</span><span id="line-27"></span><span class="hs-comment">-- Character classification</span><span>
+</span><span id="line-28"></span><span class="hs-comment">--------------------------------------------------------------------------------</span><span>
+</span><span id="line-29"></span><span>
+</span><span id="line-30"></span><span class="hs-comment">-- XXX It may be possible to implement faster predicates for ASCII byte stream.</span><span>
+</span><span id="line-31"></span><span class="hs-comment">-- We can measure if there is a signficant difference and if so we can add such</span><span>
+</span><span id="line-32"></span><span class="hs-comment">-- predicates to Streamly.Unicode.Char.Parser.Latin1.</span><span>
+</span><span id="line-33"></span><span class="hs-comment">--</span><span class="hs-cpp">
+#define CHAR_PARSER_SIG(NAME)         NAME :: MonadCatch m =&gt; Parser m Char Char
+</span><span class="hs-comment">-- XXX Need to use the predicates from Unicode.Char module/unicode-data package</span><span class="hs-cpp">
+#define CHAR_PARSER(NAME, PREDICATE)  NAME = Parser.satisfy Char.PREDICATE
+</span><span>
+</span><span id="line-38"></span><span class="hs-comment">-- XXX Add haddock documentation</span><span>
+</span><span id="line-39"></span><span class="hs-comment">-- XXX Add INLINE pragmas</span><span>
+</span><span id="line-40"></span><span>
+</span><span id="line-41"></span><span id="local-6989586621679433994"><span class="hs-identifier">CHAR_PARSER_SIG</span><span class="hs-special">(</span><span class="hs-identifier">space</span><span class="hs-special">)</span></span><span>
+</span><span id="line-42"></span><span id="space"></span><span class="hs-identifier">CHAR_PARSER</span><span class="hs-special">(</span><span class="hs-identifier">space</span><span class="hs-special">,</span><span class="hs-identifier">isSpace</span><span class="hs-special">)</span><span>
+</span><span id="line-43"></span><span>
+</span><span id="line-44"></span><span id="local-6989586621679433907"><span class="hs-identifier">CHAR_PARSER_SIG</span><span class="hs-special">(</span><span class="hs-identifier">lower</span><span class="hs-special">)</span></span><span>
+</span><span id="line-45"></span><span id="lower"></span><span class="hs-identifier">CHAR_PARSER</span><span class="hs-special">(</span><span class="hs-identifier">lower</span><span class="hs-special">,</span><span class="hs-identifier">isLower</span><span class="hs-special">)</span><span>
+</span><span id="line-46"></span><span>
+</span><span id="line-47"></span><span id="local-6989586621679433902"><span class="hs-identifier">CHAR_PARSER_SIG</span><span class="hs-special">(</span><span class="hs-identifier">upper</span><span class="hs-special">)</span></span><span>
+</span><span id="line-48"></span><span id="upper"></span><span class="hs-identifier">CHAR_PARSER</span><span class="hs-special">(</span><span class="hs-identifier">upper</span><span class="hs-special">,</span><span class="hs-identifier">isUpper</span><span class="hs-special">)</span><span>
+</span><span id="line-49"></span><span>
+</span><span id="line-50"></span><span id="local-6989586621679433897"><span class="hs-identifier">CHAR_PARSER_SIG</span><span class="hs-special">(</span><span class="hs-identifier">alpha</span><span class="hs-special">)</span></span><span>
+</span><span id="line-51"></span><span id="alpha"></span><span class="hs-identifier">CHAR_PARSER</span><span class="hs-special">(</span><span class="hs-identifier">alpha</span><span class="hs-special">,</span><span class="hs-identifier">isAlpha</span><span class="hs-special">)</span><span>
+</span><span id="line-52"></span><span>
+</span><span id="line-53"></span><span id="local-6989586621679433892"><span class="hs-identifier">CHAR_PARSER_SIG</span><span class="hs-special">(</span><span class="hs-identifier">alphaNum</span><span class="hs-special">)</span></span><span>
+</span><span id="line-54"></span><span id="alphaNum"></span><span class="hs-identifier">CHAR_PARSER</span><span class="hs-special">(</span><span class="hs-identifier">alphaNum</span><span class="hs-special">,</span><span class="hs-identifier">isAlphaNum</span><span class="hs-special">)</span><span>
+</span><span id="line-55"></span><span>
+</span><span id="line-56"></span><span id="local-6989586621679433887"><span class="hs-identifier">CHAR_PARSER_SIG</span><span class="hs-special">(</span><span class="hs-identifier">print</span><span class="hs-special">)</span></span><span>
+</span><span id="line-57"></span><span id="print"></span><span class="hs-identifier">CHAR_PARSER</span><span class="hs-special">(</span><span class="hs-identifier">print</span><span class="hs-special">,</span><span class="hs-identifier">isPrint</span><span class="hs-special">)</span><span>
+</span><span id="line-58"></span><span>
+</span><span id="line-59"></span><span id="local-6989586621679433882"><span class="hs-identifier">CHAR_PARSER_SIG</span><span class="hs-special">(</span><span class="hs-identifier">digit</span><span class="hs-special">)</span></span><span>
+</span><span id="line-60"></span><span id="digit"></span><span class="hs-identifier">CHAR_PARSER</span><span class="hs-special">(</span><span class="hs-identifier">digit</span><span class="hs-special">,</span><span class="hs-identifier">isDigit</span><span class="hs-special">)</span><span>
+</span><span id="line-61"></span><span>
+</span><span id="line-62"></span><span id="local-6989586621679433877"><span class="hs-identifier">CHAR_PARSER_SIG</span><span class="hs-special">(</span><span class="hs-identifier">octDigit</span><span class="hs-special">)</span></span><span>
+</span><span id="line-63"></span><span id="octDigit"></span><span class="hs-identifier">CHAR_PARSER</span><span class="hs-special">(</span><span class="hs-identifier">octDigit</span><span class="hs-special">,</span><span class="hs-identifier">isOctDigit</span><span class="hs-special">)</span><span>
+</span><span id="line-64"></span><span>
+</span><span id="line-65"></span><span id="local-6989586621679433872"><span class="hs-identifier">CHAR_PARSER_SIG</span><span class="hs-special">(</span><span class="hs-identifier">hexDigit</span><span class="hs-special">)</span></span><span>
+</span><span id="line-66"></span><span id="hexDigit"></span><span class="hs-identifier">CHAR_PARSER</span><span class="hs-special">(</span><span class="hs-identifier">hexDigit</span><span class="hs-special">,</span><span class="hs-identifier">isHexDigit</span><span class="hs-special">)</span><span>
+</span><span id="line-67"></span><span>
+</span><span id="line-68"></span><span id="local-6989586621679433867"><span class="hs-identifier">CHAR_PARSER_SIG</span><span class="hs-special">(</span><span class="hs-identifier">letter</span><span class="hs-special">)</span></span><span>
+</span><span id="line-69"></span><span id="letter"></span><span class="hs-identifier">CHAR_PARSER</span><span class="hs-special">(</span><span class="hs-identifier">letter</span><span class="hs-special">,</span><span class="hs-identifier">isLetter</span><span class="hs-special">)</span><span>
+</span><span id="line-70"></span><span>
+</span><span id="line-71"></span><span id="local-6989586621679433862"><span class="hs-identifier">CHAR_PARSER_SIG</span><span class="hs-special">(</span><span class="hs-identifier">mark</span><span class="hs-special">)</span></span><span>
+</span><span id="line-72"></span><span id="mark"></span><span class="hs-identifier">CHAR_PARSER</span><span class="hs-special">(</span><span class="hs-identifier">mark</span><span class="hs-special">,</span><span class="hs-identifier">isMark</span><span class="hs-special">)</span><span>
+</span><span id="line-73"></span><span>
+</span><span id="line-74"></span><span id="local-6989586621679433857"><span class="hs-identifier">CHAR_PARSER_SIG</span><span class="hs-special">(</span><span class="hs-identifier">number</span><span class="hs-special">)</span></span><span>
+</span><span id="line-75"></span><span id="number"></span><span class="hs-identifier">CHAR_PARSER</span><span class="hs-special">(</span><span class="hs-identifier">number</span><span class="hs-special">,</span><span class="hs-identifier">isNumber</span><span class="hs-special">)</span><span>
+</span><span id="line-76"></span><span>
+</span><span id="line-77"></span><span id="local-6989586621679433852"><span class="hs-identifier">CHAR_PARSER_SIG</span><span class="hs-special">(</span><span class="hs-identifier">punctuation</span><span class="hs-special">)</span></span><span>
+</span><span id="line-78"></span><span id="punctuation"><span class="annot"><span class="annottext">punctuation :: forall (m :: * -&gt; *). MonadCatch m =&gt; Parser m Char Char
+</span><a href="Streamly.Internal.Unicode.Char.Parser.html#punctuation"><span class="hs-identifier hs-var hs-var">CHAR_PARSER</span></a></span></span><span class="hs-special">(</span><span class="hs-identifier">punctuation</span><span class="hs-special">,</span><span class="hs-identifier">isPunctuation</span><span class="hs-special">)</span><span>
+</span><span id="line-79"></span><span>
+</span><span id="line-80"></span><span id="local-6989586621679433847"><span class="hs-identifier">CHAR_PARSER_SIG</span><span class="hs-special">(</span><span class="hs-identifier">symbol</span><span class="hs-special">)</span></span><span>
+</span><span id="line-81"></span><span id="symbol"></span><span class="hs-identifier">CHAR_PARSER</span><span class="hs-special">(</span><span class="hs-identifier">symbol</span><span class="hs-special">,</span><span class="hs-identifier">isSymbol</span><span class="hs-special">)</span><span>
+</span><span id="line-82"></span><span>
+</span><span id="line-83"></span><span id="local-6989586621679433842"><span class="hs-identifier">CHAR_PARSER_SIG</span><span class="hs-special">(</span><span class="hs-identifier">separator</span><span class="hs-special">)</span></span><span>
+</span><span id="line-84"></span><span id="separator"></span><span class="hs-identifier">CHAR_PARSER</span><span class="hs-special">(</span><span class="hs-identifier">separator</span><span class="hs-special">,</span><span class="hs-identifier">isSeparator</span><span class="hs-special">)</span><span>
+</span><span id="line-85"></span><span>
+</span><span id="line-86"></span><span id="local-6989586621679433837"><span class="hs-identifier">CHAR_PARSER_SIG</span><span class="hs-special">(</span><span class="hs-identifier">ascii</span><span class="hs-special">)</span></span><span>
+</span><span id="line-87"></span><span id="ascii"></span><span class="hs-identifier">CHAR_PARSER</span><span class="hs-special">(</span><span class="hs-identifier">ascii</span><span class="hs-special">,</span><span class="hs-identifier">isAscii</span><span class="hs-special">)</span><span>
+</span><span id="line-88"></span><span>
+</span><span id="line-89"></span><span id="local-6989586621679433832"><span class="hs-identifier">CHAR_PARSER_SIG</span><span class="hs-special">(</span><span class="hs-identifier">latin1</span><span class="hs-special">)</span></span><span>
+</span><span id="line-90"></span><span id="latin1"></span><span class="hs-identifier">CHAR_PARSER</span><span class="hs-special">(</span><span class="hs-identifier">latin1</span><span class="hs-special">,</span><span class="hs-identifier">isLatin1</span><span class="hs-special">)</span><span>
+</span><span id="line-91"></span><span>
+</span><span id="line-92"></span><span id="local-6989586621679433827"><span class="hs-identifier">CHAR_PARSER_SIG</span><span class="hs-special">(</span><span class="hs-identifier">asciiUpper</span><span class="hs-special">)</span></span><span>
+</span><span id="line-93"></span><span id="asciiUpper"></span><span class="hs-identifier">CHAR_PARSER</span><span class="hs-special">(</span><span class="hs-identifier">asciiUpper</span><span class="hs-special">,</span><span class="hs-identifier">isAsciiUpper</span><span class="hs-special">)</span><span>
+</span><span id="line-94"></span><span>
+</span><span id="line-95"></span><span id="local-6989586621679433822"><span class="hs-identifier">CHAR_PARSER_SIG</span><span class="hs-special">(</span><span class="hs-identifier">asciiLower</span><span class="hs-special">)</span></span><span>
+</span><span id="line-96"></span><span id="asciiLower"></span><span class="hs-identifier">CHAR_PARSER</span><span class="hs-special">(</span><span class="hs-identifier">asciiLower</span><span class="hs-special">,</span><span class="hs-identifier">isAsciiLower</span><span class="hs-special">)</span><span>
+</span><span id="line-97"></span><span>
+</span><span id="line-98"></span><span class="hs-comment">--------------------------------------------------------------------------------</span><span>
+</span><span id="line-99"></span><span class="hs-comment">-- Character parsers</span><span>
+</span><span id="line-100"></span><span class="hs-comment">--------------------------------------------------------------------------------</span><span>
+</span><span id="line-101"></span><span>
+</span><span id="line-102"></span><span class="hs-comment">-- | Match a specific character.</span><span>
+</span><span id="line-103"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Streamly.Internal.Unicode.Char.Parser.html#char"><span class="hs-pragma hs-type">char</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-104"></span><span id="local-6989586621679433970"><span class="annot"><a href="Streamly.Internal.Unicode.Char.Parser.html#char"><span class="hs-identifier hs-type">char</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadCatch</span></span><span> </span><span class="annot"><a href="#local-6989586621679433970"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Parser.ParserK.Type.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679433970"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span></span><span>
+</span><span id="line-105"></span><span id="char"><span class="annot"><span class="annottext">char :: forall (m :: * -&gt; *). MonadCatch m =&gt; Char -&gt; Parser m Char Char
+</span><a href="Streamly.Internal.Unicode.Char.Parser.html#char"><span class="hs-identifier hs-var hs-var">char</span></a></span></span><span> </span><span id="local-6989586621679433812"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433812"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. MonadCatch m =&gt; (a -&gt; Bool) -&gt; Parser m a a
+</span><a href="Streamly.Internal.Data.Parser.html#satisfy"><span class="hs-identifier hs-var">Parser.satisfy</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433812"><span class="hs-identifier hs-var">c</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-106"></span><span>
+</span><span id="line-107"></span><span class="hs-comment">--------------------------------------------------------------------------------</span><span>
+</span><span id="line-108"></span><span class="hs-comment">-- Numeric parsers</span><span>
+</span><span id="line-109"></span><span class="hs-comment">--------------------------------------------------------------------------------</span><span>
+</span><span id="line-110"></span><span>
+</span><span id="line-111"></span><span class="hs-comment">-- XXX It should fail if the number is larger than the size of the type.</span><span>
+</span><span id="line-112"></span><span class="hs-comment">--</span><span>
+</span><span id="line-113"></span><span class="hs-comment">-- | Parse and decode an unsigned integral decimal number.</span><span>
+</span><span id="line-114"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Streamly.Internal.Unicode.Char.Parser.html#decimal"><span class="hs-pragma hs-type">decimal</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-115"></span><span id="local-6989586621679433966"><span id="local-6989586621679433967"><span class="annot"><a href="Streamly.Internal.Unicode.Char.Parser.html#decimal"><span class="hs-identifier hs-type">decimal</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">MonadCatch</span></span><span> </span><span class="annot"><a href="#local-6989586621679433967"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integral</span></span><span> </span><span class="annot"><a href="#local-6989586621679433966"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Parser.ParserK.Type.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679433967"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="annot"><a href="#local-6989586621679433966"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-116"></span><span id="decimal"><span class="annot"><span class="annottext">decimal :: forall (m :: * -&gt; *) a.
+(MonadCatch m, Integral a) =&gt;
+Parser m Char a
+</span><a href="Streamly.Internal.Unicode.Char.Parser.html#decimal"><span class="hs-identifier hs-var hs-var">decimal</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a b.
+MonadCatch m =&gt;
+(a -&gt; Bool) -&gt; Fold m a b -&gt; Parser m a b
+</span><a href="Streamly.Internal.Data.Parser.html#takeWhile1"><span class="hs-identifier hs-var">Parser.takeWhile1</span></a></span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><span class="hs-identifier hs-var">Char.isDigit</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) b a.
+Monad m =&gt;
+(b -&gt; a -&gt; b) -&gt; b -&gt; Fold m a b
+</span><a href="Streamly.Internal.Data.Fold.Type.html#foldl%27"><span class="hs-identifier hs-var">Fold.foldl'</span></a></span><span> </span><span class="annot"><span class="annottext">forall {a}. Num a =&gt; a -&gt; Char -&gt; a
+</span><a href="#local-6989586621679433794"><span class="hs-identifier hs-var">step</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><span class="hs-number">0</span></span><span class="hs-special">)</span><span>
+</span><span id="line-117"></span><span>
+</span><span id="line-118"></span><span>    </span><span class="hs-keyword">where</span><span>
+</span><span id="line-119"></span><span>
+</span><span id="line-120"></span><span>    </span><span id="local-6989586621679433794"><span class="annot"><span class="annottext">step :: a -&gt; Char -&gt; a
+</span><a href="#local-6989586621679433794"><span class="hs-identifier hs-var hs-var">step</span></a></span></span><span> </span><span id="local-6989586621679433783"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679433783"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679433782"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433782"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679433783"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><span class="hs-number">10</span></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char -&gt; Int
+</span><span class="hs-identifier hs-var">ord</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433782"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">48</span></span><span class="hs-special">)</span><span>
+</span><span id="line-121"></span><span>
+</span><span id="line-122"></span><span class="hs-comment">-- | Parse and decode an unsigned integral hexadecimal number.  The hex digits</span><span>
+</span><span id="line-123"></span><span class="hs-comment">-- @\'a\'@ through @\'f\'@ may be upper or lower case.</span><span>
+</span><span id="line-124"></span><span class="hs-comment">--</span><span>
+</span><span id="line-125"></span><span class="hs-comment">-- Note: This parser does not accept a leading @\&quot;0x\&quot;@ string.</span><span>
+</span><span id="line-126"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Streamly.Internal.Unicode.Char.Parser.html#hexadecimal"><span class="hs-pragma hs-type">hexadecimal</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-127"></span><span id="local-6989586621679433946"><span id="local-6989586621679433947"><span class="annot"><a href="Streamly.Internal.Unicode.Char.Parser.html#hexadecimal"><span class="hs-identifier hs-type">hexadecimal</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">MonadCatch</span></span><span> </span><span class="annot"><a href="#local-6989586621679433947"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integral</span></span><span> </span><span class="annot"><a href="#local-6989586621679433946"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bits</span></span><span> </span><span class="annot"><a href="#local-6989586621679433946"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Parser.ParserK.Type.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679433947"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="annot"><a href="#local-6989586621679433946"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-128"></span><span id="hexadecimal"><span class="annot"><span class="annottext">hexadecimal :: forall (m :: * -&gt; *) a.
+(MonadCatch m, Integral a, Bits a) =&gt;
+Parser m Char a
+</span><a href="Streamly.Internal.Unicode.Char.Parser.html#hexadecimal"><span class="hs-identifier hs-var hs-var">hexadecimal</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a b.
+MonadCatch m =&gt;
+(a -&gt; Bool) -&gt; Fold m a b -&gt; Parser m a b
+</span><a href="Streamly.Internal.Data.Parser.html#takeWhile1"><span class="hs-identifier hs-var">Parser.takeWhile1</span></a></span><span> </span><span class="annot"><span class="annottext">Char -&gt; Bool
+</span><a href="#local-6989586621679433766"><span class="hs-identifier hs-var">isHexDigit</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) b a.
+Monad m =&gt;
+(b -&gt; a -&gt; b) -&gt; b -&gt; Fold m a b
+</span><a href="Streamly.Internal.Data.Fold.Type.html#foldl%27"><span class="hs-identifier hs-var">Fold.foldl'</span></a></span><span> </span><span class="annot"><span class="annottext">forall {a}. (Bits a, Num a) =&gt; a -&gt; Char -&gt; a
+</span><a href="#local-6989586621679433765"><span class="hs-identifier hs-var">step</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><span class="hs-number">0</span></span><span class="hs-special">)</span><span>
+</span><span id="line-129"></span><span>
+</span><span id="line-130"></span><span>    </span><span class="hs-keyword">where</span><span>
+</span><span id="line-131"></span><span>
+</span><span id="line-132"></span><span>    </span><span id="local-6989586621679433766"><span class="annot"><span class="annottext">isHexDigit :: Char -&gt; Bool
+</span><a href="#local-6989586621679433766"><span class="hs-identifier hs-var hs-var">isHexDigit</span></a></span></span><span> </span><span id="local-6989586621679433757"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433757"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-133"></span><span>           </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433757"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&gt;=</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'0'</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433757"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;=</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'9'</span></span><span class="hs-special">)</span><span>
+</span><span id="line-134"></span><span>        </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">||</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433757"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&gt;=</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'a'</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433757"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;=</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'f'</span></span><span class="hs-special">)</span><span>
+</span><span id="line-135"></span><span>        </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">||</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433757"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&gt;=</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'A'</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433757"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;=</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'F'</span></span><span class="hs-special">)</span><span>
+</span><span id="line-136"></span><span>
+</span><span id="line-137"></span><span>    </span><span id="local-6989586621679433765"><span class="annot"><span class="annottext">step :: a -&gt; Char -&gt; a
+</span><a href="#local-6989586621679433765"><span class="hs-identifier hs-var hs-var">step</span></a></span></span><span> </span><span id="local-6989586621679433726"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679433726"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679433725"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433725"><span class="hs-identifier hs-var">c</span></a></span></span><span>
+</span><span id="line-138"></span><span>        </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679433724"><span class="hs-identifier hs-var">w</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&gt;=</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">48</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679433724"><span class="hs-identifier hs-var">w</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;=</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">57</span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-139"></span><span>            </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679433726"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Bits a =&gt; a -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">`shiftL`</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">4</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall a. Bits a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">.|.</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679433724"><span class="hs-identifier hs-var">w</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">48</span></span><span class="hs-special">)</span><span>
+</span><span id="line-140"></span><span>        </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679433724"><span class="hs-identifier hs-var">w</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&gt;=</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">97</span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-141"></span><span>            </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679433726"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Bits a =&gt; a -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">`shiftL`</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">4</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall a. Bits a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">.|.</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679433724"><span class="hs-identifier hs-var">w</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">87</span></span><span class="hs-special">)</span><span>
+</span><span id="line-142"></span><span>        </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-143"></span><span>            </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679433726"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Bits a =&gt; a -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">`shiftL`</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">4</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall a. Bits a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">.|.</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679433724"><span class="hs-identifier hs-var">w</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">55</span></span><span class="hs-special">)</span><span>
+</span><span id="line-144"></span><span>
+</span><span id="line-145"></span><span>        </span><span class="hs-keyword">where</span><span>
+</span><span id="line-146"></span><span>
+</span><span id="line-147"></span><span>        </span><span id="local-6989586621679433724"><span class="annot"><span class="annottext">w :: Int
+</span><a href="#local-6989586621679433724"><span class="hs-identifier hs-var hs-var">w</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Int
+</span><span class="hs-identifier hs-var">ord</span></span><span> </span><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679433725"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><span id="line-148"></span><span>
+</span><span id="line-149"></span><span class="hs-comment">-- | Allow an optional leading @\'+\'@ or @\'-\'@ sign character before any</span><span>
+</span><span id="line-150"></span><span class="hs-comment">-- parser.</span><span>
+</span><span id="line-151"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Streamly.Internal.Unicode.Char.Parser.html#signed"><span class="hs-pragma hs-type">signed</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-152"></span><span id="local-6989586621679433938"><span id="local-6989586621679433939"><span class="annot"><a href="Streamly.Internal.Unicode.Char.Parser.html#signed"><span class="hs-identifier hs-type">signed</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Num</span></span><span> </span><span class="annot"><a href="#local-6989586621679433939"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadCatch</span></span><span> </span><span class="annot"><a href="#local-6989586621679433938"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Parser.ParserK.Type.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679433938"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="annot"><a href="#local-6989586621679433939"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Parser.ParserK.Type.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679433938"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="annot"><a href="#local-6989586621679433939"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-153"></span><span id="signed"><span class="annot"><span class="annottext">signed :: forall a (m :: * -&gt; *).
+(Num a, MonadCatch m) =&gt;
+Parser m Char a -&gt; Parser m Char a
+</span><a href="Streamly.Internal.Unicode.Char.Parser.html#signed"><span class="hs-identifier hs-var hs-var">signed</span></a></span></span><span> </span><span id="local-6989586621679433703"><span class="annot"><span class="annottext">Parser m Char a
+</span><a href="#local-6989586621679433703"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">negate</span></span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (m :: * -&gt; *). MonadCatch m =&gt; Char -&gt; Parser m Char Char
+</span><a href="Streamly.Internal.Unicode.Char.Parser.html#char"><span class="hs-identifier hs-var">char</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'-'</span></span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f b
+</span><span class="hs-operator hs-var">*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Parser m Char a
+</span><a href="#local-6989586621679433703"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Alternative f =&gt; f a -&gt; f a -&gt; f a
+</span><span class="hs-operator hs-var">&lt;|&gt;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (m :: * -&gt; *). MonadCatch m =&gt; Char -&gt; Parser m Char Char
+</span><a href="Streamly.Internal.Unicode.Char.Parser.html#char"><span class="hs-identifier hs-var">char</span></a></span><span> </span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'+'</span></span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f b
+</span><span class="hs-operator hs-var">*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Parser m Char a
+</span><a href="#local-6989586621679433703"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Alternative f =&gt; f a -&gt; f a -&gt; f a
+</span><span class="hs-operator hs-var">&lt;|&gt;</span></span><span> </span><span class="annot"><span class="annottext">Parser m Char a
+</span><a href="#local-6989586621679433703"><span class="hs-identifier hs-var">p</span></a></span><span>
+</span><span id="line-154"></span><span>
+</span><span id="line-155"></span><span class="hs-comment">-- | Parse a 'Double'.</span><span>
+</span><span id="line-156"></span><span class="hs-comment">--</span><span>
+</span><span id="line-157"></span><span class="hs-comment">-- This parser accepts an optional leading sign character, followed by</span><span>
+</span><span id="line-158"></span><span class="hs-comment">-- at most one decimal digit.  The syntax is similar to that accepted by</span><span>
+</span><span id="line-159"></span><span class="hs-comment">-- the 'read' function, with the exception that a trailing @\'.\'@ is</span><span>
+</span><span id="line-160"></span><span class="hs-comment">-- consumed.</span><span>
+</span><span id="line-161"></span><span class="hs-comment">--</span><span>
+</span><span id="line-162"></span><span class="hs-comment">-- === Examples</span><span>
+</span><span id="line-163"></span><span class="hs-comment">--</span><span>
+</span><span id="line-164"></span><span class="hs-comment">-- Examples with behaviour identical to 'read', if you feed an empty</span><span>
+</span><span id="line-165"></span><span class="hs-comment">-- continuation to the first result:</span><span>
+</span><span id="line-166"></span><span class="hs-comment">--</span><span>
+</span><span id="line-167"></span><span class="hs-comment">-- &gt; IS.parse double (IS.fromList &quot;3&quot;)     == 3.0</span><span>
+</span><span id="line-168"></span><span class="hs-comment">-- &gt; IS.parse double (IS.fromList &quot;3.1&quot;)   == 3.1</span><span>
+</span><span id="line-169"></span><span class="hs-comment">-- &gt; IS.parse double (IS.fromList &quot;3e4&quot;)   == 30000.0</span><span>
+</span><span id="line-170"></span><span class="hs-comment">-- &gt; IS.parse double (IS.fromList &quot;3.1e4&quot;) == 31000.0</span><span>
+</span><span id="line-171"></span><span class="hs-comment">-- &gt; IS.parse double (IS.fromList &quot;3e&quot;)    == 30</span><span>
+</span><span id="line-172"></span><span class="hs-comment">--</span><span>
+</span><span id="line-173"></span><span class="hs-comment">-- Examples with behaviour identical to 'read':</span><span>
+</span><span id="line-174"></span><span class="hs-comment">--</span><span>
+</span><span id="line-175"></span><span class="hs-comment">-- &gt; IS.parse (IS.fromList &quot;.3&quot;)    == error &quot;Parse failed&quot;</span><span>
+</span><span id="line-176"></span><span class="hs-comment">-- &gt; IS.parse (IS.fromList &quot;e3&quot;)    == error &quot;Parse failed&quot;</span><span>
+</span><span id="line-177"></span><span class="hs-comment">--</span><span>
+</span><span id="line-178"></span><span class="hs-comment">-- Example of difference from 'read':</span><span>
+</span><span id="line-179"></span><span class="hs-comment">--</span><span>
+</span><span id="line-180"></span><span class="hs-comment">-- &gt; IS.parse double (IS.fromList &quot;3.foo&quot;) == 3.0</span><span>
+</span><span id="line-181"></span><span class="hs-comment">--</span><span>
+</span><span id="line-182"></span><span class="hs-comment">-- This function does not accept string representations of \&quot;NaN\&quot; or</span><span>
+</span><span id="line-183"></span><span class="hs-comment">-- \&quot;Infinity\&quot;.</span><span>
+</span><span id="line-184"></span><span class="hs-comment">--</span><span>
+</span><span id="line-185"></span><span class="hs-comment">-- /Unimplemented/</span><span>
+</span><span id="line-186"></span><span id="local-6989586621679433919"><span class="annot"><a href="Streamly.Internal.Unicode.Char.Parser.html#double"><span class="hs-identifier hs-type">double</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Streamly.Internal.Data.Parser.ParserK.Type.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679433919"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Char</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span></span><span>
+</span><span id="line-187"></span><span id="double"><span class="annot"><span class="annottext">double :: forall (m :: * -&gt; *). Parser m Char Double
+</span><a href="Streamly.Internal.Unicode.Char.Parser.html#double"><span class="hs-identifier hs-var hs-var">double</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. HasCallStack =&gt; a
+</span><span class="hs-identifier hs-var">undefined</span></span><span>
+</span><span id="line-188"></span></pre></body></html>
