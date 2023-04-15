@@ -7,6 +7,8 @@ module PBHModel
   , ChordLabel (..)
   , evaluateSlice, mostLikelyChordFromSlice
   , chordToneLogLikelihood
+  , multinomialLogProb
+  , categoricalLogProb
   , transposeNote
   , ornamentLogLikelihood
   , ornamentLogLikelihoodDouble
@@ -276,6 +278,7 @@ sliceChordLogLikelihood hpData label notes = logLikelihood
 
 allIntervals = map sic [-14 .. 14]
 allNotes = map spc [-14 .. 14]
+
 
 sliceChordWeightedLogLikelihoods :: HarmonicProfileData -> Notes SPitch -> [(Double, SPC, Int)]
 sliceChordWeightedLogLikelihoods hpData (Notes notes) = allChords (map likelihoodsGivenRootNote allNotes)

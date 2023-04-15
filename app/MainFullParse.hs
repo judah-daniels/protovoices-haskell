@@ -64,8 +64,6 @@ version = putStrLn "Version 0.1"
 exit = exitSuccess
 die = exitWith (ExitFailure 1)
 
-timeOutMs = 400 * 1000000 :: Int
-numRetries = 1 :: Int
 
 main :: IO () 
 main = Log.withStderrLogging $ do 
@@ -83,6 +81,10 @@ main = Log.withStderrLogging $ do
   writeJSONToFile outputFile $ concatResults corpus pieceName inputChords res
 
   where 
+    timeOutMs = 400 * 1000000 :: Int
+
+    numRetries = 1 :: Int
+
     runAlgo algo _ _ _ 0 = pure $ nullResultToJSON algo
     runAlgo algo params inputChords inputSlices n = do 
       mTimedRes <- timeout timeOutMs $ Time.timeItT $ runParse algo (AlgoInput protoVoiceEvaluator params inputSlices inputChords)

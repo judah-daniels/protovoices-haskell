@@ -1,12 +1,15 @@
-{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module PBHModelSpec where
+module HarmonySpec where
 
 import Common
-import Harmony as H
+import Harmony
+import Harmony.ChordLabel
+import PBHModel qualified as PBH
+import Harmony.Params
+
 import Control.Monad.Except (ExceptT, lift, runExceptT, throwError)
 import Control.Monad.State (evalState)
 import Control.Monad.Trans.Except (throwE)
@@ -29,7 +32,6 @@ import Language.Haskell.DoNotation
 import Musicology.Core
 import Musicology.Core qualified as Music
 import Musicology.Pitch.Spelled
-import PBHModel
 import PVGrammar hiding
   ( slicesFromFile,
   )
@@ -41,31 +43,30 @@ import Prelude hiding
     lift,
     pure,
   )
+import Debug.Trace (trace)
 
 type InputSlice ns = ([(ns, Music.RightTied)], Bool)
 
 -- main :: IO ()
 -- main = putStrLn "Test suite still not yet implemented"
---   params <- loadParams "preprocessing/dcml_params.json"
 --   pure ()
 -- hspec mo
-
 
 probDensitySpec :: Spec
 probDensitySpec = do
   describe "multinomialLogProb" $ do
 
     it "returns the correct log-probability for a basic input" $ do
-      let xs =  [2, 3, 1]
-          probs =  [0.3, 0.5, 0.2]
-          result = PBHModel.multinomialLogProb xs probs
-          expected = -3.2465241657829093
+      let xs = V.fromList [2, 3, 1]
+          probs = V.fromList [0.3, 0.5, 0.2]
+          result = multinomialLogProb xs probs
+          expected = -2.0024805005437063
       result `shouldBe` expected
 
     it "returns -100000000 for an empty input" $ do
-      let xs =  []
-          probs =  [0.3, 0.5, 0.2]
-          result = PBHModel.multinomialLogProb xs probs
+      let xs = V.fromList []
+          probs = V.fromList [0.3, 0.5, 0.2]
+          result = multinomialLogProb xs probs
           expected = -100000000
       result `shouldBe` expected
 
@@ -77,29 +78,27 @@ probDensitySpec = do
     --   result `shouldBe` expected
 
     it "returns the correct log-probability for a large input" $ do
-      let xs =  [100000, 50000, 25000]
-          probs = [0.3, 0.5, 0.2]
-          result = PBHModel.multinomialLogProb xs probs
-          expected = -694273.9043087675
+      let xs = V.fromList [100000, 50000, 25000]
+          probs = V.fromList [0.3, 0.5, 0.2]
+          result = multinomialLogProb xs probs
+          expected = -28055.13760597352 
       result `shouldBe` expected
 
-mostLikelyChordSpec :: Spec
-mostLikelyChordSpec = do
-  -- probDensitySpec
-  params <- runIO $ loadParams "preprocessing/dcml_params.json"
+harmonySpec :: Spec
+harmonySpec = do
+  probDensitySpec
   runIO $ do
-    let chordTypes = chordtypes params
-    -- let chordTypes = chordtypes params
+    -- let chordTypes = chordtypes
 
     putStrLn $ "\nConsidering: " <> show sliceFmaj'
-    putStrLn $ showChordFromSlice params sliceFmaj'
+    putStrLn $ showChordFromSlice sliceFmaj'
     let d = fromJust $ genSlice ["D3", "F#3", "A#4"]
     putStrLn $ "\nConsidering: " <> show d
-    putStrLn $ showChordFromSlice params d
-
-    mapM_ print $ sort $ sliceChordWeightedLogLikelihoods params (genSlice' ["D3", "D3", "F#4", "A5"])
-    mapM_ print $ sort $ V.toList $ H.allLabelLikelihoodsGivenSlice $ (genSlice' ["D3", "D3", "F#4", "A5"])
-
+    putStrLn $ showChordFromSlice d
+    print $ (genSlice' ["D3", "F#3", "A4", "C4"])
+    print $ allLabelLikelihoodsGivenSlice (genSlice' ["D3", "F#3", "A4", "C4"])
+    -- print $ PBH.sliceChordWeightedLogLikelihoods params (genSlice' ["D3", "F#3", "A4", "C4"])
+    -- pallLabelLikelihoodsGivenSlice
     -- let (r, f) = showChordFromSlice' params sliceFmaj'
     -- putStrLn $ "Transformed: " <> show (transposeSlice (spc $ r - 14) sliceFmaj')
     -- putStrLn $ "Inferred: " <> f
@@ -143,45 +142,45 @@ mostLikelyChordSpec = do
 
   describe "Inferring Major Chord labels" $ do
     it "F major triad 1" $
-      "FM" == showChordFromSlice params (genSlice' ["F3", "C3", "A4", "C5"])
+      "FM" == showChordFromSlice (genSlice' ["F3", "C3", "A4", "C5"])
     it "F major triad 2" $
-      "FM" == showChordFromSlice params (genSlice' ["F3", "A3", "C5"])
+      "FM" == showChordFromSlice (genSlice' ["F3", "A3", "C5"])
     it "F major triad 3" $
-      "FM" == showChordFromSlice params (genSlice' ["F3", "C3", "C9", "A2", "C5"])
+      "FM" == showChordFromSlice (genSlice' ["F3", "C3", "C9", "A2", "C5"])
     it "F major triad 4" $
-      "FM" == showChordFromSlice params (genSlice' ["F4", "C5", "A3", "C5"])
+      "FM" == showChordFromSlice (genSlice' ["F4", "C5", "A3", "C5"])
     it "F major triad 5" $
-      "FM" == showChordFromSlice params (genSlice' ["F4", "C3", "A4", "F5"])
+      "FM" == showChordFromSlice (genSlice' ["F4", "C3", "A4", "F5"])
     it "B major triad 1" $
-      "BM" == showChordFromSlice params (genSlice' ["B3", "D#3", "F#4", "B5"])
+      "BM" == showChordFromSlice (genSlice' ["B3", "D#3", "F#4", "B5"])
     it "B major triad 2" $
-      "BM" == showChordFromSlice params (genSlice' ["B3", "D#3", "F#5"])
+      "BM" == showChordFromSlice (genSlice' ["B3", "D#3", "F#5"])
     it "F♯ major triad" $
-      "F♯M" == showChordFromSlice params (genSlice' ["F#3", "C#3", "A#4", "C#5"])
+      "F♯M" == showChordFromSlice (genSlice' ["F#3", "C#3", "A#4", "C#5"])
     it "E♭ major triad" $
-      "E♭M" == showChordFromSlice params (genSlice' ["Eb3", "G3", "Bb4"])
+      "E♭M" == showChordFromSlice (genSlice' ["Eb3", "G3", "Bb4"])
     it "Db major triad 1" $
-      "D♭M" == showChordFromSlice params (genSlice' ["Db3", "F3", "Ab4", "Db5"])
+      "D♭M" == showChordFromSlice (genSlice' ["Db3", "F3", "Ab4", "Db5"])
 
   describe "Infering Dominant Chord labels" $ do
     it "D64" $
-      "DMm7" == showChordFromSlice params (genSlice' ["D3", "F#3", "A4", "C4"])
+      "DMm7" == showChordFromSlice (genSlice' ["D3", "F#3", "A4", "C4"])
     it "F#64" $
-      "F♯Mm7" == showChordFromSlice params (genSlice' ["A#3", "F#3", "E4", "C#4"])
+      "F♯Mm7" == showChordFromSlice (genSlice' ["A#3", "F#3", "E4", "C#4"])
     it "E64" $
-      "EMm7" == showChordFromSlice params (genSlice' ["E3", "G#3", "D4", "B4"])
+      "EMm7" == showChordFromSlice (genSlice' ["E3", "G#3", "D4", "B4"])
     it "C#Mm7" $ do
-      "C♯Mm7" == showChordFromSlice params (genSlice' ["C#3", "F3", "B4", "G#7"])
+      "C♯Mm7" == showChordFromSlice (genSlice' ["C#3", "F3", "B4", "G#7"])
 
   describe "Infering Minor Chord labels" $ do
     it "Dm" $
-      "Dm" == showChordFromSlice params (genSlice' ["D3", "F3", "A4"])
+      "Dm" == showChordFromSlice  (genSlice' ["D3", "F3", "A4"])
     it "Fm" $
-      "Fm" == showChordFromSlice params (genSlice' ["Ab3", "F3", "C4", "C4"])
+      "Fm" == showChordFromSlice  (genSlice' ["Ab3", "F3", "C4", "C4"])
     it "Am"$
-      "Em" == showChordFromSlice params (genSlice' ["E3", "G3", "E2", "B4"])
+      "Em" == showChordFromSlice  (genSlice' ["E3", "G3", "E2", "B4"])
     it "Cm" $ do
-      "Cm" == showChordFromSlice params (genSlice' ["C3", "G3", "Eb4", "Eb7"])
+      "Cm" == showChordFromSlice  (genSlice' ["C3", "G3", "Eb4", "Eb7"])
 
   -- Note this should definitely be a mixture model
   -- describe "Infering Aug Chord labels" $ do
@@ -190,13 +189,18 @@ mostLikelyChordSpec = do
   --   it "C+" $
   --     showChordFromSlice params (genSlice' ["C3", "E3", "G#4"]) `elem` ["C+","G♯+", "E♯+"]
 
-showChordFromSlice' params slice =
-  let (root, chordType, prob) = mostLikelyChordFromSlice params slice
-   in (root, showNotation root <> chordType)
+-- showChordFromSlice' pparamsarams slice =
+--   let (root, chordType, prob) = mostLikelyChordFromSlice params slice
+--    in (root, showNotation root <> chordType)
 
-showChordFromSlice params slice =
-  let (root, chordType, prob) = mostLikelyChordFromSlice params slice
-   in showNotation root <> chordType
+showChordFromSlice slice = trace (show $ mostLikelyLabelFromSlice slice)
+   show $ mostLikelyLabelFromSlice slice
+
+   -- in shownotation root <> chordtype
+
+-- showChordfromslice params slice =
+--   let (root, chordtype, prob) = mostlikelychordfromslice params slice
+--    in shownotation root <> chordtype
 
 -- mostLikelyChordFromSlice' :: HarmonicProfileData -> Notes SPitch -> (SIC, String, Double)
 -- mostLikelyChordFromSlice' hpData (Notes slc) = (sic root, chordtypes hpData !! chordTypeIndex, p)

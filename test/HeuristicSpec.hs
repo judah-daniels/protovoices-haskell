@@ -32,7 +32,7 @@ heuristicSpec = runIO $ Log.withStdoutLogging $ do
   m <- timeout timeOutMs $ Time.timeItT $ runAlgo a scorer params inputChords inputSlices
 
   res <- case m of 
-          Nothing -> nullResultToJSON a
+          Nothing -> pure $ nullResultToJSON a
           Just (time, r) -> resultToJSON a time r
 
   writeJSONToFile outputFile $ concatResults corpus pieceName inputChords [res]
