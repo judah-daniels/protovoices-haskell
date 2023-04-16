@@ -117,13 +117,12 @@ instance ParseAlgo AlgoType where
        in
         Log.timedLog "Running Heuristic Search" $ do
           res <- runExceptT
-            (heuristicSearch
+            (beamSearch
               beamWidth
               initialState
               (exploreStates sliceWrapper eval)
               (goalTest chords)
               (applyHeuristic heuristicZero)
-              (showOp . getOpsFromState)
             )
 
           case res of

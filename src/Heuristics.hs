@@ -11,7 +11,6 @@ module Heuristics
 -- LOGGING
 import Control.Logging qualified as Log
 import Data.Text qualified as T
-
 import Common hiding (log)
 
 import PVGrammar hiding
