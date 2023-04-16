@@ -121,7 +121,8 @@ main = Log.withStderrLogging $ do
     runAlgo algo inputChords inputSlices n = do 
       mTimedRes <- timeout timeOutMs $ Time.timeItT $ runParse algo (AlgoInput protoVoiceEvaluator inputSlices inputChords)
       case mTimedRes of 
-        Nothing -> runAlgo algo inputChords inputSlices (n - 1)
+        Nothing -> pure $ nullResultToJSON (show algo)
+          -- runAlgo algo inputChords inputSlices (n - 1)
         Just (time, mRes) -> 
           case mRes of 
             Nothing -> runAlgo algo inputChords inputSlices (n - 1)
