@@ -1518,10 +1518,7 @@ module Algorithm.RandomSampleParser
 
 -- | Generates a path of random notes for the given number of segments
 randomSamplePath :: Int -> IO (Path (Edges SPitch) (Notes SPitch))
-
--- | Generates a path of random notes from each segement for the given
---   number of segments
-randomSamplePathSBS :: [[InputSlice SPitch]] -> IO (Path (Edges SPitch) (Notes SPitch))
+randomSamplePathSBS :: [[InputSlice SPitch]] -> IO [Notes SPitch]
 
 module Algorithm
 data AlgoInput
