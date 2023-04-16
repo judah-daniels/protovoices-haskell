@@ -46,11 +46,11 @@
 </span><span id="line-46"></span><span>
 </span><span id="line-47"></span><span class="annot"><a href="Harmony.html#multinomialLogProb"><span class="hs-identifier hs-type">multinomialLogProb</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">V.Vector</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">V.Vector</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span>
 </span><span id="line-48"></span><span id="multinomialLogProb"><span class="annot"><span class="annottext">multinomialLogProb :: Vector Double -&gt; Vector Double -&gt; Double
-</span><a href="Harmony.html#multinomialLogProb"><span class="hs-identifier hs-var hs-var">multinomialLogProb</span></a></span></span><span> </span><span id="local-6989586621679504495"><span class="annot"><span class="annottext">Vector Double
-</span><a href="#local-6989586621679504495"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span id="local-6989586621679504494"><span class="annot"><span class="annottext">Vector Double
-</span><a href="#local-6989586621679504494"><span class="hs-identifier hs-var">probs</span></a></span></span><span>
+</span><a href="Harmony.html#multinomialLogProb"><span class="hs-identifier hs-var hs-var">multinomialLogProb</span></a></span></span><span> </span><span id="local-6989586621679504496"><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679504496"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span id="local-6989586621679504495"><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679504495"><span class="hs-identifier hs-var">probs</span></a></span></span><span>
 </span><span id="line-49"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Double
-</span><a href="#local-6989586621679504493"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><a href="#local-6989586621679504494"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Eq a =&gt; a -&gt; a -&gt; Bool
 </span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Double
 </span><span class="hs-number">0</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. String -&gt; a -&gt; a
 </span><span class="hs-identifier hs-var">trace</span></span><span> </span><span class="annot"><span class="annottext">String
@@ -58,62 +58,62 @@
 </span><span class="hs-number">100000000</span></span><span class="hs-special">)</span><span>
 </span><span id="line-50"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
 </span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Double
-</span><a href="#local-6989586621679504492"><span class="hs-identifier hs-var">logFactorialN</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><a href="#local-6989586621679504493"><span class="hs-identifier hs-var">logFactorialN</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
 </span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Double
-</span><a href="#local-6989586621679504490"><span class="hs-identifier hs-var">logPowers</span></a></span><span>
+</span><a href="#local-6989586621679504491"><span class="hs-identifier hs-var">logPowers</span></a></span><span>
 </span><span id="line-51"></span><span> </span><span class="hs-keyword">where</span><span>
-</span><span id="line-52"></span><span>  </span><span id="local-6989586621679504493"><span class="annot"><span class="annottext">n :: Double
-</span><a href="#local-6989586621679504493"><span class="hs-identifier hs-var hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a. (Foldable t, Num a) =&gt; t a -&gt; a
+</span><span id="line-52"></span><span>  </span><span id="local-6989586621679504494"><span class="annot"><span class="annottext">n :: Double
+</span><a href="#local-6989586621679504494"><span class="hs-identifier hs-var hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a. (Foldable t, Num a) =&gt; t a -&gt; a
 </span><span class="hs-identifier hs-var">sum</span></span><span> </span><span class="annot"><span class="annottext">Vector Double
-</span><a href="#local-6989586621679504495"><span class="hs-identifier hs-var">xs</span></a></span><span>
-</span><span id="line-53"></span><span>  </span><span id="local-6989586621679504492"><span class="annot"><span class="annottext">logFactorialN :: Double
-</span><a href="#local-6989586621679504492"><span class="hs-identifier hs-var hs-var">logFactorialN</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Double -&gt; Double
+</span><a href="#local-6989586621679504496"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-53"></span><span>  </span><span id="local-6989586621679504493"><span class="annot"><span class="annottext">logFactorialN :: Double
+</span><a href="#local-6989586621679504493"><span class="hs-identifier hs-var hs-var">logFactorialN</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Double -&gt; Double
 </span><span class="hs-identifier hs-var">logGamma</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Double
-</span><a href="#local-6989586621679504493"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><a href="#local-6989586621679504494"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
 </span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Double
 </span><span class="hs-number">1</span></span><span>
-</span><span id="line-54"></span><span>  </span><span id="local-6989586621679504490"><span class="annot"><span class="annottext">logPowers :: Double
-</span><a href="#local-6989586621679504490"><span class="hs-identifier hs-var hs-var">logPowers</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; Vector a -&gt; a
+</span><span id="line-54"></span><span>  </span><span id="local-6989586621679504491"><span class="annot"><span class="annottext">logPowers :: Double
+</span><a href="#local-6989586621679504491"><span class="hs-identifier hs-var hs-var">logPowers</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; Vector a -&gt; a
 </span><span class="hs-identifier hs-var">V.sum</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a b c. (a -&gt; b -&gt; c) -&gt; Vector a -&gt; Vector b -&gt; Vector c
 </span><span class="hs-identifier hs-var">V.zipWith</span></span><span> </span><span class="annot"><span class="annottext">Double -&gt; Double -&gt; Double
-</span><a href="#local-6989586621679504481"><span class="hs-identifier hs-var">powers</span></a></span><span> </span><span class="annot"><span class="annottext">Vector Double
-</span><a href="#local-6989586621679504495"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">Vector Double
-</span><a href="#local-6989586621679504494"><span class="hs-identifier hs-var">probs</span></a></span><span>
+</span><a href="#local-6989586621679504482"><span class="hs-identifier hs-var">powers</span></a></span><span> </span><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679504496"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679504495"><span class="hs-identifier hs-var">probs</span></a></span><span>
 </span><span id="line-55"></span><span>   </span><span class="hs-keyword">where</span><span>
-</span><span id="line-56"></span><span>    </span><span id="local-6989586621679504481"><span class="annot"><span class="annottext">powers :: Double -&gt; Double -&gt; Double
-</span><a href="#local-6989586621679504481"><span class="hs-identifier hs-var hs-var">powers</span></a></span></span><span> </span><span id="local-6989586621679504475"><span class="annot"><span class="annottext">Double
-</span><a href="#local-6989586621679504475"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621679504474"><span class="annot"><span class="annottext">Double
-</span><a href="#local-6989586621679504474"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Double
-</span><a href="#local-6989586621679504475"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span id="line-56"></span><span>    </span><span id="local-6989586621679504482"><span class="annot"><span class="annottext">powers :: Double -&gt; Double -&gt; Double
+</span><a href="#local-6989586621679504482"><span class="hs-identifier hs-var hs-var">powers</span></a></span></span><span> </span><span id="local-6989586621679504476"><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679504476"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621679504475"><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679504475"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679504476"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
 </span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">forall a. Floating a =&gt; a -&gt; a
 </span><span class="hs-identifier hs-var">log</span></span><span> </span><span class="annot"><span class="annottext">Double
-</span><a href="#local-6989586621679504474"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><a href="#local-6989586621679504475"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
 </span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Double -&gt; Double
 </span><span class="hs-identifier hs-var">logGamma</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Double
-</span><a href="#local-6989586621679504475"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><a href="#local-6989586621679504476"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
 </span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Double
 </span><span class="hs-number">1</span></span><span class="hs-special">)</span><span>
 </span><span id="line-57"></span><span>
 </span><span id="line-58"></span><span class="hs-comment">-- Calculates the probability density of a multinomial distribution at the given point</span><span>
 </span><span id="line-59"></span><span class="annot"><a href="Harmony.html#categoricalLogProb"><span class="hs-identifier hs-type">categoricalLogProb</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">V.Vector</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span>
 </span><span id="line-60"></span><span id="categoricalLogProb"><span class="annot"><span class="annottext">categoricalLogProb :: Int -&gt; Vector Double -&gt; Double
-</span><a href="Harmony.html#categoricalLogProb"><span class="hs-identifier hs-var hs-var">categoricalLogProb</span></a></span></span><span> </span><span id="local-6989586621679504471"><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679504471"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621679504470"><span class="annot"><span class="annottext">Vector Double
-</span><a href="#local-6989586621679504470"><span class="hs-identifier hs-var">probs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. Floating a =&gt; a -&gt; a
+</span><a href="Harmony.html#categoricalLogProb"><span class="hs-identifier hs-var hs-var">categoricalLogProb</span></a></span></span><span> </span><span id="local-6989586621679504472"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679504472"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621679504471"><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679504471"><span class="hs-identifier hs-var">probs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. Floating a =&gt; a -&gt; a
 </span><span class="hs-identifier hs-var">log</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Vector Double
-</span><a href="#local-6989586621679504470"><span class="hs-identifier hs-var">probs</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Vector a -&gt; Int -&gt; a
+</span><a href="#local-6989586621679504471"><span class="hs-identifier hs-var">probs</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Vector a -&gt; Int -&gt; a
 </span><span class="hs-operator hs-var">V.!</span></span><span> </span><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679504471"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><a href="#local-6989586621679504472"><span class="hs-identifier hs-var">x</span></a></span><span>
 </span><span id="line-61"></span><span>
 </span><span id="line-62"></span><span class="annot"><a href="Harmony.html#transposeNote"><span class="hs-identifier hs-type">transposeNote</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Music.Pitch</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">SIC</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">SPitch</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">SIC</span></span><span>
 </span><span id="line-63"></span><span id="transposeNote"><span class="annot"><span class="annottext">transposeNote :: Pitch SIC -&gt; SPitch -&gt; SIC
-</span><a href="Harmony.html#transposeNote"><span class="hs-identifier hs-var hs-var">transposeNote</span></a></span></span><span> </span><span id="local-6989586621679504467"><span class="annot"><span class="annottext">Pitch SIC
-</span><a href="#local-6989586621679504467"><span class="hs-identifier hs-var">root</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall {v}. AdditiveGroup v =&gt; Pitch v -&gt; Pitch v -&gt; v
+</span><a href="Harmony.html#transposeNote"><span class="hs-identifier hs-var hs-var">transposeNote</span></a></span></span><span> </span><span id="local-6989586621679504468"><span class="annot"><span class="annottext">Pitch SIC
+</span><a href="#local-6989586621679504468"><span class="hs-identifier hs-var">root</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall {v}. AdditiveGroup v =&gt; Pitch v -&gt; Pitch v -&gt; v
 </span><span class="hs-identifier hs-var">Music.pto</span></span><span> </span><span class="annot"><span class="annottext">Pitch SIC
-</span><a href="#local-6989586621679504467"><span class="hs-identifier hs-var">root</span></a></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><a href="#local-6989586621679504468"><span class="hs-identifier hs-var">root</span></a></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
 </span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Pitch SIC
 </span><span class="hs-identifier hs-var">spc</span></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
 </span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall i. Spelled i =&gt; i -&gt; Int
@@ -121,98 +121,98 @@
 </span><span id="line-64"></span><span>
 </span><span id="line-65"></span><span class="annot"><a href="Harmony.html#transposeSlice"><span class="hs-identifier hs-type">transposeSlice</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Music.Pitch</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">SIC</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="PVGrammar.html#Notes"><span class="hs-identifier hs-type">Notes</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">SPitch</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="PVGrammar.html#Notes"><span class="hs-identifier hs-type">Notes</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">SIC</span></span><span>
 </span><span id="line-66"></span><span id="transposeSlice"><span class="annot"><span class="annottext">transposeSlice :: Pitch SIC -&gt; Notes SPitch -&gt; Notes SIC
-</span><a href="Harmony.html#transposeSlice"><span class="hs-identifier hs-var hs-var">transposeSlice</span></a></span></span><span> </span><span id="local-6989586621679504462"><span class="annot"><span class="annottext">Pitch SIC
-</span><a href="#local-6989586621679504462"><span class="hs-identifier hs-var">root</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="PVGrammar.html#Notes"><span class="hs-identifier hs-type">Notes</span></a></span><span> </span><span id="local-6989586621679504460"><span class="annot"><span class="annottext">MultiSet SPitch
-</span><a href="#local-6989586621679504460"><span class="hs-identifier hs-var">slice</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall n. MultiSet n -&gt; Notes n
+</span><a href="Harmony.html#transposeSlice"><span class="hs-identifier hs-var hs-var">transposeSlice</span></a></span></span><span> </span><span id="local-6989586621679504463"><span class="annot"><span class="annottext">Pitch SIC
+</span><a href="#local-6989586621679504463"><span class="hs-identifier hs-var">root</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="PVGrammar.html#Notes"><span class="hs-identifier hs-type">Notes</span></a></span><span> </span><span id="local-6989586621679504461"><span class="annot"><span class="annottext">MultiSet SPitch
+</span><a href="#local-6989586621679504461"><span class="hs-identifier hs-var">slice</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall n. MultiSet n -&gt; Notes n
 </span><a href="PVGrammar.html#Notes"><span class="hs-identifier hs-var">Notes</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall b a.
 (Eq b, Hashable b) =&gt;
 (a -&gt; b) -&gt; MultiSet a -&gt; MultiSet b
 </span><a href="Internal.MultiSet.html#map"><span class="hs-identifier hs-var">MS.map</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Pitch SIC -&gt; SPitch -&gt; SIC
 </span><a href="Harmony.html#transposeNote"><span class="hs-identifier hs-var">transposeNote</span></a></span><span> </span><span class="annot"><span class="annottext">Pitch SIC
-</span><a href="#local-6989586621679504462"><span class="hs-identifier hs-var">root</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">MultiSet SPitch
-</span><a href="#local-6989586621679504460"><span class="hs-identifier hs-var">slice</span></a></span><span>
+</span><a href="#local-6989586621679504463"><span class="hs-identifier hs-var">root</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">MultiSet SPitch
+</span><a href="#local-6989586621679504461"><span class="hs-identifier hs-var">slice</span></a></span><span>
 </span><span id="line-67"></span><span>
 </span><span id="line-68"></span><span class="annot"><a href="Harmony.html#scoreSegment%27"><span class="hs-identifier hs-type">scoreSegment'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="PVGrammar.html#Notes"><span class="hs-identifier hs-type">Notes</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">SPitch</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Harmony.ChordLabel.html#ChordLabel"><span class="hs-identifier hs-type">ChordLabel</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span>
 </span><span id="line-69"></span><span id="scoreSegment%27"><span class="annot"><span class="annottext">scoreSegment' :: Notes SPitch -&gt; ChordLabel -&gt; Double
-</span><a href="Harmony.html#scoreSegment%27"><span class="hs-identifier hs-var hs-var">scoreSegment'</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="PVGrammar.html#Notes"><span class="hs-identifier hs-type">Notes</span></a></span><span> </span><span id="local-6989586621679504458"><span class="annot"><span class="annottext">MultiSet SPitch
-</span><a href="#local-6989586621679504458"><span class="hs-identifier hs-var">slc</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Harmony.ChordLabel.html#ChordLabel"><span class="hs-identifier hs-type">ChordLabel</span></a></span><span> </span><span id="local-6989586621679504456"><span class="annot"><span class="annottext">ChordType
-</span><a href="#local-6989586621679504456"><span class="hs-identifier hs-var">chordType</span></a></span></span><span> </span><span id="local-6989586621679504455"><span class="annot"><span class="annottext">Pitch SIC
-</span><a href="#local-6989586621679504455"><span class="hs-identifier hs-var">rootNote</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Double
-</span><a href="#local-6989586621679504454"><span class="hs-identifier hs-var">mlp</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><a href="Harmony.html#scoreSegment%27"><span class="hs-identifier hs-var hs-var">scoreSegment'</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="PVGrammar.html#Notes"><span class="hs-identifier hs-type">Notes</span></a></span><span> </span><span id="local-6989586621679504459"><span class="annot"><span class="annottext">MultiSet SPitch
+</span><a href="#local-6989586621679504459"><span class="hs-identifier hs-var">slc</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Harmony.ChordLabel.html#ChordLabel"><span class="hs-identifier hs-type">ChordLabel</span></a></span><span> </span><span id="local-6989586621679504457"><span class="annot"><span class="annottext">ChordType
+</span><a href="#local-6989586621679504457"><span class="hs-identifier hs-var">chordType</span></a></span></span><span> </span><span id="local-6989586621679504456"><span class="annot"><span class="annottext">Pitch SIC
+</span><a href="#local-6989586621679504456"><span class="hs-identifier hs-var">rootNote</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679504455"><span class="hs-identifier hs-var">mlp</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
 </span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Double
-</span><a href="#local-6989586621679504453"><span class="hs-identifier hs-var">clp</span></a></span><span>
+</span><a href="#local-6989586621679504454"><span class="hs-identifier hs-var">clp</span></a></span><span>
 </span><span id="line-70"></span><span> </span><span class="hs-keyword">where</span><span>
-</span><span id="line-71"></span><span>  </span><span id="local-6989586621679504450"><span class="annot"><span class="annottext">slc' :: Notes SIC
-</span><a href="#local-6989586621679504450"><span class="hs-identifier hs-var hs-var">slc'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall n. MultiSet n -&gt; Notes n
+</span><span id="line-71"></span><span>  </span><span id="local-6989586621679504451"><span class="annot"><span class="annottext">slc' :: Notes SIC
+</span><a href="#local-6989586621679504451"><span class="hs-identifier hs-var hs-var">slc'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall n. MultiSet n -&gt; Notes n
 </span><a href="PVGrammar.html#Notes"><span class="hs-identifier hs-var">Notes</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall b a.
 (Eq b, Hashable b) =&gt;
 (a -&gt; b) -&gt; MultiSet a -&gt; MultiSet b
 </span><a href="Internal.MultiSet.html#map"><span class="hs-identifier hs-var">MS.map</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Pitch SIC -&gt; SPitch -&gt; SIC
 </span><a href="Harmony.html#transposeNote"><span class="hs-identifier hs-var">transposeNote</span></a></span><span> </span><span class="annot"><span class="annottext">Pitch SIC
-</span><a href="#local-6989586621679504455"><span class="hs-identifier hs-var">rootNote</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">MultiSet SPitch
-</span><a href="#local-6989586621679504458"><span class="hs-identifier hs-var">slc</span></a></span><span>
-</span><span id="line-72"></span><span>  </span><span id="local-6989586621679504449"><span class="annot"><span class="annottext">valueVector :: Vector Double
-</span><a href="#local-6989586621679504449"><span class="hs-identifier hs-var hs-var">valueVector</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Notes SIC -&gt; Vector Double
+</span><a href="#local-6989586621679504456"><span class="hs-identifier hs-var">rootNote</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">MultiSet SPitch
+</span><a href="#local-6989586621679504459"><span class="hs-identifier hs-var">slc</span></a></span><span>
+</span><span id="line-72"></span><span>  </span><span id="local-6989586621679504450"><span class="annot"><span class="annottext">valueVector :: Vector Double
+</span><a href="#local-6989586621679504450"><span class="hs-identifier hs-var hs-var">valueVector</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Notes SIC -&gt; Vector Double
 </span><a href="Harmony.html#genSliceVector"><span class="hs-identifier hs-var">genSliceVector</span></a></span><span> </span><span class="annot"><span class="annottext">Notes SIC
-</span><a href="#local-6989586621679504450"><span class="hs-identifier hs-var">slc'</span></a></span><span>
-</span><span id="line-73"></span><span>  </span><span id="local-6989586621679504446"><span class="annot"><span class="annottext">chordTypeIndex :: Int
-</span><a href="#local-6989586621679504446"><span class="hs-identifier hs-var hs-var">chordTypeIndex</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. Enum a =&gt; a -&gt; Int
+</span><a href="#local-6989586621679504451"><span class="hs-identifier hs-var">slc'</span></a></span><span>
+</span><span id="line-73"></span><span>  </span><span id="local-6989586621679504447"><span class="annot"><span class="annottext">chordTypeIndex :: Int
+</span><a href="#local-6989586621679504447"><span class="hs-identifier hs-var hs-var">chordTypeIndex</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. Enum a =&gt; a -&gt; Int
 </span><span class="hs-identifier hs-var">fromEnum</span></span><span> </span><span class="annot"><span class="annottext">ChordType
-</span><a href="#local-6989586621679504456"><span class="hs-identifier hs-var">chordType</span></a></span><span>
-</span><span id="line-74"></span><span>  </span><span id="local-6989586621679504444"><span class="annot"><span class="annottext">pChordTones :: Vector Double
-</span><a href="#local-6989586621679504444"><span class="hs-identifier hs-var hs-var">pChordTones</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Vector (Vector Double)
+</span><a href="#local-6989586621679504457"><span class="hs-identifier hs-var">chordType</span></a></span><span>
+</span><span id="line-74"></span><span>  </span><span id="local-6989586621679504445"><span class="annot"><span class="annottext">pChordTones :: Vector Double
+</span><a href="#local-6989586621679504445"><span class="hs-identifier hs-var hs-var">pChordTones</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Vector (Vector Double)
 </span><a href="Harmony.Params.html#chordToneParams"><span class="hs-identifier hs-var">chordToneParams</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Vector a -&gt; Int -&gt; a
 </span><span class="hs-operator hs-var">V.!</span></span><span> </span><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679504446"><span class="hs-identifier hs-var">chordTypeIndex</span></a></span><span>
-</span><span id="line-75"></span><span>  </span><span id="local-6989586621679504454"><span class="annot"><span class="annottext">mlp :: Double
-</span><a href="#local-6989586621679504454"><span class="hs-identifier hs-var hs-var">mlp</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Vector Double -&gt; Vector Double -&gt; Double
+</span><a href="#local-6989586621679504447"><span class="hs-identifier hs-var">chordTypeIndex</span></a></span><span>
+</span><span id="line-75"></span><span>  </span><span id="local-6989586621679504455"><span class="annot"><span class="annottext">mlp :: Double
+</span><a href="#local-6989586621679504455"><span class="hs-identifier hs-var hs-var">mlp</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Vector Double -&gt; Vector Double -&gt; Double
 </span><a href="Harmony.html#multinomialLogProb"><span class="hs-identifier hs-var">multinomialLogProb</span></a></span><span> </span><span class="annot"><span class="annottext">Vector Double
-</span><a href="#local-6989586621679504449"><span class="hs-identifier hs-var">valueVector</span></a></span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><a href="#local-6989586621679504450"><span class="hs-identifier hs-var">valueVector</span></a></span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
 </span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Vector (Vector Double)
 </span><a href="Harmony.Params.html#chordToneParams"><span class="hs-identifier hs-var">chordToneParams</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall a. Vector a -&gt; Int -&gt; a
 </span><span class="hs-operator hs-var">V.!</span></span><span> </span><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679504446"><span class="hs-identifier hs-var">chordTypeIndex</span></a></span><span>
-</span><span id="line-76"></span><span>  </span><span id="local-6989586621679504453"><span class="annot"><span class="annottext">clp :: Double
-</span><a href="#local-6989586621679504453"><span class="hs-identifier hs-var hs-var">clp</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Vector Double -&gt; Double
+</span><a href="#local-6989586621679504447"><span class="hs-identifier hs-var">chordTypeIndex</span></a></span><span>
+</span><span id="line-76"></span><span>  </span><span id="local-6989586621679504454"><span class="annot"><span class="annottext">clp :: Double
+</span><a href="#local-6989586621679504454"><span class="hs-identifier hs-var hs-var">clp</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Vector Double -&gt; Double
 </span><a href="Harmony.html#categoricalLogProb"><span class="hs-identifier hs-var">categoricalLogProb</span></a></span><span> </span><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679504446"><span class="hs-identifier hs-var">chordTypeIndex</span></a></span><span> </span><span class="annot"><span class="annottext">Vector Double
-</span><a href="#local-6989586621679504444"><span class="hs-identifier hs-var">pChordTones</span></a></span><span>
+</span><a href="#local-6989586621679504447"><span class="hs-identifier hs-var">chordTypeIndex</span></a></span><span> </span><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679504445"><span class="hs-identifier hs-var">pChordTones</span></a></span><span>
 </span><span id="line-77"></span><span>
 </span><span id="line-78"></span><span class="annot"><a href="Harmony.html#scoreSegments"><span class="hs-identifier hs-type">scoreSegments</span></a></span><span>
 </span><span id="line-79"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="PVGrammar.html#Notes"><span class="hs-identifier hs-type">Notes</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">SPitch</span></span><span class="hs-special">]</span><span>
 </span><span id="line-80"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Harmony.ChordLabel.html#ChordLabel"><span class="hs-identifier hs-type">ChordLabel</span></a></span><span class="hs-special">]</span><span>
 </span><span id="line-81"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span>
 </span><span id="line-82"></span><span id="scoreSegments"><span class="annot"><span class="annottext">scoreSegments :: [Notes SPitch] -&gt; [ChordLabel] -&gt; Double
-</span><a href="Harmony.html#scoreSegments"><span class="hs-identifier hs-var hs-var">scoreSegments</span></a></span></span><span> </span><span id="local-6989586621679504440"><span class="annot"><span class="annottext">[Notes SPitch]
-</span><a href="#local-6989586621679504440"><span class="hs-identifier hs-var">segments</span></a></span></span><span> </span><span id="local-6989586621679504439"><span class="annot"><span class="annottext">[ChordLabel]
-</span><a href="#local-6989586621679504439"><span class="hs-identifier hs-var">labels</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><a href="Harmony.html#scoreSegments"><span class="hs-identifier hs-var hs-var">scoreSegments</span></a></span></span><span> </span><span id="local-6989586621679504441"><span class="annot"><span class="annottext">[Notes SPitch]
+</span><a href="#local-6989586621679504441"><span class="hs-identifier hs-var">segments</span></a></span></span><span> </span><span id="local-6989586621679504440"><span class="annot"><span class="annottext">[ChordLabel]
+</span><a href="#local-6989586621679504440"><span class="hs-identifier hs-var">labels</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
 </span><span id="line-83"></span><span>  </span><span class="hs-keyword">let</span><span>
-</span><span id="line-84"></span><span>    </span><span id="local-6989586621679504438"><span class="annot"><span class="annottext">scores :: [Double]
-</span><a href="#local-6989586621679504438"><span class="hs-identifier hs-var hs-var">scores</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a b c. (a -&gt; b -&gt; c) -&gt; [a] -&gt; [b] -&gt; [c]
+</span><span id="line-84"></span><span>    </span><span id="local-6989586621679504439"><span class="annot"><span class="annottext">scores :: [Double]
+</span><a href="#local-6989586621679504439"><span class="hs-identifier hs-var hs-var">scores</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a b c. (a -&gt; b -&gt; c) -&gt; [a] -&gt; [b] -&gt; [c]
 </span><span class="hs-identifier hs-var">zipWith</span></span><span> </span><span class="annot"><span class="annottext">Notes SPitch -&gt; ChordLabel -&gt; Double
 </span><a href="Harmony.html#scoreSegment%27"><span class="hs-identifier hs-var">scoreSegment'</span></a></span><span> </span><span class="annot"><span class="annottext">[Notes SPitch]
-</span><a href="#local-6989586621679504440"><span class="hs-identifier hs-var">segments</span></a></span><span> </span><span class="annot"><span class="annottext">[ChordLabel]
-</span><a href="#local-6989586621679504439"><span class="hs-identifier hs-var">labels</span></a></span><span>
+</span><a href="#local-6989586621679504441"><span class="hs-identifier hs-var">segments</span></a></span><span> </span><span class="annot"><span class="annottext">[ChordLabel]
+</span><a href="#local-6989586621679504440"><span class="hs-identifier hs-var">labels</span></a></span><span>
 </span><span id="line-85"></span><span>   </span><span class="hs-keyword">in</span><span>
 </span><span id="line-86"></span><span>    </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a. (Foldable t, Num a) =&gt; t a -&gt; a
 </span><span class="hs-identifier hs-var">sum</span></span><span> </span><span class="annot"><span class="annottext">[Double]
-</span><a href="#local-6989586621679504438"><span class="hs-identifier hs-var">scores</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Fractional a =&gt; a -&gt; a -&gt; a
+</span><a href="#local-6989586621679504439"><span class="hs-identifier hs-var">scores</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Fractional a =&gt; a -&gt; a -&gt; a
 </span><span class="hs-operator hs-var">/</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (Integral a, Num b) =&gt; a -&gt; b
 </span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Int
 </span><span class="hs-identifier hs-var">length</span></span><span> </span><span class="annot"><span class="annottext">[Double]
-</span><a href="#local-6989586621679504438"><span class="hs-identifier hs-var">scores</span></a></span><span class="hs-special">)</span><span>
+</span><a href="#local-6989586621679504439"><span class="hs-identifier hs-var">scores</span></a></span><span class="hs-special">)</span><span>
 </span><span id="line-87"></span><span>
 </span><span id="line-88"></span><span>
 </span><span id="line-89"></span><span class="hs-comment">-- | Returns the most likely chord labels for each input group of notes</span><span>
 </span><span id="line-90"></span><span class="annot"><a href="Harmony.html#guessLabels"><span class="hs-identifier hs-type">guessLabels</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="PVGrammar.html#Notes"><span class="hs-identifier hs-type">Notes</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">SPitch</span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Harmony.ChordLabel.html#ChordLabel"><span class="hs-identifier hs-type">ChordLabel</span></a></span><span class="hs-special">]</span><span>
 </span><span id="line-91"></span><span id="guessLabels"><span class="annot"><span class="annottext">guessLabels :: [Notes SPitch] -&gt; [ChordLabel]
-</span><a href="Harmony.html#guessLabels"><span class="hs-identifier hs-var hs-var">guessLabels</span></a></span></span><span> </span><span id="local-6989586621679504433"><span class="annot"><span class="annottext">[Notes SPitch]
-</span><a href="#local-6989586621679504433"><span class="hs-identifier hs-var">slices</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Notes SPitch -&gt; ChordLabel
+</span><a href="Harmony.html#guessLabels"><span class="hs-identifier hs-var hs-var">guessLabels</span></a></span></span><span> </span><span id="local-6989586621679504434"><span class="annot"><span class="annottext">[Notes SPitch]
+</span><a href="#local-6989586621679504434"><span class="hs-identifier hs-var">slices</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Notes SPitch -&gt; ChordLabel
 </span><a href="Harmony.html#mostLikelyLabelFromSlice"><span class="hs-identifier hs-var">mostLikelyLabelFromSlice</span></a></span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
 </span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">[Notes SPitch]
-</span><a href="#local-6989586621679504433"><span class="hs-identifier hs-var">slices</span></a></span><span>
+</span><a href="#local-6989586621679504434"><span class="hs-identifier hs-var">slices</span></a></span><span>
 </span><span id="line-92"></span><span>
 </span><span id="line-93"></span><span class="annot"><a href="Harmony.html#mostLikelyLabelFromSlice"><span class="hs-identifier hs-type">mostLikelyLabelFromSlice</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="PVGrammar.html#Notes"><span class="hs-identifier hs-type">Notes</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">SPitch</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Harmony.ChordLabel.html#ChordLabel"><span class="hs-identifier hs-type">ChordLabel</span></a></span><span>
 </span><span id="line-94"></span><span class="hs-comment">-- mostLikelyLabelFromSlice slice = argmax allLabelLikelihoodsGivenSlice</span><span>
@@ -220,27 +220,27 @@
 </span><span id="line-96"></span><span>    </span><span class="hs-comment">-- argmax :: V.Vector (Double, ChordLabel) -&gt; ChordLabel</span><span>
 </span><span id="line-97"></span><span>    </span><span class="hs-comment">-- argmax = V.foldl1' (\acc )</span><span>
 </span><span id="line-98"></span><span id="mostLikelyLabelFromSlice"><span class="annot"><span class="annottext">mostLikelyLabelFromSlice :: Notes SPitch -&gt; ChordLabel
-</span><a href="Harmony.html#mostLikelyLabelFromSlice"><span class="hs-identifier hs-var hs-var">mostLikelyLabelFromSlice</span></a></span></span><span> </span><span id="local-6989586621679504432"><span class="annot"><span class="annottext">Notes SPitch
-</span><a href="#local-6989586621679504432"><span class="hs-identifier hs-var">slice</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. (a -&gt; Double) -&gt; Vector a -&gt; a
-</span><a href="#local-6989586621679504431"><span class="hs-identifier hs-var">argmax</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ChordLabel -&gt; Notes SPitch -&gt; Double
+</span><a href="Harmony.html#mostLikelyLabelFromSlice"><span class="hs-identifier hs-var hs-var">mostLikelyLabelFromSlice</span></a></span></span><span> </span><span id="local-6989586621679504433"><span class="annot"><span class="annottext">Notes SPitch
+</span><a href="#local-6989586621679504433"><span class="hs-identifier hs-var">slice</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. (a -&gt; Double) -&gt; Vector a -&gt; a
+</span><a href="#local-6989586621679504432"><span class="hs-identifier hs-var">argmax</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ChordLabel -&gt; Notes SPitch -&gt; Double
 </span><a href="Harmony.html#labelLikelihoodGivenSlice"><span class="hs-operator hs-var">`labelLikelihoodGivenSlice`</span></a></span><span> </span><span class="annot"><span class="annottext">Notes SPitch
-</span><a href="#local-6989586621679504432"><span class="hs-identifier hs-var">slice</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Vector ChordLabel
+</span><a href="#local-6989586621679504433"><span class="hs-identifier hs-var">slice</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Vector ChordLabel
 </span><a href="Harmony.html#allChordLabels"><span class="hs-identifier hs-var">allChordLabels</span></a></span><span>
 </span><span id="line-99"></span><span>  </span><span class="hs-keyword">where</span><span>
-</span><span id="line-100"></span><span>    </span><span id="local-6989586621679504606"><span class="annot"><a href="#local-6989586621679504431"><span class="hs-identifier hs-type">argmax</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679504606"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">V.Vector</span></span><span> </span><span class="annot"><a href="#local-6989586621679504606"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679504606"><span class="hs-identifier hs-type">a</span></a></span></span><span>
-</span><span id="line-101"></span><span>    </span><span id="local-6989586621679504431"><span class="annot"><span class="annottext">argmax :: forall a. (a -&gt; Double) -&gt; Vector a -&gt; a
-</span><a href="#local-6989586621679504431"><span class="hs-identifier hs-var hs-var">argmax</span></a></span></span><span> </span><span id="local-6989586621679504427"><span class="annot"><span class="annottext">a -&gt; Double
-</span><a href="#local-6989586621679504427"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. (a -&gt; a -&gt; a) -&gt; Vector a -&gt; a
-</span><span class="hs-identifier hs-var">V.foldl1'</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679504425"><span class="annot"><span class="annottext">a
-</span><a href="#local-6989586621679504425"><span class="hs-identifier hs-var">acc</span></a></span></span><span> </span><span id="local-6989586621679504424"><span class="annot"><span class="annottext">a
-</span><a href="#local-6989586621679504424"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">a -&gt; Double
-</span><a href="#local-6989586621679504427"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
-</span><a href="#local-6989586621679504424"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span id="line-100"></span><span>    </span><span id="local-6989586621679504607"><span class="annot"><a href="#local-6989586621679504432"><span class="hs-identifier hs-type">argmax</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679504607"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">V.Vector</span></span><span> </span><span class="annot"><a href="#local-6989586621679504607"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679504607"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-101"></span><span>    </span><span id="local-6989586621679504432"><span class="annot"><span class="annottext">argmax :: forall a. (a -&gt; Double) -&gt; Vector a -&gt; a
+</span><a href="#local-6989586621679504432"><span class="hs-identifier hs-var hs-var">argmax</span></a></span></span><span> </span><span id="local-6989586621679504428"><span class="annot"><span class="annottext">a -&gt; Double
+</span><a href="#local-6989586621679504428"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. (a -&gt; a -&gt; a) -&gt; Vector a -&gt; a
+</span><span class="hs-identifier hs-var">V.foldl1'</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679504426"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679504426"><span class="hs-identifier hs-var">acc</span></a></span></span><span> </span><span id="local-6989586621679504425"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679504425"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">a -&gt; Double
+</span><a href="#local-6989586621679504428"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679504425"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
 </span><span class="hs-operator hs-var">&gt;</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Double
-</span><a href="#local-6989586621679504427"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
-</span><a href="#local-6989586621679504425"><span class="hs-identifier hs-var">acc</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">a
-</span><a href="#local-6989586621679504424"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">a
-</span><a href="#local-6989586621679504425"><span class="hs-identifier hs-var">acc</span></a></span><span class="hs-special">)</span><span>
+</span><a href="#local-6989586621679504428"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679504426"><span class="hs-identifier hs-var">acc</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679504425"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679504426"><span class="hs-identifier hs-var">acc</span></a></span><span class="hs-special">)</span><span>
 </span><span id="line-102"></span><span>
 </span><span id="line-103"></span><span class="annot"><a href="Harmony.html#mostLikelyLabelFromSliceWithProb"><span class="hs-identifier hs-type">mostLikelyLabelFromSliceWithProb</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="PVGrammar.html#Notes"><span class="hs-identifier hs-type">Notes</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">SPitch</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Harmony.ChordLabel.html#ChordLabel"><span class="hs-identifier hs-type">ChordLabel</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span class="hs-special">)</span><span>
 </span><span id="line-104"></span><span>
@@ -249,44 +249,44 @@
 </span><span id="line-107"></span><span>    </span><span class="hs-comment">-- argmax :: V.Vector (Double, ChordLabel) -&gt; ChordLabel</span><span>
 </span><span id="line-108"></span><span>    </span><span class="hs-comment">-- argmax = V.foldl1' (\acc )</span><span>
 </span><span id="line-109"></span><span id="mostLikelyLabelFromSliceWithProb"><span class="annot"><span class="annottext">mostLikelyLabelFromSliceWithProb :: Notes SPitch -&gt; (ChordLabel, Double)
-</span><a href="Harmony.html#mostLikelyLabelFromSliceWithProb"><span class="hs-identifier hs-var hs-var">mostLikelyLabelFromSliceWithProb</span></a></span></span><span> </span><span id="local-6989586621679504422"><span class="annot"><span class="annottext">Notes SPitch
-</span><a href="#local-6989586621679504422"><span class="hs-identifier hs-var">slice</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679504421"><span class="annot"><span class="annottext">l :: ChordLabel
-</span><a href="#local-6989586621679504421"><span class="hs-identifier hs-var hs-var">l</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. (a -&gt; Double) -&gt; Vector a -&gt; a
-</span><a href="#local-6989586621679504420"><span class="hs-identifier hs-var">argmax</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ChordLabel -&gt; Notes SPitch -&gt; Double
+</span><a href="Harmony.html#mostLikelyLabelFromSliceWithProb"><span class="hs-identifier hs-var hs-var">mostLikelyLabelFromSliceWithProb</span></a></span></span><span> </span><span id="local-6989586621679504423"><span class="annot"><span class="annottext">Notes SPitch
+</span><a href="#local-6989586621679504423"><span class="hs-identifier hs-var">slice</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679504422"><span class="annot"><span class="annottext">l :: ChordLabel
+</span><a href="#local-6989586621679504422"><span class="hs-identifier hs-var hs-var">l</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. (a -&gt; Double) -&gt; Vector a -&gt; a
+</span><a href="#local-6989586621679504421"><span class="hs-identifier hs-var">argmax</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ChordLabel -&gt; Notes SPitch -&gt; Double
 </span><a href="Harmony.html#labelLikelihoodGivenSlice"><span class="hs-operator hs-var">`labelLikelihoodGivenSlice`</span></a></span><span> </span><span class="annot"><span class="annottext">Notes SPitch
-</span><a href="#local-6989586621679504422"><span class="hs-identifier hs-var">slice</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Vector ChordLabel
+</span><a href="#local-6989586621679504423"><span class="hs-identifier hs-var">slice</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Vector ChordLabel
 </span><a href="Harmony.html#allChordLabels"><span class="hs-identifier hs-var">allChordLabels</span></a></span><span>
 </span><span id="line-110"></span><span>  </span><span class="hs-keyword">in</span><span>
 </span><span id="line-111"></span><span>    </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ChordLabel
-</span><a href="#local-6989586621679504421"><span class="hs-identifier hs-var">l</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">ChordLabel -&gt; Notes SPitch -&gt; Double
+</span><a href="#local-6989586621679504422"><span class="hs-identifier hs-var">l</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">ChordLabel -&gt; Notes SPitch -&gt; Double
 </span><a href="Harmony.html#labelLikelihoodGivenSlice"><span class="hs-identifier hs-var">labelLikelihoodGivenSlice</span></a></span><span> </span><span class="annot"><span class="annottext">ChordLabel
-</span><a href="#local-6989586621679504421"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">Notes SPitch
-</span><a href="#local-6989586621679504422"><span class="hs-identifier hs-var">slice</span></a></span><span class="hs-special">)</span><span>
+</span><a href="#local-6989586621679504422"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">Notes SPitch
+</span><a href="#local-6989586621679504423"><span class="hs-identifier hs-var">slice</span></a></span><span class="hs-special">)</span><span>
 </span><span id="line-112"></span><span>  </span><span class="hs-keyword">where</span><span>
-</span><span id="line-113"></span><span>    </span><span id="local-6989586621679504419"><span class="annot"><a href="#local-6989586621679504420"><span class="hs-identifier hs-type">argmax</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679504419"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">V.Vector</span></span><span> </span><span class="annot"><a href="#local-6989586621679504419"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679504419"><span class="hs-identifier hs-type">a</span></a></span></span><span>
-</span><span id="line-114"></span><span>    </span><span id="local-6989586621679504420"><span class="annot"><span class="annottext">argmax :: forall a. (a -&gt; Double) -&gt; Vector a -&gt; a
-</span><a href="#local-6989586621679504420"><span class="hs-identifier hs-var hs-var">argmax</span></a></span></span><span> </span><span id="local-6989586621679504417"><span class="annot"><span class="annottext">a -&gt; Double
-</span><a href="#local-6989586621679504417"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. (a -&gt; a -&gt; a) -&gt; Vector a -&gt; a
-</span><span class="hs-identifier hs-var">V.foldl1'</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679504416"><span class="annot"><span class="annottext">a
-</span><a href="#local-6989586621679504416"><span class="hs-identifier hs-var">acc</span></a></span></span><span> </span><span id="local-6989586621679504415"><span class="annot"><span class="annottext">a
-</span><a href="#local-6989586621679504415"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">a -&gt; Double
-</span><a href="#local-6989586621679504417"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
-</span><a href="#local-6989586621679504415"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span id="line-113"></span><span>    </span><span id="local-6989586621679504420"><span class="annot"><a href="#local-6989586621679504421"><span class="hs-identifier hs-type">argmax</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679504420"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">V.Vector</span></span><span> </span><span class="annot"><a href="#local-6989586621679504420"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679504420"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-114"></span><span>    </span><span id="local-6989586621679504421"><span class="annot"><span class="annottext">argmax :: forall a. (a -&gt; Double) -&gt; Vector a -&gt; a
+</span><a href="#local-6989586621679504421"><span class="hs-identifier hs-var hs-var">argmax</span></a></span></span><span> </span><span id="local-6989586621679504418"><span class="annot"><span class="annottext">a -&gt; Double
+</span><a href="#local-6989586621679504418"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. (a -&gt; a -&gt; a) -&gt; Vector a -&gt; a
+</span><span class="hs-identifier hs-var">V.foldl1'</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679504417"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679504417"><span class="hs-identifier hs-var">acc</span></a></span></span><span> </span><span id="local-6989586621679504416"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679504416"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">a -&gt; Double
+</span><a href="#local-6989586621679504418"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679504416"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
 </span><span class="hs-operator hs-var">&gt;</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Double
-</span><a href="#local-6989586621679504417"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
-</span><a href="#local-6989586621679504416"><span class="hs-identifier hs-var">acc</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">a
-</span><a href="#local-6989586621679504415"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">a
-</span><a href="#local-6989586621679504416"><span class="hs-identifier hs-var">acc</span></a></span><span class="hs-special">)</span><span>
+</span><a href="#local-6989586621679504418"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679504417"><span class="hs-identifier hs-var">acc</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679504416"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679504417"><span class="hs-identifier hs-var">acc</span></a></span><span class="hs-special">)</span><span>
 </span><span id="line-115"></span><span>
 </span><span id="line-116"></span><span class="annot"><a href="Harmony.html#allLabelLikelihoodsGivenSlice"><span class="hs-identifier hs-type">allLabelLikelihoodsGivenSlice</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="PVGrammar.html#Notes"><span class="hs-identifier hs-type">Notes</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">SPitch</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">V.Vector</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Harmony.ChordLabel.html#ChordLabel"><span class="hs-identifier hs-type">ChordLabel</span></a></span><span class="hs-special">)</span><span>
 </span><span id="line-117"></span><span id="allLabelLikelihoodsGivenSlice"><span class="annot"><span class="annottext">allLabelLikelihoodsGivenSlice :: Notes SPitch -&gt; Vector (Double, ChordLabel)
-</span><a href="Harmony.html#allLabelLikelihoodsGivenSlice"><span class="hs-identifier hs-var hs-var">allLabelLikelihoodsGivenSlice</span></a></span></span><span> </span><span id="local-6989586621679504414"><span class="annot"><span class="annottext">Notes SPitch
-</span><a href="#local-6989586621679504414"><span class="hs-identifier hs-var">slice</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><a href="Harmony.html#allLabelLikelihoodsGivenSlice"><span class="hs-identifier hs-var hs-var">allLabelLikelihoodsGivenSlice</span></a></span></span><span> </span><span id="local-6989586621679504415"><span class="annot"><span class="annottext">Notes SPitch
+</span><a href="#local-6989586621679504415"><span class="hs-identifier hs-var">slice</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
 </span><span id="line-118"></span><span>  </span><span class="annot"><span class="annottext">forall a b. Vector a -&gt; Vector b -&gt; Vector (a, b)
 </span><span class="hs-identifier hs-var">V.zip</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; Vector a -&gt; Vector b
 </span><span class="hs-identifier hs-var">V.map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ChordLabel -&gt; Notes SPitch -&gt; Double
 </span><a href="Harmony.html#labelLikelihoodGivenSlice"><span class="hs-operator hs-var">`labelLikelihoodGivenSlice`</span></a></span><span> </span><span class="annot"><span class="annottext">Notes SPitch
-</span><a href="#local-6989586621679504414"><span class="hs-identifier hs-var">slice</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Vector ChordLabel
+</span><a href="#local-6989586621679504415"><span class="hs-identifier hs-var">slice</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Vector ChordLabel
 </span><a href="Harmony.html#allChordLabels"><span class="hs-identifier hs-var">allChordLabels</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Vector ChordLabel
 </span><a href="Harmony.html#allChordLabels"><span class="hs-identifier hs-var">allChordLabels</span></a></span><span>
 </span><span id="line-119"></span><span>  </span><span class="hs-comment">-- where</span><span>
@@ -296,35 +296,35 @@
 </span><span id="line-123"></span><span>
 </span><span id="line-124"></span><span class="annot"><a href="Harmony.html#labelLikelihoodGivenSlice"><span class="hs-identifier hs-type">labelLikelihoodGivenSlice</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Harmony.ChordLabel.html#ChordLabel"><span class="hs-identifier hs-type">ChordLabel</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="PVGrammar.html#Notes"><span class="hs-identifier hs-type">Notes</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">SPitch</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span>
 </span><span id="line-125"></span><span id="labelLikelihoodGivenSlice"><span class="annot"><span class="annottext">labelLikelihoodGivenSlice :: ChordLabel -&gt; Notes SPitch -&gt; Double
-</span><a href="Harmony.html#labelLikelihoodGivenSlice"><span class="hs-identifier hs-var hs-var">labelLikelihoodGivenSlice</span></a></span></span><span> </span><span id="local-6989586621679504411"><span class="annot"><span class="annottext">chordLabel :: ChordLabel
-</span><a href="#local-6989586621679504411"><span class="hs-identifier hs-var">chordLabel</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="Harmony.ChordLabel.html#ChordLabel"><span class="hs-identifier hs-type">ChordLabel</span></a></span><span> </span><span id="local-6989586621679504410"><span class="annot"><span class="annottext">ChordType
-</span><a href="#local-6989586621679504410"><span class="hs-identifier hs-var">chordType</span></a></span></span><span> </span><span id="local-6989586621679504409"><span class="annot"><span class="annottext">Pitch SIC
-</span><a href="#local-6989586621679504409"><span class="hs-identifier hs-var">rootNote</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679504408"><span class="annot"><span class="annottext">Notes SPitch
-</span><a href="#local-6989586621679504408"><span class="hs-identifier hs-var">slice</span></a></span></span><span>
+</span><a href="Harmony.html#labelLikelihoodGivenSlice"><span class="hs-identifier hs-var hs-var">labelLikelihoodGivenSlice</span></a></span></span><span> </span><span id="local-6989586621679504412"><span class="annot"><span class="annottext">chordLabel :: ChordLabel
+</span><a href="#local-6989586621679504412"><span class="hs-identifier hs-var">chordLabel</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="Harmony.ChordLabel.html#ChordLabel"><span class="hs-identifier hs-type">ChordLabel</span></a></span><span> </span><span id="local-6989586621679504411"><span class="annot"><span class="annottext">ChordType
+</span><a href="#local-6989586621679504411"><span class="hs-identifier hs-var">chordType</span></a></span></span><span> </span><span id="local-6989586621679504410"><span class="annot"><span class="annottext">Pitch SIC
+</span><a href="#local-6989586621679504410"><span class="hs-identifier hs-var">rootNote</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679504409"><span class="annot"><span class="annottext">Notes SPitch
+</span><a href="#local-6989586621679504409"><span class="hs-identifier hs-var">slice</span></a></span></span><span>
 </span><span id="line-126"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Double
-</span><a href="#local-6989586621679504407"><span class="hs-identifier hs-var">sliceLikelihoodGivenLabel</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><a href="#local-6989586621679504408"><span class="hs-identifier hs-var">sliceLikelihoodGivenLabel</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
 </span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Double
-</span><a href="#local-6989586621679504406"><span class="hs-identifier hs-var">labelLikelihood</span></a></span><span>
+</span><a href="#local-6989586621679504407"><span class="hs-identifier hs-var">labelLikelihood</span></a></span><span>
 </span><span id="line-127"></span><span>  </span><span class="hs-keyword">where</span><span>
-</span><span id="line-128"></span><span>    </span><span id="local-6989586621679504405"><span class="annot"><span class="annottext">sliceVector :: Vector Double
-</span><a href="#local-6989586621679504405"><span class="hs-identifier hs-var hs-var">sliceVector</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Notes SIC -&gt; Vector Double
+</span><span id="line-128"></span><span>    </span><span id="local-6989586621679504406"><span class="annot"><span class="annottext">sliceVector :: Vector Double
+</span><a href="#local-6989586621679504406"><span class="hs-identifier hs-var hs-var">sliceVector</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Notes SIC -&gt; Vector Double
 </span><a href="Harmony.html#genSliceVector"><span class="hs-identifier hs-var">genSliceVector</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Pitch SIC -&gt; Notes SPitch -&gt; Notes SIC
 </span><a href="Harmony.html#transposeSlice"><span class="hs-identifier hs-var">transposeSlice</span></a></span><span> </span><span class="annot"><span class="annottext">Pitch SIC
-</span><a href="#local-6989586621679504409"><span class="hs-identifier hs-var">rootNote</span></a></span><span> </span><span class="annot"><span class="annottext">Notes SPitch
-</span><a href="#local-6989586621679504408"><span class="hs-identifier hs-var">slice</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-129"></span><span>    </span><span id="local-6989586621679504407"><span class="annot"><span class="annottext">sliceLikelihoodGivenLabel :: Double
-</span><a href="#local-6989586621679504407"><span class="hs-identifier hs-var hs-var">sliceLikelihoodGivenLabel</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Vector Double -&gt; Vector Double -&gt; Double
+</span><a href="#local-6989586621679504410"><span class="hs-identifier hs-var">rootNote</span></a></span><span> </span><span class="annot"><span class="annottext">Notes SPitch
+</span><a href="#local-6989586621679504409"><span class="hs-identifier hs-var">slice</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-129"></span><span>    </span><span id="local-6989586621679504408"><span class="annot"><span class="annottext">sliceLikelihoodGivenLabel :: Double
+</span><a href="#local-6989586621679504408"><span class="hs-identifier hs-var hs-var">sliceLikelihoodGivenLabel</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Vector Double -&gt; Vector Double -&gt; Double
 </span><a href="Harmony.html#multinomialLogProb"><span class="hs-identifier hs-var">multinomialLogProb</span></a></span><span> </span><span class="annot"><span class="annottext">Vector Double
-</span><a href="#local-6989586621679504405"><span class="hs-identifier hs-var">sliceVector</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Vector (Vector Double)
+</span><a href="#local-6989586621679504406"><span class="hs-identifier hs-var">sliceVector</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Vector (Vector Double)
 </span><a href="Harmony.Params.html#chordToneParams"><span class="hs-identifier hs-var">chordToneParams</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Vector a -&gt; Int -&gt; a
 </span><span class="hs-operator hs-var">V.!</span></span><span> </span><span class="annot"><span class="annottext">forall a. Enum a =&gt; a -&gt; Int
 </span><span class="hs-identifier hs-var">fromEnum</span></span><span> </span><span class="annot"><span class="annottext">ChordType
-</span><a href="#local-6989586621679504410"><span class="hs-identifier hs-var">chordType</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-130"></span><span>    </span><span id="local-6989586621679504406"><span class="annot"><span class="annottext">labelLikelihood :: Double
-</span><a href="#local-6989586621679504406"><span class="hs-identifier hs-var hs-var">labelLikelihood</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Vector Double -&gt; Double
+</span><a href="#local-6989586621679504411"><span class="hs-identifier hs-var">chordType</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-130"></span><span>    </span><span id="local-6989586621679504407"><span class="annot"><span class="annottext">labelLikelihood :: Double
+</span><a href="#local-6989586621679504407"><span class="hs-identifier hs-var hs-var">labelLikelihood</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Vector Double -&gt; Double
 </span><a href="Harmony.html#categoricalLogProb"><span class="hs-identifier hs-var">categoricalLogProb</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Enum a =&gt; a -&gt; Int
 </span><span class="hs-identifier hs-var">fromEnum</span></span><span> </span><span class="annot"><span class="annottext">ChordType
-</span><a href="#local-6989586621679504410"><span class="hs-identifier hs-var">chordType</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679504411"><span class="hs-identifier hs-var">chordType</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Vector Double
 </span><a href="Harmony.Params.html#labelParams"><span class="hs-identifier hs-var">labelParams</span></a></span><span>
 </span><span id="line-131"></span><span>
 </span><span id="line-132"></span><span class="annot"><a href="Harmony.html#allIntervals"><span class="hs-identifier hs-type">allIntervals</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">V.Vector</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">SIC</span></span><span>
@@ -352,12 +352,12 @@
 </span><a href="Harmony.html#allChordLabels"><span class="hs-identifier hs-var hs-var">allChordLabels</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. [a] -&gt; Vector a
 </span><span class="hs-identifier hs-var">V.fromList</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-140"></span><span>    </span><span id="local-6989586621679504396"><span class="annot"><span class="annottext">ChordType
-</span><a href="#local-6989586621679504396"><span class="hs-identifier hs-var">chordType</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">forall a. Bounded a =&gt; a
+</span><span id="line-140"></span><span>    </span><span id="local-6989586621679504397"><span class="annot"><span class="annottext">ChordType
+</span><a href="#local-6989586621679504397"><span class="hs-identifier hs-var">chordType</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">forall a. Bounded a =&gt; a
 </span><span class="hs-identifier hs-var">minBound</span></span><span class="hs-glyph">..</span><span class="annot"><span class="annottext">forall a. Bounded a =&gt; a
 </span><span class="hs-identifier hs-var">maxBound</span></span><span class="hs-special">]</span><span>
-</span><span id="line-141"></span><span>    </span><span id="local-6989586621679504393"><span class="annot"><span class="annottext">Pitch SIC
-</span><a href="#local-6989586621679504393"><span class="hs-identifier hs-var">rootNote</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span id="line-141"></span><span>    </span><span id="local-6989586621679504394"><span class="annot"><span class="annottext">Pitch SIC
+</span><a href="#local-6989586621679504394"><span class="hs-identifier hs-var">rootNote</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
 </span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Pitch SIC
 </span><span class="hs-identifier hs-var">spc</span></span><span> </span><span class="hs-special">[</span><span class="hs-glyph">-</span><span class="annot"><span class="annottext">Int
 </span><span class="hs-number">14</span></span><span> </span><span class="hs-glyph">..</span><span> </span><span class="annot"><span class="annottext">Int
@@ -366,103 +366,103 @@
 </span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">ChordType -&gt; Pitch SIC -&gt; ChordLabel
 </span><a href="Harmony.ChordLabel.html#ChordLabel"><span class="hs-identifier hs-var">ChordLabel</span></a></span><span> </span><span class="annot"><span class="annottext">ChordType
-</span><a href="#local-6989586621679504396"><span class="hs-identifier hs-var">chordType</span></a></span><span> </span><span class="annot"><span class="annottext">Pitch SIC
-</span><a href="#local-6989586621679504393"><span class="hs-identifier hs-var">rootNote</span></a></span><span>
+</span><a href="#local-6989586621679504397"><span class="hs-identifier hs-var">chordType</span></a></span><span> </span><span class="annot"><span class="annottext">Pitch SIC
+</span><a href="#local-6989586621679504394"><span class="hs-identifier hs-var">rootNote</span></a></span><span>
 </span><span id="line-143"></span><span>
 </span><span id="line-144"></span><span class="hs-comment">-- | Provides a score measuring how much the slice matches the chord annoation</span><span>
 </span><span id="line-145"></span><span class="annot"><a href="Harmony.html#evaluateSlice"><span class="hs-identifier hs-type">evaluateSlice</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="PVGrammar.html#Notes"><span class="hs-identifier hs-type">Notes</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">SIC</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Harmony.ChordLabel.html#ChordType"><span class="hs-identifier hs-type">ChordType</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span>
 </span><span id="line-146"></span><span id="evaluateSlice"><span class="annot"><span class="annottext">evaluateSlice :: Notes SIC -&gt; ChordType -&gt; Double
-</span><a href="Harmony.html#evaluateSlice"><span class="hs-identifier hs-var hs-var">evaluateSlice</span></a></span></span><span> </span><span id="local-6989586621679504392"><span class="annot"><span class="annottext">Notes SIC
-</span><a href="#local-6989586621679504392"><span class="hs-identifier hs-var">pitchClasses</span></a></span></span><span> </span><span id="local-6989586621679504391"><span class="annot"><span class="annottext">ChordType
-</span><a href="#local-6989586621679504391"><span class="hs-identifier hs-var">chordType</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><a href="Harmony.html#evaluateSlice"><span class="hs-identifier hs-var hs-var">evaluateSlice</span></a></span></span><span> </span><span id="local-6989586621679504393"><span class="annot"><span class="annottext">Notes SIC
+</span><a href="#local-6989586621679504393"><span class="hs-identifier hs-var">pitchClasses</span></a></span></span><span> </span><span id="local-6989586621679504392"><span class="annot"><span class="annottext">ChordType
+</span><a href="#local-6989586621679504392"><span class="hs-identifier hs-var">chordType</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
 </span><span id="line-147"></span><span>    </span><span class="annot"><span class="annottext">Vector Double
-</span><a href="#local-6989586621679504390"><span class="hs-identifier hs-var">likelihoods</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Vector a -&gt; Int -&gt; a
+</span><a href="#local-6989586621679504391"><span class="hs-identifier hs-var">likelihoods</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Vector a -&gt; Int -&gt; a
 </span><span class="hs-operator hs-var">V.!</span></span><span> </span><span class="annot"><span class="annottext">forall a. Enum a =&gt; a -&gt; Int
 </span><span class="hs-identifier hs-var">fromEnum</span></span><span> </span><span class="annot"><span class="annottext">ChordType
-</span><a href="#local-6989586621679504391"><span class="hs-identifier hs-var">chordType</span></a></span><span>
+</span><a href="#local-6989586621679504392"><span class="hs-identifier hs-var">chordType</span></a></span><span>
 </span><span id="line-148"></span><span> </span><span class="hs-keyword">where</span><span>
 </span><span id="line-149"></span><span>  </span><span class="hs-comment">-- Calculate Likelihoods of each chord type</span><span>
-</span><span id="line-150"></span><span>  </span><span id="local-6989586621679504389"><span class="annot"><span class="annottext">valueVector :: Vector Double
-</span><a href="#local-6989586621679504389"><span class="hs-identifier hs-var hs-var">valueVector</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Notes SIC -&gt; Vector Double
+</span><span id="line-150"></span><span>  </span><span id="local-6989586621679504390"><span class="annot"><span class="annottext">valueVector :: Vector Double
+</span><a href="#local-6989586621679504390"><span class="hs-identifier hs-var hs-var">valueVector</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Notes SIC -&gt; Vector Double
 </span><a href="Harmony.html#genSliceVector"><span class="hs-identifier hs-var">genSliceVector</span></a></span><span> </span><span class="annot"><span class="annottext">Notes SIC
-</span><a href="#local-6989586621679504392"><span class="hs-identifier hs-var">pitchClasses</span></a></span><span>
-</span><span id="line-151"></span><span>  </span><span id="local-6989586621679504390"><span class="annot"><span class="annottext">likelihoods :: Vector Double
-</span><a href="#local-6989586621679504390"><span class="hs-identifier hs-var hs-var">likelihoods</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Vector Double -&gt; Vector Double -&gt; Double
+</span><a href="#local-6989586621679504393"><span class="hs-identifier hs-var">pitchClasses</span></a></span><span>
+</span><span id="line-151"></span><span>  </span><span id="local-6989586621679504391"><span class="annot"><span class="annottext">likelihoods :: Vector Double
+</span><a href="#local-6989586621679504391"><span class="hs-identifier hs-var hs-var">likelihoods</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Vector Double -&gt; Vector Double -&gt; Double
 </span><a href="Harmony.html#multinomialLogProb"><span class="hs-identifier hs-var">multinomialLogProb</span></a></span><span> </span><span class="annot"><span class="annottext">Vector Double
-</span><a href="#local-6989586621679504389"><span class="hs-identifier hs-var">valueVector</span></a></span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><a href="#local-6989586621679504390"><span class="hs-identifier hs-var">valueVector</span></a></span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
 </span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Vector (Vector Double)
 </span><a href="Harmony.Params.html#chordToneParams"><span class="hs-identifier hs-var">chordToneParams</span></a></span><span>
 </span><span id="line-152"></span><span>
 </span><span id="line-153"></span><span class="annot"><a href="Harmony.html#genMixture"><span class="hs-identifier hs-type">genMixture</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">V.Vector</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">V.Vector</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">V.Vector</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span>
 </span><span id="line-154"></span><span id="genMixture"><span class="annot"><span class="annottext">genMixture :: Vector Double -&gt; Vector Double -&gt; Vector Double
-</span><a href="Harmony.html#genMixture"><span class="hs-identifier hs-var hs-var">genMixture</span></a></span></span><span> </span><span id="local-6989586621679504386"><span class="annot"><span class="annottext">Vector Double
-</span><a href="#local-6989586621679504386"><span class="hs-identifier hs-var">vec1</span></a></span></span><span> </span><span id="local-6989586621679504385"><span class="annot"><span class="annottext">Vector Double
-</span><a href="#local-6989586621679504385"><span class="hs-identifier hs-var">vec2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Fractional a =&gt; a -&gt; a -&gt; a
+</span><a href="Harmony.html#genMixture"><span class="hs-identifier hs-var hs-var">genMixture</span></a></span></span><span> </span><span id="local-6989586621679504387"><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679504387"><span class="hs-identifier hs-var">vec1</span></a></span></span><span> </span><span id="local-6989586621679504386"><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679504386"><span class="hs-identifier hs-var">vec2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Fractional a =&gt; a -&gt; a -&gt; a
 </span><span class="hs-operator hs-var">/</span></span><span> </span><span class="annot"><span class="annottext">Double
 </span><span class="hs-number">2</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
 </span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">forall a b c. (a -&gt; b -&gt; c) -&gt; Vector a -&gt; Vector b -&gt; Vector c
 </span><span class="hs-identifier hs-var">V.zipWith</span></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
 </span><span class="hs-operator hs-var">(+)</span></span><span> </span><span class="annot"><span class="annottext">Vector Double
-</span><a href="#local-6989586621679504386"><span class="hs-identifier hs-var">vec1</span></a></span><span> </span><span class="annot"><span class="annottext">Vector Double
-</span><a href="#local-6989586621679504385"><span class="hs-identifier hs-var">vec2</span></a></span><span>
+</span><a href="#local-6989586621679504387"><span class="hs-identifier hs-var">vec1</span></a></span><span> </span><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679504386"><span class="hs-identifier hs-var">vec2</span></a></span><span>
 </span><span id="line-155"></span><span>
 </span><span id="line-156"></span><span class="annot"><a href="Harmony.html#chordToneLogLikelihood"><span class="hs-identifier hs-type">chordToneLogLikelihood</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Harmony.ChordLabel.html#ChordLabel"><span class="hs-identifier hs-type">ChordLabel</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">SPitch</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span>
 </span><span id="line-157"></span><span id="chordToneLogLikelihood"><span class="annot"><span class="annottext">chordToneLogLikelihood :: ChordLabel -&gt; SPitch -&gt; Double
-</span><a href="Harmony.html#chordToneLogLikelihood"><span class="hs-identifier hs-var hs-var">chordToneLogLikelihood</span></a></span></span><span> </span><span id="local-6989586621679504384"><span class="annot"><span class="annottext">lbl :: ChordLabel
-</span><a href="#local-6989586621679504384"><span class="hs-identifier hs-var">lbl</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="Harmony.ChordLabel.html#ChordLabel"><span class="hs-identifier hs-type">ChordLabel</span></a></span><span> </span><span id="local-6989586621679504383"><span class="annot"><span class="annottext">ChordType
-</span><a href="#local-6989586621679504383"><span class="hs-identifier hs-var">chordType</span></a></span></span><span> </span><span id="local-6989586621679504382"><span class="annot"><span class="annottext">Pitch SIC
-</span><a href="#local-6989586621679504382"><span class="hs-identifier hs-var">rootNote</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679504381"><span class="annot"><span class="annottext">SPitch
-</span><a href="#local-6989586621679504381"><span class="hs-identifier hs-var">note</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Double
-</span><a href="#local-6989586621679504380"><span class="hs-identifier hs-var">logLikelihood</span></a></span><span>
+</span><a href="Harmony.html#chordToneLogLikelihood"><span class="hs-identifier hs-var hs-var">chordToneLogLikelihood</span></a></span></span><span> </span><span id="local-6989586621679504385"><span class="annot"><span class="annottext">lbl :: ChordLabel
+</span><a href="#local-6989586621679504385"><span class="hs-identifier hs-var">lbl</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="Harmony.ChordLabel.html#ChordLabel"><span class="hs-identifier hs-type">ChordLabel</span></a></span><span> </span><span id="local-6989586621679504384"><span class="annot"><span class="annottext">ChordType
+</span><a href="#local-6989586621679504384"><span class="hs-identifier hs-var">chordType</span></a></span></span><span> </span><span id="local-6989586621679504383"><span class="annot"><span class="annottext">Pitch SIC
+</span><a href="#local-6989586621679504383"><span class="hs-identifier hs-var">rootNote</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679504382"><span class="annot"><span class="annottext">SPitch
+</span><a href="#local-6989586621679504382"><span class="hs-identifier hs-var">note</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679504381"><span class="hs-identifier hs-var">logLikelihood</span></a></span><span>
 </span><span id="line-158"></span><span>  </span><span class="hs-keyword">where</span><span>
-</span><span id="line-159"></span><span>  </span><span id="local-6989586621679504380"><span class="annot"><span class="annottext">logLikelihood :: Double
-</span><a href="#local-6989586621679504380"><span class="hs-identifier hs-var hs-var">logLikelihood</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Vector Double -&gt; Double
+</span><span id="line-159"></span><span>  </span><span id="local-6989586621679504381"><span class="annot"><span class="annottext">logLikelihood :: Double
+</span><a href="#local-6989586621679504381"><span class="hs-identifier hs-var hs-var">logLikelihood</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Vector Double -&gt; Double
 </span><a href="Harmony.html#categoricalLogProb"><span class="hs-identifier hs-var">categoricalLogProb</span></a></span><span> </span><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679504379"><span class="hs-identifier hs-var">notePos</span></a></span><span> </span><span class="annot"><span class="annottext">Vector Double
-</span><a href="#local-6989586621679504378"><span class="hs-identifier hs-var">pChordTones</span></a></span><span>
-</span><span id="line-160"></span><span>  </span><span id="local-6989586621679504378"><span class="annot"><span class="annottext">pChordTones :: Vector Double
-</span><a href="#local-6989586621679504378"><span class="hs-identifier hs-var hs-var">pChordTones</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Vector (Vector Double)
+</span><a href="#local-6989586621679504380"><span class="hs-identifier hs-var">notePos</span></a></span><span> </span><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679504379"><span class="hs-identifier hs-var">pChordTones</span></a></span><span>
+</span><span id="line-160"></span><span>  </span><span id="local-6989586621679504379"><span class="annot"><span class="annottext">pChordTones :: Vector Double
+</span><a href="#local-6989586621679504379"><span class="hs-identifier hs-var hs-var">pChordTones</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Vector (Vector Double)
 </span><a href="Harmony.Params.html#chordToneParams"><span class="hs-identifier hs-var">chordToneParams</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Vector a -&gt; Int -&gt; a
 </span><span class="hs-operator hs-var">V.!</span></span><span> </span><span class="annot"><span class="annottext">forall a. Enum a =&gt; a -&gt; Int
 </span><span class="hs-identifier hs-var">fromEnum</span></span><span> </span><span class="annot"><span class="annottext">ChordType
-</span><a href="#local-6989586621679504383"><span class="hs-identifier hs-var">chordType</span></a></span><span>
-</span><span id="line-161"></span><span>  </span><span id="local-6989586621679504379"><span class="annot"><span class="annottext">notePos :: Int
-</span><a href="#local-6989586621679504379"><span class="hs-identifier hs-var hs-var">notePos</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679504384"><span class="hs-identifier hs-var">chordType</span></a></span><span>
+</span><span id="line-161"></span><span>  </span><span id="local-6989586621679504380"><span class="annot"><span class="annottext">notePos :: Int
+</span><a href="#local-6989586621679504380"><span class="hs-identifier hs-var hs-var">notePos</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int
 </span><span class="hs-number">14</span></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
 </span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">SIC -&gt; Int
 </span><span class="hs-identifier hs-var">sFifth</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Pitch SIC -&gt; SPitch -&gt; SIC
 </span><a href="Harmony.html#transposeNote"><span class="hs-identifier hs-var">transposeNote</span></a></span><span> </span><span class="annot"><span class="annottext">Pitch SIC
-</span><a href="#local-6989586621679504382"><span class="hs-identifier hs-var">rootNote</span></a></span><span> </span><span class="annot"><span class="annottext">SPitch
-</span><a href="#local-6989586621679504381"><span class="hs-identifier hs-var">note</span></a></span><span class="hs-special">)</span><span>
+</span><a href="#local-6989586621679504383"><span class="hs-identifier hs-var">rootNote</span></a></span><span> </span><span class="annot"><span class="annottext">SPitch
+</span><a href="#local-6989586621679504382"><span class="hs-identifier hs-var">note</span></a></span><span class="hs-special">)</span><span>
 </span><span id="line-162"></span><span>
 </span><span id="line-163"></span><span class="annot"><a href="Harmony.html#ornamentLogLikelihood"><span class="hs-identifier hs-type">ornamentLogLikelihood</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Harmony.ChordLabel.html#ChordLabel"><span class="hs-identifier hs-type">ChordLabel</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">SPitch</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span>
 </span><span id="line-164"></span><span id="ornamentLogLikelihood"><span class="annot"><span class="annottext">ornamentLogLikelihood :: ChordLabel -&gt; SPitch -&gt; Double
-</span><a href="Harmony.html#ornamentLogLikelihood"><span class="hs-identifier hs-var hs-var">ornamentLogLikelihood</span></a></span></span><span> </span><span id="local-6989586621679504373"><span class="annot"><span class="annottext">lbl :: ChordLabel
-</span><a href="#local-6989586621679504373"><span class="hs-identifier hs-var">lbl</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="Harmony.ChordLabel.html#ChordLabel"><span class="hs-identifier hs-type">ChordLabel</span></a></span><span> </span><span id="local-6989586621679504372"><span class="annot"><span class="annottext">ChordType
-</span><a href="#local-6989586621679504372"><span class="hs-identifier hs-var">chordType</span></a></span></span><span> </span><span id="local-6989586621679504371"><span class="annot"><span class="annottext">Pitch SIC
-</span><a href="#local-6989586621679504371"><span class="hs-identifier hs-var">rootNote</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679504370"><span class="annot"><span class="annottext">SPitch
-</span><a href="#local-6989586621679504370"><span class="hs-identifier hs-var">note</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Double
-</span><a href="#local-6989586621679504369"><span class="hs-identifier hs-var">logLikelihood</span></a></span><span>
+</span><a href="Harmony.html#ornamentLogLikelihood"><span class="hs-identifier hs-var hs-var">ornamentLogLikelihood</span></a></span></span><span> </span><span id="local-6989586621679504374"><span class="annot"><span class="annottext">lbl :: ChordLabel
+</span><a href="#local-6989586621679504374"><span class="hs-identifier hs-var">lbl</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="Harmony.ChordLabel.html#ChordLabel"><span class="hs-identifier hs-type">ChordLabel</span></a></span><span> </span><span id="local-6989586621679504373"><span class="annot"><span class="annottext">ChordType
+</span><a href="#local-6989586621679504373"><span class="hs-identifier hs-var">chordType</span></a></span></span><span> </span><span id="local-6989586621679504372"><span class="annot"><span class="annottext">Pitch SIC
+</span><a href="#local-6989586621679504372"><span class="hs-identifier hs-var">rootNote</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679504371"><span class="annot"><span class="annottext">SPitch
+</span><a href="#local-6989586621679504371"><span class="hs-identifier hs-var">note</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679504370"><span class="hs-identifier hs-var">logLikelihood</span></a></span><span>
 </span><span id="line-165"></span><span>  </span><span class="hs-keyword">where</span><span>
-</span><span id="line-166"></span><span>  </span><span id="local-6989586621679504369"><span class="annot"><span class="annottext">logLikelihood :: Double
-</span><a href="#local-6989586621679504369"><span class="hs-identifier hs-var hs-var">logLikelihood</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Vector Double -&gt; Double
+</span><span id="line-166"></span><span>  </span><span id="local-6989586621679504370"><span class="annot"><span class="annottext">logLikelihood :: Double
+</span><a href="#local-6989586621679504370"><span class="hs-identifier hs-var hs-var">logLikelihood</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Vector Double -&gt; Double
 </span><a href="Harmony.html#categoricalLogProb"><span class="hs-identifier hs-var">categoricalLogProb</span></a></span><span> </span><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679504368"><span class="hs-identifier hs-var">notePos</span></a></span><span> </span><span class="annot"><span class="annottext">Vector Double
-</span><a href="#local-6989586621679504367"><span class="hs-identifier hs-var">pChordTones</span></a></span><span>
-</span><span id="line-167"></span><span>  </span><span id="local-6989586621679504367"><span class="annot"><span class="annottext">pChordTones :: Vector Double
-</span><a href="#local-6989586621679504367"><span class="hs-identifier hs-var hs-var">pChordTones</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Vector (Vector Double)
+</span><a href="#local-6989586621679504369"><span class="hs-identifier hs-var">notePos</span></a></span><span> </span><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679504368"><span class="hs-identifier hs-var">pChordTones</span></a></span><span>
+</span><span id="line-167"></span><span>  </span><span id="local-6989586621679504368"><span class="annot"><span class="annottext">pChordTones :: Vector Double
+</span><a href="#local-6989586621679504368"><span class="hs-identifier hs-var hs-var">pChordTones</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Vector (Vector Double)
 </span><a href="Harmony.Params.html#ornamentParams"><span class="hs-identifier hs-var">ornamentParams</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Vector a -&gt; Int -&gt; a
 </span><span class="hs-operator hs-var">V.!</span></span><span> </span><span class="annot"><span class="annottext">forall a. Enum a =&gt; a -&gt; Int
 </span><span class="hs-identifier hs-var">fromEnum</span></span><span> </span><span class="annot"><span class="annottext">ChordType
-</span><a href="#local-6989586621679504372"><span class="hs-identifier hs-var">chordType</span></a></span><span>
-</span><span id="line-168"></span><span>  </span><span id="local-6989586621679504368"><span class="annot"><span class="annottext">notePos :: Int
-</span><a href="#local-6989586621679504368"><span class="hs-identifier hs-var hs-var">notePos</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679504373"><span class="hs-identifier hs-var">chordType</span></a></span><span>
+</span><span id="line-168"></span><span>  </span><span id="local-6989586621679504369"><span class="annot"><span class="annottext">notePos :: Int
+</span><a href="#local-6989586621679504369"><span class="hs-identifier hs-var hs-var">notePos</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int
 </span><span class="hs-number">14</span></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
 </span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">SIC -&gt; Int
 </span><span class="hs-identifier hs-var">sFifth</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Pitch SIC -&gt; SPitch -&gt; SIC
 </span><a href="Harmony.html#transposeNote"><span class="hs-identifier hs-var">transposeNote</span></a></span><span> </span><span class="annot"><span class="annottext">Pitch SIC
-</span><a href="#local-6989586621679504371"><span class="hs-identifier hs-var">rootNote</span></a></span><span> </span><span class="annot"><span class="annottext">SPitch
-</span><a href="#local-6989586621679504370"><span class="hs-identifier hs-var">note</span></a></span><span class="hs-special">)</span><span>
+</span><a href="#local-6989586621679504372"><span class="hs-identifier hs-var">rootNote</span></a></span><span> </span><span class="annot"><span class="annottext">SPitch
+</span><a href="#local-6989586621679504371"><span class="hs-identifier hs-var">note</span></a></span><span class="hs-special">)</span><span>
 </span><span id="line-169"></span><span>
 </span><span id="line-170"></span><span class="hs-comment">-- ornamentLogLikelihoodDouble :: ChordLabel -&gt; ChordLabel -&gt; SPitch -&gt; Double</span><span>
 </span><span id="line-171"></span><span class="hs-comment">-- ornamentLogLikelihoodDouble lbll@(ChordLabel chordTypel rootl) lblr@(ChordLabel chordTyper rootr) note = logLikelihood</span><span>
@@ -472,18 +472,18 @@
 </span><span id="line-175"></span><span>
 </span><span id="line-176"></span><span class="annot"><a href="Harmony.html#genSliceVector"><span class="hs-identifier hs-type">genSliceVector</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="PVGrammar.html#Notes"><span class="hs-identifier hs-type">Notes</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">SIC</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">V.Vector</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span>
 </span><span id="line-177"></span><span id="genSliceVector"><span class="annot"><span class="annottext">genSliceVector :: Notes SIC -&gt; Vector Double
-</span><a href="Harmony.html#genSliceVector"><span class="hs-identifier hs-var hs-var">genSliceVector</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="PVGrammar.html#Notes"><span class="hs-identifier hs-type">Notes</span></a></span><span> </span><span id="local-6989586621679504362"><span class="annot"><span class="annottext">MultiSet SIC
-</span><a href="#local-6989586621679504362"><span class="hs-identifier hs-var">notes</span></a></span></span><span class="hs-special">)</span><span>
+</span><a href="Harmony.html#genSliceVector"><span class="hs-identifier hs-var hs-var">genSliceVector</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="PVGrammar.html#Notes"><span class="hs-identifier hs-type">Notes</span></a></span><span> </span><span id="local-6989586621679504363"><span class="annot"><span class="annottext">MultiSet SIC
+</span><a href="#local-6989586621679504363"><span class="hs-identifier hs-var">notes</span></a></span></span><span class="hs-special">)</span><span>
 </span><span id="line-178"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a. (Foldable t, Num a) =&gt; t a -&gt; a
 </span><span class="hs-identifier hs-var">sum</span></span><span> </span><span class="annot"><span class="annottext">Vector Double
-</span><a href="#local-6989586621679504361"><span class="hs-identifier hs-var">res</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><a href="#local-6989586621679504362"><span class="hs-identifier hs-var">res</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Eq a =&gt; a -&gt; a -&gt; Bool
 </span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (Integral a, Num b) =&gt; a -&gt; b
 </span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. MultiSet a -&gt; Int
 </span><a href="Internal.MultiSet.html#size"><span class="hs-identifier hs-var">MS.size</span></a></span><span> </span><span class="annot"><span class="annottext">MultiSet SIC
-</span><a href="#local-6989586621679504362"><span class="hs-identifier hs-var">notes</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><a href="#local-6989586621679504363"><span class="hs-identifier hs-var">notes</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
 </span><span id="line-179"></span><span>      </span><span class="hs-comment">-- trace (&quot;Slice Vector: \n&quot; &lt;&gt; show (zip [-14 ..] (map double2Int res)))</span><span>
 </span><span id="line-180"></span><span>      </span><span class="annot"><span class="annottext">Vector Double
-</span><a href="#local-6989586621679504361"><span class="hs-identifier hs-var">res</span></a></span><span>
+</span><a href="#local-6989586621679504362"><span class="hs-identifier hs-var">res</span></a></span><span>
 </span><span id="line-181"></span><span>  </span><span class="hs-comment">-- Return empty list if any of the intervals are out of bound (eg. dddd4)</span><span>
 </span><span id="line-182"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
 </span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. Int -&gt; a -&gt; Vector a
@@ -491,18 +491,18 @@
 </span><span class="hs-number">29</span></span><span> </span><span class="annot"><span class="annottext">Double
 </span><span class="hs-number">0</span></span><span>
 </span><span id="line-183"></span><span> </span><span class="hs-keyword">where</span><span>
-</span><span id="line-184"></span><span>  </span><span id="local-6989586621679504361"><span class="annot"><span class="annottext">res :: Vector Double
-</span><a href="#local-6989586621679504361"><span class="hs-identifier hs-var hs-var">res</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall {b}. Num b =&gt; SIC -&gt; b
-</span><a href="#local-6989586621679504356"><span class="hs-identifier hs-var">myF</span></a></span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span id="line-184"></span><span>  </span><span id="local-6989586621679504362"><span class="annot"><span class="annottext">res :: Vector Double
+</span><a href="#local-6989586621679504362"><span class="hs-identifier hs-var hs-var">res</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall {b}. Num b =&gt; SIC -&gt; b
+</span><a href="#local-6989586621679504357"><span class="hs-identifier hs-var">myF</span></a></span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
 </span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Vector SIC
 </span><a href="Harmony.html#allIntervals"><span class="hs-identifier hs-var">allIntervals</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">V.Vector</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span>
-</span><span id="line-185"></span><span>  </span><span id="local-6989586621679504356"><span class="annot"><span class="annottext">myF :: SIC -&gt; b
-</span><a href="#local-6989586621679504356"><span class="hs-identifier hs-var hs-var">myF</span></a></span></span><span> </span><span id="local-6989586621679504350"><span class="annot"><span class="annottext">SIC
-</span><a href="#local-6989586621679504350"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span id="line-185"></span><span>  </span><span id="local-6989586621679504357"><span class="annot"><span class="annottext">myF :: SIC -&gt; b
+</span><a href="#local-6989586621679504357"><span class="hs-identifier hs-var hs-var">myF</span></a></span></span><span> </span><span id="local-6989586621679504351"><span class="annot"><span class="annottext">SIC
+</span><a href="#local-6989586621679504351"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a b. (Integral a, Num b) =&gt; a -&gt; b
 </span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall k. (Eq k, Hashable k) =&gt; k -&gt; MultiSet k -&gt; Int
 </span><a href="Internal.MultiSet.html#lookup"><span class="hs-identifier hs-var">MS.lookup</span></a></span><span> </span><span class="annot"><span class="annottext">SIC
-</span><a href="#local-6989586621679504350"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">MultiSet SIC
-</span><a href="#local-6989586621679504362"><span class="hs-identifier hs-var">notes</span></a></span><span>
+</span><a href="#local-6989586621679504351"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">MultiSet SIC
+</span><a href="#local-6989586621679504363"><span class="hs-identifier hs-var">notes</span></a></span><span>
 </span><span id="line-186"></span><span>
 </span><span id="line-187"></span></pre></body></html>
