@@ -1268,12 +1268,12 @@ module Algorithm.RandomChoiceSearch
 randomChoiceSearch :: Show state => state -> (state -> ExceptT String IO [state]) -> (state -> Bool) -> (state -> String) -> ExceptT String IO state
 
 module Algorithm.HeuristicSearch
+aab :: Int -> [a] -> IO [a]
+stochasticBeamSearch :: Int -> Int -> SearchState' -> (SearchState' -> ExceptT String IO [SearchState']) -> (SearchState' -> Bool) -> ((SearchState', SearchState') -> ExceptT String IO Double) -> ExceptT String IO SearchState'
 
 -- | Entry point to the search algorithm
-heuristicSearch :: Int -> SearchState' -> (SearchState' -> ExceptT String IO [SearchState']) -> (SearchState' -> Bool) -> ((Maybe SearchState', SearchState') -> ExceptT String IO Double) -> ExceptT String IO SearchState'
-
--- | Entry point to the search algorithm
-beamSearch :: Int -> SearchState' -> (SearchState' -> ExceptT String IO [SearchState']) -> (SearchState' -> Bool) -> ((Maybe SearchState', SearchState') -> ExceptT String IO Double) -> ExceptT String IO SearchState'
+beamSearch :: Int -> SearchState' -> (SearchState' -> ExceptT String IO [SearchState']) -> (SearchState' -> Bool) -> ((SearchState', SearchState') -> ExceptT String IO Double) -> ExceptT String IO SearchState'
+reservoirSample :: StatefulGen g IO => g -> Int -> [a] -> IO [a]
 instance GHC.Classes.Eq Algorithm.HeuristicSearch.PvOp
 
 
@@ -1394,8 +1394,8 @@ checkDerivation :: (Ord n, Notation n, Hashable n, Eq (IntervalOf n), HasPitch n
 
 -- | This module contains
 module Heuristics
-applyHeuristic :: ((Maybe (State SPitch), State SPitch) -> ExceptT String IO Double) -> (Maybe (State SPitch), State SPitch) -> ExceptT String IO Double
-heuristicZero :: (Maybe (State SPitch), State SPitch) -> ExceptT String IO Double
+applyHeuristic :: ((State SPitch, State SPitch) -> ExceptT String IO Double) -> (State SPitch, State SPitch) -> ExceptT String IO Double
+heuristicZero :: (State SPitch, State SPitch) -> ExceptT String IO Double
 type State ns = SearchState (Edges ns) [Edge ns] (Notes ns) (PVLeftmost ns)
 
 
@@ -1539,6 +1539,7 @@ RandomWalkPerSegment :: AlgoType
 RandomSample :: AlgoType
 RandomReduction :: AlgoType
 BeamSearch :: BeamWidth -> AlgoType
+StochasticBeamSearch :: BeamWidth -> ResevoirSize -> AlgoType
 BeamSearchPerSegment :: BeamWidth -> AlgoType
 DualBeamSearch :: UnspreadWidth -> UnsplitWidth -> AlgoType
 type UnsplitWidth = Int
