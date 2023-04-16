@@ -1492,7 +1492,7 @@ pathFromSlices :: forall ns o. Eval (Edges ns) [Edge ns] (Notes ns) [ns] o -> Sl
 
 -- | Concatenates all results for a given piece into an object, inlucuding
 --   the piece and corpus in the JSON value.
-concatResults :: String -> String -> [ChordLabel] -> [Value] -> Value
+concatResults :: Maybe String -> String -> String -> [ChordLabel] -> [Value] -> Value
 
 -- | Loads slices from filepath
 slicesFromFile' :: FilePath -> IO [(Slice', Bool)]
