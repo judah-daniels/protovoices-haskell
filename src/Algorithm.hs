@@ -33,21 +33,21 @@ import PVGrammar ( Edge, Edges, Freeze, Notes, Split, Spread, PVLeftmost )
 import Control.Monad.Trans.Except (runExceptT)
 import Heuristics
 
-data AlgoInput = 
-  AlgoInput 
+data AlgoInput =
+  AlgoInput
   (Eval (Edges SPitch) [Edge SPitch] (Notes SPitch) [SPitch] (PVLeftmost SPitch))
   [InputSlice SPitch]
   [ChordLabel]
 
-data AlgoResult = AlgoResult 
+data AlgoResult = AlgoResult
   { arTop :: [Notes SPitch]
   , arOps :: Maybe [PVLeftmost SPitch]
-  , arLabels :: [ChordLabel] 
+  , arLabels :: [ChordLabel]
   }
   deriving (Show)
 
-class (Show a, Eq a) => ParseAlgo a where 
-  runParse :: a -> AlgoInput -> IO (Maybe AlgoResult)
+class (Show algo) => ParseAlgo algo where
+  runParse :: algo -> AlgoInput -> IO (Maybe AlgoResult)
 
 data AlgoType
   = RandomParse
@@ -62,65 +62,64 @@ data AlgoType
 timeOutMs = 400 * 1000000 :: Int
 
 instance ParseAlgo AlgoType where
-  runParse algoType (AlgoInput eval inputSlices chords) = case algoType of   
-    RandomParse -> 
-      let initialState = SSFrozen $ pathFromSlices eval idWrapper inputSlices 
-       in 
-        do 
-          res <- runExceptT 
+  runParse algoType (AlgoInput eval inputSlices chords) = case algoType of
+    RandomParse ->
+      let initialState = SSFrozen $ pathFromSlices eval idWrapper inputSlices
+       in
+        do
+          res <- runExceptT
             (randomChoiceSearch initialState (exploreStates idWrapper eval) (goalTest chords) (showOp . getOpsFromState))
           case res of
-            Left err -> do 
-              print err 
+            Left err -> do
+              print err
               pure Nothing
-            Right finalState ->  
+            Right finalState ->
               let path = fromMaybe (error "failed to get path from state") $ getPathFromState finalState
                   ops = getOpsFromState finalState
                   slices = pathBetweens path
-                  chordGuesses = guessChords slices 
-               in 
+                  chordGuesses = guessChords slices
+               in
                pure $ Just $ AlgoResult slices (Just ops) chordGuesses
 
-    RandomSample -> 
-      let x = splitSlicesIntoSegments eval (sliceWrapper) inputSlices
-        in do 
+    RandomSample ->
+      let x = splitSlicesIntoSegments eval sliceWrapper inputSlices
+        in do
           path <- randomSamplePath (length chords)
           let slices = pathBetweens path
               chordGuesses = guessChords slices
            in pure $ Just (AlgoResult slices Nothing chordGuesses)
 
-    RandomSampleSBS -> 
-      let x = splitSlicesIntoSegments eval (sliceWrapper ) inputSlices
+    RandomSampleSBS ->
+      let x = splitSlicesIntoSegments eval sliceWrapper inputSlices
        in Log.timedLog "Running Random Sample SBS Parse" $ do
         path <- randomSamplePathSBS x
 
         let slices = pathBetweens path
             chordGuesses = guessChords  slices
-         in pure $ Just $ AlgoResult slices Nothing chordGuesses 
+         in pure $ Just $ AlgoResult slices Nothing chordGuesses
 
-    Heuristic1 -> 
-      let initialState = SSFrozen $ pathFromSlices eval (sliceWrapper ) inputSlices
-       in 
-        Log.timedLog "Running Random Sample SBS Parse" $ do
-          res <- runExceptT 
-            (heuristicSearch 
-              initialState 
-              (exploreStates (sliceWrapper ) eval) 
-              (goalTest chords) 
-              (applyHeuristic 
-              (testHeuristic )
-            ) 
-            (showOp . getOpsFromState))
+    Heuristic1 ->
+      let initialState = SSFrozen $ pathFromSlices eval sliceWrapper inputSlices
+       in
+        Log.timedLog "Running Heuristic Search" $ do
+          res <- runExceptT
+            (heuristicSearch
+              initialState
+              (exploreStates sliceWrapper eval)
+              (goalTest chords)
+              (applyHeuristic testHeuristic')
+              (showOp . getOpsFromState)
+            )
 
           case res of
             Left err -> do
               Log.warn $ T.pack err
               pure Nothing
-            Right finalState -> 
+            Right finalState ->
               let p = fromJust $ getPathFromState finalState
                   ops = getOpsFromState finalState
                   slices = pathBetweens p
                   chordGuesses = guessChords  slices
-               in 
+               in
                pure $ Just $ AlgoResult slices (Just ops) chordGuesses
 

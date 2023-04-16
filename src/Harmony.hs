@@ -10,10 +10,10 @@ module Harmony
   , transposeSlice
   , multinomialLogProb
   , categoricalLogProb
-  -- , ornamentLogLikelihood
+  , ornamentLogLikelihood
   -- , ornamentLogLikelihoodDouble
   -- , sliceChordLogLikelihood
-  -- , chordToneLogLikelihoodDouble
+  , chordToneLogLikelihood
   -- , sliceChordWeightedLogLikelihoods
   -- , sliceChordWeightedLogLikelihood
   -- , scoreSegment
@@ -40,9 +40,8 @@ import Musicology.Pitch.Spelled
 import Numeric.Log (Log (..))
 import Numeric.SpecFunctions (logGamma)
 import PVGrammar
-import System.Random.MWC.Probability (multinomial)
+import System.Random.MWC.Probability (multinomial, categorical)
 import Data.Vector qualified as V
-import PBHModel (mostLikelyChordFromSlice)
 
 
 multinomialLogProb :: V.Vector Double -> V.Vector Double -> Double
@@ -108,14 +107,14 @@ mostLikelyLabelFromSliceWithProb :: Notes SPitch -> (ChordLabel, Double)
     -- argmax :: V.Vector (Double, ChordLabel) -> ChordLabel
     -- argmax = V.foldl1' (\acc )
 mostLikelyLabelFromSliceWithProb slice = let l = argmax (`labelLikelihoodGivenSlice` slice) allChordLabels
-  in 
+  in
     (l, labelLikelihoodGivenSlice l slice)
   where
     argmax :: (a -> Double) -> V.Vector a -> a
     argmax f = V.foldl1' (\acc x -> if f x > f acc then x else acc)
 
 allLabelLikelihoodsGivenSlice :: Notes SPitch -> V.Vector (Double, ChordLabel)
-allLabelLikelihoodsGivenSlice slice = 
+allLabelLikelihoodsGivenSlice slice =
   V.zip (V.map (`labelLikelihoodGivenSlice` slice) allChordLabels) allChordLabels
   -- where
   --   argmax :: (a -> Double) -> V.Vector a -> a
@@ -130,35 +129,17 @@ labelLikelihoodGivenSlice chordLabel@(ChordLabel chordType rootNote) slice
     sliceLikelihoodGivenLabel = multinomialLogProb sliceVector (chordToneParams V.! fromEnum chordType)
     labelLikelihood = categoricalLogProb (fromEnum chordType) labelParams
 
-
-sliceChordWeightedLogLikelihood :: Notes SIC -> ChordLabel -> Double
-sliceChordWeightedLogLikelihood slice label@(ChordLabel chordType rootNote)  =
-  logLikelihood
- where
-  clp = categoricalLogProb (fromEnum chordType) labelParams
-  mlp = case multinomialLogProb valueVector pChordTones of
-    0 -> -100000
-    x -> x
-  logLikelihood = clp + mlp
-  valueVector = genSliceVector slice
-  pChordTones = chordToneParams V.! fromEnum chordType
-
-
+allIntervals :: V.Vector SIC
 allIntervals = V.fromList $ map sic [-14 .. 14]
 
+allNotes :: V.Vector SPC
 allNotes = V.fromList $ map spc [-14 .. 14]
-
--- allLabels = V.fromList $ do 
-  -- chordType <- 
 
 allChordLabels :: V.Vector ChordLabel
 allChordLabels = V.fromList $ do
     chordType <- [minBound..maxBound]
-    rootNote <- map spc [-14 .. 14] 
+    rootNote <- map spc [-14 .. 14]
     pure $ ChordLabel chordType rootNote
--- allChordLabels = [ChordLabel chordType rootNote | chordType <- [minBound..maxBound], rootNote <- map spc [-14 .. 14]]
-
-  -- map spc [-14 .. 14]
 
 -- | Provides a score measuring how much the slice matches the chord annoation
 evaluateSlice :: Notes SIC -> ChordType -> Double
@@ -169,6 +150,20 @@ evaluateSlice pitchClasses chordType =
   valueVector = genSliceVector pitchClasses
   likelihoods = multinomialLogProb valueVector <$> chordToneParams
 
+
+chordToneLogLikelihood :: ChordLabel -> SPitch -> Double
+chordToneLogLikelihood lbl@(ChordLabel chordType rootNote) note = logLikelihood
+  where
+  logLikelihood = categoricalLogProb notePos pChordTones
+  pChordTones = chordToneParams V.! fromEnum chordType
+  notePos = 14 + sFifth (transposeNote rootNote note)
+
+ornamentLogLikelihood :: ChordLabel -> SPitch -> Double
+ornamentLogLikelihood lbl@(ChordLabel chordType rootNote) note = logLikelihood
+  where
+  logLikelihood = categoricalLogProb notePos pChordTones
+  pChordTones = ornamentParams V.! fromEnum chordType
+  notePos = 14 + sFifth (transposeNote rootNote note)
 
 genSliceVector :: Notes SIC -> V.Vector Double
 genSliceVector (Notes notes)

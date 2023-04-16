@@ -1,10 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 {- | This module contains -}
-module Heuristics 
-  ( 
+module Heuristics
+  (
     applyHeuristic
   , testHeuristic
-  , State 
+  , testHeuristic'
+  , State
   )
     where
 
@@ -42,11 +43,8 @@ applyHeuristic
   :: ((Maybe (State SPitch), State SPitch) -> ExceptT String IO Double)
   -> (Maybe (State SPitch), State SPitch)
   -> ExceptT String IO Double
-applyHeuristic heuristic (prevState, state) = do
-  heuristic (prevState, state)
- where
-  remainingOps :: Double
-  remainingOps = fromIntegral $ getPathLengthFromState state
+applyHeuristic heuristic (mprevState, state) = do
+  heuristic (mprevState, state)
 
 testOp =
   ActionDouble
@@ -64,8 +62,8 @@ testHeuristic :: (Maybe (State SPitch), State SPitch) -> ExceptT String IO Doubl
 testHeuristic (prevState, state) = do
   case getOpFromState state of
     Nothing -> pure 0 -- Initial state
-    Just op -> 
-      do 
+    Just op ->
+      do
       log "______________________________________________________"
       log $ "Prev State: " <> show (fromJust prevState)
       log $ "Next State: " <> show state
@@ -74,57 +72,50 @@ testHeuristic (prevState, state) = do
       -- Freezing
         LMDouble (LMDoubleFreezeLeft freezeOp) -> pure 0
         LMSingle (LMSingleFreeze freezeOp) -> pure 0
-      -- Spreading
-      -- Calculate for each chord possibility, the likelihood that they are all the same chord
-      -- Splitting Right
-      {-
-                              split:
-      ..=[_]----pl----[slc]-==----pr---[_]....
-            \cl      /     \          /cr
-             \      /       \        /
-              [slcl]----cm---[ slcr ]
-      -}
-
         LMDouble (LMDoubleSpread spreadOp) -> do
           log "Considering an unspread"
-          res <- getParentDouble (fromJust prevState)
-          (_, childl, slcl, childr, slcr) <- case res of
-            (sl, childl, Inner slc, childr, Inner sr) -> pure (sl, childl, slc, childr, sr)
-            (_, _, Start, _, _) -> throwError "StartStop left of in spread"
-            (_, _, Stop, _, _) -> throwError "StartStop in left of spread"
-            (_, _, _, _, Start) -> throwError "StartStop in right of spread"
-            (_, _, _, _, Stop) -> throwError "StartStop in right of spread"
+          -- res <- getParentDouble (fromJust prevState)
+          -- (_, childl, slcl, childr, slcr) <- case res of
+          --   (sl, childl, Inner slc, childr, Inner sr) -> pure (sl, childl, slc, childr, sr)
+          --   (_, _, Start, _, _) -> throwError "StartStop left of in spread"
+          --   (_, _, Stop, _, _) -> throwError "StartStop in left of spread"
+          --   (_, _, _, _, Start) -> throwError "StartStop in right of spread"
+          --   (_, _, _, _, Stop) -> throwError "StartStop in right of spread"
 
-          -- pure 30000
-          scoreSpread slcl slcr spreadOp
+          pure 30000
+          -- scoreSpread slcl slcr spreadOp
 
-        -- Freezing (Terminate)
-        -- numSlices From  SSFrozen with 1 or 1+ transitions
-
-        -- Splitting Only
-        {-
-                                        split:
-                               ..=[mS]--parent---end
-                                    cl\        /cr
-                                        [slc]
-        -}
         LMSingle (LMSingleSplit splitOp) -> do
           log "Considering a single unsplit"
+          pure 10000
           -- (child, sr)
-          (slcl, parent) <- getParentSingle state
+          -- let (slcl, parent) = getParentSingle state
           -- (slcl, parent, slcr, _, _) <- getParentDouble (fromJust prevState)
           -- pure 10
-          scoreSplit splitOp parent slcl slcl Stop
+          -- scoreSplit splitOp parent slcl slcl Stop
+
 
         -- Splitting Left
         {-
-                                        split:
-                               ..=[ms]--parent---[slcl]--_--[slcr_...
-                                      cl\        /cr
-                                            [slc]
+
+            PrevState          ..=[ms]---tl---[sl]--tm--[sr]--tr--[send]..
+
+                                             \  | /
+                                              \ |/
+                                                |  UnSplit 
+                                                V
+                                         
+            state                   ..=[ms]--- top --[sr]--tr--[send]...
+                                           cl\       /cr
+                                               [sl]
+
+
+
           -}
         LMDouble (LMDoubleSplitLeft splitOp) -> do
           log "Considering an unsplit left"
+
+
 
           log "parent slices"
           (ms, slcl, slcr) <- getParentSlices (fromJust prevState)
@@ -132,15 +123,15 @@ testHeuristic (prevState, state) = do
           log $ "sl: " <> show slcl
           log $ "sr: " <> show slcr
 
-          (childSlice, parent, _, _, _) <- getParentDouble state
+          let  (childSlice, parent, _, _, _) = getParentDouble state
           log $ "ChildSlice: " <> show childSlice
           log $ show parent
           -- pure 5
 
-          case childSlice of 
+          case childSlice of
             Inner c -> pure $ - sLblProb c
             _ -> pure 12
-          -- scoreSplit splitOp parent childSlice ms slcl
+          scoreSplit splitOp parent childSlice ms slcl
 
         -- Splitting Right
         {-
@@ -160,14 +151,14 @@ testHeuristic (prevState, state) = do
           let sSlices = fromJust $ getSlicesFromState state
           let pSlices = fromJust $ getSlicesFromState (fromJust prevState) -- DISGUSTING
 
-          (ms, slcl, slcr) <- 
-                case sSlices of 
+          (ms, slcl, slcr) <-
+                case sSlices of
                   (ms:slcl:slcr:rst) -> pure (ms,slcl, slcr)
                   _ -> throwError "idk"
 
-          
-          (ms', slcl', slc, slcr') <- 
-                case pSlices of 
+
+          (ms', slcl', slc, slcr') <-
+                case pSlices of
                   (ms':slcl':slc:slcr':rst) -> pure (ms',slcl', slc, slcr')
                   _ -> throwError "idk"
 
@@ -178,7 +169,7 @@ testHeuristic (prevState, state) = do
           -- log $ show slcl' 
           -- log $ show slc 
           -- log $ show slcr' 
-          pure $ - sLblProb slc 
+          pure $ - sLblProb slc
 
           -- (_,_, sl, _, child) <- getParentDouble (fromJust prevState)
           -- (_, _, slcl, parent, slcr) <- getParentDouble state
@@ -191,8 +182,8 @@ testHeuristic (prevState, state) = do
       let pSlices = getSlicesFromState prevState
 
       -- =[mS]---[sl]
-      case state of 
-        SSSemiOpen f m s o -> case pSlices of 
+      case state of
+        SSSemiOpen f m s o -> case pSlices of
                                 Just (ms:sl:sr : rst) -> undefined
                                 Just _ -> error "getParentSlices: not enough slices"
                                 Nothing -> undefined
@@ -214,11 +205,11 @@ testHeuristic (prevState, state) = do
                                [ slc child ]
     -}
 
-    getParentSlices 
-      :: State ns 
-      -> ExceptT 
-          String 
-          IO 
+    getParentSlices
+      :: State ns
+      -> ExceptT
+          String
+          IO
           ( StartStop (SliceWrapped (Notes ns))
           , StartStop (SliceWrapped (Notes ns))
           , StartStop (SliceWrapped (Notes ns))
@@ -226,7 +217,7 @@ testHeuristic (prevState, state) = do
     getParentSlices s = do
       let p = fromJust $ getPathFromState' s
       let slices = pathBetweens p
-      let midSlice = case getSlicesFromState s of 
+      let midSlice = case getSlicesFromState s of
                        Nothing -> Start
                        Just (ms:rst) -> Inner ms
 
@@ -235,10 +226,10 @@ testHeuristic (prevState, state) = do
         _ -> throwError "How can you even unsplit if there arent two slices? Confusion"
 
     getParentTrans
-      :: State ns 
-      -> ExceptT 
-          String 
-          IO 
+      :: State ns
+      -> ExceptT
+          String
+          IO
           (Path (Edges ns) (SliceWrapped (Notes ns)))
     getParentTrans s = do
       let p = fromJust $ getPathFromState' s
@@ -301,7 +292,7 @@ testHeuristic (prevState, state) = do
        --    Stop -> pure Nothing
        --    Inner (SliceWrapped (Notes _) lbl prob) -> pure $ Just (lbl, prob)
        --
-       --  probsRS <- mapM (scoreLeftOrnament lblR) (allOrnaments rs)
+       --  probsRS <- mapM (scoreLeftOrnament lblR) (allOrnaments rs)kk
        --  probsLS <- mapM (scoreRightOrnament lblL) (allOrnaments ls)
        --  probsRegs <- mapM (scoreRegs lblL lblR) (allRegs splitRegs)
        --  probsPassings <- mapM (scorePassing lblL lblR) (allPassings splitPassings)
@@ -459,26 +450,233 @@ testHeuristic (prevState, state) = do
        --  singleChild (_, (note, _)) = note
        --  collectNotes ops = MS.fromList $ singleChild <$> allOps ops
        --
+    getParentDouble
+      :: SearchState d es' ns o
+      -> ( StartStop (SliceWrapped ns) --midslice or start (in open case)
+            , d                           -- tl
+            , SliceWrapped ns             -- sl 
+            , d                           -- tm
+            , StartStop (SliceWrapped ns))-- sr or stop (2 transitions only)
     getParentDouble state = case state of
-      SSFrozen _ -> throwError "Illegal double operation" -- SSFrozen can only be the frist state.
+      SSFrozen _ -> error "Illegal double operation" -- SSFrozen can only be the frist state.
       SSOpen open ops ->
         case open of
-          Path tl slice (Path tr sm rst) -> pure (Start, tContent tl, Inner slice, tContent tr, Inner sm) -- SSOpen only case is a split from  two open transitions.
-          Path tl slice (PathEnd tr) -> pure (Start, tContent tl, Inner slice, tContent tr, Stop)
-          PathEnd _ -> throwError "illegal double operation" -- SSOpen only case is a split from  two open transitions.
+          Path tl slice (Path tr sm rst) -> (Start, tContent tl, slice, tContent tr, Inner sm) -- SSOpen only case is a split from  two open transitions.
+          Path tl slice (PathEnd tr) -> (Start, tContent tl, slice, tContent tr, Stop)
+          PathEnd _ -> error "illegal double operation" -- SSOpen only case is a split from  two open transitions.
       SSSemiOpen frozen midSlice open ops ->
         case open of -- From two open transitions only
-          Path tl slice (Path tr sm rst) -> pure (Inner midSlice, tContent tl, Inner slice, tContent tr, Inner sm) -- SSOpen only case is a split from  two open transitions.
-          Path tl slice (PathEnd tr) -> pure (Inner midSlice, tContent tl, Inner slice, tContent tr, Stop) -- SSOpen only case is a split from  two open transitions.
-          PathEnd tl -> throwError "Illegal double operation in the SSSemiOpen case"
+          Path tl slice (Path tr sm rst) -> (Inner midSlice, tContent tl, slice, tContent tr, Inner sm) -- SSOpen only case is a split from  two open transitions.
+          Path tl slice (PathEnd tr) -> (Inner midSlice, tContent tl, slice, tContent tr, Stop) -- SSOpen only case is a split from  two open transitions.
+          PathEnd tl -> error "Illegal double operation in the SSSemiOpen case"
 
+    getParentSingle
+      :: SearchState b es' ns o
+      -> ( StartStop (SliceWrapped ns) --midslice or startstop
+         , b)                          --tl
     getParentSingle state = case state of
-      SSFrozen _ -> throwError "Illegal single operation" -- SSFrozen can only be the frist state.
+      SSFrozen _ -> error "Illegal single operation" -- SSFrozen can only be the frist state.
       SSOpen open ops ->
         case open of
-          PathEnd parent -> pure (Start, tContent parent) -- SSOpen only case is a split from  two open transitions.
-          _ -> throwError "Illegal single " -- illegal state
+          PathEnd parent -> (Start, tContent parent) -- SSOpen only case is a split from  two open transitions.
+          _ -> error "Illegal single " -- illegal state
       SSSemiOpen frozen midSlice open ops ->
         case open of -- From two open transitions only
-          PathEnd parent -> pure (Inner midSlice, tContent parent)
-          _ -> throwError "Illegal single" -- illegal state
+          PathEnd parent -> (Inner midSlice, tContent parent)
+          _ -> error "Illegal single" -- illegal state
+
+
+testHeuristic' :: (Maybe (State SPitch), State SPitch) -> ExceptT String IO Double
+testHeuristic' (prevState, state) = do
+  case getOpFromState state of
+    Nothing -> pure 0 -- Initial state
+    Just op -> do
+      log $ "Prev State: " <> show (fromJust prevState)
+      log $ "Next State: " <> show state
+      pure $ case op of
+      -- Freezing
+        LMDouble doubleOp ->
+          let (ms, tl, sl, tm, sr) = getParentDouble (fromJust prevState) in
+            case doubleOp of
+              LMDoubleFreezeLeft freezeOp -> 0
+              LMDoubleSpread spreadOp ->
+                let (ms', topl, stop, topr, send) = getParentDouble state
+                    slcL = case sl of
+                             sliceWrapped -> Just sliceWrapped
+                    slcR = case sr of
+                             Inner sliceWrapped -> Just sliceWrapped
+                             _ -> error "nothing inside"
+                  in
+                  scoreSpread spreadOp slcL stop slcR
+              LMDoubleSplitLeft splitOp ->
+                let (ms', top, sr', tr', send) = getParentDouble state
+                    slcL = case ms' of
+                             Start -> Nothing
+                             Stop -> error "Stop on left"
+                             Inner sliceWrapped -> Just sliceWrapped
+                    slcR = Just sr'
+                  in
+                  scoreSplit splitOp slcL top slcR
+              LMDoubleSplitRight
+                splitOp ->
+                let (ms', tl', sl', top, send) = getParentDouble state
+                    slcL = Just sl'
+                    slcR = case send of
+                             Stop -> Nothing
+                             Start -> error "Start at on the right"
+                             Inner sliceWrapped -> Just sliceWrapped
+                  in
+                  scoreSplit splitOp slcL top slcR
+        LMSingle singleOp ->
+          case singleOp of
+            LMSingleFreeze freezeOp -> 0
+            LMSingleSplit splitOp   -> 10
+  where
+
+-- slcL :: Maybe (SliceWrapped (Notes SPitch))
+    -- scoreSplit :: Split n -> Maybe (SliceWrapped (Notes SPitch)) ->  -> Maybe (SliceWrapped (Notes SPitch)) -> a1
+    scoreSplit
+      splitOp@( SplitOp splitReg splitPass fromLeft fromRight keepLeft keepRight passLeft passRight)
+      slcL
+      top
+      slcR
+        = let probsRS = map scoreFromLeft (allEdges fromLeft)
+              probsLS = map scoreFromRight (allEdges fromRight)
+              probsRegs = map scoreReg (allRegs splitReg)
+              probsPassings = map scorePass (allPassings splitPass)
+              -- probsPassLeft = map scorePassLeft (passLeft)
+              aggregatePros = probsRS <> probsLS <> probsRegs <> probsPassings
+           in
+             4
+
+
+      where
+        scoreReg ((x,y), (n,orn)) = 10
+        scorePass ((x,y), (n,orn)) = 10
+
+        scoreFromRight (n, (x,orn)) = 
+          case slcR of 
+            Just (SliceWrapped slc lbl prob) -> case orn of 
+              LeftNeighbor -> ornamentLogLikelihood lbl x + chordToneLogLikelihood lbl n
+              LeftRepeat -> 2 * chordToneLogLikelihood lbl x
+            Nothing -> 1000
+
+        scoreFromLeft (n, (x,orn) ) = 
+          case slcL of 
+            Just (SliceWrapped slc lbl prob) -> case orn of 
+              RightNeighbor -> ornamentLogLikelihood lbl x + chordToneLogLikelihood lbl n
+              RightRepeat -> 2 * chordToneLogLikelihood lbl x
+            Nothing -> 1000
+
+        -- scorePassLeft (x,y) = 10
+        -- scorePassRight (x,y) = 10
+
+       --  scoreRightOrnament
+       --    :: Maybe (ChordLabel, Double)
+       --    -> (SPitch, (SPitch, RightOrnament))
+       --    -> ExceptT String IO Double
+       --  scoreRightOrnament Nothing (n, (x, orn)) = throwError "Right Ornament with no parent"
+       --  scoreRightOrnament (Just (lbl@(ChordLabel chordLbl root), prob)) (n, (x, orn)) = do
+       --    log $ "Scoring a right ornament: " <> Music.showNotation n <> "<="<> Music.showNotation x
+       --    let (n', x') = (transposeNote root n, transposeNote root x)
+       --     in case orn of
+       --          RightNeighbor -> do
+       --            log "Right Neighbor"
+       --            log $ "LBL: " <> show (Just (lbl, prob))
+       --            log $ "Chord tone likelihood: " <> show (chordToneLogLikelihood params lbl n')
+       --            log $ "Ornament tone likelihood: " <> show (ornamentLogLikelihood params lbl x')
+       --            pure $ chordToneLogLikelihood params lbl n' + ornamentLogLikelihood params lbl x'
+       --          RightRepeat -> do
+       --            log "Right Repeat"
+       --            log $ "LBL: " <> show (Just (lbl, prob))
+       --            log $ "Chord tone likelihood: " <> show (chordToneLogLikelihood params lbl n')
+       --            pure $ 2 * chordToneLogLikelihood params lbl n'
+       --
+       --  scoreLeftOrnament
+       --    :: Maybe (ChordLabel, Double)
+       --    -> (SPitch, (SPitch, LeftOrnament))
+       --    -> ExceptT String IO Double
+       --  scoreLeftOrnament Nothing (n, (x, orn)) = throwError "Left Ornament with no parent"
+       --  scoreLeftOrnament (Just (lbl@(ChordLabel chordType rootNote), prob)) (n, (x, orn)) = do
+       --    log $ "Scoring a left ornament: " <> Music.showNotation x <> "=>"<> Music.showNotation n
+       --    let (n', x') = (transposeNote root n, transposeNote root x)
+       --     in case orn of
+       --          LeftNeighbor -> do
+       --            log "Left Neighbor"
+       --            log $ "LBL: " <> show (Just (lbl, prob))
+       --            log $ "Chord tone likelihood: " <> show (chordToneLogLikelihood params lbl n')
+       --            log $ "Ornament tone likelihood: " <> show (ornamentLogLikelihood params lbl x')
+       --            pure $ chordToneLogLikelihood params lbl n' + ornamentLogLikelihood params lbl x'
+       --          LeftRepeat -> do
+       --            log "Left Repeat"
+       --            log $ "LBL: " <> show (Just (lbl, prob))
+       --            log $ "Chord tone likelihood: " <> show (chordToneLogLikelihood params lbl n')
+       --            pure $ 2 * chordToneLogLikelihood params lbl n'
+
+    scoreSpread
+      spreadOp@(SpreadOp spreads edge)
+      slcL
+      slc
+      slcR
+        = 10
+
+    getParentDouble
+      :: State ns
+      -> ( StartStop (SliceWrapped (Notes ns)) --midslice or start (in open case)
+      , Edges ns                           -- tl
+      , SliceWrapped (Notes ns)             -- sl 
+      , Edges  ns                           -- tm
+      , StartStop (SliceWrapped (Notes ns) ))-- sr or stop (2 transitions only)
+    getParentDouble state = case state of
+      SSFrozen _ -> error "Illegal double operation" -- SSFrozen can only be the frist state.
+      SSOpen open ops ->
+        case open of
+          Path tl slice (Path tr sm rst) -> (Start, tContent tl, slice, tContent tr, Inner sm) -- SSOpen only case is a split from  two open transitions.
+          Path tl slice (PathEnd tr) -> (Start, tContent tl, slice, tContent tr, Stop)
+          PathEnd _ -> error "illegal double operation" -- SSOpen only case is a split from  two open transitions.
+      SSSemiOpen frozen midSlice open ops ->
+        case open of -- From two open transitions only
+          Path tl slice (Path tr sm rst) -> (Inner midSlice, tContent tl, slice, tContent tr, Inner sm) -- SSOpen only case is a split from  two open transitions.
+          Path tl slice (PathEnd tr) -> (Inner midSlice, tContent tl, slice, tContent tr, Stop) -- SSOpen only case is a split from  two open transitions.
+          PathEnd tl -> error "Illegal double operation in the SSSemiOpen case"
+
+    getParentSingle
+      :: SearchState b es' ns o
+      -> ( StartStop (SliceWrapped ns) --midslice or startstop
+         , b)                          --tl
+    getParentSingle state = case state of
+      SSFrozen _ -> error "Illegal single operation" -- SSFrozen can only be the frist state.
+      SSOpen open ops ->
+        case open of
+          PathEnd parent -> (Start, tContent parent) -- SSOpen only case is a split from  two open transitions.
+          _ -> error "Illegal single " -- illegal state
+      SSSemiOpen frozen midSlice open ops ->
+        case open of -- From two open transitions only
+          PathEnd parent -> (Inner midSlice, tContent parent)
+          _ -> error "Illegal single" -- illegal state
+
+    allEdges :: M.Map a [b] -> [(a, b)]
+    allEdges ornamentSet = do
+      (parent, children) <- M.toList ornamentSet
+      child <- children
+      pure (parent, child)
+
+    allRegs :: M.Map a [b] -> [(a, b)]
+    allRegs regSet = do
+      (parent, children) <- M.toList regSet
+      child <- children
+      pure (parent, child)
+
+    allPassings ornamentSet = do
+      (parent, children) <- M.toList ornamentSet
+      child <- children
+      pure (parent, child)
+
+    allOps opset = do
+      (parent, children) <- M.toList opset
+      child <- children
+      pure (parent, child)
+
+    allInnerEdges opset = do
+      (parent, child) <- MS.toList opset
+      pure (parent, child)
