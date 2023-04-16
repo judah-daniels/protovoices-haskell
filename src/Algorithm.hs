@@ -67,8 +67,10 @@ data AlgoType
   | BeamSearch BeamWidth
   | BeamSearchPerSegment BeamWidth
   | DualBeamSearch UnspreadWidth UnsplitWidth
-  | All
-  deriving (Read, Show, Eq)
+  deriving (Show, Read, Eq)
+
+
+
 
 timeOutMs = 400 * 1000000 :: Int
 
