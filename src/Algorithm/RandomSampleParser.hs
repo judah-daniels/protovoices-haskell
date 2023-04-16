@@ -53,23 +53,41 @@ randomSamplePath numSegments = do
     rst <- genPath mgen (n - 1)
     slc <- genSlice mgen
     pure $ Path (Edges S.empty MS.empty) slc rst
-
-{- |
-  Generates a path of random notes from each segement for the given number of segments
--}
+--
+-- {- |
+--   Generates a path of random notes from each segement for the given number of segments
+-- -}
+-- randomSamplePathSBS
+--   :: [[InputSlice SPitch]]
+--   -> IO (Path (Edges SPitch) (Notes SPitch))
+-- randomSamplePathSBS inputSlices = do
+--   gen <- initStdGen
+--   mgen <- newIOGenM gen
+--   genPath mgen inputSlices
+--  where
+--   genPath mgen [] = pure $ PathEnd (Edges S.empty MS.empty)
+--   genPath mgen (seg : rst) = do
+--     rst <- genPath mgen rst
+--     slc <- genSliceSBS mgen seg
+--     pure $ Path (Edges S.empty MS.empty) slc rst
+--
 randomSamplePathSBS
   :: [[InputSlice SPitch]]
-  -> IO (Path (Edges SPitch) (Notes SPitch))
+  -> IO [Notes SPitch]
 randomSamplePathSBS inputSlices = do
   gen <- initStdGen
   mgen <- newIOGenM gen
-  genPath mgen inputSlices
- where
-  genPath mgen [] = pure $ PathEnd (Edges S.empty MS.empty)
-  genPath mgen (seg : rst) = do
-    rst <- genPath mgen rst
-    slc <- genSliceSBS mgen seg
-    pure $ Path (Edges S.empty MS.empty) slc rst
+  mapM (genSliceSBS mgen) inputSlices
+  -- genPath mgen inputSlices
+ -- where
+   -- sampleSlice mgen [] = pure $ Notes MS.empty 
+   -- sampleSlice mgen seg = do 
+     -- rst <- sampleSlice mgen rst 
+  -- genPath mgen [] = pure $ PathEnd (Edges S.empty MS.empty)
+  -- genPath mgen (seg : rst) = do
+  --   rst <- genPath mgen rst
+  --   slc <- genSliceSBS mgen seg
+  --   pure $ Path (Edges S.empty MS.empty) slc rst
 
 genSliceSBS :: StatefulGen g IO => g -> [InputSlice SPitch] -> IO (Notes SPitch)
 genSliceSBS gen slcs = do
