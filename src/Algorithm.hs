@@ -9,27 +9,33 @@ module Algorithm
   , ParseAlgo (..)
   , AlgoResult (..)
   , AlgoType (..)
+  , UnsplitWidth
+  , UnspreadWidth
+  , BeamWidth
   )
   where
 
 import Control.Logging qualified as Log
 import Data.Text qualified as T
+
 import FileHandling ( InputSlice (..), pathFromSlices, splitSlicesIntoSegments)
+
 import Harmony
 import Harmony.ChordLabel
 import Harmony.Params
+
 import Algorithm.RandomChoiceSearch
 import Algorithm.RandomSampleParser
 import Algorithm.HeuristicSearch
 
 import Common ( Leftmost(..) , LeftmostDouble(..) , LeftmostSingle(..), Eval, pathBetweens)
+import PVGrammar ( Edge, Edges, Freeze, Notes, Split, Spread, PVLeftmost )
 
 import Control.Monad.Except (ExceptT, lift, throwError)
 import Data.Maybe (fromMaybe, fromJust)
 
-import HeuristicParser (sliceWrapper, idWrapper, SearchState (..), wrapSlice, sLbl, SearchState, getOpFromState, getPathFromState, showOp, goalTest, SliceWrapper, guessChords, exploreStates, getOpsFromState, SliceWrapped (sWContent))
+import HeuristicParser 
 import Musicology.Core ( SPitch, showNotation )
-import PVGrammar ( Edge, Edges, Freeze, Notes, Split, Spread, PVLeftmost )
 import Control.Monad.Trans.Except (runExceptT)
 import Heuristics
 
@@ -49,13 +55,18 @@ data AlgoResult = AlgoResult
 class (Show algo) => ParseAlgo algo where
   runParse :: algo -> AlgoInput -> IO (Maybe AlgoResult)
 
+type BeamWidth = Int
+type UnspreadWidth = Int
+type UnsplitWidth = Int
+
 data AlgoType
-  = RandomParse
-  | RandomParseSBS
+  = RandomWalk
+  | RandomWalkPerSegment
   | RandomSample
-  | RandomSampleSBS
-  | Heuristic1
-  | HeuristicSBS1
+  | RandomReduction
+  | BeamSearch BeamWidth
+  | BeamSearchPerSegment BeamWidth
+  | DualBeamSearch UnspreadWidth UnsplitWidth
   | All
   deriving (Read, Show, Eq)
 
@@ -63,7 +74,7 @@ timeOutMs = 400 * 1000000 :: Int
 
 instance ParseAlgo AlgoType where
   runParse algoType (AlgoInput eval inputSlices chords) = case algoType of
-    RandomParse ->
+    RandomWalk ->
       let initialState = SSFrozen $ pathFromSlices eval idWrapper inputSlices
        in
         do
@@ -89,7 +100,7 @@ instance ParseAlgo AlgoType where
               chordGuesses = guessChords slices
            in pure $ Just (AlgoResult slices Nothing chordGuesses)
 
-    RandomSampleSBS ->
+    RandomReduction ->
       let x = splitSlicesIntoSegments eval sliceWrapper inputSlices
        in Log.timedLog "Running Random Sample SBS Parse" $ do
         path <- randomSamplePathSBS x
@@ -98,16 +109,17 @@ instance ParseAlgo AlgoType where
             chordGuesses = guessChords  slices
          in pure $ Just $ AlgoResult slices Nothing chordGuesses
 
-    Heuristic1 ->
+    BeamSearch beamWidth ->
       let initialState = SSFrozen $ pathFromSlices eval sliceWrapper inputSlices
        in
         Log.timedLog "Running Heuristic Search" $ do
           res <- runExceptT
             (heuristicSearch
+              beamWidth
               initialState
               (exploreStates sliceWrapper eval)
               (goalTest chords)
-              (applyHeuristic testHeuristic')
+              (applyHeuristic heuristicZero)
               (showOp . getOpsFromState)
             )
 

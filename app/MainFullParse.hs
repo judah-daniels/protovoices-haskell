@@ -26,6 +26,9 @@ data Options = Options
   { _inputPath :: String
   , _outputPath :: String
   , _iterations :: Int
+  , _beamWidth :: BeamWidth
+  , _unsplitWidth :: UnsplitWidth
+  , _unspreadWidth :: UnspreadWidth
   }
 
 -- COMAND LINE ARGUMENT HANDLING
@@ -35,12 +38,18 @@ parseArgs _ ["-v"] = version >> exit
 parseArgs options ("-i" : inputPath : rst) = parseArgs (options{_inputPath = inputPath}) rst
 parseArgs options ("-o" : outputPath : rst) = parseArgs (options{_outputPath = outputPath}) rst
 parseArgs options ("-n" : numIterations : rst) = parseArgs (options{_iterations = read numIterations}) rst
+parseArgs options ("-p" : "beamWidth" : val : rst) = parseArgs (options{_beamWidth = read val}) rst
+parseArgs options ("-p" : "unsplitWidth" : val : rst) = parseArgs (options{_unsplitWidth = read val}) rst
+parseArgs options ("-p" : "unspreadWidth" : val : rst) = parseArgs (options{_unspreadWidth = read val}) rst
 parseArgs options [corpus, pieceName, algoName] = pure (corpus, pieceName, read algoName, options) -- concat `fmap` mapM readFile fs
 parseArgs _ _ = usage >> exit
 
 defaultInputPath = "preprocessing/inputs/"
 defaultOutputPath = "preprocessing/outputs/"
 defaultNumIterations = 1
+defaultUnspreadWidth = 7 
+defaultUnsplitWidth = 3
+defaultBeamWidth = 10
 
 usage =
   putStrLn
@@ -50,6 +59,7 @@ usage =
     \   -i:         Set input path for chords and slices. Default: preprocessing/inputs/ \n\
     \   -o:         Set output path for results. Default: preprocessing/outputs/ \n\
     \   -n:         Set number of iterations \n\
+    \   -p {hp} value:         Hyperparameters \n\
     \   corpus:     Name of the corpus the piece belongs to. \n\
     \   pieceName:  Name of piece to parse. \n\
     \   {..}:       Choose which algorithm to run. \"all\" runs all algorithms and returns results in an aggregated\
@@ -69,9 +79,9 @@ die = exitWith (ExitFailure 1)
 
 main :: IO () 
 main = Log.withStderrLogging $ do 
-  (corpus, pieceName, algo, Options inputPath outputPath iterations) <-
+  (corpus, pieceName, algo, Options inputPath outputPath iterations beamWidth unsplitWidth unSpreadWidth) <-
     getArgs
-      >>= parseArgs (Options defaultInputPath defaultOutputPath defaultNumIterations)
+      >>= parseArgs (Options defaultInputPath defaultOutputPath defaultNumIterations defaultBeamWidth defaultUnsplitWidth defaultUnspreadWidth)
 
   inputChords <- chordsFromFile (inputPath <> "chords/" <> corpus <> "/" <> pieceName <> ".csv")
   inputSlices <- slicesFromFile' (inputPath <> "slices/" <> corpus <> "/" <> pieceName <> ".csv")

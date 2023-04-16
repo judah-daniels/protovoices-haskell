@@ -1,6 +1,22 @@
-# Protovoices - A Model of Tonal Structure
+# ProtoVoice Harmony Model - Inferring Harmony from a Model of Tonal Structure
 
 ![A protovoice derivation and its inner structure](doc-images/sus-both.svg)
+
+This project is dissertation. 
+
+To run experiments, ensure python, pip, haskell, and stack are installed:
+
+Install Requirements:
+```
+pip3 install -r requirements.txt
+
+```
+Head to experiments:
+Run preprocess.py then experiments.py. 
+Analysis of results is in analysis.py
+
+preprocess.py will search for DCML style corpuses in the directory ../dcmldatasets/, so clone some repositories in that folder. Eg: ABC or the romantic piano corpus.
+
 
 This project is an implementation of the protovoice model as described in:
 

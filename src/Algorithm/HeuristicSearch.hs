@@ -6,13 +6,18 @@
 module Algorithm.HeuristicSearch 
   (
     heuristicSearch
-  )where
-
--- LOGGING
+  )
+    where
 
 import Control.Logging qualified as Log
 import Data.Text qualified as T
+import Data.Foldable ( foldlM, maximumBy )
+import Data.List qualified as L
+import Data.Maybe (fromMaybe)
+import Data.Ord ( comparing )
 
+import Musicology.Core ( SPitch )
+import PVGrammar ( Edge, Edges, Freeze, Notes, Split, Spread )
 import Common
     ( Leftmost(..),
       LeftmostDouble(..),
@@ -21,25 +26,8 @@ import Common
 
 import Control.Monad.Except (ExceptT, lift, throwError)
 
-import Data.Foldable ( foldlM, maximumBy )
+import HeuristicParser (SearchState, getOpFromState)
 
-import Data.Heap qualified as H
-import Data.List qualified as L
-import Data.Maybe (fromMaybe)
-import Data.Ord ( comparing )
-import HeuristicParser (sliceWrapper, wrapSlice, sLbl, SearchState, getOpFromState, getPathFromState)
-
-import Data.Aeson.KeyMap (singleton)
-import System.Random (initStdGen)
-import System.Random.Stateful
-  ( StatefulGen
-  , newIOGenM
-  , uniformRM
-  )
-
-import Musicology.Core ( SPitch )
-import Musicology.Core qualified as Music
-import PVGrammar ( Edge, Edges, Freeze, Notes, Split, Spread )
 
 data HeuristicSearch s c = HeuristicSearch
   { frontier :: [(c, s)]
@@ -47,7 +35,12 @@ data HeuristicSearch s c = HeuristicSearch
   , goal :: s -> Bool
   }
 
-type SearchState' = SearchState (Edges SPitch) [Edge SPitch] (Notes SPitch) (Leftmost (Split SPitch) Freeze (Spread SPitch))
+type SearchState' = 
+  SearchState 
+    (Edges SPitch) 
+    [Edge SPitch] 
+    (Notes SPitch) 
+    (Leftmost (Split SPitch) Freeze (Spread SPitch))
 
 heuristicSearchInit start heuristic' initCost goal' =
   HeuristicSearch
@@ -58,13 +51,14 @@ heuristicSearchInit start heuristic' initCost goal' =
 
 -- | Entry point to the search algorithm
 heuristicSearch
-  :: SearchState' -- starting state
+  :: Int -- Hyperparameters
+  -> SearchState' -- starting state
   -> (SearchState' -> ExceptT String IO [SearchState']) -- get adjacent states
   -> (SearchState' -> Bool) -- goal test
   -> ((Maybe SearchState', SearchState') -> ExceptT String IO Double) -- heuristic
   -> (SearchState' -> String) -- showAction
   -> ExceptT String IO SearchState' -- output
-heuristicSearch initialState getNextStates isGoalState heuristic printOp = do
+heuristicSearch beamWidth initialState getNextStates isGoalState heuristic printOp = do
   initCost <- heuristic (Nothing, initialState)
   search $ heuristicSearchInit initialState heuristic initCost isGoalState
  where
@@ -74,14 +68,11 @@ heuristicSearch initialState getNextStates isGoalState heuristic printOp = do
     | otherwise = do
         lift $ Log.log $ T.pack (show open)
 
-        -- nextStates <- foldlM getNextStatesAndCosts [] open
         nextStates <- foldlM getNextStatesAndCosts [] open
         let nextUnfreezeStates = minElems 1 [] $ filter (isFreeze . snd) nextStates
-            nextUnspreadStates = minElems 5 [] $ filter (isSpread . snd) nextStates
-            nextUnsplitStates = minElems 10 [] $ filter (isSplit . snd) nextStates
-
-        let newFrontier = nextUnfreezeStates <> nextUnsplitStates <> nextUnspreadStates
-
+            nextUnspreadStates = minElems beamWidth [] $ filter (isSpread . snd) nextStates
+            nextUnsplitStates = minElems beamWidth [] $ filter (isSplit . snd) nextStates
+            newFrontier = nextUnfreezeStates <> nextUnsplitStates
         search $
           hs{frontier = newFrontier}
    where
@@ -120,15 +111,6 @@ heuristicSearch initialState getNextStates isGoalState heuristic printOp = do
         h <- heuristic (Just state, newState)
         pure (cost + h, newState)
 
-getLowestCostState :: [(Double, state)] -> state
-getLowestCostState goalStates = snd $ maximumBy (comparing fst) goalStates
-
-popFromHeap :: H.HeapItem a b => H.Heap a b -> (b, H.Heap a b)
-popFromHeap heap =
-  let (item : _, remaining) = H.splitAt 1 heap
-   in (item, remaining)
-
--- Split
 data PvOp = Split' | Spread' | Freeze' deriving (Eq)
 
 opType :: Leftmost a b c -> PvOp
@@ -143,18 +125,3 @@ opType op = case op of
       LMDoubleSpread _ -> Spread'
       LMDoubleSplitLeft _ -> Split'
       LMDoubleSplitRight _ -> Split'
-
-genHeap
-  :: (Ord a)
-  => [(a, b)]
-  -> H.MinPrioHeap a b
-genHeap = foldr H.insert H.empty
-
-insertHeapLimitedBy n item heap
-  | H.size heap >= n = let heap' = (fromMaybe undefined $ H.viewTail heap) in H.insert item heap'
-  | otherwise = H.insert item heap
-
--- insertLimited :: H.HeapItem pol state => Int -> item -> H.Heap pol item -> H.Heap pol item
-insertLimitedBy n item heap
-  | H.size heap >= n = let heap' = (fromMaybe undefined $ H.viewTail heap) in H.insert item heap'
-  | otherwise = H.insert item heap

@@ -150,6 +150,8 @@ evaluateSlice pitchClasses chordType =
   valueVector = genSliceVector pitchClasses
   likelihoods = multinomialLogProb valueVector <$> chordToneParams
 
+genMixture :: V.Vector Double -> V.Vector Double -> V.Vector Double
+genMixture vec1 vec2 = (/ 2) <$> V.zipWith (+) vec1 vec2
 
 chordToneLogLikelihood :: ChordLabel -> SPitch -> Double
 chordToneLogLikelihood lbl@(ChordLabel chordType rootNote) note = logLikelihood
@@ -164,6 +166,12 @@ ornamentLogLikelihood lbl@(ChordLabel chordType rootNote) note = logLikelihood
   logLikelihood = categoricalLogProb notePos pChordTones
   pChordTones = ornamentParams V.! fromEnum chordType
   notePos = 14 + sFifth (transposeNote rootNote note)
+
+-- ornamentLogLikelihoodDouble :: ChordLabel -> ChordLabel -> SPitch -> Double
+-- ornamentLogLikelihoodDouble lbll@(ChordLabel chordTypel rootl) lblr@(ChordLabel chordTyper rootr) note = logLikelihood
+ -- where
+  -- logLikelihood = categoricalLogProb notePos pOrnamentsm
+  -- logLikelihood = (ornamentLogLikelihood lbll (transposeNote rootl note) + ornamentLogLikelihood lblr (transposeNote rootr note)) / 2
 
 genSliceVector :: Notes SIC -> V.Vector Double
 genSliceVector (Notes notes)
