@@ -29,12 +29,15 @@ data Options = Options
   , _beamWidth :: BeamWidth
   , _unsplitWidth :: UnsplitWidth
   , _unspreadWidth :: UnspreadWidth
+  , _expId :: Maybe String
   }
 
 -- COMAND LINE ARGUMENT HANDLING
 parseArgs :: Options -> [String] -> IO (String, String, AlgoType, Options)
 parseArgs _ ["-h"] = usage >> exit
 parseArgs _ ["-v"] = version >> exit
+
+parseArgs options ("-id" : id : rst) = parseArgs (options{_expId = read id}) rst
 parseArgs options ("-i" : inputPath : rst) = parseArgs (options{_inputPath = inputPath}) rst
 parseArgs options ("-o" : outputPath : rst) = parseArgs (options{_outputPath = outputPath}) rst
 parseArgs options ("-n" : numIterations : rst) = parseArgs (options{_iterations = read numIterations}) rst
@@ -50,13 +53,15 @@ defaultNumIterations = 1
 defaultUnspreadWidth = 7 
 defaultUnsplitWidth = 3
 defaultBeamWidth = 10
+defaultId = Nothing
 
 usage =
   putStrLn
-    "\nUsage: parseFullPieces [-vhio] corpus piece {RandomParse, RandomParseSBS, RandomSample, Heuristic1, HeuristicSBS1, All} \n\
+    "\nUsage: parseFullPieces [-idvhio] corpus piece {RandomParse, RandomParseSBS, RandomSample, Heuristic1, HeuristicSBS1, All} \n\
     \   -v:         Show Version \n\
     \   -h:         Show Help \n\
     \   -i:         Set input path for chords and slices. Default: preprocessing/inputs/ \n\
+    \   -id:        Set experiment id \n\
     \   -o:         Set output path for results. Default: preprocessing/outputs/ \n\
     \   -n:         Set number of iterations \n\
     \   -p {hp} value:         Hyperparameters \n\
@@ -79,9 +84,25 @@ die = exitWith (ExitFailure 1)
 
 main :: IO () 
 main = Log.withStderrLogging $ do 
-  (corpus, pieceName, algo, Options inputPath outputPath iterations beamWidth unsplitWidth unSpreadWidth) <-
+  (corpus, pieceName, algo, 
+    Options 
+     inputPath 
+     outputPath 
+     iterations 
+     beamWidth 
+     unsplitWidth 
+     unSpreadWidth
+     expId ) <-
     getArgs
-      >>= parseArgs (Options defaultInputPath defaultOutputPath defaultNumIterations defaultBeamWidth defaultUnsplitWidth defaultUnspreadWidth)
+      >>= parseArgs 
+        (Options 
+          defaultInputPath 
+          defaultOutputPath 
+          defaultNumIterations 
+          defaultBeamWidth 
+          defaultUnsplitWidth 
+          defaultUnspreadWidth
+          defaultId)
 
   inputChords <- chordsFromFile (inputPath <> "chords/" <> corpus <> "/" <> pieceName <> ".csv")
   inputSlices <- slicesFromFile' (inputPath <> "slices/" <> corpus <> "/" <> pieceName <> ".csv")
@@ -89,7 +110,7 @@ main = Log.withStderrLogging $ do
 
   res <- replicateM iterations $ runAlgo algo inputChords inputSlices numRetries
 
-  writeJSONToFile outputFile $ concatResults corpus pieceName inputChords res
+  writeJSONToFile outputFile $ concatResults expId corpus pieceName inputChords res
 
   where 
     timeOutMs = 400 * 1000000 :: Int
