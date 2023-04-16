@@ -1270,7 +1270,7 @@ randomChoiceSearch :: Show state => state -> (state -> ExceptT String IO [state]
 module Algorithm.HeuristicSearch
 
 -- | Entry point to the search algorithm
-heuristicSearch :: SearchState' -> (SearchState' -> ExceptT String IO [SearchState']) -> (SearchState' -> Bool) -> ((Maybe SearchState', SearchState') -> ExceptT String IO Double) -> (SearchState' -> String) -> ExceptT String IO SearchState'
+heuristicSearch :: Int -> SearchState' -> (SearchState' -> ExceptT String IO [SearchState']) -> (SearchState' -> Bool) -> ((Maybe SearchState', SearchState') -> ExceptT String IO Double) -> (SearchState' -> String) -> ExceptT String IO SearchState'
 instance GHC.Classes.Eq Algorithm.HeuristicSearch.PvOp
 
 
@@ -1389,6 +1389,13 @@ debugPVAnalysis :: (Notation n, Ord n, Hashable n, HasPitch n, Eq (IntervalOf n)
 checkDerivation :: (Ord n, Notation n, Hashable n, Eq (IntervalOf n), HasPitch n, Show n) => [Leftmost (Split n) Freeze (Spread n)] -> Path [n] [Edge n] -> Bool
 
 
+-- | This module contains
+module Heuristics
+applyHeuristic :: ((Maybe (State SPitch), State SPitch) -> ExceptT String IO Double) -> (Maybe (State SPitch), State SPitch) -> ExceptT String IO Double
+heuristicZero :: (Maybe (State SPitch), State SPitch) -> ExceptT String IO Double
+type State ns = SearchState (Edges ns) [Edge ns] (Notes ns) (PVLeftmost ns)
+
+
 -- | This module contains code that is specific to parsing the protovoice
 --   grammar. It implements a number of evaluators (<a>Eval</a>) that can
 --   be used with the various parsers.
@@ -1471,16 +1478,6 @@ instance (GHC.Classes.Ord a, GHC.Classes.Ord b, GHC.Classes.Ord c, GHC.Classes.O
 instance (GHC.Classes.Eq a, GHC.Classes.Eq b, GHC.Classes.Eq c, GHC.Classes.Eq d) => GHC.Classes.Eq (PVGrammar.Parse.Elaboration a b c d)
 
 
--- | This module contains
-module Heuristics
-applyHeuristic :: ((Maybe (State SPitch), State SPitch) -> ExceptT String IO Double) -> (Maybe (State SPitch), State SPitch) -> ExceptT String IO Double
-
--- | First Heuristic Prototype
-testHeuristic :: (Maybe (State SPitch), State SPitch) -> ExceptT String IO Double
-testHeuristic' :: (Maybe (State SPitch), State SPitch) -> ExceptT String IO Double
-type State ns = SearchState (Edges ns) [Edge ns] (Notes ns) (PVLeftmost ns)
-
-
 -- | This module contains functionality for reading chord and slice data
 --   from csv files, as output by 'preprocess.py'. This also contains
 --   functionality for writing the results of the parses to json files, to
@@ -1537,13 +1534,17 @@ AlgoResult :: [Notes SPitch] -> Maybe [PVLeftmost SPitch] -> [ChordLabel] -> Alg
 [arOps] :: AlgoResult -> Maybe [PVLeftmost SPitch]
 [arLabels] :: AlgoResult -> [ChordLabel]
 data AlgoType
-RandomParse :: AlgoType
-RandomParseSBS :: AlgoType
+RandomWalk :: AlgoType
+RandomWalkPerSegment :: AlgoType
 RandomSample :: AlgoType
-RandomSampleSBS :: AlgoType
-Heuristic1 :: AlgoType
-HeuristicSBS1 :: AlgoType
+RandomReduction :: AlgoType
+BeamSearch :: BeamWidth -> AlgoType
+BeamSearchPerSegment :: BeamWidth -> AlgoType
+DualBeamSearch :: UnspreadWidth -> UnsplitWidth -> AlgoType
 All :: AlgoType
+type UnsplitWidth = Int
+type UnspreadWidth = Int
+type BeamWidth = Int
 instance GHC.Show.Show Algorithm.AlgoResult
 instance GHC.Classes.Eq Algorithm.AlgoType
 instance GHC.Show.Show Algorithm.AlgoType
