@@ -265,20 +265,23 @@ writeResultsToJSON
   -> LogLikelihood
   -> String
   -> Time
+  -> Int
   -> A.Value
-writeResultsToJSON slices chords pathMaybe accuracy likelihood name runTime =
+writeResultsToJSON slices chords pathMaybe accuracy likelihood name runTime reruns =
   A.object
-    [ "algorithm" .= A.fromString name
-    , "slices" .= ((\(Notes x) -> show <$> MS.toList x) <$> slices)
+    [ 
+    -- "algorithm" .= A.fromString name
+     "slices" .= ((\(Notes x) -> show <$> MS.toList x) <$> slices)
     , "chordLabels" .= (show <$> chords)
     , "accuracy" .= accuracy
     , "likelihood" .= likelihood
     , "runTime" .= runTime
+    , "reruns" .= reruns
     ]
 
 -- | Concatenates all results for a given piece into an object, inlucuding the piece and corpus in the JSON value.
-concatResults :: String -> String -> String -> [ChordLabel] -> [A.Value] -> A.Value
-concatResults expId corpus piece trueLabels results = A.object ["id" .= A.fromString expId, "corpus" .= A.fromString corpus, "piece" .= A.fromString piece, "results" .= results, "groundTruth" .= (show <$> trueLabels)]
+concatResults :: String -> String -> String -> String -> [ChordLabel] -> [A.Value] -> A.Value
+concatResults expId algoName corpus piece trueLabels results = A.object ["id" .= A.fromString expId, "algorithm" .= A.fromString algoName, "corpus" .= A.fromString corpus, "piece" .= A.fromString piece, "results" .= results, "groundTruth" .= (show <$> trueLabels)]
 
 -- | Write JSON value to the given file
 writeJSONToFile :: A.ToJSON a => FilePath -> a -> IO ()
@@ -290,10 +293,13 @@ writeJSONToFile filePath v = do
 nullResultToJSON :: Show a => a -> A.Value
 nullResultToJSON a =
     A.object
-      [ "algorithm" .= A.fromString (show a)
-      , "slices" .= (Nothing :: Maybe [String])
+      [
+      -- "algorithm" .= A.fromString (show a)
+       "slices" .= (Nothing :: Maybe [String])
       , "chordLabels" .= (Nothing :: Maybe [String])
       , "accuracy" .= (Nothing :: Maybe Float)
+      -- , "ops" .= (Nothing :: Maybe )
       , "likelihood" .= (Nothing :: Maybe Float)
+      , "reRuns" .= (Nothing :: Maybe Int)
       , "runTime" .= (Nothing :: Maybe Double)
       ]

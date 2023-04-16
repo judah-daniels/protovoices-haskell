@@ -106,11 +106,11 @@ main = Log.withStderrLogging $ do
 
   inputChords <- chordsFromFile (inputPath <> "chords/" <> corpus <> "/" <> pieceName <> ".csv")
   inputSlices <- slicesFromFile' (inputPath <> "slices/" <> corpus <> "/" <> pieceName <> ".csv")
-  let outputFile = outputPath <> corpus <> "/" <> pieceName <> "/" <> showRoot algo <> ".json"
+  let outputFile = outputPath <> corpus <> "/" <> pieceName <> "/" <> showRoot algo <> "/" <> expId <> ".json"
 
   res <- replicateM iterations $ runAlgo algo inputChords inputSlices numRetries
 
-  writeJSONToFile outputFile $ concatResults expId corpus pieceName inputChords res
+  writeJSONToFile outputFile $ concatResults expId (showRoot algo) corpus pieceName inputChords res
 
   where 
     timeOutMs = 400 * 1000000 :: Int
@@ -124,12 +124,12 @@ main = Log.withStderrLogging $ do
         Nothing -> runAlgo algo inputChords inputSlices (n - 1)
         Just (time, mRes) -> 
           case mRes of 
-            Nothing -> pure $ nullResultToJSON algo
+            Nothing -> runAlgo algo inputChords inputSlices (n - 1)
             Just (AlgoResult top ops lbls) -> 
               let accuracy = chordAccuracy inputChords lbls
                   likelihood = scoreSegments top lbls
                 in 
-                  pure $ writeResultsToJSON top lbls ops accuracy likelihood (show algo) time 
+                  pure $ writeResultsToJSON top lbls ops accuracy likelihood (show algo) time (1 + numRetries - n)
 
     showRoot algo = 
       case algo of 
