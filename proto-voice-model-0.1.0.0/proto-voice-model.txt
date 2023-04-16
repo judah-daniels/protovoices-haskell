@@ -1074,6 +1074,8 @@ allLabelLikelihoodsGivenSlice :: Notes SPitch -> Vector (Double, ChordLabel)
 transposeSlice :: Pitch SIC -> Notes SPitch -> Notes SIC
 multinomialLogProb :: Vector Double -> Vector Double -> Double
 categoricalLogProb :: Int -> Vector Double -> Double
+ornamentLogLikelihood :: ChordLabel -> SPitch -> Double
+chordToneLogLikelihood :: ChordLabel -> SPitch -> Double
 scoreSegment' :: Notes SPitch -> ChordLabel -> Double
 scoreSegments :: [Notes SPitch] -> [ChordLabel] -> Double
 
@@ -1475,6 +1477,7 @@ applyHeuristic :: ((Maybe (State SPitch), State SPitch) -> ExceptT String IO Dou
 
 -- | First Heuristic Prototype
 testHeuristic :: (Maybe (State SPitch), State SPitch) -> ExceptT String IO Double
+testHeuristic' :: (Maybe (State SPitch), State SPitch) -> ExceptT String IO Double
 type State ns = SearchState (Edges ns) [Edge ns] (Notes ns) (PVLeftmost ns)
 
 
@@ -1526,8 +1529,8 @@ randomSamplePathSBS :: [[InputSlice SPitch]] -> IO (Path (Edges SPitch) (Notes S
 module Algorithm
 data AlgoInput
 AlgoInput :: Eval (Edges SPitch) [Edge SPitch] (Notes SPitch) [SPitch] (PVLeftmost SPitch) -> [InputSlice SPitch] -> [ChordLabel] -> AlgoInput
-class (Show a, Eq a) => ParseAlgo a
-runParse :: ParseAlgo a => a -> AlgoInput -> IO (Maybe AlgoResult)
+class (Show algo) => ParseAlgo algo
+runParse :: ParseAlgo algo => algo -> AlgoInput -> IO (Maybe AlgoResult)
 data AlgoResult
 AlgoResult :: [Notes SPitch] -> Maybe [PVLeftmost SPitch] -> [ChordLabel] -> AlgoResult
 [arTop] :: AlgoResult -> [Notes SPitch]
