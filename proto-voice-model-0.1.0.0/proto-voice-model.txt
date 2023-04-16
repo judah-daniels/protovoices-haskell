@@ -1492,7 +1492,7 @@ pathFromSlices :: forall ns o. Eval (Edges ns) [Edge ns] (Notes ns) [ns] o -> Sl
 
 -- | Concatenates all results for a given piece into an object, inlucuding
 --   the piece and corpus in the JSON value.
-concatResults :: String -> String -> String -> [ChordLabel] -> [Value] -> Value
+concatResults :: String -> String -> String -> String -> [ChordLabel] -> [Value] -> Value
 
 -- | Loads slices from filepath
 slicesFromFile' :: FilePath -> IO [(Slice', Bool)]
@@ -1504,7 +1504,7 @@ chordsFromFile :: FilePath -> IO [ChordLabel]
 writeJSONToFile :: ToJSON a => FilePath -> a -> IO ()
 
 -- | Coverts the results of a parsing algorithm to a JSON value
-writeResultsToJSON :: [Notes SPitch] -> [ChordLabel] -> Maybe [PVLeftmost SPitch] -> Accuracy -> LogLikelihood -> String -> Time -> Value
+writeResultsToJSON :: [Notes SPitch] -> [ChordLabel] -> Maybe [PVLeftmost SPitch] -> Accuracy -> LogLikelihood -> String -> Time -> Int -> Value
 
 -- | Used when the algorithm fails. Contains NANs in all fields.
 nullResultToJSON :: Show a => a -> Value
