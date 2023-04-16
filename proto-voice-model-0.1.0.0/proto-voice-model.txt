@@ -1538,14 +1538,13 @@ RandomReduction :: AlgoType
 BeamSearch :: BeamWidth -> AlgoType
 BeamSearchPerSegment :: BeamWidth -> AlgoType
 DualBeamSearch :: UnspreadWidth -> UnsplitWidth -> AlgoType
-All :: AlgoType
 type UnsplitWidth = Int
 type UnspreadWidth = Int
 type BeamWidth = Int
 instance GHC.Show.Show Algorithm.AlgoResult
 instance GHC.Classes.Eq Algorithm.AlgoType
-instance GHC.Show.Show Algorithm.AlgoType
 instance GHC.Read.Read Algorithm.AlgoType
+instance GHC.Show.Show Algorithm.AlgoType
 instance Algorithm.ParseAlgo Algorithm.AlgoType
 
 module Core
