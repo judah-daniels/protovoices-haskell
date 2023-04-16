@@ -21,6 +21,7 @@ import HeuristicParser (chordAccuracy)
 import Harmony
 import Harmony.ChordLabel
 import Harmony.Params
+import Algorithm (AlgoType(StochasticBeamSearch))
 
 data Options = Options
   { _inputPath :: String
@@ -135,6 +136,7 @@ main = Log.withStderrLogging $ do
     showRoot algo = 
       case algo of 
         BeamSearch width -> "BeamSearch_" <> show width
+        StochasticBeamSearch width res -> "StochasticBeamSearch_" <> show width <> "_" <> show res
         DualBeamSearch a b -> "DualBeamSearch_" <> show a <> "_" <> show b
         _ -> show algo
   

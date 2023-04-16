@@ -41,8 +41,8 @@ import Harmony.Params
 type State ns = SearchState (Edges ns) [Edge ns] (Notes ns) (PVLeftmost ns)
 
 applyHeuristic
-  :: ((Maybe (State SPitch), State SPitch) -> ExceptT String IO Double)
-  -> (Maybe (State SPitch), State SPitch)
+  :: ((State SPitch, State SPitch) -> ExceptT String IO Double)
+  -> ( State SPitch, State SPitch)
   -> ExceptT String IO Double
 applyHeuristic heuristic (mprevState, state) = heuristic (mprevState, state)
 
@@ -56,16 +56,16 @@ testOp =
 
 log = lift . Log.log . T.pack
 
-heuristicZero :: (Maybe (State SPitch), State SPitch) -> ExceptT String IO Double
+heuristicZero :: ( State SPitch, State SPitch) -> ExceptT String IO Double
 heuristicZero (prevState, state) = case getOpFromState state of
   Nothing -> pure 0 -- Initial state
   Just op -> do
-    log $ "Prev State: " <> show (fromJust prevState)
+    log $ "Prev State: " <> show (prevState)
     log $ "Next State: " <> show state
     pure $ case op of
     -- Freezing
       LMDouble doubleOp ->
-        let (ms, tl, sl, tm, sr) = getParentDouble (fromJust prevState) in
+        let (ms, tl, sl, tm, sr) = getParentDouble (prevState) in
           case doubleOp of
             LMDoubleFreezeLeft freezeOp -> 0
             LMDoubleSpread spreadOp ->

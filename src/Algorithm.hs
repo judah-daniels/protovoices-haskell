@@ -58,6 +58,7 @@ class (Show algo) => ParseAlgo algo where
 type BeamWidth = Int
 type UnspreadWidth = Int
 type UnsplitWidth = Int
+type ResevoirSize = Int
 
 data AlgoType
   = RandomWalk
@@ -65,6 +66,7 @@ data AlgoType
   | RandomSample
   | RandomReduction
   | BeamSearch BeamWidth
+  | StochasticBeamSearch BeamWidth ResevoirSize
   | BeamSearchPerSegment BeamWidth
   | DualBeamSearch UnspreadWidth UnsplitWidth
   deriving (Show, Read, Eq)
@@ -111,6 +113,32 @@ instance ParseAlgo AlgoType where
         -- let slices = pathBetweens path
         let chordGuesses = guessChords slices
          in pure $ Just $ AlgoResult slices Nothing chordGuesses
+
+    StochasticBeamSearch beamWidth resevoirSize ->
+      let initialState = SSFrozen $ pathFromSlices eval sliceWrapper inputSlices
+       in
+        Log.timedLog "Running Heuristic Search" $ do
+          res <- runExceptT
+            (stochasticBeamSearch
+              beamWidth
+              resevoirSize
+              initialState
+              (exploreStates sliceWrapper eval)
+              (goalTest chords)
+              (applyHeuristic heuristicZero)
+            )
+
+          case res of
+            Left err -> do
+              Log.warn $ T.pack err
+              pure Nothing
+            Right finalState ->
+              let p = fromJust $ getPathFromState finalState
+                  ops = getOpsFromState finalState
+                  slices = pathBetweens p
+                  chordGuesses = guessChords  slices
+               in
+               pure $ Just $ AlgoResult slices (Just ops) chordGuesses
 
     BeamSearch beamWidth ->
       let initialState = SSFrozen $ pathFromSlices eval sliceWrapper inputSlices
