@@ -278,7 +278,7 @@ writeResultsToJSON slices chords pathMaybe accuracy likelihood name runTime =
 
 -- | Concatenates all results for a given piece into an object, inlucuding the piece and corpus in the JSON value.
 concatResults :: Maybe String -> String -> String -> [ChordLabel] -> [A.Value] -> A.Value
-concatResults expId corpus piece trueLabels results = A.object ["id" .= expId, "corpus" .= A.fromString corpus, "piece" .= A.fromString piece, "results" .= results, "groundTruth" .= (show <$> trueLabels)]
+concatResults expId corpus piece trueLabels results = A.object ["id" .= A.toJSON expId, "corpus" .= A.fromString corpus, "piece" .= A.fromString piece, "results" .= results, "groundTruth" .= (show <$> trueLabels)]
 
 -- | Write JSON value to the given file
 writeJSONToFile :: A.ToJSON a => FilePath -> a -> IO ()
