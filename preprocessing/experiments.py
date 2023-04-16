@@ -16,7 +16,7 @@ r"""°°°
 °°°"""
 # |%%--%%| <KKwSV9K5Nd|Jaacso6eM3>
 
-def runFullParse (inputPiece, iterations=5):
+def runFullParse (inputPiece, iterations=2):
     (corpus, piece) = inputPiece
     jsonPath = "outputs/"+corpus+"/"+piece+".json"
     cmd = ["stack","run","fullParse","--","-n",str(iterations), corpus, piece, "All"] 
@@ -61,8 +61,8 @@ if __name__ == '__main__':
     corpi = get_corpi()
     for corpus in corpi[::-1]:
         pieces = get_corpus_pieces(corpus)
-        for piece in pieces:
+        for piece in pieces[:4]:
             inputs.append((corpus, piece))
     
-    with Pool(5) as p:
+    with Pool(10) as p:
         p.map(runFullParse, inputs) 
