@@ -1270,7 +1270,10 @@ randomChoiceSearch :: Show state => state -> (state -> ExceptT String IO [state]
 module Algorithm.HeuristicSearch
 
 -- | Entry point to the search algorithm
-heuristicSearch :: Int -> SearchState' -> (SearchState' -> ExceptT String IO [SearchState']) -> (SearchState' -> Bool) -> ((Maybe SearchState', SearchState') -> ExceptT String IO Double) -> (SearchState' -> String) -> ExceptT String IO SearchState'
+heuristicSearch :: Int -> SearchState' -> (SearchState' -> ExceptT String IO [SearchState']) -> (SearchState' -> Bool) -> ((Maybe SearchState', SearchState') -> ExceptT String IO Double) -> ExceptT String IO SearchState'
+
+-- | Entry point to the search algorithm
+beamSearch :: Int -> SearchState' -> (SearchState' -> ExceptT String IO [SearchState']) -> (SearchState' -> Bool) -> ((Maybe SearchState', SearchState') -> ExceptT String IO Double) -> ExceptT String IO SearchState'
 instance GHC.Classes.Eq Algorithm.HeuristicSearch.PvOp
 
 
