@@ -85,7 +85,7 @@ main = Log.withStderrLogging $ do
 
   inputChords <- chordsFromFile (inputPath <> "chords/" <> corpus <> "/" <> pieceName <> ".csv")
   inputSlices <- slicesFromFile' (inputPath <> "slices/" <> corpus <> "/" <> pieceName <> ".csv")
-  let outputFile = outputPath <> corpus <> "/" <> pieceName <> "/" <> show algo <> ".json"
+  let outputFile = outputPath <> corpus <> "/" <> pieceName <> "/" <> showRoot algo <> ".json"
 
   res <- replicateM iterations $ runAlgo algo inputChords inputSlices numRetries
 
@@ -109,4 +109,10 @@ main = Log.withStderrLogging $ do
                   likelihood = scoreSegments top lbls
                 in 
                   pure $ writeResultsToJSON top lbls ops accuracy likelihood (show algo) time 
+
+    showRoot algo = 
+      case algo of 
+        BeamSearch width -> "BeamSearch_" <> show width
+        DualBeamSearch a b -> "DualBeamSearch_" <> show a <> "_" <> show b
+        _ -> show algo
   
