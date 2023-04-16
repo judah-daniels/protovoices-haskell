@@ -37,7 +37,7 @@ parseArgs :: Options -> [String] -> IO (String, String, AlgoType, Options)
 parseArgs _ ["-h"] = usage >> exit
 parseArgs _ ["-v"] = version >> exit
 
-parseArgs options ("-id" : id : rst) = parseArgs (options{_expId = read id}) rst
+parseArgs options ("-e" : id : rst) = parseArgs (options{_expId = read id}) rst
 parseArgs options ("-i" : inputPath : rst) = parseArgs (options{_inputPath = inputPath}) rst
 parseArgs options ("-o" : outputPath : rst) = parseArgs (options{_outputPath = outputPath}) rst
 parseArgs options ("-n" : numIterations : rst) = parseArgs (options{_iterations = read numIterations}) rst
