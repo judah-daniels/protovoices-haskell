@@ -123,7 +123,7 @@ main = Log.withStderrLogging $ do
   writeJSONToFile outputFile $ concatResults expId (showRoot algo) corpus pieceName inputChords res
 
   where 
-    numRetries = 1 :: Int
+    numRetries = 3 :: Int
 
     runAlgo algo _ _ _ 0 = pure $ nullResultToJSON algo
     runAlgo algo timeOut inputChords inputSlices n = do 
