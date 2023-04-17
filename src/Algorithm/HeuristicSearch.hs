@@ -128,12 +128,14 @@ dualStochasticBeamSearch beamWidth reservoir initialState getNextStates isGoalSt
             n <- getNextStates s
             pure $ map ((oldcost,s),) n
           ) open
-        let allNextStates = concat nextStatesAll
-        let l = length allNextStates
+        let allNextStates = filter (not . isNaN . fst . fst ) $ concat nextStatesAll
+
         -- Take a sample from list instead of all of them 
         -- truncated <- pure $ take resevoir allNextStates
         truncated <- lift $ reservoirSample mgen reservoir allNextStates
         nextWithCosts <- mapM doHeuristic truncated
+        -- remove nan 
+        -- let nextWithCosts = filter (not . isNaN . fst ) nextWithCosts
 
         nextUnfreezeStates <- do 
           mapM doHeuristic $ filter (isFreeze . snd) allNextStates
@@ -145,7 +147,7 @@ dualStochasticBeamSearch beamWidth reservoir initialState getNextStates isGoalSt
         nextUnsplitStates <- do
           x <- lift $ reservoirSample mgen reservoir $ filter (isSplit . snd) allNextStates 
           mapM doHeuristic x
-        let nextStates = concatMap (minElems beamWidth []) [nextUnfreezeStates,nextUnsplitStates,nextUnspreadStates]
+        let nextStates = filter (not . isNaN . fst) $ concatMap (minElems beamWidth []) [nextUnfreezeStates,nextUnsplitStates,nextUnspreadStates]
         search mgen $
           hs{frontier = nextStates}
    where
