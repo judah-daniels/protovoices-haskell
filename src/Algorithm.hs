@@ -70,6 +70,7 @@ data AlgoType
   | RandomReduction
   | BeamSearch BeamWidth
   | StochasticBeamSearch BeamWidth ResevoirSize
+  | DualStochasticBeamSearch BeamWidth ResevoirSize
   | StochasticBeamSearchLimited BeamWidth ResevoirSize MaxNotesPerSlice
   | BeamSearchPerSegment BeamWidth
   | DualBeamSearch UnspreadWidth UnsplitWidth
@@ -121,6 +122,32 @@ instance ParseAlgo AlgoType where
         Log.timedLog "Running Heuristic Search" $ do
           res <- runExceptT
             (stochasticBeamSearch
+              beamWidth
+              resevoirSize
+              initialState
+              (exploreStates sliceWrapper eval)
+              (goalTest chords)
+              (applyHeuristic heuristicZero)
+            )
+
+          case res of
+            Left err -> do
+              Log.warn $ T.pack err
+              pure Nothing
+            Right finalState ->
+              let p = fromJust $ getPathFromState finalState
+                  ops = getOpsFromState finalState
+                  slices = pathBetweens p
+                  chordGuesses = guessChords  slices
+               in
+               pure $ Just $ AlgoResult slices (Just ops) chordGuesses
+
+    DualStochasticBeamSearch beamWidth resevoirSize ->
+      let initialState = SSFrozen $ pathFromSlices eval sliceWrapper inputSlices
+       in
+        Log.timedLog "Running Heuristic Search" $ do
+          res <- runExceptT
+            (dualStochasticBeamSearch
               beamWidth
               resevoirSize
               initialState

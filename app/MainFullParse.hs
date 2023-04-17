@@ -22,6 +22,7 @@ import Harmony
 import Harmony.ChordLabel
 import Harmony.Params
 import Algorithm (AlgoType (StochasticBeamSearch))
+import Control.Logging (LogLevel(LevelDebug))
 
 data Options = Options
   { _inputPath :: String
@@ -37,7 +38,9 @@ data Options = Options
 -- COMAND LINE ARGUMENT HANDLING
 parseArgs :: Options -> [String] -> IO (String, String, AlgoType, Options)
 parseArgs _ ["-h"] = usage >> exit
+-- parseArgs _ ["-v"] = version >> exit
 parseArgs _ ["-v"] = version >> exit
+parseArgs options ("-v" : rst) = Log.setLogLevel LevelDebug >> parseArgs options rst
 
 parseArgs options ("-id" : ide : rst) = parseArgs (options{_expId = ide}) rst
 parseArgs options ("-i" : inputPath : rst) = parseArgs (options{_inputPath = inputPath}) rst
@@ -62,7 +65,7 @@ defaultId = "000"
 usage =
   putStrLn
     "\nUsage: parseFullPieces [-idvhio] corpus piece {RandomParse, RandomParseSBS, RandomSample, Heuristic1, HeuristicSBS1, All} \n\
-    \   -v:         Show Version \n\
+    \   -v:         Verbose \n\
     \   -h:         Show Help \n\
     \   -i:         Set input path for chords and slices. Default: preprocessing/inputs/ \n\
     \   -id:        Set experiment id \n\
@@ -88,6 +91,7 @@ die = exitWith (ExitFailure 1)
 
 main :: IO () 
 main = Log.withStderrLogging $ do 
+  Log.setLogLevel Log.LevelError
   (corpus, pieceName, algo, 
     Options 
      inputPath 

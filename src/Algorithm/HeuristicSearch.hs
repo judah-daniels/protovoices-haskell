@@ -9,6 +9,7 @@ module Algorithm.HeuristicSearch
     -- heuristicSearch
   aab
     ,stochasticBeamSearch
+    ,dualStochasticBeamSearch
     ,stochasticBeamSearchLimited
     , beamSearch
     ,reservoirSample
@@ -99,6 +100,83 @@ reservoirSample gen k xs
                    go gen (i+jump) newres w' xss
          n = length xs
 
+dualStochasticBeamSearch
+  :: Int -- Hyperparameters
+  -> Int
+  -> SearchState' -- starting state
+  -> (SearchState' -> ExceptT String IO [SearchState']) -- get adjacent states
+  -> (SearchState' -> Bool) -- goal test
+  -> ((SearchState', SearchState') -> ExceptT String IO Double) -- heuristic
+  -> ExceptT String IO SearchState' -- output
+dualStochasticBeamSearch beamWidth reservoir initialState getNextStates isGoalState heuristic = do
+  gen <- lift initStdGen
+  mgen <- lift $ newIOGenM gen
+  search mgen $ heuristicSearchInit initialState heuristic 0 isGoalState
+ where
+  search mgen hs
+    | null open = throwError "No Goal Found"
+    | not $ null goalStates = do 
+        lift $ Log.log $ T.pack ("Goal States:\n"<> concatMap (\(a,b)-> show a <> show b <> "\n") goalStates)
+        -- lift $ Log.log $ T.pack ("\nUnfreezes:\n"<> concatMap (\(a,b)-> show a <> show b <> "\n") (filter (isFreeze . snd) goalStates))
+        -- lift $ Log.log $ T.pack ("\nUnSplits\n" <> concatMap (\(a,b)-> show a <> show b <> "\n") (filter (isSplit . snd) goalStates))
+        -- lift $ Log.log $ T.pack ("\nUnspreads\n" <> concatMap (\(a,b)-> show a <> show b <> "\n") (filter (isSpread . snd) goalStates))
+        pure . snd . head $ minElems 1 [] (filter (isFreeze . snd ) goalStates)
+    | otherwise = do
+        lift $ Log.log $ T.pack ("\nBeam:\n"<> concatMap (\(a,b)-> show a <> show b <> "\n") open)
+        nextStatesAll <- mapM
+          (\(oldcost, s) -> do
+            n <- getNextStates s
+            pure $ map ((oldcost,s),) n
+          ) open
+        let allNextStates = concat nextStatesAll
+        let l = length allNextStates
+        -- Take a sample from list instead of all of them 
+        -- truncated <- pure $ take resevoir allNextStates
+        truncated <- lift $ reservoirSample mgen reservoir allNextStates
+        nextWithCosts <- mapM doHeuristic truncated
+
+        nextUnfreezeStates <- do 
+          mapM doHeuristic $ filter (isFreeze . snd) allNextStates
+
+        nextUnspreadStates <- do 
+          x <- lift $ reservoirSample mgen reservoir $ filter (isSpread . snd) allNextStates
+          mapM doHeuristic x
+
+        nextUnsplitStates <- do
+          x <- lift $ reservoirSample mgen reservoir $ filter (isSplit . snd) allNextStates 
+          mapM doHeuristic x
+        let nextStates = concatMap (minElems beamWidth []) [nextUnfreezeStates,nextUnsplitStates,nextUnspreadStates]
+        search mgen $
+          hs{frontier = nextStates}
+   where
+    getNextStatesWithPrev state = do
+      next <- getNextStates state
+      pure $ (state,) <$> next
+
+    open = frontier hs
+    goalStates = filter (((&&) <$> isFreeze <*> isGoalState) . snd) open
+
+    minElems 0 mins [] = mins
+    minElems 0 (m : mins) (x : rst)
+      | fst x < fst m = minElems 0 (ins x mins) rst
+      | otherwise = minElems 0 (m : mins) rst
+    minElems n mins (x : rst) = minElems (n - 1) (ins x mins) rst
+    minElems n mins [] = mins
+
+    ins = L.insertBy ((flip . comparing) fst)
+
+    doHeuristic ((oldcost, prev), curr) = do
+      cost <- heuristic (prev,curr)
+      pure (oldcost + cost, curr)
+
+    getNextStatesAndCosts (cost, state) = do
+      nextStates <- getNextStates state
+      mapM go nextStates
+     where
+      go newState = do
+        h <- heuristic (state, newState)
+        pure (cost + h, newState)
+
 stochasticBeamSearchLimited
   :: Int -- Hyperparameters
   -> Int
@@ -117,6 +195,7 @@ stochasticBeamSearchLimited beamWidth resevoir initialState getNextStates isGoal
     | null open = throwError "No Goal Found"
     | not $ null goalStates = pure . snd . head $ goalStates
     | otherwise = do
+        lift $ Log.log $ T.pack (show open)
         nextStatesAll <- mapM
           (\(oldcost, s) -> do
             n <- getNextStates s
@@ -160,6 +239,7 @@ stochasticBeamSearchLimited beamWidth resevoir initialState getNextStates isGoal
       go newState = do
         h <- heuristic (state, newState)
         pure (cost + h, newState)
+
 
 stochasticBeamSearch
   :: Int -- Hyperparameters
@@ -178,7 +258,7 @@ stochasticBeamSearch beamWidth resevoir initialState getNextStates isGoalState h
     | null open = throwError "No Goal Found"
     | not $ null goalStates = pure . snd . head $ goalStates
     | otherwise = do
-        -- lift $ Log.log $ T.pack (show open)
+        lift $ Log.log $ T.pack (show open)
 
         nextStatesAll <- mapM
           (\(oldcost, s) -> do
@@ -225,7 +305,6 @@ stochasticBeamSearch beamWidth resevoir initialState getNextStates isGoalState h
         h <- heuristic (state, newState)
         pure (cost + h, newState)
 
-
 -- | Entry point to the search algorithm
 beamSearch
   :: Int -- Hyperparameters
@@ -238,9 +317,11 @@ beamSearch beamWidth initialState getNextStates isGoalState heuristic = search $
  where
   search hs
     | null open = throwError "No Goal Found"
-    | not $ null goalStates = pure . snd . head $ goalStates
+    | not $ null goalStates = do 
+        lift $ Log.log $ T.pack (show goalStates)
+        pure . snd . head $ goalStates
     | otherwise = do
-        lift $ Log.log $ T.pack (show open)
+        -- lift $ Log.log $ T.pack (show open)
 
         nextNodesAndCosts <- mapM getNextStatesAndCosts open
         let nextStates = minElems beamWidth [] (concat nextNodesAndCosts)
@@ -314,22 +395,23 @@ beamSearch beamWidth initialState getNextStates isGoalState heuristic = search $
 --         h <- heuristic (Just state, newState)
 --         pure (cost + h, newState)
 --
---     isFreeze :: SearchState' -> Bool
---     isFreeze state = case getOpFromState state of
---       Nothing -> False
---       Just op -> opType op == Freeze'
---
---     isSplit :: SearchState' -> Bool
---     isSplit state = case getOpFromState state of
---       Nothing -> False
---       Just op -> opType op == Split'
---
---     isSpread :: SearchState' -> Bool
---     isSpread state = case getOpFromState state of
---       Nothing -> False
---       Just op -> opType op == Spread'
---
 data PvOp = Split' | Spread' | Freeze' deriving (Eq)
+
+
+isFreeze :: SearchState' -> Bool
+isFreeze state = case getOpFromState state of
+  Nothing -> False
+  Just op -> opType op == Freeze'
+
+isSplit :: SearchState' -> Bool
+isSplit state = case getOpFromState state of
+  Nothing -> False
+  Just op -> opType op == Split'
+
+isSpread :: SearchState' -> Bool
+isSpread state = case getOpFromState state of
+  Nothing -> False
+  Just op -> opType op == Spread'
 
 opType :: Leftmost a b c -> PvOp
 opType op = case op of
