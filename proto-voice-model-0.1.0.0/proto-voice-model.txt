@@ -1270,6 +1270,7 @@ randomChoiceSearch :: Show state => state -> (state -> ExceptT String IO [state]
 module Algorithm.HeuristicSearch
 aab :: Int -> [a] -> IO [a]
 stochasticBeamSearch :: Int -> Int -> SearchState' -> (SearchState' -> ExceptT String IO [SearchState']) -> (SearchState' -> Bool) -> ((SearchState', SearchState') -> ExceptT String IO Double) -> ExceptT String IO SearchState'
+stochasticBeamSearchLimited :: Int -> Int -> SearchState' -> (SearchState' -> ExceptT String IO [SearchState']) -> (SearchState' -> Bool) -> ((SearchState', SearchState') -> ExceptT String IO Double) -> ExceptT String IO SearchState'
 
 -- | Entry point to the search algorithm
 beamSearch :: Int -> SearchState' -> (SearchState' -> ExceptT String IO [SearchState']) -> (SearchState' -> Bool) -> ((SearchState', SearchState') -> ExceptT String IO Double) -> ExceptT String IO SearchState'
@@ -1523,6 +1524,8 @@ module Algorithm.RandomSampleParser
 randomSamplePath :: Int -> IO (Path (Edges SPitch) (Notes SPitch))
 randomSamplePathSBS :: [[InputSlice SPitch]] -> IO [Notes SPitch]
 
+module Core
+
 module Algorithm
 data AlgoInput
 AlgoInput :: Eval (Edges SPitch) [Edge SPitch] (Notes SPitch) [SPitch] (PVLeftmost SPitch) -> [InputSlice SPitch] -> [ChordLabel] -> AlgoInput
@@ -1540,6 +1543,7 @@ RandomSample :: AlgoType
 RandomReduction :: AlgoType
 BeamSearch :: BeamWidth -> AlgoType
 StochasticBeamSearch :: BeamWidth -> ResevoirSize -> AlgoType
+StochasticBeamSearchLimited :: BeamWidth -> ResevoirSize -> MaxNotesPerSlice -> AlgoType
 BeamSearchPerSegment :: BeamWidth -> AlgoType
 DualBeamSearch :: UnspreadWidth -> UnsplitWidth -> AlgoType
 type UnsplitWidth = Int
@@ -1550,8 +1554,6 @@ instance GHC.Classes.Eq Algorithm.AlgoType
 instance GHC.Read.Read Algorithm.AlgoType
 instance GHC.Show.Show Algorithm.AlgoType
 instance Algorithm.ParseAlgo Algorithm.AlgoType
-
-module Core
 
 
 -- | This module contains a simple (and musically rather naive)
