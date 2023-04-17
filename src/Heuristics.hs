@@ -54,14 +54,14 @@ testOp =
     $ addToRight (c' nat) (c' nat) LeftRepeat True
 
 
-log = lift . Log.log . T.pack
+-- log = lift . Log.log . T.pack
 
 heuristicZero :: ( State SPitch, State SPitch) -> ExceptT String IO Double
 heuristicZero (prevState, state) = case getOpFromState state of
   Nothing -> pure 0 -- Initial state
   Just op -> do
-    log $ "Prev State: " <> show (prevState)
-    log $ "Next State: " <> show state
+    -- log $ "Prev State: " <> show (prevState)
+    -- log $ "Next State: " <> show state
     pure $ case op of
     -- Freezing
       LMDouble doubleOp ->

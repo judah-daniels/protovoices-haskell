@@ -112,7 +112,7 @@ stochasticBeamSearch beamWidth resevoir initialState getNextStates isGoalState h
     | null open = throwError "No Goal Found"
     | not $ null goalStates = pure . snd . head $ goalStates
     | otherwise = do
-        lift $ Log.log $ T.pack (show open)
+        -- lift $ Log.log $ T.pack (show open)
 
         nextStatesAll <- mapM
           (\(oldcost, s) -> do
