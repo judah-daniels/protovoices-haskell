@@ -21,12 +21,13 @@ import HeuristicParser (chordAccuracy)
 import Harmony
 import Harmony.ChordLabel
 import Harmony.Params
-import Algorithm (AlgoType(StochasticBeamSearch))
+import Algorithm (AlgoType (StochasticBeamSearch))
 
 data Options = Options
   { _inputPath :: String
   , _outputPath :: String
   , _iterations :: Int
+  , _timeOut :: Int
   , _beamWidth :: BeamWidth
   , _unsplitWidth :: UnsplitWidth
   , _unspreadWidth :: UnspreadWidth
@@ -40,6 +41,7 @@ parseArgs _ ["-v"] = version >> exit
 
 parseArgs options ("-id" : ide : rst) = parseArgs (options{_expId = ide}) rst
 parseArgs options ("-i" : inputPath : rst) = parseArgs (options{_inputPath = inputPath}) rst
+parseArgs options ("-t" : timeOut : rst) = parseArgs (options{_timeOut = read timeOut}) rst
 parseArgs options ("-o" : outputPath : rst) = parseArgs (options{_outputPath = outputPath}) rst
 parseArgs options ("-n" : numIterations : rst) = parseArgs (options{_iterations = read numIterations}) rst
 parseArgs options ("-p" : "beamWidth" : val : rst) = parseArgs (options{_beamWidth = read val}) rst
@@ -50,6 +52,7 @@ parseArgs _ _ = usage >> exit
 
 defaultInputPath = "preprocessing/inputs/"
 defaultOutputPath = "preprocessing/outputs/"
+defaultTimeOut = 1200
 defaultNumIterations = 1
 defaultUnspreadWidth = 7 
 defaultUnsplitWidth = 3
@@ -90,6 +93,7 @@ main = Log.withStderrLogging $ do
      inputPath 
      outputPath 
      iterations 
+     timeOut
      beamWidth 
      unsplitWidth 
      unSpreadWidth
@@ -100,6 +104,7 @@ main = Log.withStderrLogging $ do
           defaultInputPath 
           defaultOutputPath 
           defaultNumIterations 
+          defaultTimeOut
           defaultBeamWidth 
           defaultUnsplitWidth 
           defaultUnspreadWidth
@@ -109,24 +114,22 @@ main = Log.withStderrLogging $ do
   inputSlices <- slicesFromFile' (inputPath <> "slices/" <> corpus <> "/" <> pieceName <> ".csv")
   let outputFile = outputPath <> corpus <> "/" <> pieceName <> "/" <> showRoot algo <> "/" <> expId <> ".json"
 
-  res <- replicateM iterations $ runAlgo algo inputChords inputSlices numRetries
+  res <- replicateM iterations $ runAlgo algo timeOut inputChords inputSlices numRetries
 
   writeJSONToFile outputFile $ concatResults expId (showRoot algo) corpus pieceName inputChords res
 
   where 
-    timeOutMs = 400 * 1000000 :: Int
-
     numRetries = 1 :: Int
 
-    runAlgo algo _ _ 0 = pure $ nullResultToJSON algo
-    runAlgo algo inputChords inputSlices n = do 
-      mTimedRes <- timeout timeOutMs $ Time.timeItT $ runParse algo (AlgoInput protoVoiceEvaluator inputSlices inputChords)
+    runAlgo algo _ _ _ 0 = pure $ nullResultToJSON algo
+    runAlgo algo timeOut inputChords inputSlices n = do 
+      mTimedRes <- timeout (timeOut * 1000000) $ Time.timeItT $ runParse algo (AlgoInput protoVoiceEvaluator inputSlices inputChords)
       case mTimedRes of 
         Nothing -> pure $ nullResultToJSON (show algo)
           -- runAlgo algo inputChords inputSlices (n - 1)
         Just (time, mRes) -> 
           case mRes of 
-            Nothing -> runAlgo algo inputChords inputSlices (n - 1)
+            Nothing -> runAlgo algo timeOut inputChords inputSlices (n - 1)
             Just (AlgoResult top ops lbls) -> 
               let accuracy = chordAccuracy inputChords lbls
                   likelihood = scoreSegments top lbls

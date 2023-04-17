@@ -73,9 +73,6 @@ data AlgoType
 
 
 
-
-timeOutMs = 400 * 1000000 :: Int
-
 instance ParseAlgo AlgoType where
   runParse algoType (AlgoInput eval inputSlices chords) = case algoType of
     RandomWalk ->
