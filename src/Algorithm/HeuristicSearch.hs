@@ -9,6 +9,7 @@ module Algorithm.HeuristicSearch
     -- heuristicSearch
   aab
     ,stochasticBeamSearch
+    ,stochasticBeamSearchLimited
     , beamSearch
     ,reservoirSample
   )
@@ -23,11 +24,13 @@ import Data.Maybe (fromMaybe)
 import Data.Ord ( comparing )
 
 import Musicology.Core ( SPitch )
-import PVGrammar ( Edge, Edges, Freeze, Notes, Split, Spread )
+
+import PVGrammar
+
 import Common
     ( Leftmost(..),
       LeftmostDouble(..),
-      LeftmostSingle(..)
+      LeftmostSingle(..), Eval (..)
     )
 
 import Control.Monad.Except (ExceptT, lift, throwError)
@@ -37,6 +40,7 @@ import Data.List (sortBy)
 import Data.Function
 import System.Random.Stateful (newIOGenM, StatefulGen, uniformRM)
 import System.Random
+import qualified Internal.MultiSet as MS
 
 
 data HeuristicSearch s c = HeuristicSearch
@@ -94,6 +98,68 @@ reservoirSample gen k xs
                    let w' = w * exp (log r / fromIntegral k)
                    go gen (i+jump) newres w' xss
          n = length xs
+
+stochasticBeamSearchLimited
+  :: Int -- Hyperparameters
+  -> Int
+  -> SearchState' -- starting state
+  -> (SearchState' -> ExceptT String IO [SearchState']) -- get adjacent states
+  -> (SearchState' -> Bool) -- goal test
+  -> ((SearchState', SearchState') -> ExceptT String IO Double) -- heuristic
+  -> ExceptT String IO SearchState' -- output
+stochasticBeamSearchLimited beamWidth resevoir initialState getNextStates isGoalState heuristic = do
+  gen <- lift initStdGen
+  mgen <- lift $ newIOGenM gen
+  search mgen $ heuristicSearchInit initialState heuristic 0 isGoalState
+ where
+  search mgen hs
+    | null open = throwError "No Goal Found"
+    | null open = throwError "No Goal Found"
+    | not $ null goalStates = pure . snd . head $ goalStates
+    | otherwise = do
+        nextStatesAll <- mapM
+          (\(oldcost, s) -> do
+            n <- getNextStates s
+            pure $ map ((oldcost,s),) n
+          ) open
+        let allNextStates = concat nextStatesAll
+        let l = length allNextStates
+        -- Take a sample from list instead of all of them 
+        -- truncated <- pure $ take resevoir allNextStates
+        truncated <- lift $ reservoirSample mgen resevoir allNextStates
+        nextWithCosts <- mapM doHeuristic truncated
+
+        let nextStates = minElems beamWidth [] nextWithCosts
+        search mgen $
+          hs{frontier = nextStates}
+   where
+    getNextStatesWithPrev state = do
+      next <- getNextStates state
+      pure $ (state,) <$> next
+
+    open = frontier hs
+    goalStates = filter (isGoalState . snd) open
+
+    minElems 0 mins [] = mins
+    minElems 0 (m : mins) (x : rst)
+      | fst x < fst m = minElems 0 (ins x mins) rst
+      | otherwise = minElems 0 (m : mins) rst
+    minElems n mins (x : rst) = minElems (n - 1) (ins x mins) rst
+    minElems n mins [] = mins
+
+    ins = L.insertBy ((flip . comparing) fst)
+
+    doHeuristic ((oldcost, prev), curr) = do
+      cost <- heuristic (prev,curr)
+      pure (oldcost + cost, curr)
+
+    getNextStatesAndCosts (cost, state) = do
+      nextStates <- getNextStates state
+      mapM go nextStates
+     where
+      go newState = do
+        h <- heuristic (state, newState)
+        pure (cost + h, newState)
 
 stochasticBeamSearch
   :: Int -- Hyperparameters

@@ -28,8 +28,8 @@ import Algorithm.RandomChoiceSearch
 import Algorithm.RandomSampleParser
 import Algorithm.HeuristicSearch
 
-import Common ( Leftmost(..) , LeftmostDouble(..) , LeftmostSingle(..), Eval, pathBetweens)
-import PVGrammar ( Edge, Edges, Freeze, Notes, Split, Spread, PVLeftmost )
+import Common ( Leftmost(..) , LeftmostDouble(..) , LeftmostSingle(..), Eval (Eval), pathBetweens)
+import PVGrammar ( Edge, Edges, Freeze, Notes (Notes), Split, Spread, PVLeftmost )
 
 import Control.Monad.Except (ExceptT, lift, throwError)
 import Data.Maybe (fromMaybe, fromJust)
@@ -38,6 +38,8 @@ import HeuristicParser
 import Musicology.Core ( SPitch, showNotation )
 import Control.Monad.Trans.Except (runExceptT)
 import Heuristics
+import PVGrammar.Parse (protoVoiceEvaluatorLimitedSize)
+import qualified Internal.MultiSet as MS
 
 data AlgoInput =
   AlgoInput
@@ -59,6 +61,7 @@ type BeamWidth = Int
 type UnspreadWidth = Int
 type UnsplitWidth = Int
 type ResevoirSize = Int
+type MaxNotesPerSlice = Int
 
 data AlgoType
   = RandomWalk
@@ -67,6 +70,7 @@ data AlgoType
   | RandomReduction
   | BeamSearch BeamWidth
   | StochasticBeamSearch BeamWidth ResevoirSize
+  | StochasticBeamSearchLimited BeamWidth ResevoirSize MaxNotesPerSlice
   | BeamSearchPerSegment BeamWidth
   | DualBeamSearch UnspreadWidth UnsplitWidth
   deriving (Show, Read, Eq)
@@ -137,6 +141,32 @@ instance ParseAlgo AlgoType where
                in
                pure $ Just $ AlgoResult slices (Just ops) chordGuesses
 
+    StochasticBeamSearchLimited beamWidth resevoirSize maxNotesPerSlice ->
+      let initialState = SSFrozen $ pathFromSlices eval sliceWrapper inputSlices
+       in
+        Log.timedLog "Running Heuristic Search" $ do
+          res <- runExceptT
+            (stochasticBeamSearchLimited
+              beamWidth
+              resevoirSize
+              initialState
+              (exploreStates sliceWrapper (protoVoiceEvaluatorLimitedSize' maxNotesPerSlice eval))
+              (goalTest chords)
+              (applyHeuristic heuristicZero)
+            )
+
+          case res of
+            Left err -> do
+              Log.warn $ T.pack err
+              pure Nothing
+            Right finalState ->
+              let p = fromJust $ getPathFromState finalState
+                  ops = getOpsFromState finalState
+                  slices = pathBetweens p
+                  chordGuesses = guessChords  slices
+               in
+               pure $ Just $ AlgoResult slices (Just ops) chordGuesses
+
     BeamSearch beamWidth ->
       let initialState = SSFrozen $ pathFromSlices eval sliceWrapper inputSlices
        in
@@ -161,4 +191,19 @@ instance ParseAlgo AlgoType where
                   chordGuesses = guessChords  slices
                in
                pure $ Just $ AlgoResult slices (Just ops) chordGuesses
+
+protoVoiceEvaluatorLimitedSize'
+  :: Int 
+  -> Eval (Edges n) (t (Edge n)) (Notes n) (t2 n) (PVLeftmost n)
+  -> Eval (Edges n) (t (Edge n)) (Notes n) (t2 n) (PVLeftmost n)
+protoVoiceEvaluatorLimitedSize' n e = Eval filterUnspreadM vl vr mg t s
+ where
+  (Eval vm vl vr mg t s) = e
+
+  filterUnspreadM (sl, tm, sr) = do 
+    v <- vm (sl, tm, sr) 
+    case v of 
+      (Notes ns, v')
+        |  MS.size ns < n -> Just (Notes ns, v')
+        |  otherwise -> Nothing
 

@@ -140,6 +140,7 @@ main = Log.withStderrLogging $ do
       case algo of 
         BeamSearch width -> "BeamSearch_" <> show width
         StochasticBeamSearch width res -> "StochasticBeamSearch_" <> show width <> "_" <> show res
+        StochasticBeamSearchLimited width res n-> "StochasticBeamSearch_" <> show width <> "_" <> show res <> "_" <> show n
         DualBeamSearch a b -> "DualBeamSearch_" <> show a <> "_" <> show b
         _ -> show algo
   

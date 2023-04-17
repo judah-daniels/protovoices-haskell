@@ -54,7 +54,8 @@ testOp =
     $ addToRight (c' nat) (c' nat) LeftRepeat True
 
 
--- log = lift . Log.log . T.pack
+log :: String -> ExceptT String IO ()
+log = lift . Log.log . T.pack
 
 heuristicZero :: ( State SPitch, State SPitch) -> ExceptT String IO Double
 heuristicZero (prevState, state) = case getOpFromState state of
