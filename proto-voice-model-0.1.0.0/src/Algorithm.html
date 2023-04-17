@@ -53,7 +53,7 @@
 </span><span id="line-51"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="arLabels"><span class="annot"><span class="annottext">AlgoResult -&gt; [ChordLabel]
 </span><a href="Algorithm.html#arLabels"><span class="hs-identifier hs-var hs-var">arLabels</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Harmony.ChordLabel.html#ChordLabel"><span class="hs-identifier hs-type">ChordLabel</span></a></span><span class="hs-special">]</span><span>
 </span><span id="line-52"></span><span>  </span><span class="hs-special">}</span><span>
-</span><span id="line-53"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679511795"><span id="local-6989586621679511797"><span id="local-6989586621679511809"><span class="annot"><span class="annottext">Int -&gt; AlgoResult -&gt; ShowS
+</span><span id="line-53"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679511770"><span id="local-6989586621679511772"><span id="local-6989586621679511784"><span class="annot"><span class="annottext">Int -&gt; AlgoResult -&gt; ShowS
 [AlgoResult] -&gt; ShowS
 AlgoResult -&gt; String
 forall a.
@@ -66,8 +66,8 @@ showsPrec :: Int -&gt; AlgoResult -&gt; ShowS
 $cshowsPrec :: Int -&gt; AlgoResult -&gt; ShowS
 </span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
 </span><span id="line-54"></span><span>
-</span><span id="line-55"></span><span class="hs-keyword">class</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="annot"><a href="#local-6989586621679511930"><span class="hs-identifier hs-type">algo</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span id="ParseAlgo"><span class="annot"><a href="Algorithm.html#ParseAlgo"><span class="hs-identifier hs-var">ParseAlgo</span></a></span></span><span> </span><span id="local-6989586621679511930"><span class="annot"><a href="#local-6989586621679511930"><span class="hs-identifier hs-type">algo</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
-</span><span id="line-56"></span><span>  </span><span id="runParse"><span class="annot"><a href="Algorithm.html#runParse"><span class="hs-identifier hs-type">runParse</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621679511930"><span class="hs-identifier hs-type">algo</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Algorithm.html#AlgoInput"><span class="hs-identifier hs-type">AlgoInput</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Algorithm.html#AlgoResult"><span class="hs-identifier hs-type">AlgoResult</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-55"></span><span class="hs-keyword">class</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="annot"><a href="#local-6989586621679511904"><span class="hs-identifier hs-type">algo</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span id="ParseAlgo"><span class="annot"><a href="Algorithm.html#ParseAlgo"><span class="hs-identifier hs-var">ParseAlgo</span></a></span></span><span> </span><span id="local-6989586621679511904"><span class="annot"><a href="#local-6989586621679511904"><span class="hs-identifier hs-type">algo</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-56"></span><span>  </span><span id="runParse"><span class="annot"><a href="Algorithm.html#runParse"><span class="hs-identifier hs-type">runParse</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621679511904"><span class="hs-identifier hs-type">algo</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Algorithm.html#AlgoInput"><span class="hs-identifier hs-type">AlgoInput</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Algorithm.html#AlgoResult"><span class="hs-identifier hs-type">AlgoResult</span></a></span><span class="hs-special">)</span><span>
 </span><span id="line-57"></span><span>
 </span><span id="line-58"></span><span class="hs-keyword">type</span><span> </span><span id="BeamWidth"><span class="annot"><a href="Algorithm.html#BeamWidth"><span class="hs-identifier hs-var">BeamWidth</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
 </span><span id="line-59"></span><span class="hs-keyword">type</span><span> </span><span id="UnspreadWidth"><span class="annot"><a href="Algorithm.html#UnspreadWidth"><span class="hs-identifier hs-var">UnspreadWidth</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
@@ -83,7 +83,7 @@ $cshowsPrec :: Int -&gt; AlgoResult -&gt; ShowS
 </span><span id="line-69"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="StochasticBeamSearch"><span class="annot"><a href="Algorithm.html#StochasticBeamSearch"><span class="hs-identifier hs-var">StochasticBeamSearch</span></a></span></span><span> </span><span class="annot"><a href="Algorithm.html#BeamWidth"><span class="hs-identifier hs-type">BeamWidth</span></a></span><span> </span><span class="annot"><a href="Algorithm.html#ResevoirSize"><span class="hs-identifier hs-type">ResevoirSize</span></a></span><span>
 </span><span id="line-70"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="BeamSearchPerSegment"><span class="annot"><a href="Algorithm.html#BeamSearchPerSegment"><span class="hs-identifier hs-var">BeamSearchPerSegment</span></a></span></span><span> </span><span class="annot"><a href="Algorithm.html#BeamWidth"><span class="hs-identifier hs-type">BeamWidth</span></a></span><span>
 </span><span id="line-71"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="DualBeamSearch"><span class="annot"><a href="Algorithm.html#DualBeamSearch"><span class="hs-identifier hs-var">DualBeamSearch</span></a></span></span><span> </span><span class="annot"><a href="Algorithm.html#UnspreadWidth"><span class="hs-identifier hs-type">UnspreadWidth</span></a></span><span> </span><span class="annot"><a href="Algorithm.html#UnsplitWidth"><span class="hs-identifier hs-type">UnsplitWidth</span></a></span><span>
-</span><span id="line-72"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679511754"><span id="local-6989586621679511756"><span id="local-6989586621679511769"><span class="annot"><span class="annottext">Int -&gt; AlgoType -&gt; ShowS
+</span><span id="line-72"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679511729"><span id="local-6989586621679511731"><span id="local-6989586621679511744"><span class="annot"><span class="annottext">Int -&gt; AlgoType -&gt; ShowS
 [AlgoType] -&gt; ShowS
 AlgoType -&gt; String
 forall a.
@@ -94,7 +94,7 @@ show :: AlgoType -&gt; String
 $cshow :: AlgoType -&gt; String
 showsPrec :: Int -&gt; AlgoType -&gt; ShowS
 $cshowsPrec :: Int -&gt; AlgoType -&gt; ShowS
-</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679511719"><span id="local-6989586621679511747"><span id="local-6989586621679511750"><span id="local-6989586621679511752"><span class="annot"><span class="annottext">ReadPrec [AlgoType]
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679511694"><span id="local-6989586621679511722"><span id="local-6989586621679511725"><span id="local-6989586621679511727"><span class="annot"><span class="annottext">ReadPrec [AlgoType]
 ReadPrec AlgoType
 Int -&gt; ReadS AlgoType
 ReadS [AlgoType]
@@ -109,7 +109,7 @@ readList :: ReadS [AlgoType]
 $creadList :: ReadS [AlgoType]
 readsPrec :: Int -&gt; ReadS AlgoType
 $creadsPrec :: Int -&gt; ReadS AlgoType
-</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Read</span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679511706"><span id="local-6989586621679511715"><span class="annot"><span class="annottext">AlgoType -&gt; AlgoType -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Read</span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679511681"><span id="local-6989586621679511690"><span class="annot"><span class="annottext">AlgoType -&gt; AlgoType -&gt; Bool
 forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
 /= :: AlgoType -&gt; AlgoType -&gt; Bool
 $c/= :: AlgoType -&gt; AlgoType -&gt; Bool
@@ -119,30 +119,23 @@ $c== :: AlgoType -&gt; AlgoType -&gt; Bool
 </span><span id="line-73"></span><span>
 </span><span id="line-74"></span><span>
 </span><span id="line-75"></span><span>
-</span><span id="line-76"></span><span>
-</span><span id="line-77"></span><span id="timeOutMs"><span class="annot"><span class="annottext">timeOutMs :: Int
-</span><a href="Algorithm.html#timeOutMs"><span class="hs-identifier hs-var hs-var">timeOutMs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int
-</span><span class="hs-number">400</span></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
-</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">Int
-</span><span class="hs-number">1000000</span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
-</span><span id="line-78"></span><span>
-</span><span id="line-79"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Algorithm.html#ParseAlgo"><span class="hs-identifier hs-type">ParseAlgo</span></a></span><span> </span><span class="annot"><a href="Algorithm.html#AlgoType"><span class="hs-identifier hs-type">AlgoType</span></a></span><span> </span><span class="hs-keyword">where</span><span>
-</span><span id="line-80"></span><span>  </span><span id="local-6989586621679511618"><span class="annot"><span class="annottext">runParse :: AlgoType -&gt; AlgoInput -&gt; IO (Maybe AlgoResult)
-</span><a href="#local-6989586621679511618"><span class="hs-identifier hs-var hs-var hs-var hs-var">runParse</span></a></span></span><span> </span><span id="local-6989586621679511617"><span class="annot"><span class="annottext">AlgoType
-</span><a href="#local-6989586621679511617"><span class="hs-identifier hs-var">algoType</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Algorithm.html#AlgoInput"><span class="hs-identifier hs-type">AlgoInput</span></a></span><span> </span><span id="local-6989586621679511616"><span class="annot"><span class="annottext">Eval
+</span><span id="line-76"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Algorithm.html#ParseAlgo"><span class="hs-identifier hs-type">ParseAlgo</span></a></span><span> </span><span class="annot"><a href="Algorithm.html#AlgoType"><span class="hs-identifier hs-type">AlgoType</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-77"></span><span>  </span><span id="local-6989586621679511599"><span class="annot"><span class="annottext">runParse :: AlgoType -&gt; AlgoInput -&gt; IO (Maybe AlgoResult)
+</span><a href="#local-6989586621679511599"><span class="hs-identifier hs-var hs-var hs-var hs-var">runParse</span></a></span></span><span> </span><span id="local-6989586621679511598"><span class="annot"><span class="annottext">AlgoType
+</span><a href="#local-6989586621679511598"><span class="hs-identifier hs-var">algoType</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Algorithm.html#AlgoInput"><span class="hs-identifier hs-type">AlgoInput</span></a></span><span> </span><span id="local-6989586621679511597"><span class="annot"><span class="annottext">Eval
   (Edges SPitch)
   [Edge SPitch]
   (Notes SPitch)
   [SPitch]
   (PVLeftmost SPitch)
-</span><a href="#local-6989586621679511616"><span class="hs-identifier hs-var">eval</span></a></span></span><span> </span><span id="local-6989586621679511615"><span class="annot"><span class="annottext">[InputSlice SPitch]
-</span><a href="#local-6989586621679511615"><span class="hs-identifier hs-var">inputSlices</span></a></span></span><span> </span><span id="local-6989586621679511614"><span class="annot"><span class="annottext">[ChordLabel]
-</span><a href="#local-6989586621679511614"><span class="hs-identifier hs-var">chords</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">AlgoType
-</span><a href="#local-6989586621679511617"><span class="hs-identifier hs-var">algoType</span></a></span><span> </span><span class="hs-keyword">of</span><span>
-</span><span id="line-81"></span><span>    </span><span class="annot"><span class="annottext">AlgoType
+</span><a href="#local-6989586621679511597"><span class="hs-identifier hs-var">eval</span></a></span></span><span> </span><span id="local-6989586621679511596"><span class="annot"><span class="annottext">[InputSlice SPitch]
+</span><a href="#local-6989586621679511596"><span class="hs-identifier hs-var">inputSlices</span></a></span></span><span> </span><span id="local-6989586621679511595"><span class="annot"><span class="annottext">[ChordLabel]
+</span><a href="#local-6989586621679511595"><span class="hs-identifier hs-var">chords</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">AlgoType
+</span><a href="#local-6989586621679511598"><span class="hs-identifier hs-var">algoType</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-78"></span><span>    </span><span class="annot"><span class="annottext">AlgoType
 </span><a href="Algorithm.html#RandomWalk"><span class="hs-identifier hs-var">RandomWalk</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span>
-</span><span id="line-82"></span><span>      </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679511613"><span class="annot"><span class="annottext">initialState :: SearchState es [Edge SPitch] (Notes SPitch) o
-</span><a href="#local-6989586621679511613"><span class="hs-identifier hs-var hs-var">initialState</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall es es' ns o.
+</span><span id="line-79"></span><span>      </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679511594"><span class="annot"><span class="annottext">initialState :: SearchState es [Edge SPitch] (Notes SPitch) o
+</span><a href="#local-6989586621679511594"><span class="hs-identifier hs-var hs-var">initialState</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall es es' ns o.
 Path (Maybe es', Bool) (SliceWrapped ns) -&gt; SearchState es es' ns o
 </span><a href="HeuristicParser.html#SSFrozen"><span class="hs-identifier hs-var">SSFrozen</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall ns o.
@@ -156,18 +149,18 @@ Eval (Edges ns) [Edge ns] (Notes ns) [ns] o
   (Notes SPitch)
   [SPitch]
   (PVLeftmost SPitch)
-</span><a href="#local-6989586621679511616"><span class="hs-identifier hs-var">eval</span></a></span><span> </span><span class="annot"><span class="annottext">forall ns. SliceWrapper ns
+</span><a href="#local-6989586621679511597"><span class="hs-identifier hs-var">eval</span></a></span><span> </span><span class="annot"><span class="annottext">forall ns. SliceWrapper ns
 </span><a href="HeuristicParser.html#idWrapper"><span class="hs-identifier hs-var">idWrapper</span></a></span><span> </span><span class="annot"><span class="annottext">[InputSlice SPitch]
-</span><a href="#local-6989586621679511615"><span class="hs-identifier hs-var">inputSlices</span></a></span><span>
-</span><span id="line-83"></span><span>       </span><span class="hs-keyword">in</span><span>
-</span><span id="line-84"></span><span>        </span><span class="hs-keyword">do</span><span>
-</span><span id="line-85"></span><span>          </span><span id="local-6989586621679511610"><span class="annot"><span class="annottext">Either
+</span><a href="#local-6989586621679511596"><span class="hs-identifier hs-var">inputSlices</span></a></span><span>
+</span><span id="line-80"></span><span>       </span><span class="hs-keyword">in</span><span>
+</span><span id="line-81"></span><span>        </span><span class="hs-keyword">do</span><span>
+</span><span id="line-82"></span><span>          </span><span id="local-6989586621679511591"><span class="annot"><span class="annottext">Either
   String
   (SearchState
      (Edges SPitch) [Edge SPitch] (Notes SPitch) (PVLeftmost SPitch))
-</span><a href="#local-6989586621679511610"><span class="hs-identifier hs-var">res</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall e (m :: * -&gt; *) a. ExceptT e m a -&gt; m (Either e a)
+</span><a href="#local-6989586621679511591"><span class="hs-identifier hs-var">res</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall e (m :: * -&gt; *) a. ExceptT e m a -&gt; m (Either e a)
 </span><span class="hs-identifier hs-var">runExceptT</span></span><span>
-</span><span id="line-86"></span><span>            </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall state.
+</span><span id="line-83"></span><span>            </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall state.
 Show state =&gt;
 state
 -&gt; (state -&gt; ExceptT String IO [state])
@@ -175,7 +168,7 @@ state
 -&gt; (state -&gt; String)
 -&gt; ExceptT String IO state
 </span><a href="Algorithm.RandomChoiceSearch.html#randomChoiceSearch"><span class="hs-identifier hs-var">randomChoiceSearch</span></a></span><span> </span><span class="annot"><span class="annottext">forall {es} {o}. SearchState es [Edge SPitch] (Notes SPitch) o
-</span><a href="#local-6989586621679511613"><span class="hs-identifier hs-var">initialState</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall es es' ns ns' s f h.
+</span><a href="#local-6989586621679511594"><span class="hs-identifier hs-var">initialState</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall es es' ns ns' s f h.
 (Show s, Show f, Show h, Show es, Show es', Show ns, Show ns') =&gt;
 SliceWrapper ns
 -&gt; Eval es es' ns ns' (Leftmost s f h)
@@ -188,69 +181,69 @@ SliceWrapper ns
   (Notes SPitch)
   [SPitch]
   (PVLeftmost SPitch)
-</span><a href="#local-6989586621679511616"><span class="hs-identifier hs-var">eval</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall es es' ns o. [ChordLabel] -&gt; SearchState es es' ns o -&gt; Bool
+</span><a href="#local-6989586621679511597"><span class="hs-identifier hs-var">eval</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall es es' ns o. [ChordLabel] -&gt; SearchState es es' ns o -&gt; Bool
 </span><a href="HeuristicParser.html#goalTest"><span class="hs-identifier hs-var">goalTest</span></a></span><span> </span><span class="annot"><span class="annottext">[ChordLabel]
-</span><a href="#local-6989586621679511614"><span class="hs-identifier hs-var">chords</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall {s} {f} {h}.
+</span><a href="#local-6989586621679511595"><span class="hs-identifier hs-var">chords</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall {s} {f} {h}.
 (Show s, Show f, Show h) =&gt;
 [Leftmost s f h] -&gt; String
 </span><a href="HeuristicParser.html#showOp"><span class="hs-identifier hs-var">showOp</span></a></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
 </span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall es es' ns o. SearchState es es' ns o -&gt; [o]
 </span><a href="HeuristicParser.html#getOpsFromState"><span class="hs-identifier hs-var">getOpsFromState</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
-</span><span id="line-87"></span><span>          </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Either
+</span><span id="line-84"></span><span>          </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Either
   String
   (SearchState
      (Edges SPitch) [Edge SPitch] (Notes SPitch) (PVLeftmost SPitch))
-</span><a href="#local-6989586621679511610"><span class="hs-identifier hs-var">res</span></a></span><span> </span><span class="hs-keyword">of</span><span>
-</span><span id="line-88"></span><span>            </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span id="local-6989586621679511603"><span class="annot"><span class="annottext">String
-</span><a href="#local-6989586621679511603"><span class="hs-identifier hs-var">err</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-89"></span><span>              </span><span class="annot"><span class="annottext">forall a. Show a =&gt; a -&gt; IO ()
+</span><a href="#local-6989586621679511591"><span class="hs-identifier hs-var">res</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-85"></span><span>            </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span id="local-6989586621679511584"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679511584"><span class="hs-identifier hs-var">err</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-86"></span><span>              </span><span class="annot"><span class="annottext">forall a. Show a =&gt; a -&gt; IO ()
 </span><span class="hs-identifier hs-var">print</span></span><span> </span><span class="annot"><span class="annottext">String
-</span><a href="#local-6989586621679511603"><span class="hs-identifier hs-var">err</span></a></span><span>
-</span><span id="line-90"></span><span>              </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><a href="#local-6989586621679511584"><span class="hs-identifier hs-var">err</span></a></span><span>
+</span><span id="line-87"></span><span>              </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
 </span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">forall a. Maybe a
 </span><span class="hs-identifier hs-var">Nothing</span></span><span>
-</span><span id="line-91"></span><span>            </span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span id="local-6989586621679511602"><span class="annot"><span class="annottext">SearchState
+</span><span id="line-88"></span><span>            </span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span id="local-6989586621679511583"><span class="annot"><span class="annottext">SearchState
   (Edges SPitch) [Edge SPitch] (Notes SPitch) (PVLeftmost SPitch)
-</span><a href="#local-6989586621679511602"><span class="hs-identifier hs-var">finalState</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
-</span><span id="line-92"></span><span>              </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679511599"><span class="annot"><span class="annottext">path :: Path (Edges SPitch) (Notes SPitch)
-</span><a href="#local-6989586621679511599"><span class="hs-identifier hs-var hs-var">path</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. a -&gt; Maybe a -&gt; a
+</span><a href="#local-6989586621679511583"><span class="hs-identifier hs-var">finalState</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-89"></span><span>              </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679511580"><span class="annot"><span class="annottext">path :: Path (Edges SPitch) (Notes SPitch)
+</span><a href="#local-6989586621679511580"><span class="hs-identifier hs-var hs-var">path</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. a -&gt; Maybe a -&gt; a
 </span><span class="hs-identifier hs-var">fromMaybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. HasCallStack =&gt; String -&gt; a
 </span><span class="hs-identifier hs-var">error</span></span><span> </span><span class="annot"><span class="annottext">String
 </span><span class="hs-string">&quot;failed to get path from state&quot;</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall es es' ns o. SearchState es es' ns o -&gt; Maybe (Path es ns)
 </span><a href="HeuristicParser.html#getPathFromState"><span class="hs-identifier hs-var">getPathFromState</span></a></span><span> </span><span class="annot"><span class="annottext">SearchState
   (Edges SPitch) [Edge SPitch] (Notes SPitch) (PVLeftmost SPitch)
-</span><a href="#local-6989586621679511602"><span class="hs-identifier hs-var">finalState</span></a></span><span>
-</span><span id="line-93"></span><span>                  </span><span id="local-6989586621679511596"><span class="annot"><span class="annottext">ops :: [PVLeftmost SPitch]
-</span><a href="#local-6989586621679511596"><span class="hs-identifier hs-var hs-var">ops</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall es es' ns o. SearchState es es' ns o -&gt; [o]
+</span><a href="#local-6989586621679511583"><span class="hs-identifier hs-var">finalState</span></a></span><span>
+</span><span id="line-90"></span><span>                  </span><span id="local-6989586621679511577"><span class="annot"><span class="annottext">ops :: [PVLeftmost SPitch]
+</span><a href="#local-6989586621679511577"><span class="hs-identifier hs-var hs-var">ops</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall es es' ns o. SearchState es es' ns o -&gt; [o]
 </span><a href="HeuristicParser.html#getOpsFromState"><span class="hs-identifier hs-var">getOpsFromState</span></a></span><span> </span><span class="annot"><span class="annottext">SearchState
   (Edges SPitch) [Edge SPitch] (Notes SPitch) (PVLeftmost SPitch)
-</span><a href="#local-6989586621679511602"><span class="hs-identifier hs-var">finalState</span></a></span><span>
-</span><span id="line-94"></span><span>                  </span><span id="local-6989586621679511595"><span class="annot"><span class="annottext">slices :: [Notes SPitch]
-</span><a href="#local-6989586621679511595"><span class="hs-identifier hs-var hs-var">slices</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a b. Path a b -&gt; [b]
+</span><a href="#local-6989586621679511583"><span class="hs-identifier hs-var">finalState</span></a></span><span>
+</span><span id="line-91"></span><span>                  </span><span id="local-6989586621679511576"><span class="annot"><span class="annottext">slices :: [Notes SPitch]
+</span><a href="#local-6989586621679511576"><span class="hs-identifier hs-var hs-var">slices</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a b. Path a b -&gt; [b]
 </span><a href="Common.html#pathBetweens"><span class="hs-identifier hs-var">pathBetweens</span></a></span><span> </span><span class="annot"><span class="annottext">Path (Edges SPitch) (Notes SPitch)
-</span><a href="#local-6989586621679511599"><span class="hs-identifier hs-var">path</span></a></span><span>
-</span><span id="line-95"></span><span>                  </span><span id="local-6989586621679511594"><span class="annot"><span class="annottext">chordGuesses :: [ChordLabel]
-</span><a href="#local-6989586621679511594"><span class="hs-identifier hs-var hs-var">chordGuesses</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Notes SPitch] -&gt; [ChordLabel]
+</span><a href="#local-6989586621679511580"><span class="hs-identifier hs-var">path</span></a></span><span>
+</span><span id="line-92"></span><span>                  </span><span id="local-6989586621679511575"><span class="annot"><span class="annottext">chordGuesses :: [ChordLabel]
+</span><a href="#local-6989586621679511575"><span class="hs-identifier hs-var hs-var">chordGuesses</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Notes SPitch] -&gt; [ChordLabel]
 </span><a href="HeuristicParser.html#guessChords"><span class="hs-identifier hs-var">guessChords</span></a></span><span> </span><span class="annot"><span class="annottext">[Notes SPitch]
-</span><a href="#local-6989586621679511595"><span class="hs-identifier hs-var">slices</span></a></span><span>
-</span><span id="line-96"></span><span>               </span><span class="hs-keyword">in</span><span>
-</span><span id="line-97"></span><span>               </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><a href="#local-6989586621679511576"><span class="hs-identifier hs-var">slices</span></a></span><span>
+</span><span id="line-93"></span><span>               </span><span class="hs-keyword">in</span><span>
+</span><span id="line-94"></span><span>               </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
 </span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a. a -&gt; Maybe a
 </span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Notes SPitch]
 -&gt; Maybe [PVLeftmost SPitch] -&gt; [ChordLabel] -&gt; AlgoResult
 </span><a href="Algorithm.html#AlgoResult"><span class="hs-identifier hs-var">AlgoResult</span></a></span><span> </span><span class="annot"><span class="annottext">[Notes SPitch]
-</span><a href="#local-6989586621679511595"><span class="hs-identifier hs-var">slices</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. a -&gt; Maybe a
+</span><a href="#local-6989586621679511576"><span class="hs-identifier hs-var">slices</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. a -&gt; Maybe a
 </span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">[PVLeftmost SPitch]
-</span><a href="#local-6989586621679511596"><span class="hs-identifier hs-var">ops</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[ChordLabel]
-</span><a href="#local-6989586621679511594"><span class="hs-identifier hs-var">chordGuesses</span></a></span><span>
-</span><span id="line-98"></span><span>
-</span><span id="line-99"></span><span>    </span><span class="annot"><span class="annottext">AlgoType
+</span><a href="#local-6989586621679511577"><span class="hs-identifier hs-var">ops</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[ChordLabel]
+</span><a href="#local-6989586621679511575"><span class="hs-identifier hs-var">chordGuesses</span></a></span><span>
+</span><span id="line-95"></span><span>
+</span><span id="line-96"></span><span>    </span><span class="annot"><span class="annottext">AlgoType
 </span><a href="Algorithm.html#RandomSample"><span class="hs-identifier hs-var">RandomSample</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span>
-</span><span id="line-100"></span><span>      </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679511592"><span class="annot"><span class="annottext">x :: [[InputSlice SPitch]]
-</span><a href="#local-6989586621679511592"><span class="hs-identifier hs-var hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall ns o.
+</span><span id="line-97"></span><span>      </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679511573"><span class="annot"><span class="annottext">x :: [[InputSlice SPitch]]
+</span><a href="#local-6989586621679511573"><span class="hs-identifier hs-var hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall ns o.
 Eval (Edges ns) [Edge ns] (Notes ns) [ns] o
 -&gt; SliceWrapper (Notes ns) -&gt; [InputSlice ns] -&gt; [[InputSlice ns]]
 </span><a href="FileHandling.html#splitSlicesIntoSegments"><span class="hs-identifier hs-var">splitSlicesIntoSegments</span></a></span><span> </span><span class="annot"><span class="annottext">Eval
@@ -259,37 +252,37 @@ Eval (Edges ns) [Edge ns] (Notes ns) [ns] o
   (Notes SPitch)
   [SPitch]
   (PVLeftmost SPitch)
-</span><a href="#local-6989586621679511616"><span class="hs-identifier hs-var">eval</span></a></span><span> </span><span class="annot"><span class="annottext">SliceWrapper (Notes SPitch)
+</span><a href="#local-6989586621679511597"><span class="hs-identifier hs-var">eval</span></a></span><span> </span><span class="annot"><span class="annottext">SliceWrapper (Notes SPitch)
 </span><a href="HeuristicParser.html#sliceWrapper"><span class="hs-identifier hs-var">sliceWrapper</span></a></span><span> </span><span class="annot"><span class="annottext">[InputSlice SPitch]
-</span><a href="#local-6989586621679511615"><span class="hs-identifier hs-var">inputSlices</span></a></span><span>
-</span><span id="line-101"></span><span>        </span><span class="hs-keyword">in</span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-102"></span><span>          </span><span id="local-6989586621679511590"><span class="annot"><span class="annottext">Path (Edges SPitch) (Notes SPitch)
-</span><a href="#local-6989586621679511590"><span class="hs-identifier hs-var">path</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Int -&gt; IO (Path (Edges SPitch) (Notes SPitch))
+</span><a href="#local-6989586621679511596"><span class="hs-identifier hs-var">inputSlices</span></a></span><span>
+</span><span id="line-98"></span><span>        </span><span class="hs-keyword">in</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-99"></span><span>          </span><span id="local-6989586621679511571"><span class="annot"><span class="annottext">Path (Edges SPitch) (Notes SPitch)
+</span><a href="#local-6989586621679511571"><span class="hs-identifier hs-var">path</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Int -&gt; IO (Path (Edges SPitch) (Notes SPitch))
 </span><a href="Algorithm.RandomSampleParser.html#randomSamplePath"><span class="hs-identifier hs-var">randomSamplePath</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Int
 </span><span class="hs-identifier hs-var">length</span></span><span> </span><span class="annot"><span class="annottext">[ChordLabel]
-</span><a href="#local-6989586621679511614"><span class="hs-identifier hs-var">chords</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-103"></span><span>          </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679511587"><span class="annot"><span class="annottext">slices :: [Notes SPitch]
-</span><a href="#local-6989586621679511587"><span class="hs-identifier hs-var hs-var">slices</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a b. Path a b -&gt; [b]
+</span><a href="#local-6989586621679511595"><span class="hs-identifier hs-var">chords</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-100"></span><span>          </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679511568"><span class="annot"><span class="annottext">slices :: [Notes SPitch]
+</span><a href="#local-6989586621679511568"><span class="hs-identifier hs-var hs-var">slices</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a b. Path a b -&gt; [b]
 </span><a href="Common.html#pathBetweens"><span class="hs-identifier hs-var">pathBetweens</span></a></span><span> </span><span class="annot"><span class="annottext">Path (Edges SPitch) (Notes SPitch)
-</span><a href="#local-6989586621679511590"><span class="hs-identifier hs-var">path</span></a></span><span>
-</span><span id="line-104"></span><span>              </span><span id="local-6989586621679511586"><span class="annot"><span class="annottext">chordGuesses :: [ChordLabel]
-</span><a href="#local-6989586621679511586"><span class="hs-identifier hs-var hs-var">chordGuesses</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Notes SPitch] -&gt; [ChordLabel]
+</span><a href="#local-6989586621679511571"><span class="hs-identifier hs-var">path</span></a></span><span>
+</span><span id="line-101"></span><span>              </span><span id="local-6989586621679511567"><span class="annot"><span class="annottext">chordGuesses :: [ChordLabel]
+</span><a href="#local-6989586621679511567"><span class="hs-identifier hs-var hs-var">chordGuesses</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Notes SPitch] -&gt; [ChordLabel]
 </span><a href="HeuristicParser.html#guessChords"><span class="hs-identifier hs-var">guessChords</span></a></span><span> </span><span class="annot"><span class="annottext">[Notes SPitch]
-</span><a href="#local-6989586621679511587"><span class="hs-identifier hs-var">slices</span></a></span><span>
-</span><span id="line-105"></span><span>           </span><span class="hs-keyword">in</span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><a href="#local-6989586621679511568"><span class="hs-identifier hs-var">slices</span></a></span><span>
+</span><span id="line-102"></span><span>           </span><span class="hs-keyword">in</span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
 </span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a. a -&gt; Maybe a
 </span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Notes SPitch]
 -&gt; Maybe [PVLeftmost SPitch] -&gt; [ChordLabel] -&gt; AlgoResult
 </span><a href="Algorithm.html#AlgoResult"><span class="hs-identifier hs-var">AlgoResult</span></a></span><span> </span><span class="annot"><span class="annottext">[Notes SPitch]
-</span><a href="#local-6989586621679511587"><span class="hs-identifier hs-var">slices</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Maybe a
+</span><a href="#local-6989586621679511568"><span class="hs-identifier hs-var">slices</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Maybe a
 </span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="annot"><span class="annottext">[ChordLabel]
-</span><a href="#local-6989586621679511586"><span class="hs-identifier hs-var">chordGuesses</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-106"></span><span>
-</span><span id="line-107"></span><span>    </span><span class="annot"><span class="annottext">AlgoType
+</span><a href="#local-6989586621679511567"><span class="hs-identifier hs-var">chordGuesses</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-103"></span><span>
+</span><span id="line-104"></span><span>    </span><span class="annot"><span class="annottext">AlgoType
 </span><a href="Algorithm.html#RandomReduction"><span class="hs-identifier hs-var">RandomReduction</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span>
-</span><span id="line-108"></span><span>      </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679511585"><span class="annot"><span class="annottext">x :: [[InputSlice SPitch]]
-</span><a href="#local-6989586621679511585"><span class="hs-identifier hs-var hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall ns o.
+</span><span id="line-105"></span><span>      </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679511566"><span class="annot"><span class="annottext">x :: [[InputSlice SPitch]]
+</span><a href="#local-6989586621679511566"><span class="hs-identifier hs-var hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall ns o.
 Eval (Edges ns) [Edge ns] (Notes ns) [ns] o
 -&gt; SliceWrapper (Notes ns) -&gt; [InputSlice ns] -&gt; [[InputSlice ns]]
 </span><a href="FileHandling.html#splitSlicesIntoSegments"><span class="hs-identifier hs-var">splitSlicesIntoSegments</span></a></span><span> </span><span class="annot"><span class="annottext">Eval
@@ -298,42 +291,42 @@ Eval (Edges ns) [Edge ns] (Notes ns) [ns] o
   (Notes SPitch)
   [SPitch]
   (PVLeftmost SPitch)
-</span><a href="#local-6989586621679511616"><span class="hs-identifier hs-var">eval</span></a></span><span> </span><span class="annot"><span class="annottext">SliceWrapper (Notes SPitch)
+</span><a href="#local-6989586621679511597"><span class="hs-identifier hs-var">eval</span></a></span><span> </span><span class="annot"><span class="annottext">SliceWrapper (Notes SPitch)
 </span><a href="HeuristicParser.html#sliceWrapper"><span class="hs-identifier hs-var">sliceWrapper</span></a></span><span> </span><span class="annot"><span class="annottext">[InputSlice SPitch]
-</span><a href="#local-6989586621679511615"><span class="hs-identifier hs-var">inputSlices</span></a></span><span>
-</span><span id="line-109"></span><span>       </span><span class="hs-keyword">in</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a.
+</span><a href="#local-6989586621679511596"><span class="hs-identifier hs-var">inputSlices</span></a></span><span>
+</span><span id="line-106"></span><span>       </span><span class="hs-keyword">in</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a.
 (MonadBaseControl IO m, MonadIO m) =&gt;
 Text -&gt; m a -&gt; m a
 </span><span class="hs-identifier hs-var">Log.timedLog</span></span><span> </span><span class="annot"><span class="annottext">Text
 </span><span class="hs-string">&quot;Running Random Sample SBS Parse&quot;</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-110"></span><span>        </span><span class="hs-comment">-- path &lt;- randomSamplePathSBS x</span><span>
-</span><span id="line-111"></span><span>        </span><span id="local-6989586621679511583"><span class="annot"><span class="annottext">[Notes SPitch]
-</span><a href="#local-6989586621679511583"><span class="hs-identifier hs-var">slices</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[[InputSlice SPitch]] -&gt; IO [Notes SPitch]
+</span><span id="line-107"></span><span>        </span><span class="hs-comment">-- path &lt;- randomSamplePathSBS x</span><span>
+</span><span id="line-108"></span><span>        </span><span id="local-6989586621679511564"><span class="annot"><span class="annottext">[Notes SPitch]
+</span><a href="#local-6989586621679511564"><span class="hs-identifier hs-var">slices</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[[InputSlice SPitch]] -&gt; IO [Notes SPitch]
 </span><a href="Algorithm.RandomSampleParser.html#randomSamplePathSBS"><span class="hs-identifier hs-var">randomSamplePathSBS</span></a></span><span> </span><span class="annot"><span class="annottext">[[InputSlice SPitch]]
-</span><a href="#local-6989586621679511585"><span class="hs-identifier hs-var">x</span></a></span><span>
-</span><span id="line-112"></span><span>
-</span><span id="line-113"></span><span>        </span><span class="hs-comment">-- let slices = pathBetweens path</span><span>
-</span><span id="line-114"></span><span>        </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679511581"><span class="annot"><span class="annottext">chordGuesses :: [ChordLabel]
-</span><a href="#local-6989586621679511581"><span class="hs-identifier hs-var hs-var">chordGuesses</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Notes SPitch] -&gt; [ChordLabel]
+</span><a href="#local-6989586621679511566"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-109"></span><span>
+</span><span id="line-110"></span><span>        </span><span class="hs-comment">-- let slices = pathBetweens path</span><span>
+</span><span id="line-111"></span><span>        </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679511562"><span class="annot"><span class="annottext">chordGuesses :: [ChordLabel]
+</span><a href="#local-6989586621679511562"><span class="hs-identifier hs-var hs-var">chordGuesses</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Notes SPitch] -&gt; [ChordLabel]
 </span><a href="HeuristicParser.html#guessChords"><span class="hs-identifier hs-var">guessChords</span></a></span><span> </span><span class="annot"><span class="annottext">[Notes SPitch]
-</span><a href="#local-6989586621679511583"><span class="hs-identifier hs-var">slices</span></a></span><span>
-</span><span id="line-115"></span><span>         </span><span class="hs-keyword">in</span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><a href="#local-6989586621679511564"><span class="hs-identifier hs-var">slices</span></a></span><span>
+</span><span id="line-112"></span><span>         </span><span class="hs-keyword">in</span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
 </span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a. a -&gt; Maybe a
 </span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Notes SPitch]
 -&gt; Maybe [PVLeftmost SPitch] -&gt; [ChordLabel] -&gt; AlgoResult
 </span><a href="Algorithm.html#AlgoResult"><span class="hs-identifier hs-var">AlgoResult</span></a></span><span> </span><span class="annot"><span class="annottext">[Notes SPitch]
-</span><a href="#local-6989586621679511583"><span class="hs-identifier hs-var">slices</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Maybe a
+</span><a href="#local-6989586621679511564"><span class="hs-identifier hs-var">slices</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Maybe a
 </span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="annot"><span class="annottext">[ChordLabel]
-</span><a href="#local-6989586621679511581"><span class="hs-identifier hs-var">chordGuesses</span></a></span><span>
-</span><span id="line-116"></span><span>
-</span><span id="line-117"></span><span>    </span><span class="annot"><a href="Algorithm.html#StochasticBeamSearch"><span class="hs-identifier hs-type">StochasticBeamSearch</span></a></span><span> </span><span id="local-6989586621679511580"><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679511580"><span class="hs-identifier hs-var">beamWidth</span></a></span></span><span> </span><span id="local-6989586621679511579"><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679511579"><span class="hs-identifier hs-var">resevoirSize</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
-</span><span id="line-118"></span><span>      </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679511578"><span class="annot"><span class="annottext">initialState :: SearchState es [Edge SPitch] (Notes SPitch) o
-</span><a href="#local-6989586621679511578"><span class="hs-identifier hs-var hs-var">initialState</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall es es' ns o.
+</span><a href="#local-6989586621679511562"><span class="hs-identifier hs-var">chordGuesses</span></a></span><span>
+</span><span id="line-113"></span><span>
+</span><span id="line-114"></span><span>    </span><span class="annot"><a href="Algorithm.html#StochasticBeamSearch"><span class="hs-identifier hs-type">StochasticBeamSearch</span></a></span><span> </span><span id="local-6989586621679511561"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679511561"><span class="hs-identifier hs-var">beamWidth</span></a></span></span><span> </span><span id="local-6989586621679511560"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679511560"><span class="hs-identifier hs-var">resevoirSize</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-115"></span><span>      </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679511559"><span class="annot"><span class="annottext">initialState :: SearchState es [Edge SPitch] (Notes SPitch) o
+</span><a href="#local-6989586621679511559"><span class="hs-identifier hs-var hs-var">initialState</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall es es' ns o.
 Path (Maybe es', Bool) (SliceWrapped ns) -&gt; SearchState es es' ns o
 </span><a href="HeuristicParser.html#SSFrozen"><span class="hs-identifier hs-var">SSFrozen</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall ns o.
@@ -347,23 +340,23 @@ Eval (Edges ns) [Edge ns] (Notes ns) [ns] o
   (Notes SPitch)
   [SPitch]
   (PVLeftmost SPitch)
-</span><a href="#local-6989586621679511616"><span class="hs-identifier hs-var">eval</span></a></span><span> </span><span class="annot"><span class="annottext">SliceWrapper (Notes SPitch)
+</span><a href="#local-6989586621679511597"><span class="hs-identifier hs-var">eval</span></a></span><span> </span><span class="annot"><span class="annottext">SliceWrapper (Notes SPitch)
 </span><a href="HeuristicParser.html#sliceWrapper"><span class="hs-identifier hs-var">sliceWrapper</span></a></span><span> </span><span class="annot"><span class="annottext">[InputSlice SPitch]
-</span><a href="#local-6989586621679511615"><span class="hs-identifier hs-var">inputSlices</span></a></span><span>
-</span><span id="line-119"></span><span>       </span><span class="hs-keyword">in</span><span>
-</span><span id="line-120"></span><span>        </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a.
+</span><a href="#local-6989586621679511596"><span class="hs-identifier hs-var">inputSlices</span></a></span><span>
+</span><span id="line-116"></span><span>       </span><span class="hs-keyword">in</span><span>
+</span><span id="line-117"></span><span>        </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a.
 (MonadBaseControl IO m, MonadIO m) =&gt;
 Text -&gt; m a -&gt; m a
 </span><span class="hs-identifier hs-var">Log.timedLog</span></span><span> </span><span class="annot"><span class="annottext">Text
 </span><span class="hs-string">&quot;Running Heuristic Search&quot;</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-121"></span><span>          </span><span id="local-6989586621679511577"><span class="annot"><span class="annottext">Either
+</span><span id="line-118"></span><span>          </span><span id="local-6989586621679511558"><span class="annot"><span class="annottext">Either
   String
   (SearchState
      (Edges SPitch) [Edge SPitch] (Notes SPitch) (PVLeftmost SPitch))
-</span><a href="#local-6989586621679511577"><span class="hs-identifier hs-var">res</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall e (m :: * -&gt; *) a. ExceptT e m a -&gt; m (Either e a)
+</span><a href="#local-6989586621679511558"><span class="hs-identifier hs-var">res</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall e (m :: * -&gt; *) a. ExceptT e m a -&gt; m (Either e a)
 </span><span class="hs-identifier hs-var">runExceptT</span></span><span>
-</span><span id="line-122"></span><span>            </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><span id="line-119"></span><span>            </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
 -&gt; Int
 -&gt; SearchState
      (Edges SPitch) [Edge SPitch] (Notes SPitch) (PVLeftmost SPitch)
@@ -388,13 +381,13 @@ Text -&gt; m a -&gt; m a
      (SearchState
         (Edges SPitch) [Edge SPitch] (Notes SPitch) (PVLeftmost SPitch))
 </span><a href="Algorithm.HeuristicSearch.html#stochasticBeamSearch"><span class="hs-identifier hs-var">stochasticBeamSearch</span></a></span><span>
-</span><span id="line-123"></span><span>              </span><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679511580"><span class="hs-identifier hs-var">beamWidth</span></a></span><span>
-</span><span id="line-124"></span><span>              </span><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679511579"><span class="hs-identifier hs-var">resevoirSize</span></a></span><span>
-</span><span id="line-125"></span><span>              </span><span class="annot"><span class="annottext">forall {es} {o}. SearchState es [Edge SPitch] (Notes SPitch) o
-</span><a href="#local-6989586621679511578"><span class="hs-identifier hs-var">initialState</span></a></span><span>
-</span><span id="line-126"></span><span>              </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall es es' ns ns' s f h.
+</span><span id="line-120"></span><span>              </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679511561"><span class="hs-identifier hs-var">beamWidth</span></a></span><span>
+</span><span id="line-121"></span><span>              </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679511560"><span class="hs-identifier hs-var">resevoirSize</span></a></span><span>
+</span><span id="line-122"></span><span>              </span><span class="annot"><span class="annottext">forall {es} {o}. SearchState es [Edge SPitch] (Notes SPitch) o
+</span><a href="#local-6989586621679511559"><span class="hs-identifier hs-var">initialState</span></a></span><span>
+</span><span id="line-123"></span><span>              </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall es es' ns ns' s f h.
 (Show s, Show f, Show h, Show es, Show es', Show ns, Show ns') =&gt;
 SliceWrapper ns
 -&gt; Eval es es' ns ns' (Leftmost s f h)
@@ -407,11 +400,11 @@ SliceWrapper ns
   (Notes SPitch)
   [SPitch]
   (PVLeftmost SPitch)
-</span><a href="#local-6989586621679511616"><span class="hs-identifier hs-var">eval</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-127"></span><span>              </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall es es' ns o. [ChordLabel] -&gt; SearchState es es' ns o -&gt; Bool
+</span><a href="#local-6989586621679511597"><span class="hs-identifier hs-var">eval</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-124"></span><span>              </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall es es' ns o. [ChordLabel] -&gt; SearchState es es' ns o -&gt; Bool
 </span><a href="HeuristicParser.html#goalTest"><span class="hs-identifier hs-var">goalTest</span></a></span><span> </span><span class="annot"><span class="annottext">[ChordLabel]
-</span><a href="#local-6989586621679511614"><span class="hs-identifier hs-var">chords</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-128"></span><span>              </span><span class="hs-special">(</span><span class="annot"><span class="annottext">((SearchState
+</span><a href="#local-6989586621679511595"><span class="hs-identifier hs-var">chords</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-125"></span><span>              </span><span class="hs-special">(</span><span class="annot"><span class="annottext">((SearchState
     (Edges SPitch) [Edge SPitch] (Notes SPitch) (PVLeftmost SPitch),
   SearchState
     (Edges SPitch) [Edge SPitch] (Notes SPitch) (PVLeftmost SPitch))
@@ -427,63 +420,63 @@ SliceWrapper ns
    (Edges SPitch) [Edge SPitch] (Notes SPitch) (PVLeftmost SPitch))
 -&gt; ExceptT String IO Double
 </span><a href="Heuristics.html#heuristicZero"><span class="hs-identifier hs-var">heuristicZero</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-129"></span><span>            </span><span class="hs-special">)</span><span>
-</span><span id="line-130"></span><span>
-</span><span id="line-131"></span><span>          </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Either
+</span><span id="line-126"></span><span>            </span><span class="hs-special">)</span><span>
+</span><span id="line-127"></span><span>
+</span><span id="line-128"></span><span>          </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Either
   String
   (SearchState
      (Edges SPitch) [Edge SPitch] (Notes SPitch) (PVLeftmost SPitch))
-</span><a href="#local-6989586621679511577"><span class="hs-identifier hs-var">res</span></a></span><span> </span><span class="hs-keyword">of</span><span>
-</span><span id="line-132"></span><span>            </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span id="local-6989586621679511573"><span class="annot"><span class="annottext">String
-</span><a href="#local-6989586621679511573"><span class="hs-identifier hs-var">err</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-133"></span><span>              </span><span class="annot"><span class="annottext">Text -&gt; IO ()
+</span><a href="#local-6989586621679511558"><span class="hs-identifier hs-var">res</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-129"></span><span>            </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span id="local-6989586621679511554"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679511554"><span class="hs-identifier hs-var">err</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-130"></span><span>              </span><span class="annot"><span class="annottext">Text -&gt; IO ()
 </span><span class="hs-identifier hs-var">Log.warn</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; Text
 </span><span class="hs-identifier hs-var">T.pack</span></span><span> </span><span class="annot"><span class="annottext">String
-</span><a href="#local-6989586621679511573"><span class="hs-identifier hs-var">err</span></a></span><span>
-</span><span id="line-134"></span><span>              </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><a href="#local-6989586621679511554"><span class="hs-identifier hs-var">err</span></a></span><span>
+</span><span id="line-131"></span><span>              </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
 </span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">forall a. Maybe a
 </span><span class="hs-identifier hs-var">Nothing</span></span><span>
-</span><span id="line-135"></span><span>            </span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span id="local-6989586621679511570"><span class="annot"><span class="annottext">SearchState
+</span><span id="line-132"></span><span>            </span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span id="local-6989586621679511551"><span class="annot"><span class="annottext">SearchState
   (Edges SPitch) [Edge SPitch] (Notes SPitch) (PVLeftmost SPitch)
-</span><a href="#local-6989586621679511570"><span class="hs-identifier hs-var">finalState</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
-</span><span id="line-136"></span><span>              </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679511567"><span class="annot"><span class="annottext">p :: Path (Edges SPitch) (Notes SPitch)
-</span><a href="#local-6989586621679511567"><span class="hs-identifier hs-var hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. HasCallStack =&gt; Maybe a -&gt; a
+</span><a href="#local-6989586621679511551"><span class="hs-identifier hs-var">finalState</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-133"></span><span>              </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679511548"><span class="annot"><span class="annottext">p :: Path (Edges SPitch) (Notes SPitch)
+</span><a href="#local-6989586621679511548"><span class="hs-identifier hs-var hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. HasCallStack =&gt; Maybe a -&gt; a
 </span><span class="hs-identifier hs-var">fromJust</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall es es' ns o. SearchState es es' ns o -&gt; Maybe (Path es ns)
 </span><a href="HeuristicParser.html#getPathFromState"><span class="hs-identifier hs-var">getPathFromState</span></a></span><span> </span><span class="annot"><span class="annottext">SearchState
   (Edges SPitch) [Edge SPitch] (Notes SPitch) (PVLeftmost SPitch)
-</span><a href="#local-6989586621679511570"><span class="hs-identifier hs-var">finalState</span></a></span><span>
-</span><span id="line-137"></span><span>                  </span><span id="local-6989586621679511566"><span class="annot"><span class="annottext">ops :: [PVLeftmost SPitch]
-</span><a href="#local-6989586621679511566"><span class="hs-identifier hs-var hs-var">ops</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall es es' ns o. SearchState es es' ns o -&gt; [o]
+</span><a href="#local-6989586621679511551"><span class="hs-identifier hs-var">finalState</span></a></span><span>
+</span><span id="line-134"></span><span>                  </span><span id="local-6989586621679511547"><span class="annot"><span class="annottext">ops :: [PVLeftmost SPitch]
+</span><a href="#local-6989586621679511547"><span class="hs-identifier hs-var hs-var">ops</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall es es' ns o. SearchState es es' ns o -&gt; [o]
 </span><a href="HeuristicParser.html#getOpsFromState"><span class="hs-identifier hs-var">getOpsFromState</span></a></span><span> </span><span class="annot"><span class="annottext">SearchState
   (Edges SPitch) [Edge SPitch] (Notes SPitch) (PVLeftmost SPitch)
-</span><a href="#local-6989586621679511570"><span class="hs-identifier hs-var">finalState</span></a></span><span>
-</span><span id="line-138"></span><span>                  </span><span id="local-6989586621679511565"><span class="annot"><span class="annottext">slices :: [Notes SPitch]
-</span><a href="#local-6989586621679511565"><span class="hs-identifier hs-var hs-var">slices</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a b. Path a b -&gt; [b]
+</span><a href="#local-6989586621679511551"><span class="hs-identifier hs-var">finalState</span></a></span><span>
+</span><span id="line-135"></span><span>                  </span><span id="local-6989586621679511546"><span class="annot"><span class="annottext">slices :: [Notes SPitch]
+</span><a href="#local-6989586621679511546"><span class="hs-identifier hs-var hs-var">slices</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a b. Path a b -&gt; [b]
 </span><a href="Common.html#pathBetweens"><span class="hs-identifier hs-var">pathBetweens</span></a></span><span> </span><span class="annot"><span class="annottext">Path (Edges SPitch) (Notes SPitch)
-</span><a href="#local-6989586621679511567"><span class="hs-identifier hs-var">p</span></a></span><span>
-</span><span id="line-139"></span><span>                  </span><span id="local-6989586621679511564"><span class="annot"><span class="annottext">chordGuesses :: [ChordLabel]
-</span><a href="#local-6989586621679511564"><span class="hs-identifier hs-var hs-var">chordGuesses</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Notes SPitch] -&gt; [ChordLabel]
+</span><a href="#local-6989586621679511548"><span class="hs-identifier hs-var">p</span></a></span><span>
+</span><span id="line-136"></span><span>                  </span><span id="local-6989586621679511545"><span class="annot"><span class="annottext">chordGuesses :: [ChordLabel]
+</span><a href="#local-6989586621679511545"><span class="hs-identifier hs-var hs-var">chordGuesses</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Notes SPitch] -&gt; [ChordLabel]
 </span><a href="HeuristicParser.html#guessChords"><span class="hs-identifier hs-var">guessChords</span></a></span><span>  </span><span class="annot"><span class="annottext">[Notes SPitch]
-</span><a href="#local-6989586621679511565"><span class="hs-identifier hs-var">slices</span></a></span><span>
-</span><span id="line-140"></span><span>               </span><span class="hs-keyword">in</span><span>
-</span><span id="line-141"></span><span>               </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><a href="#local-6989586621679511546"><span class="hs-identifier hs-var">slices</span></a></span><span>
+</span><span id="line-137"></span><span>               </span><span class="hs-keyword">in</span><span>
+</span><span id="line-138"></span><span>               </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
 </span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a. a -&gt; Maybe a
 </span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Notes SPitch]
 -&gt; Maybe [PVLeftmost SPitch] -&gt; [ChordLabel] -&gt; AlgoResult
 </span><a href="Algorithm.html#AlgoResult"><span class="hs-identifier hs-var">AlgoResult</span></a></span><span> </span><span class="annot"><span class="annottext">[Notes SPitch]
-</span><a href="#local-6989586621679511565"><span class="hs-identifier hs-var">slices</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. a -&gt; Maybe a
+</span><a href="#local-6989586621679511546"><span class="hs-identifier hs-var">slices</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. a -&gt; Maybe a
 </span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">[PVLeftmost SPitch]
-</span><a href="#local-6989586621679511566"><span class="hs-identifier hs-var">ops</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[ChordLabel]
-</span><a href="#local-6989586621679511564"><span class="hs-identifier hs-var">chordGuesses</span></a></span><span>
-</span><span id="line-142"></span><span>
-</span><span id="line-143"></span><span>    </span><span class="annot"><a href="Algorithm.html#BeamSearch"><span class="hs-identifier hs-type">BeamSearch</span></a></span><span> </span><span id="local-6989586621679511563"><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679511563"><span class="hs-identifier hs-var">beamWidth</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
-</span><span id="line-144"></span><span>      </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679511562"><span class="annot"><span class="annottext">initialState :: SearchState es [Edge SPitch] (Notes SPitch) o
-</span><a href="#local-6989586621679511562"><span class="hs-identifier hs-var hs-var">initialState</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall es es' ns o.
+</span><a href="#local-6989586621679511547"><span class="hs-identifier hs-var">ops</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[ChordLabel]
+</span><a href="#local-6989586621679511545"><span class="hs-identifier hs-var">chordGuesses</span></a></span><span>
+</span><span id="line-139"></span><span>
+</span><span id="line-140"></span><span>    </span><span class="annot"><a href="Algorithm.html#BeamSearch"><span class="hs-identifier hs-type">BeamSearch</span></a></span><span> </span><span id="local-6989586621679511544"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679511544"><span class="hs-identifier hs-var">beamWidth</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-141"></span><span>      </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679511543"><span class="annot"><span class="annottext">initialState :: SearchState es [Edge SPitch] (Notes SPitch) o
+</span><a href="#local-6989586621679511543"><span class="hs-identifier hs-var hs-var">initialState</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall es es' ns o.
 Path (Maybe es', Bool) (SliceWrapped ns) -&gt; SearchState es es' ns o
 </span><a href="HeuristicParser.html#SSFrozen"><span class="hs-identifier hs-var">SSFrozen</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall ns o.
@@ -497,23 +490,23 @@ Eval (Edges ns) [Edge ns] (Notes ns) [ns] o
   (Notes SPitch)
   [SPitch]
   (PVLeftmost SPitch)
-</span><a href="#local-6989586621679511616"><span class="hs-identifier hs-var">eval</span></a></span><span> </span><span class="annot"><span class="annottext">SliceWrapper (Notes SPitch)
+</span><a href="#local-6989586621679511597"><span class="hs-identifier hs-var">eval</span></a></span><span> </span><span class="annot"><span class="annottext">SliceWrapper (Notes SPitch)
 </span><a href="HeuristicParser.html#sliceWrapper"><span class="hs-identifier hs-var">sliceWrapper</span></a></span><span> </span><span class="annot"><span class="annottext">[InputSlice SPitch]
-</span><a href="#local-6989586621679511615"><span class="hs-identifier hs-var">inputSlices</span></a></span><span>
-</span><span id="line-145"></span><span>       </span><span class="hs-keyword">in</span><span>
-</span><span id="line-146"></span><span>        </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a.
+</span><a href="#local-6989586621679511596"><span class="hs-identifier hs-var">inputSlices</span></a></span><span>
+</span><span id="line-142"></span><span>       </span><span class="hs-keyword">in</span><span>
+</span><span id="line-143"></span><span>        </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a.
 (MonadBaseControl IO m, MonadIO m) =&gt;
 Text -&gt; m a -&gt; m a
 </span><span class="hs-identifier hs-var">Log.timedLog</span></span><span> </span><span class="annot"><span class="annottext">Text
 </span><span class="hs-string">&quot;Running Heuristic Search&quot;</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-147"></span><span>          </span><span id="local-6989586621679511561"><span class="annot"><span class="annottext">Either
+</span><span id="line-144"></span><span>          </span><span id="local-6989586621679511542"><span class="annot"><span class="annottext">Either
   String
   (SearchState
      (Edges SPitch) [Edge SPitch] (Notes SPitch) (PVLeftmost SPitch))
-</span><a href="#local-6989586621679511561"><span class="hs-identifier hs-var">res</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall e (m :: * -&gt; *) a. ExceptT e m a -&gt; m (Either e a)
+</span><a href="#local-6989586621679511542"><span class="hs-identifier hs-var">res</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall e (m :: * -&gt; *) a. ExceptT e m a -&gt; m (Either e a)
 </span><span class="hs-identifier hs-var">runExceptT</span></span><span>
-</span><span id="line-148"></span><span>            </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><span id="line-145"></span><span>            </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
 -&gt; SearchState
      (Edges SPitch) [Edge SPitch] (Notes SPitch) (PVLeftmost SPitch)
 -&gt; (SearchState
@@ -537,11 +530,11 @@ Text -&gt; m a -&gt; m a
      (SearchState
         (Edges SPitch) [Edge SPitch] (Notes SPitch) (PVLeftmost SPitch))
 </span><a href="Algorithm.HeuristicSearch.html#beamSearch"><span class="hs-identifier hs-var">beamSearch</span></a></span><span>
-</span><span id="line-149"></span><span>              </span><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679511563"><span class="hs-identifier hs-var">beamWidth</span></a></span><span>
-</span><span id="line-150"></span><span>              </span><span class="annot"><span class="annottext">forall {es} {o}. SearchState es [Edge SPitch] (Notes SPitch) o
-</span><a href="#local-6989586621679511562"><span class="hs-identifier hs-var">initialState</span></a></span><span>
-</span><span id="line-151"></span><span>              </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall es es' ns ns' s f h.
+</span><span id="line-146"></span><span>              </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679511544"><span class="hs-identifier hs-var">beamWidth</span></a></span><span>
+</span><span id="line-147"></span><span>              </span><span class="annot"><span class="annottext">forall {es} {o}. SearchState es [Edge SPitch] (Notes SPitch) o
+</span><a href="#local-6989586621679511543"><span class="hs-identifier hs-var">initialState</span></a></span><span>
+</span><span id="line-148"></span><span>              </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall es es' ns ns' s f h.
 (Show s, Show f, Show h, Show es, Show es', Show ns, Show ns') =&gt;
 SliceWrapper ns
 -&gt; Eval es es' ns ns' (Leftmost s f h)
@@ -554,11 +547,11 @@ SliceWrapper ns
   (Notes SPitch)
   [SPitch]
   (PVLeftmost SPitch)
-</span><a href="#local-6989586621679511616"><span class="hs-identifier hs-var">eval</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-152"></span><span>              </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall es es' ns o. [ChordLabel] -&gt; SearchState es es' ns o -&gt; Bool
+</span><a href="#local-6989586621679511597"><span class="hs-identifier hs-var">eval</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-149"></span><span>              </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall es es' ns o. [ChordLabel] -&gt; SearchState es es' ns o -&gt; Bool
 </span><a href="HeuristicParser.html#goalTest"><span class="hs-identifier hs-var">goalTest</span></a></span><span> </span><span class="annot"><span class="annottext">[ChordLabel]
-</span><a href="#local-6989586621679511614"><span class="hs-identifier hs-var">chords</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-153"></span><span>              </span><span class="hs-special">(</span><span class="annot"><span class="annottext">((SearchState
+</span><a href="#local-6989586621679511595"><span class="hs-identifier hs-var">chords</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-150"></span><span>              </span><span class="hs-special">(</span><span class="annot"><span class="annottext">((SearchState
     (Edges SPitch) [Edge SPitch] (Notes SPitch) (PVLeftmost SPitch),
   SearchState
     (Edges SPitch) [Edge SPitch] (Notes SPitch) (PVLeftmost SPitch))
@@ -574,57 +567,57 @@ SliceWrapper ns
    (Edges SPitch) [Edge SPitch] (Notes SPitch) (PVLeftmost SPitch))
 -&gt; ExceptT String IO Double
 </span><a href="Heuristics.html#heuristicZero"><span class="hs-identifier hs-var">heuristicZero</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-154"></span><span>            </span><span class="hs-special">)</span><span>
-</span><span id="line-155"></span><span>
-</span><span id="line-156"></span><span>          </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Either
+</span><span id="line-151"></span><span>            </span><span class="hs-special">)</span><span>
+</span><span id="line-152"></span><span>
+</span><span id="line-153"></span><span>          </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Either
   String
   (SearchState
      (Edges SPitch) [Edge SPitch] (Notes SPitch) (PVLeftmost SPitch))
-</span><a href="#local-6989586621679511561"><span class="hs-identifier hs-var">res</span></a></span><span> </span><span class="hs-keyword">of</span><span>
-</span><span id="line-157"></span><span>            </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span id="local-6989586621679511559"><span class="annot"><span class="annottext">String
-</span><a href="#local-6989586621679511559"><span class="hs-identifier hs-var">err</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-158"></span><span>              </span><span class="annot"><span class="annottext">Text -&gt; IO ()
+</span><a href="#local-6989586621679511542"><span class="hs-identifier hs-var">res</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-154"></span><span>            </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span id="local-6989586621679511540"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679511540"><span class="hs-identifier hs-var">err</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-155"></span><span>              </span><span class="annot"><span class="annottext">Text -&gt; IO ()
 </span><span class="hs-identifier hs-var">Log.warn</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; Text
 </span><span class="hs-identifier hs-var">T.pack</span></span><span> </span><span class="annot"><span class="annottext">String
-</span><a href="#local-6989586621679511559"><span class="hs-identifier hs-var">err</span></a></span><span>
-</span><span id="line-159"></span><span>              </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><a href="#local-6989586621679511540"><span class="hs-identifier hs-var">err</span></a></span><span>
+</span><span id="line-156"></span><span>              </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
 </span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">forall a. Maybe a
 </span><span class="hs-identifier hs-var">Nothing</span></span><span>
-</span><span id="line-160"></span><span>            </span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span id="local-6989586621679511558"><span class="annot"><span class="annottext">SearchState
+</span><span id="line-157"></span><span>            </span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span id="local-6989586621679511539"><span class="annot"><span class="annottext">SearchState
   (Edges SPitch) [Edge SPitch] (Notes SPitch) (PVLeftmost SPitch)
-</span><a href="#local-6989586621679511558"><span class="hs-identifier hs-var">finalState</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
-</span><span id="line-161"></span><span>              </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679511555"><span class="annot"><span class="annottext">p :: Path (Edges SPitch) (Notes SPitch)
-</span><a href="#local-6989586621679511555"><span class="hs-identifier hs-var hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. HasCallStack =&gt; Maybe a -&gt; a
+</span><a href="#local-6989586621679511539"><span class="hs-identifier hs-var">finalState</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-158"></span><span>              </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679511536"><span class="annot"><span class="annottext">p :: Path (Edges SPitch) (Notes SPitch)
+</span><a href="#local-6989586621679511536"><span class="hs-identifier hs-var hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. HasCallStack =&gt; Maybe a -&gt; a
 </span><span class="hs-identifier hs-var">fromJust</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall es es' ns o. SearchState es es' ns o -&gt; Maybe (Path es ns)
 </span><a href="HeuristicParser.html#getPathFromState"><span class="hs-identifier hs-var">getPathFromState</span></a></span><span> </span><span class="annot"><span class="annottext">SearchState
   (Edges SPitch) [Edge SPitch] (Notes SPitch) (PVLeftmost SPitch)
-</span><a href="#local-6989586621679511558"><span class="hs-identifier hs-var">finalState</span></a></span><span>
-</span><span id="line-162"></span><span>                  </span><span id="local-6989586621679511554"><span class="annot"><span class="annottext">ops :: [PVLeftmost SPitch]
-</span><a href="#local-6989586621679511554"><span class="hs-identifier hs-var hs-var">ops</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall es es' ns o. SearchState es es' ns o -&gt; [o]
+</span><a href="#local-6989586621679511539"><span class="hs-identifier hs-var">finalState</span></a></span><span>
+</span><span id="line-159"></span><span>                  </span><span id="local-6989586621679511535"><span class="annot"><span class="annottext">ops :: [PVLeftmost SPitch]
+</span><a href="#local-6989586621679511535"><span class="hs-identifier hs-var hs-var">ops</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall es es' ns o. SearchState es es' ns o -&gt; [o]
 </span><a href="HeuristicParser.html#getOpsFromState"><span class="hs-identifier hs-var">getOpsFromState</span></a></span><span> </span><span class="annot"><span class="annottext">SearchState
   (Edges SPitch) [Edge SPitch] (Notes SPitch) (PVLeftmost SPitch)
-</span><a href="#local-6989586621679511558"><span class="hs-identifier hs-var">finalState</span></a></span><span>
-</span><span id="line-163"></span><span>                  </span><span id="local-6989586621679511553"><span class="annot"><span class="annottext">slices :: [Notes SPitch]
-</span><a href="#local-6989586621679511553"><span class="hs-identifier hs-var hs-var">slices</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a b. Path a b -&gt; [b]
+</span><a href="#local-6989586621679511539"><span class="hs-identifier hs-var">finalState</span></a></span><span>
+</span><span id="line-160"></span><span>                  </span><span id="local-6989586621679511534"><span class="annot"><span class="annottext">slices :: [Notes SPitch]
+</span><a href="#local-6989586621679511534"><span class="hs-identifier hs-var hs-var">slices</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a b. Path a b -&gt; [b]
 </span><a href="Common.html#pathBetweens"><span class="hs-identifier hs-var">pathBetweens</span></a></span><span> </span><span class="annot"><span class="annottext">Path (Edges SPitch) (Notes SPitch)
-</span><a href="#local-6989586621679511555"><span class="hs-identifier hs-var">p</span></a></span><span>
-</span><span id="line-164"></span><span>                  </span><span id="local-6989586621679511552"><span class="annot"><span class="annottext">chordGuesses :: [ChordLabel]
-</span><a href="#local-6989586621679511552"><span class="hs-identifier hs-var hs-var">chordGuesses</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Notes SPitch] -&gt; [ChordLabel]
+</span><a href="#local-6989586621679511536"><span class="hs-identifier hs-var">p</span></a></span><span>
+</span><span id="line-161"></span><span>                  </span><span id="local-6989586621679511533"><span class="annot"><span class="annottext">chordGuesses :: [ChordLabel]
+</span><a href="#local-6989586621679511533"><span class="hs-identifier hs-var hs-var">chordGuesses</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Notes SPitch] -&gt; [ChordLabel]
 </span><a href="HeuristicParser.html#guessChords"><span class="hs-identifier hs-var">guessChords</span></a></span><span>  </span><span class="annot"><span class="annottext">[Notes SPitch]
-</span><a href="#local-6989586621679511553"><span class="hs-identifier hs-var">slices</span></a></span><span>
-</span><span id="line-165"></span><span>               </span><span class="hs-keyword">in</span><span>
-</span><span id="line-166"></span><span>               </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><a href="#local-6989586621679511534"><span class="hs-identifier hs-var">slices</span></a></span><span>
+</span><span id="line-162"></span><span>               </span><span class="hs-keyword">in</span><span>
+</span><span id="line-163"></span><span>               </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
 </span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a. a -&gt; Maybe a
 </span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Notes SPitch]
 -&gt; Maybe [PVLeftmost SPitch] -&gt; [ChordLabel] -&gt; AlgoResult
 </span><a href="Algorithm.html#AlgoResult"><span class="hs-identifier hs-var">AlgoResult</span></a></span><span> </span><span class="annot"><span class="annottext">[Notes SPitch]
-</span><a href="#local-6989586621679511553"><span class="hs-identifier hs-var">slices</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. a -&gt; Maybe a
+</span><a href="#local-6989586621679511534"><span class="hs-identifier hs-var">slices</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. a -&gt; Maybe a
 </span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">[PVLeftmost SPitch]
-</span><a href="#local-6989586621679511554"><span class="hs-identifier hs-var">ops</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[ChordLabel]
-</span><a href="#local-6989586621679511552"><span class="hs-identifier hs-var">chordGuesses</span></a></span><span>
-</span><span id="line-167"></span><span>
-</span><span id="line-168"></span></pre></body></html>
+</span><a href="#local-6989586621679511535"><span class="hs-identifier hs-var">ops</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[ChordLabel]
+</span><a href="#local-6989586621679511533"><span class="hs-identifier hs-var">chordGuesses</span></a></span><span>
+</span><span id="line-164"></span><span>
+</span><span id="line-165"></span></pre></body></html>

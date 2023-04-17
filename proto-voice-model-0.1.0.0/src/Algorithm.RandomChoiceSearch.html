@@ -26,38 +26,38 @@
 </span><span id="line-26"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">uniformRM</span></span><span>
 </span><span id="line-27"></span><span>  </span><span class="hs-special">)</span><span>
 </span><span id="line-28"></span><span>
-</span><span id="line-29"></span><span class="hs-keyword">data</span><span> </span><span id="RandomSearch"><span class="annot"><a href="Algorithm.RandomChoiceSearch.html#RandomSearch"><span class="hs-identifier hs-var">RandomSearch</span></a></span></span><span> </span><span id="local-6989586621679506963"><span class="annot"><a href="#local-6989586621679506963"><span class="hs-identifier hs-type">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="RandomSearch"><span class="annot"><a href="Algorithm.RandomChoiceSearch.html#RandomSearch"><span class="hs-identifier hs-var">RandomSearch</span></a></span></span><span>
+</span><span id="line-29"></span><span class="hs-keyword">data</span><span> </span><span id="RandomSearch"><span class="annot"><a href="Algorithm.RandomChoiceSearch.html#RandomSearch"><span class="hs-identifier hs-var">RandomSearch</span></a></span></span><span> </span><span id="local-6989586621679506944"><span class="annot"><a href="#local-6989586621679506944"><span class="hs-identifier hs-type">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="RandomSearch"><span class="annot"><a href="Algorithm.RandomChoiceSearch.html#RandomSearch"><span class="hs-identifier hs-var">RandomSearch</span></a></span></span><span>
 </span><span id="line-30"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="rsHead"><span class="annot"><span class="annottext">forall s. RandomSearch s -&gt; s
-</span><a href="Algorithm.RandomChoiceSearch.html#rsHead"><span class="hs-identifier hs-var hs-var">rsHead</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621679506963"><span class="hs-identifier hs-type">s</span></a></span><span>
+</span><a href="Algorithm.RandomChoiceSearch.html#rsHead"><span class="hs-identifier hs-var hs-var">rsHead</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621679506944"><span class="hs-identifier hs-type">s</span></a></span><span>
 </span><span id="line-31"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="rsGoal"><span class="annot"><span class="annottext">forall s. RandomSearch s -&gt; s -&gt; Bool
-</span><a href="Algorithm.RandomChoiceSearch.html#rsGoal"><span class="hs-identifier hs-var hs-var">rsGoal</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621679506963"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><a href="Algorithm.RandomChoiceSearch.html#rsGoal"><span class="hs-identifier hs-var hs-var">rsGoal</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621679506944"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
 </span><span id="line-32"></span><span>  </span><span class="hs-special">}</span><span>
 </span><span id="line-33"></span><span>
 </span><span id="line-34"></span><span id="randomSearchInit"><span class="annot"><span class="annottext">randomSearchInit :: s -&gt; (s -&gt; Bool) -&gt; RandomSearch s
-</span><a href="Algorithm.RandomChoiceSearch.html#randomSearchInit"><span class="hs-identifier hs-var hs-var">randomSearchInit</span></a></span></span><span> </span><span id="local-6989586621679506886"><span class="annot"><span class="annottext">s
-</span><a href="#local-6989586621679506886"><span class="hs-identifier hs-var">start</span></a></span></span><span> </span><span id="local-6989586621679506885"><span class="annot"><span class="annottext">s -&gt; Bool
-</span><a href="#local-6989586621679506885"><span class="hs-identifier hs-var">goal</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><a href="Algorithm.RandomChoiceSearch.html#randomSearchInit"><span class="hs-identifier hs-var hs-var">randomSearchInit</span></a></span></span><span> </span><span id="local-6989586621679506867"><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679506867"><span class="hs-identifier hs-var">start</span></a></span></span><span> </span><span id="local-6989586621679506866"><span class="annot"><span class="annottext">s -&gt; Bool
+</span><a href="#local-6989586621679506866"><span class="hs-identifier hs-var">goal</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
 </span><span id="line-35"></span><span>  </span><span class="annot"><a href="Algorithm.RandomChoiceSearch.html#RandomSearch"><span class="hs-identifier hs-type">RandomSearch</span></a></span><span>
 </span><span id="line-36"></span><span>    </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">rsHead :: s
 </span><a href="Algorithm.RandomChoiceSearch.html#rsHead"><span class="hs-identifier hs-var">rsHead</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">s
-</span><a href="#local-6989586621679506886"><span class="hs-identifier hs-var">start</span></a></span><span>
+</span><a href="#local-6989586621679506867"><span class="hs-identifier hs-var">start</span></a></span><span>
 </span><span id="line-37"></span><span>    </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">rsGoal :: s -&gt; Bool
 </span><a href="Algorithm.RandomChoiceSearch.html#rsGoal"><span class="hs-identifier hs-var">rsGoal</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">s -&gt; Bool
-</span><a href="#local-6989586621679506885"><span class="hs-identifier hs-var">goal</span></a></span><span>
+</span><a href="#local-6989586621679506866"><span class="hs-identifier hs-var">goal</span></a></span><span>
 </span><span id="line-38"></span><span>    </span><span class="hs-special">}</span><span>
 </span><span id="line-39"></span><span>
 </span><span id="line-40"></span><span class="hs-comment">{- | Entry point to the search algorithm
 Picks random choice from a split or spread operation
 Skewed towards splits.
 -}</span><span>
-</span><span id="line-44"></span><span id="local-6989586621679506958"><span class="annot"><a href="Algorithm.RandomChoiceSearch.html#randomChoiceSearch"><span class="hs-identifier hs-type">randomChoiceSearch</span></a></span><span>
+</span><span id="line-44"></span><span id="local-6989586621679506939"><span class="annot"><a href="Algorithm.RandomChoiceSearch.html#randomChoiceSearch"><span class="hs-identifier hs-type">randomChoiceSearch</span></a></span><span>
 </span><span id="line-45"></span><span>  </span><span class="hs-comment">-- Just take a input slices.</span><span>
-</span><span id="line-46"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="annot"><a href="#local-6989586621679506958"><span class="hs-identifier hs-type">state</span></a></span><span>
-</span><span id="line-47"></span><span>  </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679506958"><span class="hs-identifier hs-type">state</span></a></span><span> </span><span class="hs-comment">-- starting state</span><span>
-</span><span id="line-48"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679506958"><span class="hs-identifier hs-type">state</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ExceptT</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679506958"><span class="hs-identifier hs-type">state</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="hs-comment">-- get adjacent states</span><span>
-</span><span id="line-49"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679506958"><span class="hs-identifier hs-type">state</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span> </span><span class="hs-comment">-- goal test</span><span>
-</span><span id="line-50"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679506958"><span class="hs-identifier hs-type">state</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">)</span><span> </span><span class="hs-comment">-- showAction</span><span>
-</span><span id="line-51"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ExceptT</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621679506958"><span class="hs-identifier hs-type">state</span></a></span></span><span> </span><span class="hs-comment">-- output</span><span>
+</span><span id="line-46"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="annot"><a href="#local-6989586621679506939"><span class="hs-identifier hs-type">state</span></a></span><span>
+</span><span id="line-47"></span><span>  </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679506939"><span class="hs-identifier hs-type">state</span></a></span><span> </span><span class="hs-comment">-- starting state</span><span>
+</span><span id="line-48"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679506939"><span class="hs-identifier hs-type">state</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ExceptT</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679506939"><span class="hs-identifier hs-type">state</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="hs-comment">-- get adjacent states</span><span>
+</span><span id="line-49"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679506939"><span class="hs-identifier hs-type">state</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span> </span><span class="hs-comment">-- goal test</span><span>
+</span><span id="line-50"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679506939"><span class="hs-identifier hs-type">state</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">)</span><span> </span><span class="hs-comment">-- showAction</span><span>
+</span><span id="line-51"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ExceptT</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621679506939"><span class="hs-identifier hs-type">state</span></a></span></span><span> </span><span class="hs-comment">-- output</span><span>
 </span><span id="line-52"></span><span id="randomChoiceSearch"><span class="annot"><span class="annottext">randomChoiceSearch :: forall state.
 Show state =&gt;
 state
@@ -65,48 +65,48 @@ state
 -&gt; (state -&gt; Bool)
 -&gt; (state -&gt; String)
 -&gt; ExceptT String IO state
-</span><a href="Algorithm.RandomChoiceSearch.html#randomChoiceSearch"><span class="hs-identifier hs-var hs-var">randomChoiceSearch</span></a></span></span><span> </span><span id="local-6989586621679506864"><span class="annot"><span class="annottext">state
-</span><a href="#local-6989586621679506864"><span class="hs-identifier hs-var">initialState</span></a></span></span><span> </span><span id="local-6989586621679506863"><span class="annot"><span class="annottext">state -&gt; ExceptT String IO [state]
-</span><a href="#local-6989586621679506863"><span class="hs-identifier hs-var">getNextStates</span></a></span></span><span> </span><span id="local-6989586621679506862"><span class="annot"><span class="annottext">state -&gt; Bool
-</span><a href="#local-6989586621679506862"><span class="hs-identifier hs-var">isGoalState</span></a></span></span><span> </span><span id="local-6989586621679506861"><span class="annot"><span class="annottext">state -&gt; String
-</span><a href="#local-6989586621679506861"><span class="hs-identifier hs-var">printOp</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-53"></span><span>  </span><span id="local-6989586621679506860"><span class="annot"><span class="annottext">StdGen
-</span><a href="#local-6989586621679506860"><span class="hs-identifier hs-var">gen</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+</span><a href="Algorithm.RandomChoiceSearch.html#randomChoiceSearch"><span class="hs-identifier hs-var hs-var">randomChoiceSearch</span></a></span></span><span> </span><span id="local-6989586621679506845"><span class="annot"><span class="annottext">state
+</span><a href="#local-6989586621679506845"><span class="hs-identifier hs-var">initialState</span></a></span></span><span> </span><span id="local-6989586621679506844"><span class="annot"><span class="annottext">state -&gt; ExceptT String IO [state]
+</span><a href="#local-6989586621679506844"><span class="hs-identifier hs-var">getNextStates</span></a></span></span><span> </span><span id="local-6989586621679506843"><span class="annot"><span class="annottext">state -&gt; Bool
+</span><a href="#local-6989586621679506843"><span class="hs-identifier hs-var">isGoalState</span></a></span></span><span> </span><span id="local-6989586621679506842"><span class="annot"><span class="annottext">state -&gt; String
+</span><a href="#local-6989586621679506842"><span class="hs-identifier hs-var">printOp</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-53"></span><span>  </span><span id="local-6989586621679506841"><span class="annot"><span class="annottext">StdGen
+</span><a href="#local-6989586621679506841"><span class="hs-identifier hs-var">gen</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
 (MonadTrans t, Monad m) =&gt;
 m a -&gt; t m a
 </span><span class="hs-identifier hs-var">lift</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *). MonadIO m =&gt; m StdGen
 </span><span class="hs-identifier hs-var">initStdGen</span></span><span>
-</span><span id="line-54"></span><span>  </span><span id="local-6989586621679506859"><span class="annot"><span class="annottext">IOGenM StdGen
-</span><a href="#local-6989586621679506859"><span class="hs-identifier hs-var">mgen</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+</span><span id="line-54"></span><span>  </span><span id="local-6989586621679506840"><span class="annot"><span class="annottext">IOGenM StdGen
+</span><a href="#local-6989586621679506840"><span class="hs-identifier hs-var">mgen</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
 (MonadTrans t, Monad m) =&gt;
 m a -&gt; t m a
 </span><span class="hs-identifier hs-var">lift</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) g. MonadIO m =&gt; g -&gt; m (IOGenM g)
 </span><span class="hs-identifier hs-var">newIOGenM</span></span><span> </span><span class="annot"><span class="annottext">StdGen
-</span><a href="#local-6989586621679506860"><span class="hs-identifier hs-var">gen</span></a></span><span>
+</span><a href="#local-6989586621679506841"><span class="hs-identifier hs-var">gen</span></a></span><span>
 </span><span id="line-55"></span><span>  </span><span class="annot"><span class="annottext">forall {t}.
 StatefulGen t (ExceptT String IO) =&gt;
 Int -&gt; t -&gt; RandomSearch state -&gt; ExceptT String IO state
-</span><a href="#local-6989586621679506858"><span class="hs-identifier hs-var">search</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679506839"><span class="hs-identifier hs-var">search</span></a></span><span> </span><span class="annot"><span class="annottext">Int
 </span><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">IOGenM StdGen
-</span><a href="#local-6989586621679506859"><span class="hs-identifier hs-var">mgen</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><a href="#local-6989586621679506840"><span class="hs-identifier hs-var">mgen</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall {s}. s -&gt; (s -&gt; Bool) -&gt; RandomSearch s
 </span><a href="Algorithm.RandomChoiceSearch.html#randomSearchInit"><span class="hs-identifier hs-var">randomSearchInit</span></a></span><span> </span><span class="annot"><span class="annottext">state
-</span><a href="#local-6989586621679506864"><span class="hs-identifier hs-var">initialState</span></a></span><span> </span><span class="annot"><span class="annottext">state -&gt; Bool
-</span><a href="#local-6989586621679506862"><span class="hs-identifier hs-var">isGoalState</span></a></span><span>
+</span><a href="#local-6989586621679506845"><span class="hs-identifier hs-var">initialState</span></a></span><span> </span><span class="annot"><span class="annottext">state -&gt; Bool
+</span><a href="#local-6989586621679506843"><span class="hs-identifier hs-var">isGoalState</span></a></span><span>
 </span><span id="line-56"></span><span> </span><span class="hs-keyword">where</span><span>
-</span><span id="line-57"></span><span>  </span><span id="local-6989586621679506858"><span class="annot"><span class="annottext">search :: Int -&gt; t -&gt; RandomSearch state -&gt; ExceptT String IO state
-</span><a href="#local-6989586621679506858"><span class="hs-identifier hs-var hs-var">search</span></a></span></span><span> </span><span id="local-6989586621679506837"><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679506837"><span class="hs-identifier hs-var">maxN</span></a></span></span><span> </span><span id="local-6989586621679506836"><span class="annot"><span class="annottext">t
-</span><a href="#local-6989586621679506836"><span class="hs-identifier hs-var">g</span></a></span></span><span> </span><span id="local-6989586621679506835"><span class="annot"><span class="annottext">RandomSearch state
-</span><a href="#local-6989586621679506835"><span class="hs-identifier hs-var">hs</span></a></span></span><span>
+</span><span id="line-57"></span><span>  </span><span id="local-6989586621679506839"><span class="annot"><span class="annottext">search :: Int -&gt; t -&gt; RandomSearch state -&gt; ExceptT String IO state
+</span><a href="#local-6989586621679506839"><span class="hs-identifier hs-var hs-var">search</span></a></span></span><span> </span><span id="local-6989586621679506818"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679506818"><span class="hs-identifier hs-var">maxN</span></a></span></span><span> </span><span id="local-6989586621679506817"><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679506817"><span class="hs-identifier hs-var">g</span></a></span></span><span> </span><span id="local-6989586621679506816"><span class="annot"><span class="annottext">RandomSearch state
+</span><a href="#local-6989586621679506816"><span class="hs-identifier hs-var">hs</span></a></span></span><span>
 </span><span id="line-58"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">state -&gt; Bool
-</span><a href="#local-6989586621679506862"><span class="hs-identifier hs-var">isGoalState</span></a></span><span> </span><span class="annot"><span class="annottext">state
-</span><a href="#local-6989586621679506834"><span class="hs-identifier hs-var">nearestState</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><a href="#local-6989586621679506843"><span class="hs-identifier hs-var">isGoalState</span></a></span><span> </span><span class="annot"><span class="annottext">state
+</span><a href="#local-6989586621679506815"><span class="hs-identifier hs-var">nearestState</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
 </span><span id="line-59"></span><span>        </span><span class="hs-comment">-- lift $ putStrLn $ &quot;Max number of options reached &quot; &lt;&gt; show maxN</span><span>
 </span><span id="line-60"></span><span>        </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
 </span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">state
-</span><a href="#local-6989586621679506834"><span class="hs-identifier hs-var">nearestState</span></a></span><span>
+</span><a href="#local-6989586621679506815"><span class="hs-identifier hs-var">nearestState</span></a></span><span>
 </span><span id="line-61"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
 </span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
 </span><span id="line-62"></span><span>        </span><span class="hs-comment">-- lift $ putStrLn &quot;___________________________________________________&quot;</span><span>
@@ -114,68 +114,68 @@ Int -&gt; t -&gt; RandomSearch state -&gt; ExceptT String IO state
 </span><span id="line-64"></span><span>        </span><span class="hs-comment">-- lift $ print nearestState</span><span>
 </span><span id="line-65"></span><span>
 </span><span id="line-66"></span><span>        </span><span class="hs-comment">-- Find neighboring states</span><span>
-</span><span id="line-67"></span><span>        </span><span id="local-6989586621679506833"><span class="annot"><span class="annottext">[state]
-</span><a href="#local-6989586621679506833"><span class="hs-identifier hs-var">nextStates</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">state -&gt; ExceptT String IO [state]
-</span><a href="#local-6989586621679506863"><span class="hs-identifier hs-var">getNextStates</span></a></span><span> </span><span class="annot"><span class="annottext">state
-</span><a href="#local-6989586621679506834"><span class="hs-identifier hs-var">nearestState</span></a></span><span>
-</span><span id="line-68"></span><span>        </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679506830"><span class="annot"><span class="annottext">numStates :: Int
-</span><a href="#local-6989586621679506830"><span class="hs-identifier hs-var hs-var">numStates</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Int
+</span><span id="line-67"></span><span>        </span><span id="local-6989586621679506814"><span class="annot"><span class="annottext">[state]
+</span><a href="#local-6989586621679506814"><span class="hs-identifier hs-var">nextStates</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">state -&gt; ExceptT String IO [state]
+</span><a href="#local-6989586621679506844"><span class="hs-identifier hs-var">getNextStates</span></a></span><span> </span><span class="annot"><span class="annottext">state
+</span><a href="#local-6989586621679506815"><span class="hs-identifier hs-var">nearestState</span></a></span><span>
+</span><span id="line-68"></span><span>        </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679506811"><span class="annot"><span class="annottext">numStates :: Int
+</span><a href="#local-6989586621679506811"><span class="hs-identifier hs-var hs-var">numStates</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Int
 </span><span class="hs-identifier hs-var">length</span></span><span> </span><span class="annot"><span class="annottext">[state]
-</span><a href="#local-6989586621679506833"><span class="hs-identifier hs-var">nextStates</span></a></span><span>
+</span><a href="#local-6989586621679506814"><span class="hs-identifier hs-var">nextStates</span></a></span><span>
 </span><span id="line-69"></span><span>
 </span><span id="line-70"></span><span>        </span><span class="hs-comment">-- lift $ putStrLn $ &quot;Choosing randomly from &quot; &lt;&gt; show numStates &lt;&gt; &quot; states&quot;</span><span>
 </span><span id="line-71"></span><span>
 </span><span id="line-72"></span><span>        </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">[state]
-</span><a href="#local-6989586621679506833"><span class="hs-identifier hs-var">nextStates</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><a href="#local-6989586621679506814"><span class="hs-identifier hs-var">nextStates</span></a></span><span> </span><span class="hs-keyword">of</span><span>
 </span><span id="line-73"></span><span>          </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall e (m :: * -&gt; *) a. MonadError e m =&gt; e -&gt; m a
 </span><span class="hs-identifier hs-var">throwError</span></span><span> </span><span class="annot"><span class="annottext">String
 </span><span class="hs-string">&quot;Parse Stuck! Perhaps the number of chords and segments are not the same?&quot;</span></span><span>
-</span><span id="line-74"></span><span>          </span><span id="local-6989586621679506828"><span class="annot"><span class="annottext">[state]
-</span><a href="#local-6989586621679506828"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-75"></span><span>            </span><span id="local-6989586621679506827"><span class="annot"><span class="annottext">state
-</span><a href="#local-6989586621679506827"><span class="hs-identifier hs-var">newHead</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-76"></span><span>              </span><span id="local-6989586621679506826"><span class="annot"><span class="annottext">Maybe state
-</span><a href="#local-6989586621679506826"><span class="hs-identifier hs-var">res</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall g (m :: * -&gt; *) slc.
+</span><span id="line-74"></span><span>          </span><span id="local-6989586621679506809"><span class="annot"><span class="annottext">[state]
+</span><a href="#local-6989586621679506809"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-75"></span><span>            </span><span id="local-6989586621679506808"><span class="annot"><span class="annottext">state
+</span><a href="#local-6989586621679506808"><span class="hs-identifier hs-var">newHead</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-76"></span><span>              </span><span id="local-6989586621679506807"><span class="annot"><span class="annottext">Maybe state
+</span><a href="#local-6989586621679506807"><span class="hs-identifier hs-var">res</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall g (m :: * -&gt; *) slc.
 StatefulGen g m =&gt;
 g -&gt; [slc] -&gt; m (Maybe slc)
 </span><a href="Algorithm.RandomChoiceSearch.html#pickRandom"><span class="hs-identifier hs-var">pickRandom</span></a></span><span> </span><span class="annot"><span class="annottext">t
-</span><a href="#local-6989586621679506836"><span class="hs-identifier hs-var">g</span></a></span><span> </span><span class="annot"><span class="annottext">[state]
-</span><a href="#local-6989586621679506833"><span class="hs-identifier hs-var">nextStates</span></a></span><span>
+</span><a href="#local-6989586621679506817"><span class="hs-identifier hs-var">g</span></a></span><span> </span><span class="annot"><span class="annottext">[state]
+</span><a href="#local-6989586621679506814"><span class="hs-identifier hs-var">nextStates</span></a></span><span>
 </span><span id="line-77"></span><span>              </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Maybe state
-</span><a href="#local-6989586621679506826"><span class="hs-identifier hs-var">res</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><a href="#local-6989586621679506807"><span class="hs-identifier hs-var">res</span></a></span><span> </span><span class="hs-keyword">of</span><span>
 </span><span id="line-78"></span><span>                </span><span class="annot"><span class="annottext">Maybe state
 </span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall e (m :: * -&gt; *) a. MonadError e m =&gt; e -&gt; m a
 </span><span class="hs-identifier hs-var">throwError</span></span><span> </span><span class="annot"><span class="annottext">String
 </span><span class="hs-string">&quot;No Goal found&quot;</span></span><span>
-</span><span id="line-79"></span><span>                </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621679506824"><span class="annot"><span class="annottext">state
-</span><a href="#local-6989586621679506824"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span id="line-79"></span><span>                </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621679506805"><span class="annot"><span class="annottext">state
+</span><a href="#local-6989586621679506805"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
 </span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">state
-</span><a href="#local-6989586621679506824"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><a href="#local-6989586621679506805"><span class="hs-identifier hs-var">s</span></a></span><span>
 </span><span id="line-80"></span><span>            </span><span class="annot"><span class="annottext">Int -&gt; t -&gt; RandomSearch state -&gt; ExceptT String IO state
-</span><a href="#local-6989586621679506858"><span class="hs-identifier hs-var">search</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; a
+</span><a href="#local-6989586621679506839"><span class="hs-identifier hs-var">search</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; a
 </span><span class="hs-identifier hs-var">max</span></span><span> </span><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679506837"><span class="hs-identifier hs-var">maxN</span></a></span><span> </span><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679506830"><span class="hs-identifier hs-var">numStates</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">t
-</span><a href="#local-6989586621679506836"><span class="hs-identifier hs-var">g</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><a href="#local-6989586621679506818"><span class="hs-identifier hs-var">maxN</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679506811"><span class="hs-identifier hs-var">numStates</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679506817"><span class="hs-identifier hs-var">g</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span>
 </span><span id="line-81"></span><span>              </span><span class="annot"><span class="annottext">RandomSearch state
-</span><a href="#local-6989586621679506835"><span class="hs-identifier hs-var">hs</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">rsHead :: state
+</span><a href="#local-6989586621679506816"><span class="hs-identifier hs-var">hs</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">rsHead :: state
 </span><a href="Algorithm.RandomChoiceSearch.html#rsHead"><span class="hs-identifier hs-var">rsHead</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">state
-</span><a href="#local-6989586621679506827"><span class="hs-identifier hs-var">newHead</span></a></span><span class="hs-special">}</span><span>
+</span><a href="#local-6989586621679506808"><span class="hs-identifier hs-var">newHead</span></a></span><span class="hs-special">}</span><span>
 </span><span id="line-82"></span><span>   </span><span class="hs-keyword">where</span><span>
-</span><span id="line-83"></span><span>    </span><span id="local-6989586621679506834"><span class="annot"><span class="annottext">nearestState :: state
-</span><a href="#local-6989586621679506834"><span class="hs-identifier hs-var hs-var">nearestState</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall s. RandomSearch s -&gt; s
+</span><span id="line-83"></span><span>    </span><span id="local-6989586621679506815"><span class="annot"><span class="annottext">nearestState :: state
+</span><a href="#local-6989586621679506815"><span class="hs-identifier hs-var hs-var">nearestState</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall s. RandomSearch s -&gt; s
 </span><a href="Algorithm.RandomChoiceSearch.html#rsHead"><span class="hs-identifier hs-var">rsHead</span></a></span><span> </span><span class="annot"><span class="annottext">RandomSearch state
-</span><a href="#local-6989586621679506835"><span class="hs-identifier hs-var">hs</span></a></span><span>
+</span><a href="#local-6989586621679506816"><span class="hs-identifier hs-var">hs</span></a></span><span>
 </span><span id="line-84"></span><span>
-</span><span id="line-85"></span><span id="local-6989586621679506822"><span class="annot"><a href="Algorithm.RandomChoiceSearch.html#randomChoiceSearchSingleSegment"><span class="hs-identifier hs-type">randomChoiceSearchSingleSegment</span></a></span><span>
+</span><span id="line-85"></span><span id="local-6989586621679506803"><span class="annot"><a href="Algorithm.RandomChoiceSearch.html#randomChoiceSearchSingleSegment"><span class="hs-identifier hs-type">randomChoiceSearchSingleSegment</span></a></span><span>
 </span><span id="line-86"></span><span>  </span><span class="hs-comment">-- Just take a input slices.</span><span>
-</span><span id="line-87"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="annot"><a href="#local-6989586621679506822"><span class="hs-identifier hs-type">state</span></a></span><span>
-</span><span id="line-88"></span><span>  </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679506822"><span class="hs-identifier hs-type">state</span></a></span><span> </span><span class="hs-comment">-- starting state</span><span>
-</span><span id="line-89"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679506822"><span class="hs-identifier hs-type">state</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ExceptT</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679506822"><span class="hs-identifier hs-type">state</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="hs-comment">-- get adjacent states</span><span>
-</span><span id="line-90"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679506822"><span class="hs-identifier hs-type">state</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span> </span><span class="hs-comment">-- goal test</span><span>
-</span><span id="line-91"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679506822"><span class="hs-identifier hs-type">state</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">)</span><span> </span><span class="hs-comment">-- showAction</span><span>
-</span><span id="line-92"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ExceptT</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621679506822"><span class="hs-identifier hs-type">state</span></a></span></span><span> </span><span class="hs-comment">-- output</span><span>
+</span><span id="line-87"></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="annot"><a href="#local-6989586621679506803"><span class="hs-identifier hs-type">state</span></a></span><span>
+</span><span id="line-88"></span><span>  </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679506803"><span class="hs-identifier hs-type">state</span></a></span><span> </span><span class="hs-comment">-- starting state</span><span>
+</span><span id="line-89"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679506803"><span class="hs-identifier hs-type">state</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ExceptT</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679506803"><span class="hs-identifier hs-type">state</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="hs-comment">-- get adjacent states</span><span>
+</span><span id="line-90"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679506803"><span class="hs-identifier hs-type">state</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span> </span><span class="hs-comment">-- goal test</span><span>
+</span><span id="line-91"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679506803"><span class="hs-identifier hs-type">state</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">)</span><span> </span><span class="hs-comment">-- showAction</span><span>
+</span><span id="line-92"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ExceptT</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621679506803"><span class="hs-identifier hs-type">state</span></a></span></span><span> </span><span class="hs-comment">-- output</span><span>
 </span><span id="line-93"></span><span id="randomChoiceSearchSingleSegment"><span class="annot"><span class="annottext">randomChoiceSearchSingleSegment :: forall state.
 Show state =&gt;
 state
@@ -183,48 +183,48 @@ state
 -&gt; (state -&gt; Bool)
 -&gt; (state -&gt; String)
 -&gt; ExceptT String IO state
-</span><a href="Algorithm.RandomChoiceSearch.html#randomChoiceSearchSingleSegment"><span class="hs-identifier hs-var hs-var">randomChoiceSearchSingleSegment</span></a></span></span><span> </span><span id="local-6989586621679506807"><span class="annot"><span class="annottext">state
-</span><a href="#local-6989586621679506807"><span class="hs-identifier hs-var">initialState</span></a></span></span><span> </span><span id="local-6989586621679506806"><span class="annot"><span class="annottext">state -&gt; ExceptT String IO [state]
-</span><a href="#local-6989586621679506806"><span class="hs-identifier hs-var">getNextStates</span></a></span></span><span> </span><span id="local-6989586621679506805"><span class="annot"><span class="annottext">state -&gt; Bool
-</span><a href="#local-6989586621679506805"><span class="hs-identifier hs-var">isGoalState</span></a></span></span><span> </span><span id="local-6989586621679506804"><span class="annot"><span class="annottext">state -&gt; String
-</span><a href="#local-6989586621679506804"><span class="hs-identifier hs-var">printOp</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-94"></span><span>  </span><span id="local-6989586621679506803"><span class="annot"><span class="annottext">StdGen
-</span><a href="#local-6989586621679506803"><span class="hs-identifier hs-var">gen</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+</span><a href="Algorithm.RandomChoiceSearch.html#randomChoiceSearchSingleSegment"><span class="hs-identifier hs-var hs-var">randomChoiceSearchSingleSegment</span></a></span></span><span> </span><span id="local-6989586621679506788"><span class="annot"><span class="annottext">state
+</span><a href="#local-6989586621679506788"><span class="hs-identifier hs-var">initialState</span></a></span></span><span> </span><span id="local-6989586621679506787"><span class="annot"><span class="annottext">state -&gt; ExceptT String IO [state]
+</span><a href="#local-6989586621679506787"><span class="hs-identifier hs-var">getNextStates</span></a></span></span><span> </span><span id="local-6989586621679506786"><span class="annot"><span class="annottext">state -&gt; Bool
+</span><a href="#local-6989586621679506786"><span class="hs-identifier hs-var">isGoalState</span></a></span></span><span> </span><span id="local-6989586621679506785"><span class="annot"><span class="annottext">state -&gt; String
+</span><a href="#local-6989586621679506785"><span class="hs-identifier hs-var">printOp</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-94"></span><span>  </span><span id="local-6989586621679506784"><span class="annot"><span class="annottext">StdGen
+</span><a href="#local-6989586621679506784"><span class="hs-identifier hs-var">gen</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
 (MonadTrans t, Monad m) =&gt;
 m a -&gt; t m a
 </span><span class="hs-identifier hs-var">lift</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *). MonadIO m =&gt; m StdGen
 </span><span class="hs-identifier hs-var">initStdGen</span></span><span>
-</span><span id="line-95"></span><span>  </span><span id="local-6989586621679506802"><span class="annot"><span class="annottext">IOGenM StdGen
-</span><a href="#local-6989586621679506802"><span class="hs-identifier hs-var">mgen</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+</span><span id="line-95"></span><span>  </span><span id="local-6989586621679506783"><span class="annot"><span class="annottext">IOGenM StdGen
+</span><a href="#local-6989586621679506783"><span class="hs-identifier hs-var">mgen</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
 (MonadTrans t, Monad m) =&gt;
 m a -&gt; t m a
 </span><span class="hs-identifier hs-var">lift</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) g. MonadIO m =&gt; g -&gt; m (IOGenM g)
 </span><span class="hs-identifier hs-var">newIOGenM</span></span><span> </span><span class="annot"><span class="annottext">StdGen
-</span><a href="#local-6989586621679506803"><span class="hs-identifier hs-var">gen</span></a></span><span>
+</span><a href="#local-6989586621679506784"><span class="hs-identifier hs-var">gen</span></a></span><span>
 </span><span id="line-96"></span><span>  </span><span class="annot"><span class="annottext">forall {t}.
 StatefulGen t (ExceptT String IO) =&gt;
 Int -&gt; t -&gt; RandomSearch state -&gt; ExceptT String IO state
-</span><a href="#local-6989586621679506801"><span class="hs-identifier hs-var">search</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679506782"><span class="hs-identifier hs-var">search</span></a></span><span> </span><span class="annot"><span class="annottext">Int
 </span><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">IOGenM StdGen
-</span><a href="#local-6989586621679506802"><span class="hs-identifier hs-var">mgen</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><a href="#local-6989586621679506783"><span class="hs-identifier hs-var">mgen</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall {s}. s -&gt; (s -&gt; Bool) -&gt; RandomSearch s
 </span><a href="Algorithm.RandomChoiceSearch.html#randomSearchInit"><span class="hs-identifier hs-var">randomSearchInit</span></a></span><span> </span><span class="annot"><span class="annottext">state
-</span><a href="#local-6989586621679506807"><span class="hs-identifier hs-var">initialState</span></a></span><span> </span><span class="annot"><span class="annottext">state -&gt; Bool
-</span><a href="#local-6989586621679506805"><span class="hs-identifier hs-var">isGoalState</span></a></span><span>
+</span><a href="#local-6989586621679506788"><span class="hs-identifier hs-var">initialState</span></a></span><span> </span><span class="annot"><span class="annottext">state -&gt; Bool
+</span><a href="#local-6989586621679506786"><span class="hs-identifier hs-var">isGoalState</span></a></span><span>
 </span><span id="line-97"></span><span> </span><span class="hs-keyword">where</span><span>
-</span><span id="line-98"></span><span>  </span><span id="local-6989586621679506801"><span class="annot"><span class="annottext">search :: Int -&gt; t -&gt; RandomSearch state -&gt; ExceptT String IO state
-</span><a href="#local-6989586621679506801"><span class="hs-identifier hs-var hs-var">search</span></a></span></span><span> </span><span id="local-6989586621679506781"><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679506781"><span class="hs-identifier hs-var">maxN</span></a></span></span><span> </span><span id="local-6989586621679506780"><span class="annot"><span class="annottext">t
-</span><a href="#local-6989586621679506780"><span class="hs-identifier hs-var">g</span></a></span></span><span> </span><span id="local-6989586621679506779"><span class="annot"><span class="annottext">RandomSearch state
-</span><a href="#local-6989586621679506779"><span class="hs-identifier hs-var">hs</span></a></span></span><span>
+</span><span id="line-98"></span><span>  </span><span id="local-6989586621679506782"><span class="annot"><span class="annottext">search :: Int -&gt; t -&gt; RandomSearch state -&gt; ExceptT String IO state
+</span><a href="#local-6989586621679506782"><span class="hs-identifier hs-var hs-var">search</span></a></span></span><span> </span><span id="local-6989586621679506762"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679506762"><span class="hs-identifier hs-var">maxN</span></a></span></span><span> </span><span id="local-6989586621679506761"><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679506761"><span class="hs-identifier hs-var">g</span></a></span></span><span> </span><span id="local-6989586621679506760"><span class="annot"><span class="annottext">RandomSearch state
+</span><a href="#local-6989586621679506760"><span class="hs-identifier hs-var">hs</span></a></span></span><span>
 </span><span id="line-99"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">state -&gt; Bool
-</span><a href="#local-6989586621679506805"><span class="hs-identifier hs-var">isGoalState</span></a></span><span> </span><span class="annot"><span class="annottext">state
-</span><a href="#local-6989586621679506778"><span class="hs-identifier hs-var">nearestState</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><a href="#local-6989586621679506786"><span class="hs-identifier hs-var">isGoalState</span></a></span><span> </span><span class="annot"><span class="annottext">state
+</span><a href="#local-6989586621679506759"><span class="hs-identifier hs-var">nearestState</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
 </span><span id="line-100"></span><span>        </span><span class="hs-comment">-- lift $ putStrLn $ &quot;Max number of options reached &quot; &lt;&gt; show maxN</span><span>
 </span><span id="line-101"></span><span>        </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
 </span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">state
-</span><a href="#local-6989586621679506778"><span class="hs-identifier hs-var">nearestState</span></a></span><span>
+</span><a href="#local-6989586621679506759"><span class="hs-identifier hs-var">nearestState</span></a></span><span>
 </span><span id="line-102"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
 </span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
 </span><span id="line-103"></span><span>        </span><span class="hs-comment">-- lift $ putStrLn &quot;___________________________________________________&quot;</span><span>
@@ -235,63 +235,63 @@ m a -&gt; t m a
 </span><span class="hs-identifier hs-var">lift</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a. Show a =&gt; a -&gt; IO ()
 </span><span class="hs-identifier hs-var">print</span></span><span> </span><span class="annot"><span class="annottext">state
-</span><a href="#local-6989586621679506778"><span class="hs-identifier hs-var">nearestState</span></a></span><span>
+</span><a href="#local-6989586621679506759"><span class="hs-identifier hs-var">nearestState</span></a></span><span>
 </span><span id="line-106"></span><span>
 </span><span id="line-107"></span><span>        </span><span class="hs-comment">-- Find neighboring states</span><span>
-</span><span id="line-108"></span><span>        </span><span id="local-6989586621679506777"><span class="annot"><span class="annottext">[state]
-</span><a href="#local-6989586621679506777"><span class="hs-identifier hs-var">nextStates</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">state -&gt; ExceptT String IO [state]
-</span><a href="#local-6989586621679506806"><span class="hs-identifier hs-var">getNextStates</span></a></span><span> </span><span class="annot"><span class="annottext">state
-</span><a href="#local-6989586621679506778"><span class="hs-identifier hs-var">nearestState</span></a></span><span>
-</span><span id="line-109"></span><span>        </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679506775"><span class="annot"><span class="annottext">numStates :: Int
-</span><a href="#local-6989586621679506775"><span class="hs-identifier hs-var hs-var">numStates</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Int
+</span><span id="line-108"></span><span>        </span><span id="local-6989586621679506758"><span class="annot"><span class="annottext">[state]
+</span><a href="#local-6989586621679506758"><span class="hs-identifier hs-var">nextStates</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">state -&gt; ExceptT String IO [state]
+</span><a href="#local-6989586621679506787"><span class="hs-identifier hs-var">getNextStates</span></a></span><span> </span><span class="annot"><span class="annottext">state
+</span><a href="#local-6989586621679506759"><span class="hs-identifier hs-var">nearestState</span></a></span><span>
+</span><span id="line-109"></span><span>        </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679506756"><span class="annot"><span class="annottext">numStates :: Int
+</span><a href="#local-6989586621679506756"><span class="hs-identifier hs-var hs-var">numStates</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Int
 </span><span class="hs-identifier hs-var">length</span></span><span> </span><span class="annot"><span class="annottext">[state]
-</span><a href="#local-6989586621679506777"><span class="hs-identifier hs-var">nextStates</span></a></span><span>
+</span><a href="#local-6989586621679506758"><span class="hs-identifier hs-var">nextStates</span></a></span><span>
 </span><span id="line-110"></span><span>
 </span><span id="line-111"></span><span>        </span><span class="hs-comment">-- lift $ putStrLn $ &quot;Choosing randomly from &quot; &lt;&gt; show numStates &lt;&gt; &quot; states&quot;</span><span>
 </span><span id="line-112"></span><span>
 </span><span id="line-113"></span><span>        </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">[state]
-</span><a href="#local-6989586621679506777"><span class="hs-identifier hs-var">nextStates</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><a href="#local-6989586621679506758"><span class="hs-identifier hs-var">nextStates</span></a></span><span> </span><span class="hs-keyword">of</span><span>
 </span><span id="line-114"></span><span>          </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall e (m :: * -&gt; *) a. MonadError e m =&gt; e -&gt; m a
 </span><span class="hs-identifier hs-var">throwError</span></span><span> </span><span class="annot"><span class="annottext">String
 </span><span class="hs-string">&quot;Parse Stuck! Perhaps the number of chords and segments are not the same?&quot;</span></span><span>
-</span><span id="line-115"></span><span>          </span><span id="local-6989586621679506774"><span class="annot"><span class="annottext">[state]
-</span><a href="#local-6989586621679506774"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-116"></span><span>            </span><span id="local-6989586621679506773"><span class="annot"><span class="annottext">state
-</span><a href="#local-6989586621679506773"><span class="hs-identifier hs-var">newHead</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-117"></span><span>              </span><span id="local-6989586621679506772"><span class="annot"><span class="annottext">Maybe state
-</span><a href="#local-6989586621679506772"><span class="hs-identifier hs-var">res</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall g (m :: * -&gt; *) slc.
+</span><span id="line-115"></span><span>          </span><span id="local-6989586621679506755"><span class="annot"><span class="annottext">[state]
+</span><a href="#local-6989586621679506755"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-116"></span><span>            </span><span id="local-6989586621679506754"><span class="annot"><span class="annottext">state
+</span><a href="#local-6989586621679506754"><span class="hs-identifier hs-var">newHead</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-117"></span><span>              </span><span id="local-6989586621679506753"><span class="annot"><span class="annottext">Maybe state
+</span><a href="#local-6989586621679506753"><span class="hs-identifier hs-var">res</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall g (m :: * -&gt; *) slc.
 StatefulGen g m =&gt;
 g -&gt; [slc] -&gt; m (Maybe slc)
 </span><a href="Algorithm.RandomChoiceSearch.html#pickRandom"><span class="hs-identifier hs-var">pickRandom</span></a></span><span> </span><span class="annot"><span class="annottext">t
-</span><a href="#local-6989586621679506780"><span class="hs-identifier hs-var">g</span></a></span><span> </span><span class="annot"><span class="annottext">[state]
-</span><a href="#local-6989586621679506777"><span class="hs-identifier hs-var">nextStates</span></a></span><span>
+</span><a href="#local-6989586621679506761"><span class="hs-identifier hs-var">g</span></a></span><span> </span><span class="annot"><span class="annottext">[state]
+</span><a href="#local-6989586621679506758"><span class="hs-identifier hs-var">nextStates</span></a></span><span>
 </span><span id="line-118"></span><span>              </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Maybe state
-</span><a href="#local-6989586621679506772"><span class="hs-identifier hs-var">res</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><a href="#local-6989586621679506753"><span class="hs-identifier hs-var">res</span></a></span><span> </span><span class="hs-keyword">of</span><span>
 </span><span id="line-119"></span><span>                </span><span class="annot"><span class="annottext">Maybe state
 </span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall e (m :: * -&gt; *) a. MonadError e m =&gt; e -&gt; m a
 </span><span class="hs-identifier hs-var">throwError</span></span><span> </span><span class="annot"><span class="annottext">String
 </span><span class="hs-string">&quot;No Goal found&quot;</span></span><span>
-</span><span id="line-120"></span><span>                </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621679506771"><span class="annot"><span class="annottext">state
-</span><a href="#local-6989586621679506771"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span id="line-120"></span><span>                </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621679506752"><span class="annot"><span class="annottext">state
+</span><a href="#local-6989586621679506752"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
 </span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">state
-</span><a href="#local-6989586621679506771"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><a href="#local-6989586621679506752"><span class="hs-identifier hs-var">s</span></a></span><span>
 </span><span id="line-121"></span><span>            </span><span class="annot"><span class="annottext">Int -&gt; t -&gt; RandomSearch state -&gt; ExceptT String IO state
-</span><a href="#local-6989586621679506801"><span class="hs-identifier hs-var">search</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; a
+</span><a href="#local-6989586621679506782"><span class="hs-identifier hs-var">search</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; a
 </span><span class="hs-identifier hs-var">max</span></span><span> </span><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679506781"><span class="hs-identifier hs-var">maxN</span></a></span><span> </span><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679506775"><span class="hs-identifier hs-var">numStates</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">t
-</span><a href="#local-6989586621679506780"><span class="hs-identifier hs-var">g</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><a href="#local-6989586621679506762"><span class="hs-identifier hs-var">maxN</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679506756"><span class="hs-identifier hs-var">numStates</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679506761"><span class="hs-identifier hs-var">g</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span>
 </span><span id="line-122"></span><span>              </span><span class="annot"><span class="annottext">RandomSearch state
-</span><a href="#local-6989586621679506779"><span class="hs-identifier hs-var">hs</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">rsHead :: state
+</span><a href="#local-6989586621679506760"><span class="hs-identifier hs-var">hs</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">rsHead :: state
 </span><a href="Algorithm.RandomChoiceSearch.html#rsHead"><span class="hs-identifier hs-var">rsHead</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">state
-</span><a href="#local-6989586621679506773"><span class="hs-identifier hs-var">newHead</span></a></span><span class="hs-special">}</span><span>
+</span><a href="#local-6989586621679506754"><span class="hs-identifier hs-var">newHead</span></a></span><span class="hs-special">}</span><span>
 </span><span id="line-123"></span><span>   </span><span class="hs-keyword">where</span><span>
-</span><span id="line-124"></span><span>    </span><span id="local-6989586621679506778"><span class="annot"><span class="annottext">nearestState :: state
-</span><a href="#local-6989586621679506778"><span class="hs-identifier hs-var hs-var">nearestState</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall s. RandomSearch s -&gt; s
+</span><span id="line-124"></span><span>    </span><span id="local-6989586621679506759"><span class="annot"><span class="annottext">nearestState :: state
+</span><a href="#local-6989586621679506759"><span class="hs-identifier hs-var hs-var">nearestState</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall s. RandomSearch s -&gt; s
 </span><a href="Algorithm.RandomChoiceSearch.html#rsHead"><span class="hs-identifier hs-var">rsHead</span></a></span><span> </span><span class="annot"><span class="annottext">RandomSearch state
-</span><a href="#local-6989586621679506779"><span class="hs-identifier hs-var">hs</span></a></span><span>
-</span><span id="line-125"></span><span id="local-6989586621679506917"><span id="local-6989586621679506918"><span id="local-6989586621679506919"><span class="annot"><a href="Algorithm.RandomChoiceSearch.html#pickRandom"><span class="hs-identifier hs-type">pickRandom</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">StatefulGen</span></span><span> </span><span class="annot"><a href="#local-6989586621679506919"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679506918"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679506919"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679506917"><span class="hs-identifier hs-type">slc</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679506918"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679506917"><span class="hs-identifier hs-type">slc</span></a></span><span class="hs-special">)</span></span></span></span><span>
+</span><a href="#local-6989586621679506760"><span class="hs-identifier hs-var">hs</span></a></span><span>
+</span><span id="line-125"></span><span id="local-6989586621679506898"><span id="local-6989586621679506899"><span id="local-6989586621679506900"><span class="annot"><a href="Algorithm.RandomChoiceSearch.html#pickRandom"><span class="hs-identifier hs-type">pickRandom</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">StatefulGen</span></span><span> </span><span class="annot"><a href="#local-6989586621679506900"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679506899"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679506900"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679506898"><span class="hs-identifier hs-type">slc</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679506899"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679506898"><span class="hs-identifier hs-type">slc</span></a></span><span class="hs-special">)</span></span></span></span><span>
 </span><span id="line-126"></span><span id="pickRandom"><span class="annot"><span class="annottext">pickRandom :: forall g (m :: * -&gt; *) slc.
 StatefulGen g m =&gt;
 g -&gt; [slc] -&gt; m (Maybe slc)
@@ -299,26 +299,26 @@ g -&gt; [slc] -&gt; m (Maybe slc)
 </span><span class="hs-identifier">_</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
 </span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">forall a. Maybe a
 </span><span class="hs-identifier hs-var">Nothing</span></span><span>
-</span><span id="line-127"></span><span class="annot"><a href="Algorithm.RandomChoiceSearch.html#pickRandom"><span class="hs-identifier hs-var">pickRandom</span></a></span><span> </span><span id="local-6989586621679506754"><span class="annot"><span class="annottext">g
-</span><a href="#local-6989586621679506754"><span class="hs-identifier hs-var">gen</span></a></span></span><span> </span><span id="local-6989586621679506753"><span class="annot"><span class="annottext">[slc]
-</span><a href="#local-6989586621679506753"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-128"></span><span>  </span><span id="local-6989586621679506752"><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679506752"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall a g (m :: * -&gt; *).
+</span><span id="line-127"></span><span class="annot"><a href="Algorithm.RandomChoiceSearch.html#pickRandom"><span class="hs-identifier hs-var">pickRandom</span></a></span><span> </span><span id="local-6989586621679506735"><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679506735"><span class="hs-identifier hs-var">gen</span></a></span></span><span> </span><span id="local-6989586621679506734"><span class="annot"><span class="annottext">[slc]
+</span><a href="#local-6989586621679506734"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-128"></span><span>  </span><span id="local-6989586621679506733"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679506733"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall a g (m :: * -&gt; *).
 (UniformRange a, StatefulGen g m) =&gt;
 (a, a) -&gt; g -&gt; m a
 </span><span class="hs-identifier hs-var">uniformRM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
 </span><span class="hs-number">0</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Int
 </span><span class="hs-identifier hs-var">length</span></span><span> </span><span class="annot"><span class="annottext">[slc]
-</span><a href="#local-6989586621679506753"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><a href="#local-6989586621679506734"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
 </span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Int
 </span><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">g
-</span><a href="#local-6989586621679506754"><span class="hs-identifier hs-var">gen</span></a></span><span>
+</span><a href="#local-6989586621679506735"><span class="hs-identifier hs-var">gen</span></a></span><span>
 </span><span id="line-129"></span><span>  </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
 </span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a. a -&gt; Maybe a
 </span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[slc]
-</span><a href="#local-6989586621679506753"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. [a] -&gt; Int -&gt; a
+</span><a href="#local-6989586621679506734"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. [a] -&gt; Int -&gt; a
 </span><span class="hs-operator hs-var">!!</span></span><span> </span><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679506752"><span class="hs-identifier hs-var">i</span></a></span><span>
+</span><a href="#local-6989586621679506733"><span class="hs-identifier hs-var">i</span></a></span><span>
 </span><span id="line-130"></span></pre></body></html>
