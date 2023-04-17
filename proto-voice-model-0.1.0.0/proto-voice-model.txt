@@ -1270,6 +1270,7 @@ randomChoiceSearch :: Show state => state -> (state -> ExceptT String IO [state]
 module Algorithm.HeuristicSearch
 aab :: Int -> [a] -> IO [a]
 stochasticBeamSearch :: Int -> Int -> SearchState' -> (SearchState' -> ExceptT String IO [SearchState']) -> (SearchState' -> Bool) -> ((SearchState', SearchState') -> ExceptT String IO Double) -> ExceptT String IO SearchState'
+dualStochasticBeamSearch :: Int -> Int -> SearchState' -> (SearchState' -> ExceptT String IO [SearchState']) -> (SearchState' -> Bool) -> ((SearchState', SearchState') -> ExceptT String IO Double) -> ExceptT String IO SearchState'
 stochasticBeamSearchLimited :: Int -> Int -> SearchState' -> (SearchState' -> ExceptT String IO [SearchState']) -> (SearchState' -> Bool) -> ((SearchState', SearchState') -> ExceptT String IO Double) -> ExceptT String IO SearchState'
 
 -- | Entry point to the search algorithm
@@ -1543,6 +1544,7 @@ RandomSample :: AlgoType
 RandomReduction :: AlgoType
 BeamSearch :: BeamWidth -> AlgoType
 StochasticBeamSearch :: BeamWidth -> ResevoirSize -> AlgoType
+DualStochasticBeamSearch :: BeamWidth -> ResevoirSize -> AlgoType
 StochasticBeamSearchLimited :: BeamWidth -> ResevoirSize -> MaxNotesPerSlice -> AlgoType
 BeamSearchPerSegment :: BeamWidth -> AlgoType
 DualBeamSearch :: UnspreadWidth -> UnsplitWidth -> AlgoType
