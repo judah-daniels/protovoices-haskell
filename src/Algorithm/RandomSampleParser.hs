@@ -6,6 +6,7 @@ module Algorithm.RandomSampleParser
   (
     randomSamplePath
   , randomSamplePathSBS
+  , poissonSample
   )
     where
 
@@ -24,6 +25,7 @@ import Data.Maybe (fromJust, fromMaybe)
 
 import Internal.MultiSet qualified as MS
 
+import Probability
 import Data.Aeson.KeyMap (singleton)
 import System.Random (initStdGen)
 import System.Random.Stateful
@@ -31,11 +33,6 @@ import System.Random.Stateful
   , newIOGenM
   , uniformRM
   )
-
-
-
-
-
 
 {- |
   Generates a path of random notes for the given number of segments
@@ -78,21 +75,13 @@ randomSamplePathSBS inputSlices = do
   gen <- initStdGen
   mgen <- newIOGenM gen
   mapM (genSliceSBS mgen) inputSlices
-  -- genPath mgen inputSlices
- -- where
-   -- sampleSlice mgen [] = pure $ Notes MS.empty 
-   -- sampleSlice mgen seg = do 
-     -- rst <- sampleSlice mgen rst 
-  -- genPath mgen [] = pure $ PathEnd (Edges S.empty MS.empty)
-  -- genPath mgen (seg : rst) = do
-  --   rst <- genPath mgen rst
-  --   slc <- genSliceSBS mgen seg
-  --   pure $ Path (Edges S.empty MS.empty) slc rst
+
 
 genSliceSBS :: StatefulGen g IO => g -> [InputSlice SPitch] -> IO (Notes SPitch)
 genSliceSBS gen slcs = do
-  n <- uniformRM (2 :: Int, 5) gen
-  notes <- mapM (genNote gen allNotes) [1 .. n]
+  -- n <- uniformRM (2 :: Int, 5) gen
+  n <- poissonSample gen 5.2
+  notes <- mapM (genNote gen allNotes) [1 .. (n+1)]
   pure $ Notes $ MS.fromList notes
  where
   allNotes = fst <$> concatMap fst slcs
@@ -110,8 +99,3 @@ genSlice gen = do
     i <- uniformRM (-7, 7) gen
     pure $ spelledp i i
 
-pickRandom :: StatefulGen g m => g -> [slc] -> m (Maybe slc)
-pickRandom _ [] = pure Nothing
-pickRandom gen xs = do
-  i <- uniformRM (0, length xs - 1) gen
-  pure $ Just $ xs !! i

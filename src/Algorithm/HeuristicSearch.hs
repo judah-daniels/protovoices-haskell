@@ -12,10 +12,10 @@ module Algorithm.HeuristicSearch
     ,dualStochasticBeamSearch
     ,stochasticBeamSearchLimited
     , beamSearch
-    ,reservoirSample
   )
     where
 
+import Probability
 import Control.Logging qualified as Log
 import Data.Text qualified as T
 import Data.Vector qualified as V
@@ -70,35 +70,6 @@ aab k xs = do
   mgen <- newIOGenM gen
   reservoirSample mgen k xs
 
--- With a simple list, this is pretty instant as long as the total list is less than 1000000
--- Cost is based on size of list rather than reservoir size. 
-reservoirSample :: StatefulGen g IO => g -> Int -> [a] -> IO [a]
-reservoirSample gen k xs
-  | n <= k = pure xs
-  | otherwise = do
-     let res = V.fromList $ take k xs
-     r <- uniformRM (0::Double,1::Double) gen
-     let w = exp (log r / fromIntegral (k-1))
-     z <- go gen k res w (drop k xs)
-     pure $ V.toList z
-       where
-         -- go :: g -> Int -> V.Vector t -> Double -> [t] -> V.Vector t 
-         go gen i res w [] = pure res
-         go gen i res w xs = do
-           r <- uniformRM (0, 1) gen
-           let jump = floor (logBase (1-w) r) + 1
-           if i+jump > n-1
-              then pure res
-              else case drop jump xs of
-                [] -> pure res
-                xss@(x:_) -> do
-                   let xss = drop jump xs
-                   rint <- uniformRM (0, k-1) gen
-                   r <- uniformRM (0,1) gen
-                   let newres = res V.// [(rint, x)]
-                   let w' = w * exp (log r / fromIntegral k)
-                   go gen (i+jump) newres w' xss
-         n = length xs
 
 dualStochasticBeamSearch
   :: Int -- Hyperparameters
@@ -117,9 +88,6 @@ dualStochasticBeamSearch beamWidth reservoir initialState getNextStates isGoalSt
     | null open = throwError "No Goal Found"
     | not $ null goalStates = do 
         lift $ Log.log $ T.pack ("Goal States:\n"<> concatMap (\(a,b)-> show a <> show b <> "\n") goalStates)
-        -- lift $ Log.log $ T.pack ("\nUnfreezes:\n"<> concatMap (\(a,b)-> show a <> show b <> "\n") (filter (isFreeze . snd) goalStates))
-        -- lift $ Log.log $ T.pack ("\nUnSplits\n" <> concatMap (\(a,b)-> show a <> show b <> "\n") (filter (isSplit . snd) goalStates))
-        -- lift $ Log.log $ T.pack ("\nUnspreads\n" <> concatMap (\(a,b)-> show a <> show b <> "\n") (filter (isSpread . snd) goalStates))
         pure . snd . head $ minElems 1 [] (filter (isFreeze . snd ) goalStates)
     | otherwise = do
         lift $ Log.log $ T.pack ("\nBeam:\n"<> concatMap (\(a,b)-> show a <> show b <> "\n") open)
@@ -130,13 +98,6 @@ dualStochasticBeamSearch beamWidth reservoir initialState getNextStates isGoalSt
           ) open
         let allNextStates = filter (not . isNaN . fst . fst ) $ concat nextStatesAll
 
-        -- Take a sample from list instead of all of them 
-        -- truncated <- pure $ take resevoir allNextStates
-        -- truncated <- lift $ reservoirSample mgen reservoir allNextStates
-        -- nextWithCosts <- mapM doHeuristic truncated
-        -- remove nan 
-        -- let nextWithCosts = filter (not . isNaN . fst ) nextWithCosts
-
         nextUnfreezeStates <- do 
           r <- mapM doHeuristic $ filter (isFreeze . snd) allNextStates
           pure $ filter (not .isNaN . fst) r
@@ -144,12 +105,13 @@ dualStochasticBeamSearch beamWidth reservoir initialState getNextStates isGoalSt
           x <- lift $ reservoirSample mgen reservoir $ filter (isSpread . snd) allNextStates
           r <- mapM doHeuristic x
           pure $ filter (not .isNaN . fst) r
-
         nextUnsplitStates <- do
           x <- lift $ reservoirSample mgen reservoir $ filter (isSplit . snd) allNextStates 
           r <- mapM doHeuristic x
           pure $ filter (not .isNaN . fst) r
+
         let nextStates = concatMap (minElems beamWidth []) [nextUnfreezeStates,nextUnsplitStates,nextUnspreadStates]
+
         search mgen $
           hs{frontier = nextStates}
    where
@@ -244,6 +206,7 @@ stochasticBeamSearchLimited beamWidth resevoir initialState getNextStates isGoal
         h <- heuristic (state, newState)
         pure (cost + h, newState)
 
+logD x = lift $ Log.log $ T.pack x
 
 stochasticBeamSearch
   :: Int -- Hyperparameters
@@ -262,7 +225,7 @@ stochasticBeamSearch beamWidth resevoir initialState getNextStates isGoalState h
     | null open = throwError "No Goal Found"
     | not $ null goalStates = pure . snd . head $ goalStates
     | otherwise = do
-        lift $ Log.log $ T.pack (show open)
+        logD $ show open
 
         nextStatesAll <- mapM
           (\(oldcost, s) -> do

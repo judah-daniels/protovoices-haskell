@@ -12,6 +12,7 @@ module Heuristics
 import Control.Logging qualified as Log
 import Data.Text qualified as T
 import Common hiding (log)
+import Probability
 
 import PVGrammar hiding
   ( slicesFromFile
@@ -66,7 +67,7 @@ heuristicZero (prevState, state) = case getOpFromState state of
     pure $ case op of
     -- Freezing
       LMDouble doubleOp ->
-        let (ms, tl, sl, tm, sr) = getParentDouble (prevState) in
+        let (ms, tl, sl, tm, sr) = getParentDouble prevState in
           case doubleOp of
             LMDoubleFreezeLeft freezeOp -> 0
             LMDoubleSpread spreadOp ->
@@ -193,7 +194,7 @@ heuristicZero (prevState, state) = case getOpFromState state of
               evaluateChordTone slcR x / 2
               + evaluateChordTone slcL n
 
-        scoreReg (_, (n,orn)) = error "invalid regular edge" 
+        scoreReg (_, (n,orn)) = error "invalid regular edge"
 
         scorePass ((x,y), (n,orn)) =
           case orn of
@@ -202,7 +203,7 @@ heuristicZero (prevState, state) = case getOpFromState state of
               ( evaluateChordTone slcL x + evaluateChordTone slcR y
               + evaluateOrnament slcL n + evaluateOrnament slcR n ) / 2
             PassingRight -> evaluateOrnament slcL n + evaluateChordTone slcR x
-        
+
         scorePassRight (n,y) = evaluateOrnament slcR n + evaluateChordTone slcR y
         scorePassLeft (x,n) = evaluateOrnament slcL n + evaluateChordTone slcL x
 
@@ -225,13 +226,13 @@ heuristicZero (prevState, state) = case getOpFromState state of
               probsPasses = map scorePass (MS.toList edgesPass)
               aggregateProbs = probsRegs <> probsPasses
               score = - (sum aggregateProbs / fromIntegral (length aggregateProbs))
-            in 
-              score 
-      where 
+            in
+              score
+      where
         -- scoreReg :: Edge n -> Float
         scoreReg (Start ,Inner y) = evaluateChordTone slcR y
-        scoreReg (Inner x ,Stop) = evaluateChordTone slcL x 
-        scoreReg (Inner x , Inner y) = evaluateChordTone slcL x + evaluateChordTone slcR y 
+        scoreReg (Inner x ,Stop) = evaluateChordTone slcL x
+        scoreReg (Inner x , Inner y) = evaluateChordTone slcL x + evaluateChordTone slcR y
 
         -- scorePass :: InnerEdge n -> Float
         scorePass (x , y) = evaluateChordTone slcL x + evaluateChordTone slcR y

@@ -9,6 +9,8 @@ module Algorithm.RandomChoiceSearch
   )
     where
 
+import Control.Logging qualified as Log
+
 import Common
 import Control.Monad.Except (ExceptT, lift, throwError)
 import Data.Foldable
@@ -25,6 +27,9 @@ import System.Random.Stateful
   , newIOGenM
   , uniformRM
   )
+import qualified Data.Text as T
+
+logD x = lift $ Log.log $ T.pack x
 
 data RandomSearch s = RandomSearch
   { rsHead :: s
@@ -56,7 +61,7 @@ randomChoiceSearch initialState getNextStates isGoalState printOp = do
  where
   search maxN g hs
     | isGoalState nearestState = do
-        -- lift $ putStrLn $ "Max number of options reached " <> show maxN
+        logD $ "Goal found: " <> show nearestState 
         pure nearestState
     | otherwise = do
         -- lift $ putStrLn "___________________________________________________"
@@ -70,7 +75,9 @@ randomChoiceSearch initialState getNextStates isGoalState printOp = do
         -- lift $ putStrLn $ "Choosing randomly from " <> show numStates <> " states"
 
         case nextStates of
-          [] -> throwError "Parse Stuck! Perhaps the number of chords and segments are not the same?"
+          [] -> do 
+            logD $ "Stuck at: " <> show nearestState
+            throwError "Parse Stuck! Perhaps the number of chords and segments are not the same?"
           xs -> do
             newHead <- do
               res <- pickRandom g nextStates

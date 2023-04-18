@@ -8,20 +8,19 @@ module Harmony
   , labelLikelihoodGivenSlice
   , allLabelLikelihoodsGivenSlice
   , transposeSlice
-  , multinomialLogProb
-  , categoricalLogProb
-  , ornamentLogLikelihood
   -- , ornamentLogLikelihoodDouble
   -- , sliceChordLogLikelihood
-  , chordToneLogLikelihood
   -- , sliceChordWeightedLogLikelihoods
   -- , sliceChordWeightedLogLikelihood
+  , ornamentLogLikelihood
+  , chordToneLogLikelihood
   -- , scoreSegment
   , scoreSegment'
   , scoreSegments
   )
   where
 
+import Probability
 import Harmony.Params
 import Harmony.ChordLabel
 import Common
@@ -38,26 +37,11 @@ import Musicology.Core (AdditiveGroup)
 import Musicology.Core qualified as Music
 import Musicology.Pitch.Spelled
 import Numeric.Log (Log (..))
-import Numeric.SpecFunctions (logGamma)
 import PVGrammar
 import System.Random.MWC.Probability (multinomial, categorical)
 import Data.Vector qualified as V
 
 
-multinomialLogProb :: V.Vector Double -> V.Vector Double -> Double
-multinomialLogProb xs probs
-  | n == 0 = trace "empty multinomial" (-100000000)
-  | otherwise = logFactorialN + logPowers
- where
-  n = sum xs
-  logFactorialN = logGamma $ n + 1
-  logPowers = V.sum $ V.zipWith powers xs probs
-   where
-    powers x y = x * log y - logGamma (x + 1)
-
--- Calculates the probability density of a multinomial distribution at the given point
-categoricalLogProb :: Int -> V.Vector Double -> Double
-categoricalLogProb x probs = log $ probs V.! x
 
 transposeNote :: Music.Pitch SIC -> SPitch -> SIC
 transposeNote root = Music.pto root . spc . fifths

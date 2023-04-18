@@ -109,10 +109,8 @@ instance ParseAlgo AlgoType where
     RandomReduction ->
       let x = splitSlicesIntoSegments eval sliceWrapper inputSlices
        in Log.timedLog "Running Random Sample SBS Parse" $ do
-        -- path <- randomSamplePathSBS x
         slices <- randomSamplePathSBS x
 
-        -- let slices = pathBetweens path
         let chordGuesses = guessChords slices
          in pure $ Just $ AlgoResult slices Nothing chordGuesses
 
