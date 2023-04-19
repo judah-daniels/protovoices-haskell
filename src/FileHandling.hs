@@ -260,14 +260,14 @@ type Time = Double
 writeResultsToJSON
   :: [Notes SPitch]
   -> [ChordLabel]
-  -> Maybe [PVLeftmost SPitch]
+  -> Maybe (PVAnalysis SPitch)
   -> Accuracy
   -> LogLikelihood
   -> String
   -> Time
   -> Int
   -> A.Value
-writeResultsToJSON slices chords pathMaybe accuracy likelihood name runTime reruns =
+writeResultsToJSON slices chords derivation accuracy likelihood name runTime reruns =
   A.object
     [ 
     -- "algorithm" .= A.fromString name
@@ -275,6 +275,7 @@ writeResultsToJSON slices chords pathMaybe accuracy likelihood name runTime reru
     , "chordLabels" .= (show <$> chords)
     , "accuracy" .= accuracy
     , "likelihood" .= likelihood
+    -- , "derivation" .= derivation
     , "runTime" .= runTime
     , "reruns" .= reruns
     ]

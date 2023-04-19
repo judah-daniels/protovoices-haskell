@@ -1,15 +1,53 @@
+{-# LANGUAGE UndecidableInstances #-}
+
 module Probability
   ( multinomialLogProb
   , categoricalLogProb
   , poissonSample
+  , sample
   , reservoirSample
   , pickRandom
   )
 where
 
+import Control.Monad
+import Control.Monad.State
 import qualified Data.Vector as V
 import Numeric.SpecFunctions (logGamma)
 import System.Random.Stateful
+
+type Reservoir a = StateT [a] IO
+
+{- | Sample n elements from a list
+sample :: Show a => Int -> [a] -> Reservoir a [a]
+sample n xs = do
+  let len = length xs
+  let updateReservoir x = do
+        ys <- get
+        i <- lift $ randomRIO (0, len)
+        if i < n
+          then put (take i ys ++ [x] ++ drop (i + 1) ys)
+          else return ()
+  liftIO $ putStrLn "Reservoir sampling..."
+  liftIO $ putStrLn $ "List length: " ++ show len
+  liftIO $ putStrLn $ "Reservoir size: " ++ show n
+  liftIO $ putStrLn "Reservoir:"
+  liftIO $ putStrLn "---------"
+  put (take n xs)
+  forM_ (drop n xs) $ \x -> do
+    updateReservoir x
+    get >>= liftIO . putStrLn . show
+  get
+-}
+
+-- data Prob a b = Prob [a] Int
+data Prob a
+  = YesProb a
+  | NoProb
+
+--
+class RandomChoice a where
+  sample :: StatefulGen g IO => g -> [a] -> Prob a
 
 multinomialLogProb :: V.Vector Double -> V.Vector Double -> Double
 multinomialLogProb xs probs

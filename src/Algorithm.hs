@@ -28,8 +28,8 @@ import Algorithm.RandomChoiceSearch
 import Algorithm.RandomSampleParser
 import Algorithm.HeuristicSearch
 
-import Common ( Leftmost(..) , LeftmostDouble(..) , LeftmostSingle(..), Eval (Eval), pathBetweens)
-import PVGrammar ( Edge, Edges, Freeze, Notes (Notes), Split, Spread, PVLeftmost )
+import Common ( Leftmost(..) , LeftmostDouble(..) , LeftmostSingle(..), Eval (Eval), pathBetweens, Path (Path), Analysis (Analysis))
+import PVGrammar ( Edge, PVAnalysis, Edges, Freeze, Notes (Notes), Split, Spread, PVLeftmost )
 
 import Control.Monad.Except (ExceptT, lift, throwError)
 import Data.Maybe (fromMaybe, fromJust)
@@ -49,10 +49,12 @@ data AlgoInput =
 
 data AlgoResult = AlgoResult
   { arTop :: [Notes SPitch]
-  , arOps :: Maybe [PVLeftmost SPitch]
+  , arOps :: Maybe (PVAnalysis SPitch)
   , arLabels :: [ChordLabel]
   }
   deriving (Show)
+
+
 
 class (Show algo) => ParseAlgo algo where
   runParse :: algo -> AlgoInput -> IO (Maybe AlgoResult)
@@ -77,7 +79,6 @@ data AlgoType
   deriving (Show, Read, Eq)
 
 
-
 instance ParseAlgo AlgoType where
   runParse algoType (AlgoInput eval inputSlices chords) = case algoType of
     RandomWalk ->
@@ -96,7 +97,25 @@ instance ParseAlgo AlgoType where
                   slices = pathBetweens path
                   chordGuesses = guessChords slices
                in
-               pure $ Just $ AlgoResult slices (Just ops) chordGuesses
+               pure $ Just $ AlgoResult slices (Just (Analysis ops path)) chordGuesses
+
+    RandomWalkPerSegment ->
+      let initialState = SSFrozen $ pathFromSlices eval idWrapper inputSlices
+       in
+        do
+          res <- runExceptT
+            (randomChoiceSearch initialState (exploreStates idWrapper eval) (goalTest chords) (showOp . getOpsFromState))
+          case res of
+            Left err -> do
+              print err
+              pure Nothing
+            Right finalState ->
+              let path = fromMaybe (error "failed to get path from state") $ getPathFromState finalState
+                  ops = getOpsFromState finalState
+                  slices = pathBetweens path
+                  chordGuesses = guessChords slices
+               in
+               pure $ Just $ AlgoResult slices (Just (Analysis ops path)) chordGuesses
 
     RandomSample ->
       let x = splitSlicesIntoSegments eval sliceWrapper inputSlices
@@ -138,7 +157,7 @@ instance ParseAlgo AlgoType where
                   slices = pathBetweens p
                   chordGuesses = guessChords  slices
                in
-               pure $ Just $ AlgoResult slices (Just ops) chordGuesses
+               pure $ Just $ AlgoResult slices (Just (Analysis ops p)) chordGuesses
 
     DualStochasticBeamSearch beamWidth resevoirSize ->
       let initialState = SSFrozen $ pathFromSlices eval sliceWrapper inputSlices
@@ -164,7 +183,7 @@ instance ParseAlgo AlgoType where
                   slices = pathBetweens p
                   chordGuesses = guessChords  slices
                in
-               pure $ Just $ AlgoResult slices (Just ops) chordGuesses
+               pure $ Just $ AlgoResult slices (Just (Analysis ops p)) chordGuesses
 
     StochasticBeamSearchLimited beamWidth resevoirSize maxNotesPerSlice ->
       let initialState = SSFrozen $ pathFromSlices eval sliceWrapper inputSlices
@@ -190,7 +209,7 @@ instance ParseAlgo AlgoType where
                   slices = pathBetweens p
                   chordGuesses = guessChords  slices
                in
-               pure $ Just $ AlgoResult slices (Just ops) chordGuesses
+               pure $ Just $ AlgoResult slices (Just (Analysis ops p)) chordGuesses
 
     BeamSearch beamWidth ->
       let initialState = SSFrozen $ pathFromSlices eval sliceWrapper inputSlices
@@ -215,7 +234,7 @@ instance ParseAlgo AlgoType where
                   slices = pathBetweens p
                   chordGuesses = guessChords  slices
                in
-               pure $ Just $ AlgoResult slices (Just ops) chordGuesses
+               pure $ Just $ AlgoResult slices (Just (Analysis ops p)) chordGuesses
 
 protoVoiceEvaluatorLimitedSize'
   :: Int 

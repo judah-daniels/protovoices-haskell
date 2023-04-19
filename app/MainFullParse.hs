@@ -7,13 +7,14 @@ module Main where
 
 import Common
 import Control.Logging qualified as Log
+import Data.Text qualified as T
 import Control.Monad.Except (ExceptT, forM, lift, runExceptT, throwError, when, zipWithM)
 import FileHandling
 import System.Environment
 import System.Exit
 import System.TimeIt qualified as Time
 import System.Timeout
-import Algorithm 
+import Algorithm
 import PVGrammar.Parse (protoVoiceEvaluator)
 import qualified Algorithm as Core
 import Control.Monad (replicateM)
@@ -21,8 +22,9 @@ import HeuristicParser (chordAccuracy)
 import Harmony
 import Harmony.ChordLabel
 import Harmony.Params
-import Algorithm (AlgoType (StochasticBeamSearch))
 import Control.Logging (LogLevel(LevelDebug))
+import Display
+import PVGrammar.Generate
 
 data Options = Options
   { _inputPath :: String
@@ -35,6 +37,7 @@ data Options = Options
   , _expId :: String
   }
 
+logD x = Log.log $ T.pack x
 -- COMAND LINE ARGUMENT HANDLING
 parseArgs :: Options -> [String] -> IO (String, String, AlgoType, Options)
 parseArgs _ ["-h"] = usage >> exit
@@ -57,7 +60,7 @@ defaultInputPath = "preprocessing/inputs/"
 defaultOutputPath = "preprocessing/outputs/"
 defaultTimeOut = 1200
 defaultNumIterations = 1
-defaultUnspreadWidth = 7 
+defaultUnspreadWidth = 7
 defaultUnsplitWidth = 3
 defaultBeamWidth = 10
 defaultId = "000"
@@ -89,28 +92,28 @@ exit = exitSuccess
 die = exitWith (ExitFailure 1)
 
 
-main :: IO () 
-main = Log.withStderrLogging $ do 
+main :: IO ()
+main = Log.withStderrLogging $ do
   Log.setLogLevel Log.LevelError
-  (corpus, pieceName, algo, 
-    Options 
-     inputPath 
-     outputPath 
-     iterations 
+  (corpus, pieceName, algo,
+    Options
+     inputPath
+     outputPath
+     iterations
      timeOut
-     beamWidth 
-     unsplitWidth 
+     beamWidth
+     unsplitWidth
      unSpreadWidth
      expId ) <-
     getArgs
-      >>= parseArgs 
-        (Options 
-          defaultInputPath 
-          defaultOutputPath 
-          defaultNumIterations 
+      >>= parseArgs
+        (Options
+          defaultInputPath
+          defaultOutputPath
+          defaultNumIterations
           defaultTimeOut
-          defaultBeamWidth 
-          defaultUnsplitWidth 
+          defaultBeamWidth
+          defaultUnsplitWidth
           defaultUnspreadWidth
           defaultId)
 
@@ -122,29 +125,69 @@ main = Log.withStderrLogging $ do
 
   writeJSONToFile outputFile $ concatResults expId (showRoot algo) corpus pieceName inputChords res
 
-  where 
+  where
     numRetries = 3 :: Int
 
-    runAlgo algo _ _ _ 0 = pure $ nullResultToJSON algo
-    runAlgo algo timeOut inputChords inputSlices n = do 
+    findBeam algo _ _ _ 0 = pure $ nullResultToJSON algo
+    findBeam algo timeOut inputChords inputSlices n = do
       mTimedRes <- timeout (timeOut * 1000000) $ Time.timeItT $ runParse algo (AlgoInput protoVoiceEvaluator inputSlices inputChords)
-      case mTimedRes of 
+      case mTimedRes of
         Nothing -> pure $ nullResultToJSON (show algo)
           -- runAlgo algo inputChords inputSlices (n - 1)
-        Just (time, mRes) -> 
-          case mRes of 
+        Just (time, mRes) ->
+          case mRes of
             Nothing -> runAlgo algo timeOut inputChords inputSlices (n - 1)
-            Just (AlgoResult top ops lbls) -> 
+            Just (AlgoResult top ops lbls) ->
               let accuracy = chordAccuracy inputChords lbls
                   likelihood = scoreSegments top lbls
-                in 
+                in do
+                  logD $ "Accuracy: " <> show accuracy
+                  logD $ "Likelihood: " <> show likelihood
+
                   pure $ writeResultsToJSON top lbls ops accuracy likelihood (show algo) time (1 + numRetries - n)
 
-    showRoot algo = 
-      case algo of 
+    runAlgo algo _ _ _ 0 = pure $ nullResultToJSON algo
+    runAlgo algo timeOut inputChords inputSlices n = do
+      mTimedRes <- timeout (timeOut * 1000000) $ Time.timeItT $ runParse algo (AlgoInput protoVoiceEvaluator inputSlices inputChords)
+      case mTimedRes of
+        Nothing -> pure $ nullResultToJSON (show algo)
+          -- runAlgo algo inputChords inputSlices (n - 1)
+        Just (time, mRes) ->
+          case mRes of
+            Nothing -> runAlgo algo timeOut inputChords inputSlices (n - 1)
+            Just (AlgoResult top ops lbls) ->
+              let accuracy = chordAccuracy inputChords lbls
+                  likelihood = scoreSegments top lbls
+                in case ops of 
+                     Nothing -> pure $ writeResultsToJSON top lbls ops accuracy likelihood (show algo) time (1 + numRetries - n)
+                     Just (Analysis op to) -> do 
+                       plotDeriv "JEFJEFJEF2" to op 
+                       pure $ writeResultsToJSON top lbls ops accuracy likelihood (show algo) time (1 + numRetries - n)
+                  -- logD $ "Accuracy: " <> show accuracy
+                  -- logD $ "Likelihood: " <> show likelihood
+
+
+    showRoot algo =
+      case algo of
         BeamSearch width -> "BeamSearch_" <> show width
         StochasticBeamSearch width res -> "StochasticBeamSearch_" <> show width <> "_" <> show res
-        StochasticBeamSearchLimited width res n-> "StochasticBeamSearch_" <> show width <> "_" <> show res <> "_" <> show n
+        StochasticBeamSearchLimited width res n-> "StochasticBeamSearchLimited_" <> show width <> "_" <> show res <> "_" <> show n
+        DualStochasticBeamSearch width res -> "DualStochasticBeamSearch_" <> show width <> "_" <> show res 
         DualBeamSearch a b -> "DualBeamSearch_" <> show a <> "_" <> show b
+        BeamSearchPerSegment width -> "BeamSearchPerSegment_" <> show width 
         _ -> show algo
-  
+  -- = RandomWalk
+  -- | RandomWalkPerSegment
+  -- | RandomSample
+  -- | RandomReduction
+  -- | BeamSearch BeamWidth
+  -- | StochasticBeamSearch BeamWidth ResevoirSize
+  -- | DualStochasticBeamSearch BeamWidth ResevoirSize
+  -- | StochasticBeamSearchLimited BeamWidth ResevoirSize MaxNotesPerSlice
+  -- | BeamSearchPerSegment BeamWidth
+  -- | DualBeamSearch UnspreadWidth UnsplitWidth
+
+plotDeriv fn top deriv = do
+  case replayDerivation' top derivationPlayerPV deriv of
+    (Left err) -> putStrLn err
+    (Right g) -> viewGraph fn g

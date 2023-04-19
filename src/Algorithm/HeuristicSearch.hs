@@ -86,7 +86,7 @@ dualStochasticBeamSearch beamWidth reservoir initialState getNextStates isGoalSt
  where
   search mgen hs
     | null open = throwError "No Goal Found"
-    | not $ null goalStates = do 
+    | not $ null goalStates = do
         lift $ Log.log $ T.pack ("Goal States:\n"<> concatMap (\(a,b)-> show a <> show b <> "\n") goalStates)
         pure . snd . head $ minElems 1 [] (filter (isFreeze . snd ) goalStates)
     | otherwise = do
@@ -96,17 +96,30 @@ dualStochasticBeamSearch beamWidth reservoir initialState getNextStates isGoalSt
             n <- getNextStates s
             pure $ map ((oldcost,s),) n
           ) open
-        let allNextStates = filter (not . isNaN . fst . fst ) $ concat nextStatesAll
+        let allNextStatesWithNan = concat nextStatesAll
+        logD $ "All states: " <> show (length allNextStatesWithNan)
+        let allNextStates = filter (not . isNaN . fst . fst ) allNextStatesWithNan
+        logD $ "All valid states: " <> show (length allNextStates)
 
-        nextUnfreezeStates <- do 
-          r <- mapM doHeuristic $ filter (isFreeze . snd) allNextStates
+
+        nextUnfreezeStates <- do
+          let filtered = filter (isFreeze . snd) allNextStates
+          logD $ "Unfreezes: " <> show (length filtered)
+          r <- mapM doHeuristic filtered
+          logD $ "Selected: " <> show (length r)
           pure $ filter (not .isNaN . fst) r
-        nextUnspreadStates <- do 
-          x <- lift $ reservoirSample mgen reservoir $ filter (isSpread . snd) allNextStates
+        nextUnspreadStates <- do
+          let filtered = filter (isSpread . snd) allNextStates
+          logD $ "Unspreads: " <> show (length filtered)
+          x <- lift $ reservoirSample mgen reservoir filtered
+          logD $ "Selected: " <> show (length x)
           r <- mapM doHeuristic x
           pure $ filter (not .isNaN . fst) r
         nextUnsplitStates <- do
-          x <- lift $ reservoirSample mgen reservoir $ filter (isSplit . snd) allNextStates 
+          let filtered = filter (isSplit . snd) allNextStates
+          logD $ "Unsplits: " <> show (length filtered)
+          x <- lift $ reservoirSample mgen reservoir $ filter (isSplit . snd) allNextStates
+          logD $ "Unsplits: " <> show (length x)
           r <- mapM doHeuristic x
           pure $ filter (not .isNaN . fst) r
 
@@ -284,7 +297,7 @@ beamSearch beamWidth initialState getNextStates isGoalState heuristic = search $
  where
   search hs
     | null open = throwError "No Goal Found"
-    | not $ null goalStates = do 
+    | not $ null goalStates = do
         lift $ Log.log $ T.pack (show goalStates)
         pure . snd . head $ goalStates
     | otherwise = do
