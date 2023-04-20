@@ -26,6 +26,7 @@ import Harmony.Params
 import Control.Logging (LogLevel(LevelDebug))
 import Display
 import PVGrammar.Generate
+import GHC.IO.Handle (NewlineMode(outputNL))
 
 data Options = Options
   { _inputPath :: String
@@ -164,6 +165,7 @@ main = Log.withStderrLogging $ do
                 in case ops of 
                      Nothing -> pure $ writeResultsToJSON top lbls ops accuracy likelihood (show algo) time (1 + numRetries - n)
                      Just (Analysis op to) -> do 
+                       plotDeriv (deriv <> "deriv" <> show algo) to op 
                        pure $ writeResultsToJSON top lbls ops accuracy likelihood (show algo) time (1 + numRetries - n)
                   -- logD $ "Accuracy: " <> show accuracy
                   -- logD $ "Likelihood: " <> show likelihood
