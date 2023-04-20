@@ -67,6 +67,7 @@ import Prelude hiding
 
 import System.Directory (createDirectoryIfMissing)
 import System.FilePath.Posix (takeDirectory)
+import Text.Read (readMaybe)
 
 -- | Slice type for reading from csv
 type InputSlice ns =
@@ -150,7 +151,9 @@ chordsFromFile file = do
     -- (Music.sic $ _rootoffset r) (fromMaybe undefined (Music.readNotation $ _globalkey r))
 
     cType :: ChordType
-    cType = read $ _chordtype r
+    cType = case readMaybe $ _chordtype r of 
+              Nothing -> trace "Cant read chord type" Major -- BUGBUG BUG BGU TODO FIX
+              Just c -> c
     rootOffset' :: SIC
     rootOffset' = Music.sic $ _rootoffset r
     globalKey' :: SPC
