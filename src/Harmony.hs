@@ -31,7 +31,6 @@ import Data.Ord
 import Debug.Trace
 import GHC.Float (double2Int)
 import GHC.Generics
-import GHC.Real (infinity)
 import Internal.MultiSet qualified as MS
 import Musicology.Core (AdditiveGroup)
 import Musicology.Core qualified as Music

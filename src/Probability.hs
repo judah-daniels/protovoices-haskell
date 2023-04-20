@@ -51,8 +51,8 @@ class RandomChoice a where
 
 multinomialLogProb :: V.Vector Double -> V.Vector Double -> Double
 multinomialLogProb xs probs
-  | n == 0 = -100000
-  | V.length xs /= V.length probs = -100000
+  | n == 0 = -100
+  | V.length xs /= V.length probs = -100
   | otherwise = logFactorialN + logPowers
  where
   n = sum xs
@@ -65,7 +65,7 @@ multinomialLogProb xs probs
 categoricalLogProb :: Int -> V.Vector Double -> Double
 categoricalLogProb x probs
   | x >= 0 && x < V.length probs = log $ probs V.! x
-  | otherwise = -1000000
+  | otherwise = -1000
 
 -- With a simple list, this is pretty instant as long as the total list is less than 1000000
 -- Cost is based on size of list rather than reservoir size.

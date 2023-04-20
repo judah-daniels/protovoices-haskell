@@ -107,21 +107,21 @@ dualStochasticBeamSearch beamWidth reservoir initialState getNextStates isGoalSt
           logD $ "Unfreezes: " <> show (length filtered)
           r <- mapM doHeuristic filtered
           logD $ "Selected: " <> show (length r)
-          pure $ filter (not .isNaN . fst) r
+          pure $ filter (not . isNaN . fst) r
         nextUnspreadStates <- do
           let filtered = filter (isSpread . snd) allNextStates
           logD $ "Unspreads: " <> show (length filtered)
           x <- lift $ reservoirSample mgen reservoir filtered
           logD $ "Selected: " <> show (length x)
           r <- mapM doHeuristic x
-          pure $ filter (not .isNaN . fst) r
+          pure $ filter (not . isNaN . fst) r
         nextUnsplitStates <- do
           let filtered = filter (isSplit . snd) allNextStates
           logD $ "Unsplits: " <> show (length filtered)
-          x <- lift $ reservoirSample mgen reservoir $ filter (isSplit . snd) allNextStates
+          x <- lift $ reservoirSample mgen reservoir filtered
           logD $ "Unsplits: " <> show (length x)
           r <- mapM doHeuristic x
-          pure $ filter (not .isNaN . fst) r
+          pure $ filter (not . isNaN . fst) r
 
         let nextStates = concatMap (minElems beamWidth []) [nextUnfreezeStates,nextUnsplitStates,nextUnspreadStates]
 

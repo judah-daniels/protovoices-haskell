@@ -120,48 +120,49 @@ main = Log.withStderrLogging $ do
   inputChords <- chordsFromFile (inputPath <> "chords/" <> corpus <> "/" <> pieceName <> ".csv")
   inputSlices <- slicesFromFile' (inputPath <> "slices/" <> corpus <> "/" <> pieceName <> ".csv")
   let outputFile = outputPath <> corpus <> "/" <> pieceName <> "/" <> showRoot algo <> "/" <> expId <> ".json"
+  let outputFileDeriv = outputPath <> corpus <> "/" <> pieceName <> "/" <> showRoot algo <> "/" <> expId <> "_deriv"
 
-  res <- replicateM iterations $ runAlgo algo timeOut inputChords inputSlices numRetries
+  res <- replicateM iterations $ runAlgo outputFileDeriv algo timeOut inputChords inputSlices numRetries
 
   writeJSONToFile outputFile $ concatResults expId (showRoot algo) corpus pieceName inputChords res
 
   where
     numRetries = 3 :: Int
 
-    findBeam algo _ _ _ 0 = pure $ nullResultToJSON algo
-    findBeam algo timeOut inputChords inputSlices n = do
+    -- findBeam algo _ _ _ 0 = pure $ nullResultToJSON algo
+    -- findBeam algo timeOut inputChords inputSlices n = do
+    --   mTimedRes <- timeout (timeOut * 1000000) $ Time.timeItT $ runParse algo (AlgoInput protoVoiceEvaluator inputSlices inputChords)
+    --   case mTimedRes of
+    --     Nothing -> pure $ nullResultToJSON (show algo)
+    --       -- runAlgo algo inputChords inputSlices (n - 1)
+    --     Just (time, mRes) ->
+    --       case mRes of
+    --         Nothing -> runAlgo expId algo timeOut inputChords inputSlices (n - 1)
+    --         Just (AlgoResult top ops lbls) ->
+    --           let accuracy = chordAccuracy inputChords lbls
+    --               likelihood = scoreSegments top lbls
+    --             in do
+    --               logD $ "Accuracy: " <> show accuracy
+    --               logD $ "Likelihood: " <> show likelihood
+    --
+    --               pure $ writeResultsToJSON top lbls ops accuracy likelihood (show algo) time (1 + numRetries - n)
+
+    runAlgo deriv algo _ _ _ 0 = pure $ nullResultToJSON algo
+    runAlgo deriv algo timeOut inputChords inputSlices n = do
       mTimedRes <- timeout (timeOut * 1000000) $ Time.timeItT $ runParse algo (AlgoInput protoVoiceEvaluator inputSlices inputChords)
       case mTimedRes of
         Nothing -> pure $ nullResultToJSON (show algo)
           -- runAlgo algo inputChords inputSlices (n - 1)
         Just (time, mRes) ->
           case mRes of
-            Nothing -> runAlgo algo timeOut inputChords inputSlices (n - 1)
-            Just (AlgoResult top ops lbls) ->
-              let accuracy = chordAccuracy inputChords lbls
-                  likelihood = scoreSegments top lbls
-                in do
-                  logD $ "Accuracy: " <> show accuracy
-                  logD $ "Likelihood: " <> show likelihood
-
-                  pure $ writeResultsToJSON top lbls ops accuracy likelihood (show algo) time (1 + numRetries - n)
-
-    runAlgo algo _ _ _ 0 = pure $ nullResultToJSON algo
-    runAlgo algo timeOut inputChords inputSlices n = do
-      mTimedRes <- timeout (timeOut * 1000000) $ Time.timeItT $ runParse algo (AlgoInput protoVoiceEvaluator inputSlices inputChords)
-      case mTimedRes of
-        Nothing -> pure $ nullResultToJSON (show algo)
-          -- runAlgo algo inputChords inputSlices (n - 1)
-        Just (time, mRes) ->
-          case mRes of
-            Nothing -> runAlgo algo timeOut inputChords inputSlices (n - 1)
+            Nothing -> runAlgo deriv algo timeOut inputChords inputSlices (n - 1)
             Just (AlgoResult top ops lbls) ->
               let accuracy = chordAccuracy inputChords lbls
                   likelihood = scoreSegments top lbls
                 in case ops of 
                      Nothing -> pure $ writeResultsToJSON top lbls ops accuracy likelihood (show algo) time (1 + numRetries - n)
                      Just (Analysis op to) -> do 
-                       plotDeriv "JEFJEFJEF2" to op 
+                       plotDeriv deriv to op 
                        pure $ writeResultsToJSON top lbls ops accuracy likelihood (show algo) time (1 + numRetries - n)
                   -- logD $ "Accuracy: " <> show accuracy
                   -- logD $ "Likelihood: " <> show likelihood
