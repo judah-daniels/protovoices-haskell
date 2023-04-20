@@ -122,6 +122,10 @@ main = Log.withStderrLogging $ do
   inputSlices <- slicesFromFile' (inputPath <> "slices/" <> corpus <> "/" <> pieceName <> ".csv")
   let outputFile = outputPath <> corpus <> "/" <> pieceName <> "/" <> showRoot algo <> "/" <> expId <> ".json"
   let outputFileDeriv = outputPath <> corpus <> "/" <> pieceName <> "/" <> showRoot algo <> "/" <> expId <> "_deriv"
+  createDirectory $ outputPath 
+  createDirectory $ outputPath <> corpus 
+  createDirectory $ outputPath <> corpus <> "/" <> pieceName 
+  createDirectory $ outputPath <> corpus <> "/" <> pieceName <> "/" <> showRoot algo 
   createDirectory $ outputPath <> corpus <> "/" <> pieceName <> "/" <> showRoot algo <> "/" <> expId 
 
   res <- replicateM iterations $ runAlgo outputFileDeriv algo timeOut inputChords inputSlices numRetries
