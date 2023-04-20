@@ -11,6 +11,7 @@ import Data.Text qualified as T
 import Control.Monad.Except (ExceptT, forM, lift, runExceptT, throwError, when, zipWithM)
 import FileHandling
 import System.Environment
+import System.Directory
 import System.Exit
 import System.TimeIt qualified as Time
 import System.Timeout
@@ -121,6 +122,7 @@ main = Log.withStderrLogging $ do
   inputSlices <- slicesFromFile' (inputPath <> "slices/" <> corpus <> "/" <> pieceName <> ".csv")
   let outputFile = outputPath <> corpus <> "/" <> pieceName <> "/" <> showRoot algo <> "/" <> expId <> ".json"
   let outputFileDeriv = outputPath <> corpus <> "/" <> pieceName <> "/" <> showRoot algo <> "/" <> expId <> "_deriv"
+  createDirectory $ outputPath <> corpus <> "/" <> pieceName <> "/" <> showRoot algo <> "/" <> expId 
 
   res <- replicateM iterations $ runAlgo outputFileDeriv algo timeOut inputChords inputSlices numRetries
 
@@ -162,7 +164,6 @@ main = Log.withStderrLogging $ do
                 in case ops of 
                      Nothing -> pure $ writeResultsToJSON top lbls ops accuracy likelihood (show algo) time (1 + numRetries - n)
                      Just (Analysis op to) -> do 
-                       plotDeriv deriv to op 
                        pure $ writeResultsToJSON top lbls ops accuracy likelihood (show algo) time (1 + numRetries - n)
                   -- logD $ "Accuracy: " <> show accuracy
                   -- logD $ "Likelihood: " <> show likelihood
