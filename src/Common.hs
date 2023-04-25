@@ -55,6 +55,8 @@ module Common
   , IsLast
   , mapEvalScore
   , productEval
+  -- | Impure version of eval that allows randomness
+  , EvalImpure (..)
 
     -- * Special Restricting Evaluators #special-evals#
 
@@ -88,6 +90,7 @@ module Common
   , Analysis (..)
   , debugAnalysis
   , mkLeftmostEval
+  , mkLeftmostEvalImpure
 
     -- * Monadic Interface for Constructing Derivations #monadicDeriv#
     -- $monadicdoc
@@ -348,6 +351,12 @@ type UnspreadRight tr slc = (slc, tr) -> slc -> [tr]
 type Unsplit tr slc v =
   StartStop slc -> tr -> slc -> tr -> StartStop slc -> SplitType -> [(tr, v)]
 
+{- | An evaluator for unsplits.
+ Returns possible unsplits of a given pair of transitions.
+-}
+type UnsplitImpure tr slc v =
+  StartStop slc -> tr -> slc -> tr -> StartStop slc -> SplitType -> IO [(tr, v)]
+
 {- | A combined evaluator for unsplits, unspreads, and unfreezes.
  Additionally, contains a function for mapping terminal slices to derivation slices.
 -}
@@ -359,6 +368,14 @@ data Eval tr tr' slc slc' v = Eval
   , evalUnfreeze
       :: !(StartStop slc -> Maybe tr' -> StartStop slc -> IsLast -> [(tr, v)])
   , evalSlice :: !(slc' -> slc)
+  }
+
+{- | A combined evaluator for unsplits, unspreads, and unfreezes with an impure unsplit evaluator.
+ Additionally, contains a function for mapping terminal slices to derivation slices.
+-}
+data EvalImpure tr tr' slc slc' v = EvalImpure
+  { evalPure :: Eval tr tr' slc slc' v 
+  , evalUnsplitRandom :: UnsplitImpure tr slc v
   }
 
 -- | Maps a function over all scores produced by the evaluator.
@@ -740,6 +757,39 @@ mkLeftmostEval unspreadm unspreadl unspreadr unsplit uf =
     | otherwise = smap LMFreezeLeft res
    where
     res = uf sl e sr
+
+
+  -- StartStop slc -> tr -> slc -> tr -> StartStop slc -> SplitType -> IO [(tr, v)]
+mkLeftmostEvalImpure
+  :: UnspreadMiddle tr slc h
+  -> UnspreadLeft tr slc
+  -> UnspreadRight tr slc
+  -> (StartStop slc -> tr -> slc -> tr -> StartStop slc -> [(tr, s)])
+  -> (StartStop slc -> tr -> slc -> tr -> StartStop slc -> IO [(tr, s)])
+  -> (StartStop slc -> Maybe tr' -> StartStop slc -> [(tr, f)])
+  -> (slc' -> slc)
+  -> (EvalImpure tr tr' slc slc' (Leftmost s f h))
+mkLeftmostEvalImpure unspreadm unspreadl unspreadr unsplit unsplit' uf f = 
+  let eval = mkLeftmostEval unspreadm unspreadl unspreadr unsplit uf f in 
+    EvalImpure (eval) (unsplit'')
+  where 
+    smap f = fmap (second f)
+    -- vm' :: UnspreadMiddle e a (Leftmost s f h)
+    unspreadm' vert = smap LMSpread $ unspreadm vert
+    unsplit'' sl tl sm tr sr typ = do 
+      res <- unsplit' sl tl sm tr sr
+      pure $ smap splitop res
+     where
+      splitop = case typ of
+        LeftOfTwo -> LMSplitLeft
+        SingleOfOne -> LMSplitOnly
+        RightOfTwo -> LMSplitRight
+    uf' sl e sr isLast
+      | isLast = smap LMFreezeOnly res
+      | otherwise = smap LMFreezeLeft res
+     where
+      res = uf sl e sr
+  --     EvalImpure (eval f) (\a b c d e f  -> unsplit' a b c d _ )
 
 -- manually constructing derivations
 -- =================================

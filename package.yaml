@@ -66,6 +66,7 @@ dependencies:
 - streamly
 - directory
 - timeit
+- probability
 
 language: GHC2021
 

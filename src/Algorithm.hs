@@ -28,7 +28,7 @@ import Algorithm.RandomChoiceSearch
 import Algorithm.RandomSampleParser
 import Algorithm.HeuristicSearch
 
-import Common ( Leftmost(..) , LeftmostDouble(..) , LeftmostSingle(..), Eval (Eval), pathBetweens, Path (Path), Analysis (Analysis))
+import Common ( Leftmost(..) , LeftmostDouble(..) , LeftmostSingle(..), Eval (Eval), pathBetweens, Path (Path), Analysis (Analysis), EvalImpure (EvalImpure))
 import PVGrammar ( Edge, PVAnalysis, Edges, Freeze, Notes (Notes), Split, Spread, PVLeftmost )
 
 import Control.Monad.Except (ExceptT, lift, throwError)
@@ -41,11 +41,15 @@ import Heuristics
 import PVGrammar.Parse (protoVoiceEvaluatorLimitedSize)
 import qualified Internal.MultiSet as MS
 
-data AlgoInput =
-  AlgoInput
-  (Eval (Edges SPitch) [Edge SPitch] (Notes SPitch) [SPitch] (PVLeftmost SPitch))
-  [InputSlice SPitch]
-  [ChordLabel]
+data AlgoInput 
+  = AlgoInputPure
+      (Eval (Edges SPitch) [Edge SPitch] (Notes SPitch) [SPitch] (PVLeftmost SPitch))
+      [InputSlice SPitch]
+      [ChordLabel] 
+  | AlgoInputImpure
+      (EvalImpure (Edges SPitch) [Edge SPitch] (Notes SPitch) [SPitch] (PVLeftmost SPitch))
+      [InputSlice SPitch]
+      [ChordLabel]
 
 data AlgoResult = AlgoResult
   { arTop :: [Notes SPitch]
@@ -76,11 +80,38 @@ data AlgoType
   | StochasticBeamSearchLimited BeamWidth ResevoirSize MaxNotesPerSlice
   | BeamSearchPerSegment BeamWidth
   | DualBeamSearch UnspreadWidth UnsplitWidth
+  | StochasticSearch
   deriving (Show, Read, Eq)
 
 
 instance ParseAlgo AlgoType where
-  runParse algoType (AlgoInput eval inputSlices chords) = case algoType of
+  runParse algoType (AlgoInputImpure eval'@(EvalImpure eval evalUnsplitImpure) inputSlices chords) = case algoType of
+    StochasticSearch ->
+      let initialState = SSFrozen $ pathFromSlices eval sliceWrapper inputSlices
+       in
+        Log.timedLog "Running Heuristic Search" $ do
+          res <- runExceptT
+            (stochasticSearch
+              10
+              initialState
+              (exploreStates' sliceWrapper eval')
+              (goalTest chords)
+              (applyHeuristic heuristicZero)
+            )
+
+          case res of
+            Left err -> do
+              Log.warn $ T.pack err
+              pure Nothing
+            Right finalState ->
+              let p = fromJust $ getPathFromState finalState
+                  ops = getOpsFromState finalState
+                  slices = pathBetweens p
+                  chordGuesses = guessChords  slices
+               in
+               pure $ Just $ AlgoResult slices (Just (Analysis ops p)) chordGuesses
+
+  runParse algoType (AlgoInputPure eval inputSlices chords) = case algoType of
     RandomWalk ->
       let initialState = SSFrozen $ pathFromSlices eval idWrapper inputSlices
        in

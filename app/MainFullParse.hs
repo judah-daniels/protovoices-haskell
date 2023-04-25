@@ -16,7 +16,7 @@ import System.Exit
 import System.TimeIt qualified as Time
 import System.Timeout
 import Algorithm
-import PVGrammar.Parse (protoVoiceEvaluator)
+import PVGrammar.Parse (protoVoiceEvaluator, protoVoiceEvaluatorImpure)
 import qualified Algorithm as Core
 import Control.Monad (replicateM)
 import HeuristicParser (chordAccuracy)
@@ -96,7 +96,7 @@ die = exitWith (ExitFailure 1)
 
 main :: IO ()
 main = Log.withStderrLogging $ do
-  Log.setLogLevel Log.LevelError
+  Log.setLogLevel Log.LevelInfo
   (corpus, pieceName, algo,
     Options
      inputPath
@@ -152,7 +152,9 @@ main = Log.withStderrLogging $ do
 
     runAlgo deriv algo _ _ _ 0 = pure $ nullResultToJSON algo
     runAlgo deriv algo timeOut inputChords inputSlices n = do
-      mTimedRes <- timeout (timeOut * 1000000) $ Time.timeItT $ runParse algo (AlgoInput protoVoiceEvaluator inputSlices inputChords)
+      mTimedRes <- case algo of 
+        StochasticSearch -> timeout (timeOut * 1000000) $ Time.timeItT $ runParse algo (AlgoInputImpure protoVoiceEvaluatorImpure inputSlices inputChords)
+        _ -> timeout (timeOut * 1000000) $ Time.timeItT $ runParse algo (AlgoInputPure protoVoiceEvaluator inputSlices inputChords)
       case mTimedRes of
         Nothing -> pure $ nullResultToJSON (show algo)
           -- runAlgo algo inputChords inputSlices (n - 1)
@@ -165,7 +167,7 @@ main = Log.withStderrLogging $ do
                 in case ops of 
                      Nothing -> pure $ writeResultsToJSON top lbls ops accuracy likelihood (show algo) time (1 + numRetries - n)
                      Just (Analysis op to) -> do 
-                       plotDeriv (deriv <> "deriv" <> show algo) to op 
+                       plotDeriv (deriv) to op 
                        pure $ writeResultsToJSON top lbls ops accuracy likelihood (show algo) time (1 + numRetries - n)
                   -- logD $ "Accuracy: " <> show accuracy
                   -- logD $ "Likelihood: " <> show likelihood

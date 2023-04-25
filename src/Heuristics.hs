@@ -29,7 +29,7 @@ import Data.HashSet qualified as S
 import Data.List qualified as L
 import Data.Map qualified as M
 
-import Data.Maybe (fromJust, isNothing)
+import Data.Maybe (fromJust, isNothing, maybeToList, mapMaybe)
 import Data.Vector qualified as V
 import Musicology.Core qualified as Music
 import Musicology.Pitch.Spelled
@@ -38,6 +38,8 @@ import HeuristicParser
 import Harmony
 import Harmony.ChordLabel
 import Harmony.Params
+import Debug.Trace
+import Streamly.Internal.Data.Array.Foreign.Mut (fromForeignPtrUnsafe)
 
 type State ns = SearchState (Edges ns) [Edge ns] (Notes ns) (PVLeftmost ns)
 
@@ -56,16 +58,24 @@ testOp =
 
 
 log :: String -> ExceptT String IO ()
-log = lift . Log.log . T.pack
+log = lift . Log.debug . T.pack
+
+-- | Basic heuristic for protovoice operations: 
+--   Consists of two factors: P(n|p,l), the probability of each child note considering the parent notes. 
+--   P(p|l) the plausibility of the parent notes being chord tones of the corresponding parent slices.
 
 heuristicZero :: ( State SPitch, State SPitch) -> ExceptT String IO Double
 heuristicZero (prevState, state) = case getOpFromState state of
   Nothing -> pure 0 -- Initial state
   Just op -> do
-    -- log $ "Prev State: " <> show (prevState)
-    -- log $ "Next State: " <> show state
-    pure $ case op of
-    -- Freezing
+    log $ "Prev State: " <> show (prevState)
+    log $ "Next State: " <> show state
+    let t = evalOP op
+    log $ show op
+    log $ show t
+    pure t
+  where
+    evalOP op = case op of
       LMDouble doubleOp ->
         let (ms, tl, sl, tm, sr) = getParentDouble prevState in
           case doubleOp of
@@ -96,13 +106,14 @@ heuristicZero (prevState, state) = case getOpFromState state of
                            Stop -> Nothing
                            Start -> error "Start at on the right"
                            Inner sliceWrapped -> Just sliceWrapped
-                in
+               in
+                -- trace ("split: " <> (show $ scoreSplit splitOp slcL top slcR)) scoreSplit splitOp slcL top slcR
                 scoreSplit splitOp slcL top slcR
       LMSingle singleOp ->
         case singleOp of
           LMSingleFreeze freezeOp -> 0
           LMSingleSplit splitOp   -> 10
-  where
+
 
     evaluateChordTone parentSlice n =
       case parentSlice of
@@ -116,127 +127,146 @@ heuristicZero (prevState, state) = case getOpFromState state of
           ornamentLogLikelihood lbl n
         Nothing -> - 100
 
+    scoreParents
+      :: Notes SPitch
+      -> Notes SPitch
+      -> Maybe (SliceWrapped nx)
+      -> Maybe (SliceWrapped nx)
+      -> Double
+    scoreParents leftParents rightParents slcL slcR =
+      let (lbll, lblr) =
+            ((\(SliceWrapped _ sLbl _) -> sLbl) <$> slcL
+            ,(\(SliceWrapped _ sLbl _) -> sLbl) <$> slcR)
+          leftScore = scoreParent (probsParent lbll) leftParents
+          rightScore = scoreParent (probsParent lblr) rightParents
+          bothScores =  (maybeToList leftScore ++ maybeToList rightScore)
+          n = fromIntegral $ length bothScores
+        in
+          if n == 0 then 0 else sum bothScores / n
+        where
+          scoreParent mps v = do
+            multinomialLogProb (notesVector v) <$> mps
+
+
+
+    scoreChildren
+      :: [(SPitch, DoubleOrnament)]
+      -> [(SPitch, PassingOrnament)]
+      -> [(SPitch, RightOrnament)]
+      -> [(SPitch, LeftOrnament)]
+      -> Maybe (SliceWrapped nx)
+      -> Maybe (SliceWrapped nx)
+      -> Double
+    scoreChildren childRegs childPasses childFromLefts childFromRights slcL slcR =
+      let (lbll, lblr) =
+            ((\(SliceWrapped _ sLbl _) -> sLbl) <$> slcL
+            ,(\(SliceWrapped _ sLbl _) -> sLbl) <$> slcR)
+          -- regMixtures = (probsRegs lbll lblr) <$> childRegs 
+          scoresRegs = mapMaybe (scoreChild (probsRegs lbll lblr)) childRegs
+          scoresPasses = mapMaybe (scoreChild (probsPassings lbll lblr)) childPasses
+          scoresFromLeft = mapMaybe (scoreChild (probsFromLeft lbll)) childFromLefts
+          scoresFromRight = mapMaybe (scoreChild (probsFromRight lblr)) childFromRights
+          allScores = scoresRegs <> scoresPasses <> scoresFromLeft <> scoresFromRight
+          n = fromIntegral $ length allScores
+        in
+         if n == 0 then -100 else sum allScores / fromIntegral (length allScores)
+      where
+        scoreChild v (n, orn) = do
+          res <- v orn
+          categoricalLogProb (fifths n) res
+
+    -- Need to find all the parent on the left of the child slice 
+    -- And all the parents form the right of the child slice
     scoreSplit
       splitOp@( SplitOp splitReg splitPass fromLeft fromRight keepLeft keepRight passLeft passRight)
       slcL
       top
       slcR
-        = let probsRS = map scoreFromLeft (allEdges fromLeft)
-              probsLS = map scoreFromRight (allEdges fromRight)
-              probsRegs = map scoreReg (allRegs splitReg)
-              probsPassings = map scorePass (allPassings splitPass)
-              probsPassLeft = map scorePassLeft (MS.toList passLeft)
-              probsPassRight = map scorePassRight (MS.toList passLeft)
-              aggregateProbs = probsRS <> probsLS <> probsRegs <> probsPassings <> probsPassLeft <> probsPassRight
-              score = - (sum aggregateProbs / fromIntegral (length aggregateProbs))
+        = let leftRegParents = allRegLeftParents splitReg
+              rightRegParents = allRegRightParents splitReg
+              leftPassingParents = allPassingLeftParents splitPass
+              rightPassingParents = allPassingRightParents splitPass
+              fromLeftParents = allSingleParents fromLeft
+              fromRightParents = allSingleParents fromRight
+
+              -- Parents are all evaluated using chord-tone profiles
+              leftParents = leftRegParents <> leftPassingParents <> fromLeftParents
+              rightParents = rightRegParents <> rightPassingParents <> fromRightParents
+
+              -- Single children are evaluated using the profiles from parents/ chordtone or ornament
+              childFromRights = allSingleChildren fromRight
+              childFromLefts = allSingleChildren fromLeft
+
+              -- Regs are evaluated from a mixture from both parents
+              childRegs = allDoubleChildren splitReg
+
+              --Passing children are evaluated from ornment profiles of both parents - mixture
+              childPasses = allDoubleChildren splitPass
+
+              parentFactor =
+                scoreParents
+                  (Notes $ MS.fromList leftParents)
+                  (Notes $ MS.fromList rightParents) slcL slcR
+
+              childFactor = scoreChildren childRegs childPasses childFromLefts childFromRights slcL slcR
+              score = - (childFactor + parentFactor) -- parentFactor bug
            in
              score
-      where
 
-        scoreReg :: ((StartStop SPitch, StartStop SPitch), (SPitch, DoubleOrnament)) -> Double
-        scoreReg ((Inner x,Inner y), (n,orn)) =
-          case orn of
-            FullNeighbor ->
-              ( evaluateChordTone slcL x + evaluateChordTone slcR y
-              + evaluateOrnament slcL n + evaluateOrnament slcR n) / 2
-
-            FullRepeat ->
-              ( evaluateChordTone slcL x + evaluateChordTone slcR y
-              + evaluateChordTone slcL n + evaluateChordTone slcR n) / 2
-
-            RootNote -> 0
-
-            LeftRepeatOfRight ->
-              ( evaluateChordTone slcL x + evaluateChordTone slcR y ) / 2
-              + evaluateChordTone slcR n
-
-            RightRepeatOfLeft ->
-              ( evaluateChordTone slcL x + evaluateChordTone slcR y ) / 2
-              + evaluateChordTone slcL n
-
-        scoreReg ((Start,Inner y), (n,orn)) =
-          case orn of
-            FullNeighbor ->
-              ( evaluateChordTone slcR y
-              + evaluateOrnament slcL n + evaluateOrnament slcR n) / 2
-
-            FullRepeat ->
-              ( evaluateChordTone slcR y
-              + evaluateChordTone slcL n + evaluateChordTone slcR n) / 2
-
-            RootNote -> 0
-
-            LeftRepeatOfRight ->
-              evaluateChordTone slcR y / 2
-              + evaluateChordTone slcR n
-
-            RightRepeatOfLeft ->
-              evaluateChordTone slcR y / 2
-              + evaluateChordTone slcL n
-
-        scoreReg ((Inner x , Stop), (n,orn)) =
-          case orn of
-            FullNeighbor ->
-              ( evaluateChordTone slcR x
-              + evaluateOrnament slcL n + evaluateOrnament slcR n) / 2
-
-            FullRepeat ->
-              ( evaluateChordTone slcR x
-              + evaluateChordTone slcL n + evaluateChordTone slcR n) / 2
-
-            RootNote -> 0
-
-            LeftRepeatOfRight ->
-              evaluateChordTone slcR x / 2
-              + evaluateChordTone slcR n
-
-            RightRepeatOfLeft ->
-              evaluateChordTone slcR x / 2
-              + evaluateChordTone slcL n
-
-        scoreReg (_, (n,orn)) = error "invalid regular edge"
-
-        scorePass ((x,y), (n,orn)) =
-          case orn of
-            PassingLeft -> evaluateOrnament slcL n + evaluateChordTone slcR y
-            PassingMid ->
-              ( evaluateChordTone slcL x + evaluateChordTone slcR y
-              + evaluateOrnament slcL n + evaluateOrnament slcR n ) / 2
-            PassingRight -> evaluateOrnament slcL n + evaluateChordTone slcR x
-
-        scorePassRight (n,y) = evaluateOrnament slcR n + evaluateChordTone slcR y
-        scorePassLeft (x,n) = evaluateOrnament slcL n + evaluateChordTone slcL x
-
-        scoreFromRight (n, (x,orn)) =
-          case orn of
-            LeftNeighbor -> evaluateOrnament slcR x + evaluateChordTone slcR n
-            LeftRepeat -> evaluateChordTone slcR x + evaluateChordTone slcR n
-
-        scoreFromLeft (n, (x,orn) ) =
-          case orn of
-            RightNeighbor -> evaluateOrnament slcL x + evaluateChordTone slcL n
-            RightRepeat -> evaluateChordTone slcL x + evaluateChordTone slcL n
-
+    scoreSpread
+      :: Spread n
+      -> Maybe (SliceWrapped (Notes SPitch))
+      -> SliceWrapped (Notes SPitch)
+      -> Maybe (SliceWrapped (Notes SPitch))
+      -> Double
     scoreSpread
       spreadOp@(SpreadOp spreads edge@(Edges edgesReg edgesPass))
       slcL
       slc
       slcR
-        = let probsRegs = map scoreReg (S.toList edgesReg)
-              probsPasses = map scorePass (MS.toList edgesPass)
-              aggregateProbs = probsRegs <> probsPasses
-              score = - (sum aggregateProbs / fromIntegral (length aggregateProbs))
-            in
-              score
-      where
+        = let (lbll, lblr) = ((\(SliceWrapped _ sLbl probl) -> probl) <$> slcL ,(\(SliceWrapped _ sLbl probr) -> probr) <$> slcR)
+           -- in trace ("spread: " <> (show $ (-50 * go lbll lblr) )) (- go lbll lblr) * 50
+           in (- go lbll lblr) * 50
+          where
+            go Nothing Nothing = 5
+            go (Just a) Nothing = a
+            go Nothing (Just a) = a
+            go (Just a ) (Just b) = (a + b)/2
+          -- let
+          -- probsRegs = map scoreReg (S.toList edgesReg)
+              -- probsPasses = map scorePass (MS.toList edgesPass)
+              -- aggregateProbs = probsRegs <> probsPasses
+              -- l = length aggregateProbs
+              -- score = if l == 0 then 5 else - (sum aggregateProbs / fromIntegral (length aggregateProbs))
+            -- in
         -- scoreReg :: Edge n -> Float
-        scoreReg (Start ,Inner y) = evaluateChordTone slcR y
-        scoreReg (Inner x ,Stop) = evaluateChordTone slcL x
-        scoreReg (Inner x , Inner y) = evaluateChordTone slcL x + evaluateChordTone slcR y
+        -- scoreReg (Start ,Inner y) = evaluateChordTone slcR y
+        -- scoreReg (Inner x ,Stop) = evaluateChordTone slcL x
+        -- scoreReg (Inner x , Inner y) = evaluateChordTone slcL x + evaluateChordTone slcR y
+        --
+        -- -- scorePass :: InnerEdge n -> Float
+        -- scorePass (x , y) = evaluateChordTone slcL x + evaluateChordTone slcR y
 
-        -- scorePass :: InnerEdge n -> Float
-        scorePass (x , y) = evaluateChordTone slcL x + evaluateChordTone slcR y
-
+    -- scoreParents
+    --   :: Notes SPitch
+    --   -> Notes SPitch
+    --   -> Maybe (SliceWrapped nx)
+    --   -> Maybe (SliceWrapped nx)
+    --   -> Double
+    -- scoreParents leftParents rightParents slcL slcR =
+    --   let (lbll, lblr) =
+    --         ((\(SliceWrapped _ sLbl _) -> sLbl) <$> slcL
+    --         ,(\(SliceWrapped _ sLbl _) -> sLbl) <$> slcR)
+    --       leftScore = scoreParent (probsParent lbll) leftParents
+    --       rightScore = scoreParent (probsParent lblr) rightParents
+    --       bothScores =  (maybeToList leftScore ++ maybeToList rightScore)
+    --       n = fromIntegral $ length bothScores
+    --     in
+    --       if n == 0 then 0 else sum bothScores / n
+    --     where
+    --       scoreParent mps v = do
+    --         multinomialLogProb (notesVector v) <$> mps
+    --
     getParentDouble
       :: State ns
       -> ( StartStop (SliceWrapped (Notes ns)) --midslice or start (in open case)
@@ -278,11 +308,60 @@ heuristicZero (prevState, state) = case getOpFromState state of
       child <- children
       pure (parent, child)
 
+    allSingleParents :: M.Map a [b] -> [a]
+    allSingleParents ornamentSet = do
+      (parent, children) <- M.toList ornamentSet
+      pure parent
+
+    allSingleChildren :: M.Map a [b] -> [b]
+    allSingleChildren ornamentSet = do
+      (parent, children) <- M.toList ornamentSet
+      children
+
     allRegs :: M.Map a [b] -> [(a, b)]
     allRegs regSet = do
       (parent, children) <- M.toList regSet
       child <- children
       pure (parent, child)
+
+    allDoubleChildren :: M.Map a [b] -> [b]
+    allDoubleChildren regSet = do
+      (parent, children) <- M.toList regSet
+      children
+
+    allRegLeftParents :: M.Map (Edge n) [b] -> [n]
+    allRegLeftParents regSet = do
+      ((l,_), ornament ) <- M.toList regSet
+      maybeToList $ startStopToMaybe l
+
+    allRegRightParents :: M.Map (Edge n) [b] -> [n]
+    allRegRightParents regSet = do
+      ((_,r), ornament ) <- M.toList regSet
+      maybeToList $ startStopToMaybe r
+
+    allPassingLeftParents :: M.Map (InnerEdge n) [b] -> [n]
+    allPassingLeftParents regSet = do
+      ((l,_), ornament ) <- M.toList regSet
+      pure l
+
+    allPassingRightParents :: M.Map (InnerEdge n) [b] -> [n]
+    allPassingRightParents regSet = do
+      ((_,r), ornament ) <- M.toList regSet
+      pure r
+
+    allPassingChildren :: M.Map a [b] -> [b]
+    allPassingChildren regSet = do
+      (parent, children) <- M.toList regSet
+      children
+    startStopToMaybe Start = Nothing
+    startStopToMaybe Stop = Nothing
+    startStopToMaybe (Inner a) = Just a
+
+
+      -- pure 
+      -- (parent, children) <- M.toList regSet
+      -- child <- children
+      -- pure (parent, child)
 
     allPassings ornamentSet = do
       (parent, children) <- M.toList ornamentSet
@@ -297,3 +376,6 @@ heuristicZero (prevState, state) = case getOpFromState state of
     allInnerEdges opset = do
       (parent, child) <- MS.toList opset
       pure (parent, child)
+
+
+

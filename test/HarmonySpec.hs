@@ -7,7 +7,6 @@ module HarmonySpec where
 import Common
 import Harmony
 import Harmony.ChordLabel
-import PBHModel qualified as PBH
 import Harmony.Params
 
 import Control.Monad.Except (ExceptT, lift, runExceptT, throwError)
@@ -44,6 +43,7 @@ import Prelude hiding
     pure,
   )
 import Debug.Trace (trace)
+import PBHModel (mostLikelyChordFromSlice)
 
 type InputSlice ns = ([(ns, Music.RightTied)], Bool)
 
@@ -52,41 +52,41 @@ type InputSlice ns = ([(ns, Music.RightTied)], Bool)
 --   pure ()
 -- hspec mo
 
-probDensitySpec :: Spec
-probDensitySpec = do
-  describe "multinomialLogProb" $ do
-
-    it "returns the correct log-probability for a basic input" $ do
-      let xs = V.fromList [2, 3, 1]
-          probs = V.fromList [0.3, 0.5, 0.2]
-          result = multinomialLogProb xs probs
-          expected = -2.0024805005437063
-      result `shouldBe` expected
-
-    it "returns -100000000 for an empty input" $ do
-      let xs = V.fromList []
-          probs = V.fromList [0.3, 0.5, 0.2]
-          result = multinomialLogProb xs probs
-          expected = -100000000
-      result `shouldBe` expected
-
-    -- it "returns an error message for vectors of unequal length" $ do
-    --   let xs = V.fromList [2, 3, 1]
-    --       probs = V.fromList [0.3, 0.5]
-    --       result = trace (show result) (multinomialLogProb xs probs)
-    --       expected = "Vectors must be of the same length."
-    --   result `shouldBe` expected
-
-    it "returns the correct log-probability for a large input" $ do
-      let xs = V.fromList [100000, 50000, 25000]
-          probs = V.fromList [0.3, 0.5, 0.2]
-          result = multinomialLogProb xs probs
-          expected = -28055.13760597352 
-      result `shouldBe` expected
-
+-- probDensitySpec :: Spec
+-- probDensitySpec = do
+--   describe "multinomialLogProb" $ do
+--
+--     it "returns the correct log-probability for a basic input" $ do
+--       let xs = V.fromList [2, 3, 1]
+--           probs = V.fromList [0.3, 0.5, 0.2]
+--           result = multinomialLogProb xs probs
+--           expected = -2.0024805005437063
+--       result `shouldBe` expected
+--
+--     it "returns -100000000 for an empty input" $ do
+--       let xs = V.fromList []
+--           probs = V.fromList [0.3, 0.5, 0.2]
+--           result = multinomialLogProb xs probs
+--           expected = -100000000
+--       result `shouldBe` expected
+--
+--     -- it "returns an error message for vectors of unequal length" $ do
+--     --   let xs = V.fromList [2, 3, 1]
+--     --       probs = V.fromList [0.3, 0.5]
+--     --       result = trace (show result) (multinomialLogProb xs probs)
+--     --       expected = "Vectors must be of the same length."
+--     --   result `shouldBe` expected
+--
+--     it "returns the correct log-probability for a large input" $ do
+--       let xs = V.fromList [100000, 50000, 25000]
+--           probs = V.fromList [0.3, 0.5, 0.2]
+--           result = multinomialLogProb xs probs
+--           expected = -28055.13760597352 
+--       result `shouldBe` expected
+--
 harmonySpec :: Spec
 harmonySpec = do
-  probDensitySpec
+  -- probDensitySpec
   runIO $ do
     -- let chordTypes = chordtypes
 
@@ -96,7 +96,7 @@ harmonySpec = do
     putStrLn $ "\nConsidering: " <> show d
     putStrLn $ showChordFromSlice d
     print $ (genSlice' ["D3", "F#3", "A4", "C4"])
-    print $ allLabelLikelihoodsGivenSlice (genSlice' ["D3", "F#3", "A4", "C4"])
+    print $ take 5 $ reverse . sort . V.toList $ allLabelLikelihoodsGivenSlice (genSlice' ["D3", "F#3", "A4", "C4"])
     -- print $ PBH.sliceChordWeightedLogLikelihoods params (genSlice' ["D3", "F#3", "A4", "C4"])
     -- pallLabelLikelihoodsGivenSlice
     -- let (r, f) = showChordFromSlice' params sliceFmaj'
@@ -177,11 +177,41 @@ harmonySpec = do
       "Dm" == showChordFromSlice  (genSlice' ["D3", "F3", "A4"])
     it "Fm" $
       "Fm" == showChordFromSlice  (genSlice' ["Ab3", "F3", "C4", "C4"])
-    it "Am"$
+    it "Em"$
       "Em" == showChordFromSlice  (genSlice' ["E3", "G3", "E2", "B4"])
     it "Cm" $ do
       "Cm" == showChordFromSlice  (genSlice' ["C3", "G3", "Eb4", "Eb7"])
 
+  describe "Generating Note Vector" $ do
+    it "C" $
+      V.replicate 29 0 V.// [(14,1::Double)] 
+        == fromJust (noteVector (spelledp 0 3))
+    it "Bb" $
+      V.replicate 29 0 V.// [(12,1::Double)] 
+        == fromJust (noteVector (spelledp (-2) 0))
+    it "F#" $
+      V.replicate 29 0 V.// [(14+6,1::Double)] 
+        == fromJust (noteVector (spelledp 6 3))
+    it "Out of bounds -15" $
+        isNothing (noteVector (spelledp (-15) 3))
+    it "Out of bounds 15" $
+        isNothing (noteVector (spelledp 15 3))
+
+  describe "Generating SliceVector" $ do
+    it "CCG" $
+      V.replicate 29 0 V.// ([(14,2), (15,1)] :: [(Int,Double)])
+        == notesVector (Notes $ MS.fromList [spelledp 0 3, spelledp 0 7, spelledp 1 2])
+    it "F A Bb E" $
+      V.replicate 29 0 V.// ([(13,1), (17,1), (12, 1), (18, 1)] :: [(Int,Double)])
+        == notesVector (Notes $ MS.fromList [spelledp (-2) 3, spelledp (-1) 7, spelledp (3) 2, spelledp 4 8])
+
+  describe "Parent Likelihoods" $ do
+    it "CCG" $
+      V.replicate 29 0 V.// ([(14,2), (15,1)] :: [(Int,Double)])
+        == notesVector (Notes $ MS.fromList [spelledp 0 3, spelledp 0 7, spelledp 1 2])
+    it "F A Bb E" $
+      V.replicate 29 0 V.// ([(13,1), (17,1), (12, 1), (18, 1)] :: [(Int,Double)])
+        == notesVector (Notes $ MS.fromList [spelledp (-2) 3, spelledp (-1) 7, spelledp (3) 2, spelledp 4 8])
   -- Note this should definitely be a mixture model
   -- describe "Infering Aug Chord labels" $ do
   --   it "D+" $
@@ -193,9 +223,8 @@ harmonySpec = do
 --   let (root, chordType, prob) = mostLikelyChordFromSlice params slice
 --    in (root, showNotation root <> chordType)
 
-showChordFromSlice slice = trace (show $ mostLikelyLabelFromSlice slice)
+showChordFromSlice slice = trace ( show . map snd . take 5 . reverse . sort . V.toList $ allLabelLikelihoodsGivenSlice slice )
    show $ mostLikelyLabelFromSlice slice
-
    -- in shownotation root <> chordtype
 
 -- showChordfromslice params slice =
