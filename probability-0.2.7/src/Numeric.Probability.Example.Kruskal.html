@@ -1,0 +1,955 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">{- |
+Given a row of n (~50) dice,
+two players start with a random dice within the first m (~5) dice.
+Every player moves along the row, according to the pips on the dice.
+They stop if a move would exceed the row.
+What is the probability that they stop at the same die?
+(It is close to one.)
+
+Kruskal's trick:
+&lt;http://faculty.uml.edu/rmontenegro/research/kruskal_count/kruskal.html&gt;
+
+Wuerfelschlange (german):
+&lt;http://www.math.de/exponate/wuerfelschlange.html/&gt;
+-}</span><span>
+</span><span id="line-15"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Numeric.Probability.Example.Kruskal</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Numeric.Probability.Distribution.html"><span class="hs-identifier">Numeric.Probability.Distribution</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Dist</span></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Numeric.Probability.Transition.html"><span class="hs-identifier">Numeric.Probability.Transition</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Trans</span></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Numeric.Probability.Random.html"><span class="hs-identifier">Numeric.Probability.Random</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Random</span></span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Numeric.Probability.Object.html"><span class="hs-identifier">Numeric.Probability.Object</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Obj</span></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">System.Random</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Rnd</span></span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Text.Printf</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">P</span></span><span>
+</span><span id="line-23"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.List</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">List</span></span><span>
+</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">replicateM</span></span><span class="hs-special">,</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-25"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Function.HT</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">nest</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">compose2</span></span><span class="hs-special">,</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Tuple.HT</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">mapSnd</span></span><span class="hs-special">,</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-27"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Bool.HT</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">if'</span></span><span class="hs-special">,</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span>
+</span><span id="line-30"></span><span class="hs-keyword">type</span><span> </span><span id="Die"><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Die"><span class="hs-identifier hs-var">Die</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span class="hs-keyword">type</span><span> </span><span id="Probability"><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Probability"><span class="hs-identifier hs-var">Probability</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Rational</span></span><span>
+</span><span id="line-33"></span><span class="hs-keyword">type</span><span> </span><span id="Dist"><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Dist"><span class="hs-identifier hs-var">Dist</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Numeric.Probability.Distribution.html#T"><span class="hs-identifier hs-type">Dist.T</span></a></span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Probability"><span class="hs-identifier hs-type">Probability</span></a></span><span>
+</span><span id="line-34"></span><span>
+</span><span id="line-35"></span><span id="local-6989586621679068738"><span id="local-6989586621679068739"><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#die"><span class="hs-identifier hs-type">die</span></a></span><span> </span><span class="hs-glyph">::</span><span>
+</span><span id="line-36"></span><span>   </span><span class="hs-special">(</span><span class="annot"><a href="Numeric.Probability.Object.html#C"><span class="hs-identifier hs-type">Obj.C</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679068739"><span class="hs-identifier hs-type">prob</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679068738"><span class="hs-identifier hs-type">experiment</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Fractional</span></span><span> </span><span class="annot"><a href="#local-6989586621679068739"><span class="hs-identifier hs-type">prob</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span>
+</span><span id="line-37"></span><span>   </span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679068738"><span class="hs-identifier hs-type">experiment</span></a></span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Die"><span class="hs-identifier hs-type">Die</span></a></span></span></span><span>
+</span><span id="line-38"></span><span id="die"><span class="annot"><span class="annottext">die :: forall prob (experiment :: * -&gt; *).
+(C prob experiment, Fractional prob) =&gt;
+Score -&gt; experiment Score
+</span><a href="Numeric.Probability.Example.Kruskal.html#die"><span class="hs-identifier hs-var hs-var">die</span></a></span></span><span> </span><span id="local-6989586621679068423"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068423"><span class="hs-identifier hs-var">maxPips</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall prob (obj :: * -&gt; *) a.
+(C prob obj, Fractional prob) =&gt;
+Spread obj a
+</span><a href="Numeric.Probability.Object.html#uniform"><span class="hs-identifier hs-var">Obj.uniform</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Score
+</span><span class="hs-number">1</span></span><span class="hs-glyph">..</span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068423"><span class="hs-identifier hs-var">maxPips</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-39"></span><span>
+</span><span id="line-40"></span><span>
+</span><span id="line-41"></span><span>
+</span><span id="line-42"></span><span class="hs-keyword">type</span><span> </span><span id="Score"><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-var">Score</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-43"></span><span>
+</span><span id="line-44"></span><span class="hs-comment">{- |
+We reformulate the problem to the following game:
+There are two players, both of them collect a number of points.
+In every round the player with the smaller score throws a die
+and adds the pips to his score.
+If the two players somewhen get the same score, then the game ends
+and the score is the result of the game (@Just score@).
+If one of the players exceeds the maximum score n,
+then the game stops and players lose (@Nothing@).
+-}</span><span>
+</span><span id="line-54"></span><span id="local-6989586621679068730"><span id="local-6989586621679068731"><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#game"><span class="hs-identifier hs-type">game</span></a></span><span> </span><span class="hs-glyph">::</span><span>
+</span><span id="line-55"></span><span>   </span><span class="hs-special">(</span><span class="annot"><a href="Numeric.Probability.Object.html#C"><span class="hs-identifier hs-type">Obj.C</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679068731"><span class="hs-identifier hs-type">prob</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679068730"><span class="hs-identifier hs-type">experiment</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Fractional</span></span><span> </span><span class="annot"><a href="#local-6989586621679068731"><span class="hs-identifier hs-type">prob</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span>
+</span><span id="line-56"></span><span>   </span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span class="hs-special">,</span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679068730"><span class="hs-identifier hs-type">experiment</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-57"></span><span id="game"><span class="annot"><span class="annottext">game :: forall prob (experiment :: * -&gt; *).
+(C prob experiment, Fractional prob) =&gt;
+Score -&gt; Score -&gt; (Score, Score) -&gt; experiment (Maybe Score)
+</span><a href="Numeric.Probability.Example.Kruskal.html#game"><span class="hs-identifier hs-var hs-var">game</span></a></span></span><span> </span><span id="local-6989586621679068416"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068416"><span class="hs-identifier hs-var">maxPips</span></a></span></span><span> </span><span id="local-6989586621679068415"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068415"><span class="hs-identifier hs-var">maxScore</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-58"></span><span>   </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679068397"><span class="annot"><span class="annottext">go :: (Score, Score) -&gt; m (Maybe Score)
+</span><a href="#local-6989586621679068397"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679068396"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068396"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">,</span><span id="local-6989586621679068395"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068395"><span class="hs-identifier hs-var">y</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-59"></span><span>          </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068415"><span class="hs-identifier hs-var">maxScore</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;</span></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">max</span></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068396"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068395"><span class="hs-identifier hs-var">y</span></a></span><span>
+</span><span id="line-60"></span><span>            </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-61"></span><span>            </span><span class="hs-keyword">else</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Ordering
+</span><span class="hs-identifier hs-var">compare</span></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068396"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068395"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-62"></span><span>                    </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">EQ</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068396"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-63"></span><span>                    </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">LT</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-64"></span><span>                       </span><span id="local-6989586621679068391"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068391"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall prob (experiment :: * -&gt; *).
+(C prob experiment, Fractional prob) =&gt;
+Score -&gt; experiment Score
+</span><a href="Numeric.Probability.Example.Kruskal.html#die"><span class="hs-identifier hs-var">die</span></a></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068416"><span class="hs-identifier hs-var">maxPips</span></a></span><span>
+</span><span id="line-65"></span><span>                       </span><span class="annot"><span class="annottext">(Score, Score) -&gt; m (Maybe Score)
+</span><a href="#local-6989586621679068397"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068396"><span class="hs-identifier hs-var">x</span></a></span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068391"><span class="hs-identifier hs-var">d</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068395"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-66"></span><span>                    </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">GT</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-67"></span><span>                       </span><span id="local-6989586621679068389"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068389"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall prob (experiment :: * -&gt; *).
+(C prob experiment, Fractional prob) =&gt;
+Score -&gt; experiment Score
+</span><a href="Numeric.Probability.Example.Kruskal.html#die"><span class="hs-identifier hs-var">die</span></a></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068416"><span class="hs-identifier hs-var">maxPips</span></a></span><span>
+</span><span id="line-68"></span><span>                       </span><span class="annot"><span class="annottext">(Score, Score) -&gt; m (Maybe Score)
+</span><a href="#local-6989586621679068397"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068396"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068395"><span class="hs-identifier hs-var">y</span></a></span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068389"><span class="hs-identifier hs-var">d</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-69"></span><span>   </span><span class="hs-keyword">in</span><span>  </span><span class="annot"><span class="annottext">forall {prob} {m :: * -&gt; *}.
+(C prob m, Fractional prob) =&gt;
+(Score, Score) -&gt; m (Maybe Score)
+</span><a href="#local-6989586621679068397"><span class="hs-identifier hs-var">go</span></a></span><span>
+</span><span id="line-70"></span><span>
+</span><span id="line-71"></span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#gameRound"><span class="hs-identifier hs-type">gameRound</span></a></span><span> </span><span class="hs-glyph">::</span><span>
+</span><span id="line-72"></span><span>   </span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-73"></span><span>   </span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Dist"><span class="hs-identifier hs-type">Dist</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span class="hs-special">,</span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-74"></span><span>   </span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Dist"><span class="hs-identifier hs-type">Dist</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span class="hs-special">,</span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-75"></span><span id="gameRound"><span class="annot"><span class="annottext">gameRound :: Score
+-&gt; Score
+-&gt; Dist (Either (Maybe Score) (Score, Score))
+-&gt; Dist (Either (Maybe Score) (Score, Score))
+</span><a href="Numeric.Probability.Example.Kruskal.html#gameRound"><span class="hs-identifier hs-var hs-var">gameRound</span></a></span></span><span> </span><span id="local-6989586621679068387"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068387"><span class="hs-identifier hs-var">maxPips</span></a></span></span><span> </span><span id="local-6989586621679068386"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068386"><span class="hs-identifier hs-var">maxScore</span></a></span></span><span> </span><span id="local-6989586621679068385"><span class="annot"><span class="annottext">Dist (Either (Maybe Score) (Score, Score))
+</span><a href="#local-6989586621679068385"><span class="hs-identifier hs-var">current</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall prob a. (Num prob, Ord a) =&gt; T prob a -&gt; T prob a
+</span><a href="Numeric.Probability.Distribution.html#norm"><span class="hs-identifier hs-var">Dist.norm</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-76"></span><span>   </span><span id="local-6989586621679068383"><span class="annot"><span class="annottext">Either (Maybe Score) (Score, Score)
+</span><a href="#local-6989586621679068383"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Dist (Either (Maybe Score) (Score, Score))
+</span><a href="#local-6989586621679068385"><span class="hs-identifier hs-var">current</span></a></span><span>
+</span><span id="line-77"></span><span>   </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Either (Maybe Score) (Score, Score)
+</span><a href="#local-6989586621679068383"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-78"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span id="local-6989586621679068382"><span class="annot"><span class="annottext">Maybe Score
+</span><a href="#local-6989586621679068382"><span class="hs-identifier hs-var">end</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="annot"><span class="annottext">Maybe Score
+</span><a href="#local-6989586621679068382"><span class="hs-identifier hs-var">end</span></a></span><span>
+</span><span id="line-79"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679068381"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068381"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">,</span><span id="local-6989586621679068380"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068380"><span class="hs-identifier hs-var">y</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-80"></span><span>         </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068386"><span class="hs-identifier hs-var">maxScore</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;</span></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">max</span></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068381"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068380"><span class="hs-identifier hs-var">y</span></a></span><span>
+</span><span id="line-81"></span><span>           </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="annot"><span class="annottext">forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-82"></span><span>           </span><span class="hs-keyword">else</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Ordering
+</span><span class="hs-identifier hs-var">compare</span></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068381"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068380"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-83"></span><span>                   </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">EQ</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068381"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-84"></span><span>                   </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">LT</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-85"></span><span>                      </span><span id="local-6989586621679068379"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068379"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall prob (experiment :: * -&gt; *).
+(C prob experiment, Fractional prob) =&gt;
+Score -&gt; experiment Score
+</span><a href="Numeric.Probability.Example.Kruskal.html#die"><span class="hs-identifier hs-var">die</span></a></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068387"><span class="hs-identifier hs-var">maxPips</span></a></span><span>
+</span><span id="line-86"></span><span>                      </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068381"><span class="hs-identifier hs-var">x</span></a></span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068379"><span class="hs-identifier hs-var">d</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068380"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-87"></span><span>                   </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">GT</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-88"></span><span>                      </span><span id="local-6989586621679068378"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068378"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall prob (experiment :: * -&gt; *).
+(C prob experiment, Fractional prob) =&gt;
+Score -&gt; experiment Score
+</span><a href="Numeric.Probability.Example.Kruskal.html#die"><span class="hs-identifier hs-var">die</span></a></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068387"><span class="hs-identifier hs-var">maxPips</span></a></span><span>
+</span><span id="line-89"></span><span>                      </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068381"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068380"><span class="hs-identifier hs-var">y</span></a></span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068378"><span class="hs-identifier hs-var">d</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-90"></span><span>
+</span><span id="line-91"></span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#gameFast"><span class="hs-identifier hs-type">gameFast</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Dist"><span class="hs-identifier hs-type">Dist</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span class="hs-special">,</span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Dist"><span class="hs-identifier hs-type">Dist</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-92"></span><span id="gameFast"><span class="annot"><span class="annottext">gameFast :: Score -&gt; Score -&gt; Dist (Score, Score) -&gt; Dist (Maybe Score)
+</span><a href="Numeric.Probability.Example.Kruskal.html#gameFast"><span class="hs-identifier hs-var hs-var">gameFast</span></a></span></span><span> </span><span id="local-6989586621679068376"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068376"><span class="hs-identifier hs-var">maxPips</span></a></span></span><span> </span><span id="local-6989586621679068375"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068375"><span class="hs-identifier hs-var">maxScore</span></a></span></span><span> </span><span id="local-6989586621679068374"><span class="annot"><span class="annottext">Dist (Score, Score)
+</span><a href="#local-6989586621679068374"><span class="hs-identifier hs-var">start</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-93"></span><span>   </span><span class="annot"><span class="annottext">forall prob a b.
+Fractional prob =&gt;
+(a -&gt; Maybe b) -&gt; T prob a -&gt; T prob b
+</span><a href="Numeric.Probability.Distribution.html#mapMaybe"><span class="hs-identifier hs-var">Dist.mapMaybe</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a c b. (a -&gt; c) -&gt; (b -&gt; c) -&gt; Either a b -&gt; c
+</span><span class="hs-identifier hs-var">either</span></span><span> </span><span class="annot"><span class="annottext">forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. HasCallStack =&gt; String -&gt; a
+</span><span class="hs-identifier hs-var">error</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;the game must be finished after maxScore moves&quot;</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-94"></span><span>   </span><span class="annot"><span class="annottext">forall a. Score -&gt; (a -&gt; a) -&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">nest</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068375"><span class="hs-identifier hs-var">maxScore</span></a></span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span class="annot"><span class="annottext">Score
+</span><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Score
+-&gt; Score
+-&gt; Dist (Either (Maybe Score) (Score, Score))
+-&gt; Dist (Either (Maybe Score) (Score, Score))
+</span><a href="Numeric.Probability.Example.Kruskal.html#gameRound"><span class="hs-identifier hs-var">gameRound</span></a></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068376"><span class="hs-identifier hs-var">maxPips</span></a></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068375"><span class="hs-identifier hs-var">maxScore</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="annot"><span class="annottext">Dist (Score, Score)
+</span><a href="#local-6989586621679068374"><span class="hs-identifier hs-var">start</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-95"></span><span>
+</span><span id="line-96"></span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#gameFastEither"><span class="hs-identifier hs-type">gameFastEither</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Dist"><span class="hs-identifier hs-type">Dist</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span class="hs-special">,</span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Dist"><span class="hs-identifier hs-type">Dist</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-97"></span><span id="gameFastEither"><span class="annot"><span class="annottext">gameFastEither :: Score -&gt; Score -&gt; Dist (Score, Score) -&gt; Dist (Maybe Score)
+</span><a href="Numeric.Probability.Example.Kruskal.html#gameFastEither"><span class="hs-identifier hs-var hs-var">gameFastEither</span></a></span></span><span> </span><span id="local-6989586621679068369"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068369"><span class="hs-identifier hs-var">maxPips</span></a></span></span><span> </span><span id="local-6989586621679068368"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068368"><span class="hs-identifier hs-var">maxScore</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall prob a b.
+(Num prob, Ord a, Ord b) =&gt;
+(a -&gt; T prob (Either b a)) -&gt; T prob a -&gt; T prob b
+</span><a href="Numeric.Probability.Transition.html#untilLeft"><span class="hs-identifier hs-var">Trans.untilLeft</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span class="hs-special">(</span><span id="local-6989586621679068366"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068366"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">,</span><span id="local-6989586621679068365"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068365"><span class="hs-identifier hs-var">y</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-98"></span><span>   </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068368"><span class="hs-identifier hs-var">maxScore</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;</span></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">max</span></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068366"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068365"><span class="hs-identifier hs-var">y</span></a></span><span>
+</span><span id="line-99"></span><span>     </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="annot"><span class="annottext">forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-100"></span><span>     </span><span class="hs-keyword">else</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Ordering
+</span><span class="hs-identifier hs-var">compare</span></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068366"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068365"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-101"></span><span>             </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">EQ</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068366"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-102"></span><span>             </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">LT</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-103"></span><span>                </span><span id="local-6989586621679068364"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068364"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall prob (experiment :: * -&gt; *).
+(C prob experiment, Fractional prob) =&gt;
+Score -&gt; experiment Score
+</span><a href="Numeric.Probability.Example.Kruskal.html#die"><span class="hs-identifier hs-var">die</span></a></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068369"><span class="hs-identifier hs-var">maxPips</span></a></span><span>
+</span><span id="line-104"></span><span>                </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068366"><span class="hs-identifier hs-var">x</span></a></span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068364"><span class="hs-identifier hs-var">d</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068365"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-105"></span><span>             </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">GT</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-106"></span><span>                </span><span id="local-6989586621679068363"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068363"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall prob (experiment :: * -&gt; *).
+(C prob experiment, Fractional prob) =&gt;
+Score -&gt; experiment Score
+</span><a href="Numeric.Probability.Example.Kruskal.html#die"><span class="hs-identifier hs-var">die</span></a></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068369"><span class="hs-identifier hs-var">maxPips</span></a></span><span>
+</span><span id="line-107"></span><span>                </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068366"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068365"><span class="hs-identifier hs-var">y</span></a></span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068363"><span class="hs-identifier hs-var">d</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-108"></span><span>
+</span><span id="line-109"></span><span class="hs-comment">{- |
+This version could be generalized
+to both Random and Distribution monad
+while remaining efficient.
+-}</span><span>
+</span><span id="line-114"></span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#gameFastFix"><span class="hs-identifier hs-type">gameFastFix</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Dist"><span class="hs-identifier hs-type">Dist</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span class="hs-special">,</span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Dist"><span class="hs-identifier hs-type">Dist</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-115"></span><span id="gameFastFix"><span class="annot"><span class="annottext">gameFastFix :: Score -&gt; Score -&gt; Dist (Score, Score) -&gt; Dist (Maybe Score)
+</span><a href="Numeric.Probability.Example.Kruskal.html#gameFastFix"><span class="hs-identifier hs-var hs-var">gameFastFix</span></a></span></span><span> </span><span id="local-6989586621679068361"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068361"><span class="hs-identifier hs-var">maxPips</span></a></span></span><span> </span><span id="local-6989586621679068360"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068360"><span class="hs-identifier hs-var">maxScore</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-116"></span><span>   </span><span class="annot"><span class="annottext">forall prob a b.
+(Num prob, Ord a, Ord b) =&gt;
+((a -&gt; EitherT a (T prob) b) -&gt; a -&gt; EitherT a (T prob) b)
+-&gt; T prob a -&gt; T prob b
+</span><a href="Numeric.Probability.Transition.html#fix"><span class="hs-identifier hs-var">Trans.fix</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679068358"><span class="annot"><span class="annottext">(Score, Score)
+-&gt; EitherT (Score, Score) (T Probability) (Maybe Score)
+</span><a href="#local-6989586621679068358"><span class="hs-identifier hs-var">go</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679068357"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068357"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">,</span><span id="local-6989586621679068356"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068356"><span class="hs-identifier hs-var">y</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-117"></span><span>      </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068360"><span class="hs-identifier hs-var">maxScore</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;</span></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">max</span></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068357"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068356"><span class="hs-identifier hs-var">y</span></a></span><span>
+</span><span id="line-118"></span><span>        </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-119"></span><span>        </span><span class="hs-keyword">else</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Ordering
+</span><span class="hs-identifier hs-var">compare</span></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068357"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068356"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-120"></span><span>                </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">EQ</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068357"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-121"></span><span>                </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">LT</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-122"></span><span>                   </span><span id="local-6989586621679068355"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068355"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall prob (experiment :: * -&gt; *).
+(C prob experiment, Fractional prob) =&gt;
+Score -&gt; experiment Score
+</span><a href="Numeric.Probability.Example.Kruskal.html#die"><span class="hs-identifier hs-var">die</span></a></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068361"><span class="hs-identifier hs-var">maxPips</span></a></span><span>
+</span><span id="line-123"></span><span>                   </span><span class="annot"><span class="annottext">(Score, Score)
+-&gt; EitherT (Score, Score) (T Probability) (Maybe Score)
+</span><a href="#local-6989586621679068358"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068357"><span class="hs-identifier hs-var">x</span></a></span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068355"><span class="hs-identifier hs-var">d</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068356"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-124"></span><span>                </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">GT</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-125"></span><span>                   </span><span id="local-6989586621679068354"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068354"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall prob (experiment :: * -&gt; *).
+(C prob experiment, Fractional prob) =&gt;
+Score -&gt; experiment Score
+</span><a href="Numeric.Probability.Example.Kruskal.html#die"><span class="hs-identifier hs-var">die</span></a></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068361"><span class="hs-identifier hs-var">maxPips</span></a></span><span>
+</span><span id="line-126"></span><span>                   </span><span class="annot"><span class="annottext">(Score, Score)
+-&gt; EitherT (Score, Score) (T Probability) (Maybe Score)
+</span><a href="#local-6989586621679068358"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068357"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068356"><span class="hs-identifier hs-var">y</span></a></span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068354"><span class="hs-identifier hs-var">d</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-127"></span><span>
+</span><span id="line-128"></span><span class="hs-comment">{- |
+In 'gameFastFix' we group the scores by rounds.
+This leads to a growing probability distribution,
+but we do not need the round number.
+We could process the game in a different way:
+We only consider the game states
+where the lower score matches the round number.
+-}</span><span>
+</span><span id="line-136"></span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#gameLeastScore"><span class="hs-identifier hs-type">gameLeastScore</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Dist"><span class="hs-identifier hs-type">Dist</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span class="hs-special">,</span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Dist"><span class="hs-identifier hs-type">Dist</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-137"></span><span id="gameLeastScore"><span class="annot"><span class="annottext">gameLeastScore :: Score -&gt; Score -&gt; Dist (Score, Score) -&gt; Dist (Maybe Score)
+</span><a href="Numeric.Probability.Example.Kruskal.html#gameLeastScore"><span class="hs-identifier hs-var hs-var">gameLeastScore</span></a></span></span><span> </span><span id="local-6989586621679068352"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068352"><span class="hs-identifier hs-var">maxPips</span></a></span></span><span> </span><span id="local-6989586621679068351"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068351"><span class="hs-identifier hs-var">maxScore</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-138"></span><span>   </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall prob a b.
+(Num prob, Ord a, Ord b) =&gt;
+((a -&gt; EitherT a (T prob) b) -&gt; a -&gt; EitherT a (T prob) b)
+-&gt; T prob a -&gt; T prob b
+</span><a href="Numeric.Probability.Transition.html#fix"><span class="hs-identifier hs-var">Trans.fix</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679068350"><span class="annot"><span class="annottext">(Score, (Score, Score))
+-&gt; EitherT (Score, (Score, Score)) (T Probability) (Maybe Score)
+</span><a href="#local-6989586621679068350"><span class="hs-identifier hs-var">go</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679068349"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068349"><span class="hs-identifier hs-var">n</span></a></span></span><span class="hs-special">,</span><span class="hs-special">(</span><span id="local-6989586621679068348"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068348"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">,</span><span id="local-6989586621679068347"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068347"><span class="hs-identifier hs-var">y</span></a></span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-139"></span><span>      </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068349"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&gt;</span></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068351"><span class="hs-identifier hs-var">maxScore</span></a></span><span>
+</span><span id="line-140"></span><span>        </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-141"></span><span>        </span><span class="hs-keyword">else</span><span>
+</span><span id="line-142"></span><span>           </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679068344"><span class="annot"><span class="annottext">next :: (Score, Score)
+-&gt; EitherT (Score, (Score, Score)) (T Probability) (Maybe Score)
+</span><a href="#local-6989586621679068344"><span class="hs-identifier hs-var hs-var">next</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Score, (Score, Score))
+-&gt; EitherT (Score, (Score, Score)) (T Probability) (Maybe Score)
+</span><a href="#local-6989586621679068350"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">,</span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Enum a =&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">succ</span></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068349"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-143"></span><span>           </span><span class="hs-keyword">in</span><span>  </span><span class="hs-keyword">case</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068348"><span class="hs-identifier hs-var">x</span></a></span><span class="annot"><span class="annottext">forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068349"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068347"><span class="hs-identifier hs-var">y</span></a></span><span class="annot"><span class="annottext">forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068349"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-144"></span><span>                  </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Score, Score)
+-&gt; EitherT (Score, (Score, Score)) (T Probability) (Maybe Score)
+</span><a href="#local-6989586621679068344"><span class="hs-identifier hs-var">next</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068348"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">,</span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068347"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-145"></span><span>                  </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-146"></span><span>                     </span><span id="local-6989586621679068341"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068341"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall prob (experiment :: * -&gt; *).
+(C prob experiment, Fractional prob) =&gt;
+Score -&gt; experiment Score
+</span><a href="Numeric.Probability.Example.Kruskal.html#die"><span class="hs-identifier hs-var">die</span></a></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068352"><span class="hs-identifier hs-var">maxPips</span></a></span><span>
+</span><span id="line-147"></span><span>                     </span><span class="annot"><span class="annottext">(Score, Score)
+-&gt; EitherT (Score, (Score, Score)) (T Probability) (Maybe Score)
+</span><a href="#local-6989586621679068344"><span class="hs-identifier hs-var">next</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068348"><span class="hs-identifier hs-var">x</span></a></span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068341"><span class="hs-identifier hs-var">d</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068347"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-148"></span><span>                  </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-149"></span><span>                     </span><span id="local-6989586621679068340"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068340"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall prob (experiment :: * -&gt; *).
+(C prob experiment, Fractional prob) =&gt;
+Score -&gt; experiment Score
+</span><a href="Numeric.Probability.Example.Kruskal.html#die"><span class="hs-identifier hs-var">die</span></a></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068352"><span class="hs-identifier hs-var">maxPips</span></a></span><span>
+</span><span id="line-150"></span><span>                     </span><span class="annot"><span class="annottext">(Score, Score)
+-&gt; EitherT (Score, (Score, Score)) (T Probability) (Maybe Score)
+</span><a href="#local-6989586621679068344"><span class="hs-identifier hs-var">next</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068348"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068347"><span class="hs-identifier hs-var">y</span></a></span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068340"><span class="hs-identifier hs-var">d</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-151"></span><span>                  </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068348"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-152"></span><span>   </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span>
+</span><span id="line-153"></span><span>   </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="hs-special">,</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Score
+</span><span class="hs-number">0</span></span><span class="hs-special">)</span><span>
+</span><span id="line-154"></span><span>
+</span><span id="line-155"></span><span class="hs-comment">{- |
+'gameLeastScore' can be written in terms of a matrix power.
+For n pips we need a n&#178; &#215; n&#178; matrix.
+Using symmetries, we reduce it to a square matrix with size n&#183;(n+1)/2.
+
+/ p[n+1,(n+1,n+1)] \          / p[n,(n+0,n+0)] \
+| p[n+1,(n+1,n+2)] |          | p[n,(n+0,n+1)] |
+| p[n+1,(n+1,n+3)] |          | p[n,(n+0,n+2)] |
+|        ...       |          |       ...      |
+| p[n+1,(n+1,n+6)] |  = M/6 &#183; | p[n,(n+0,n+5)] |
+| p[n+1,(n+2,n+2)] |          | p[n,(n+1,n+1)] |
+|        ...       |          |       ...      |
+| p[n+1,(n+2,n+6)] |          | p[n,(n+1,n+5)] |
+|        ...       |          |       ...      |
+\ p[n+1,(n+6,n+6)] /          \ p[n,(n+5,n+5)] /
+
+M[(n+1,(x,y)),(n,(x,y))] = 6
+
+M[(n+1,(min y (n+d), max y (n+d))), (n,(n,y))] = 1
+
+M[(n+1,(x1,y1)),(n,(x0,y0))] = 0
+-}</span><span>
+</span><span id="line-177"></span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#flattenedMatrix"><span class="hs-identifier hs-type">flattenedMatrix</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">]</span><span>
+</span><span id="line-178"></span><span id="flattenedMatrix"><span class="annot"><span class="annottext">flattenedMatrix :: Score -&gt; [Score]
+</span><a href="Numeric.Probability.Example.Kruskal.html#flattenedMatrix"><span class="hs-identifier hs-var hs-var">flattenedMatrix</span></a></span></span><span> </span><span id="local-6989586621679068338"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068338"><span class="hs-identifier hs-var">maxPips</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-179"></span><span>   </span><span id="local-6989586621679068337"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068337"><span class="hs-identifier hs-var">x1</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Score
+</span><span class="hs-number">1</span></span><span class="hs-glyph">..</span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068338"><span class="hs-identifier hs-var">maxPips</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-180"></span><span>   </span><span id="local-6989586621679068336"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068336"><span class="hs-identifier hs-var">y1</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068337"><span class="hs-identifier hs-var">x1</span></a></span><span class="hs-glyph">..</span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068338"><span class="hs-identifier hs-var">maxPips</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-181"></span><span>   </span><span id="local-6989586621679068335"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068335"><span class="hs-identifier hs-var">x0</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Score
+</span><span class="hs-number">0</span></span><span class="hs-glyph">..</span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068338"><span class="hs-identifier hs-var">maxPips</span></a></span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span class="annot"><span class="annottext">Score
+</span><span class="hs-number">1</span></span><span class="hs-special">]</span><span>
+</span><span id="line-182"></span><span>   </span><span id="local-6989586621679068334"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068334"><span class="hs-identifier hs-var">y0</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068335"><span class="hs-identifier hs-var">x0</span></a></span><span class="hs-glyph">..</span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068338"><span class="hs-identifier hs-var">maxPips</span></a></span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span class="annot"><span class="annottext">Score
+</span><span class="hs-number">1</span></span><span class="hs-special">]</span><span>
+</span><span id="line-183"></span><span>   </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-184"></span><span>      </span><span class="annot"><span class="annottext">forall a. Bool -&gt; a -&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">if'</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068335"><span class="hs-identifier hs-var">x0</span></a></span><span class="hs-special">,</span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068334"><span class="hs-identifier hs-var">y0</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068337"><span class="hs-identifier hs-var">x1</span></a></span><span class="hs-special">,</span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068336"><span class="hs-identifier hs-var">y1</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068338"><span class="hs-identifier hs-var">maxPips</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-185"></span><span>      </span><span class="annot"><span class="annottext">forall a. Bool -&gt; a -&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">if'</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068335"><span class="hs-identifier hs-var">x0</span></a></span><span class="annot"><span class="annottext">forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span class="annot"><span class="annottext">Score
+</span><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068334"><span class="hs-identifier hs-var">y0</span></a></span><span class="annot"><span class="annottext">forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068337"><span class="hs-identifier hs-var">x1</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">||</span></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068334"><span class="hs-identifier hs-var">y0</span></a></span><span class="annot"><span class="annottext">forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068336"><span class="hs-identifier hs-var">y1</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Score
+</span><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="annottext">Score
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-186"></span><span>
+</span><span id="line-187"></span><span class="hs-comment">{-
+let e0 = [1,0,0,...,0]
+
+The cumulated probability is
+e0 * (I + M + M^2 + ... + M^(n-1)) * startVector
+and with M = V*D*V^-1 we get
+e0 * V * (I + D + D^2 + ... + D^(n-1)) * V^-1 * startVector
+
+e0 * (I - M^n) * (I-M)^(-1) * startVector
+-}</span><span>
+</span><span id="line-197"></span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#startVector"><span class="hs-identifier hs-type">startVector</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">]</span><span>
+</span><span id="line-198"></span><span id="startVector"><span class="annot"><span class="annottext">startVector :: Score -&gt; [Score]
+</span><a href="Numeric.Probability.Example.Kruskal.html#startVector"><span class="hs-identifier hs-var hs-var">startVector</span></a></span></span><span> </span><span id="local-6989586621679068330"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068330"><span class="hs-identifier hs-var">maxPips</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-199"></span><span>   </span><span id="local-6989586621679068329"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068329"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Score
+</span><span class="hs-number">0</span></span><span class="hs-glyph">..</span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068330"><span class="hs-identifier hs-var">maxPips</span></a></span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span class="annot"><span class="annottext">Score
+</span><span class="hs-number">1</span></span><span class="hs-special">]</span><span>
+</span><span id="line-200"></span><span>   </span><span id="local-6989586621679068328"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068328"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068329"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-glyph">..</span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068330"><span class="hs-identifier hs-var">maxPips</span></a></span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span class="annot"><span class="annottext">Score
+</span><span class="hs-number">1</span></span><span class="hs-special">]</span><span>
+</span><span id="line-201"></span><span>   </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a. Bool -&gt; a -&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">if'</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068329"><span class="hs-identifier hs-var">x</span></a></span><span class="annot"><span class="annottext">forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068328"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Score
+</span><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="annottext">Score
+</span><span class="hs-number">2</span></span><span>
+</span><span id="line-202"></span><span>
+</span><span id="line-203"></span><span>
+</span><span id="line-204"></span><span id="local-6989586621679068685"><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#compareMaybe"><span class="hs-identifier hs-type">compareMaybe</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679068685"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679068685"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679068685"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ordering</span></span></span><span>
+</span><span id="line-205"></span><span id="compareMaybe"><span class="annot"><span class="annottext">compareMaybe :: forall a. Ord a =&gt; Maybe a -&gt; Maybe a -&gt; Ordering
+</span><a href="Numeric.Probability.Example.Kruskal.html#compareMaybe"><span class="hs-identifier hs-var hs-var">compareMaybe</span></a></span></span><span> </span><span class="annot"><span class="annottext">Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="annot"><span class="annottext">Maybe a
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">GT</span></span><span>
+</span><span id="line-206"></span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#compareMaybe"><span class="hs-identifier hs-var">compareMaybe</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe a
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">LT</span></span><span>
+</span><span id="line-207"></span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#compareMaybe"><span class="hs-identifier hs-var">compareMaybe</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621679068324"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679068324"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621679068323"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679068323"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Ordering
+</span><span class="hs-identifier hs-var">compare</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679068324"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679068323"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-208"></span><span>
+</span><span id="line-209"></span><span id="local-6989586621679068683"><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#cumulate"><span class="hs-identifier hs-type">cumulate</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679068683"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Dist"><span class="hs-identifier hs-type">Dist</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679068683"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679068683"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Probability"><span class="hs-identifier hs-type">Probability</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span></span><span>
+</span><span id="line-210"></span><span id="cumulate"><span class="annot"><span class="annottext">cumulate :: forall a. Ord a =&gt; Dist (Maybe a) -&gt; [(Maybe a, Probability)]
+</span><a href="Numeric.Probability.Example.Kruskal.html#cumulate"><span class="hs-identifier hs-var hs-var">cumulate</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-211"></span><span>   </span><span class="annot"><span class="annottext">forall a b c. (a -&gt; b -&gt; c) -&gt; (a, b) -&gt; c
+</span><span class="hs-identifier hs-var">uncurry</span></span><span> </span><span class="annot"><span class="annottext">forall a b. [a] -&gt; [b] -&gt; [(a, b)]
+</span><span class="hs-identifier hs-var">zip</span></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a, b) -&gt; (a, c)
+</span><span class="hs-identifier hs-var">mapSnd</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. (a -&gt; a -&gt; a) -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">scanl1</span></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">(+)</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall a b. [(a, b)] -&gt; ([a], [b])
+</span><span class="hs-identifier hs-var">unzip</span></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span>
+</span><span id="line-212"></span><span>   </span><span class="annot"><span class="annottext">forall a. (a -&gt; a -&gt; Ordering) -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">List.sortBy</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall b c a. (b -&gt; b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">compose2</span></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; Maybe a -&gt; Maybe a -&gt; Ordering
+</span><a href="Numeric.Probability.Example.Kruskal.html#compareMaybe"><span class="hs-identifier hs-var">compareMaybe</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a, b) -&gt; a
+</span><span class="hs-identifier hs-var">fst</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall prob a. T prob a -&gt; [(a, prob)]
+</span><a href="Numeric.Probability.Distribution.html#decons"><span class="hs-identifier hs-var">Dist.decons</span></a></span><span>
+</span><span id="line-213"></span><span>
+</span><span id="line-214"></span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#runExact"><span class="hs-identifier hs-type">runExact</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-215"></span><span id="runExact"><span class="annot"><span class="annottext">runExact :: Score -&gt; IO ()
+</span><a href="Numeric.Probability.Example.Kruskal.html#runExact"><span class="hs-identifier hs-var hs-var">runExact</span></a></span></span><span> </span><span id="local-6989586621679068312"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068312"><span class="hs-identifier hs-var">maxPips</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-216"></span><span>   </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) (m :: * -&gt; *) a b.
+(Foldable t, Monad m) =&gt;
+(a -&gt; m b) -&gt; t a -&gt; m ()
+</span><span class="hs-identifier hs-var">mapM_</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span class="hs-special">(</span><span id="local-6989586621679068310"><span class="annot"><span class="annottext">Maybe Score
+</span><a href="#local-6989586621679068310"><span class="hs-identifier hs-var">m</span></a></span></span><span class="hs-special">,</span><span id="local-6989586621679068309"><span class="annot"><span class="annottext">Probability
+</span><a href="#local-6989586621679068309"><span class="hs-identifier hs-var">p</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-217"></span><span>      </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Maybe Score
+</span><a href="#local-6989586621679068310"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-218"></span><span>         </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621679068308"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068308"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-219"></span><span>            </span><span class="annot"><span class="annottext">forall r. PrintfType r =&gt; String -&gt; r
+</span><span class="hs-identifier hs-var">P.printf</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;%4d %7.2f   %s\n&quot;</span></span><span>
+</span><span id="line-220"></span><span>               </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068308"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Fractional a =&gt; Probability -&gt; a
+</span><span class="hs-identifier hs-var">fromRational</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Probability
+</span><span class="hs-number">100</span></span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span class="annot"><span class="annottext">Probability
+</span><a href="#local-6989586621679068309"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Probability
+</span><a href="#local-6989586621679068309"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-221"></span><span>         </span><span class="annot"><span class="annottext">Maybe Score
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String -&gt; IO ()
+</span><span class="hs-identifier hs-var">putStrLn</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;total: &quot;</span></span><span> </span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Probability
+</span><a href="#local-6989586621679068309"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-222"></span><span>   </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; Dist (Maybe a) -&gt; [(Maybe a, Probability)]
+</span><a href="Numeric.Probability.Example.Kruskal.html#cumulate"><span class="hs-identifier hs-var">cumulate</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-223"></span><span>   </span><span class="annot"><span class="annottext">Score -&gt; Score -&gt; Dist (Score, Score) -&gt; Dist (Maybe Score)
+</span><a href="Numeric.Probability.Example.Kruskal.html#gameFastFix"><span class="hs-identifier hs-var">gameFastFix</span></a></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068312"><span class="hs-identifier hs-var">maxPips</span></a></span><span> </span><span class="annot"><span class="annottext">Score
+</span><span class="hs-number">120</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="hs-special">,</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Score
+</span><span class="hs-number">0</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall prob (experiment :: * -&gt; *).
+(C prob experiment, Fractional prob) =&gt;
+Score -&gt; experiment Score
+</span><a href="Numeric.Probability.Example.Kruskal.html#die"><span class="hs-identifier hs-var">die</span></a></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068312"><span class="hs-identifier hs-var">maxPips</span></a></span><span>
+</span><span id="line-224"></span><span>
+</span><span id="line-225"></span><span>
+</span><span id="line-226"></span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#trace"><span class="hs-identifier hs-type">trace</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-227"></span><span id="trace"><span class="annot"><span class="annottext">trace :: Score -&gt; [Score] -&gt; [Score]
+</span><a href="Numeric.Probability.Example.Kruskal.html#trace"><span class="hs-identifier hs-var hs-var">trace</span></a></span></span><span> </span><span id="local-6989586621679068302"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068302"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span id="local-6989586621679068301"><span class="annot"><span class="annottext">xs :: [Score]
+</span><a href="#local-6989586621679068301"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span id="local-6989586621679068300"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068300"><span class="hs-identifier hs-var">x</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span class="annot"><span class="annottext">[Score]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068302"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">Score -&gt; [Score] -&gt; [Score]
+</span><a href="Numeric.Probability.Example.Kruskal.html#trace"><span class="hs-identifier hs-var">trace</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068302"><span class="hs-identifier hs-var">s</span></a></span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068300"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Score -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">drop</span></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068300"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">[Score]
+</span><a href="#local-6989586621679068301"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-228"></span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#trace"><span class="hs-identifier hs-var">trace</span></a></span><span> </span><span id="local-6989586621679068298"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068298"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068298"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-229"></span><span>
+</span><span id="line-230"></span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#chop"><span class="hs-identifier hs-type">chop</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">[</span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span class="hs-special">]</span><span class="hs-special">]</span><span>
+</span><span id="line-231"></span><span id="chop"><span class="annot"><span class="annottext">chop :: [Score] -&gt; [[Score]]
+</span><a href="Numeric.Probability.Example.Kruskal.html#chop"><span class="hs-identifier hs-var hs-var">chop</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-232"></span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#chop"><span class="hs-identifier hs-var">chop</span></a></span><span> </span><span id="local-6989586621679068296"><span class="annot"><span class="annottext">xs :: [Score]
+</span><a href="#local-6989586621679068296"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span id="local-6989586621679068295"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068295"><span class="hs-identifier hs-var">x</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span class="annot"><span class="annottext">[Score]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a b c. (a -&gt; b -&gt; c) -&gt; (a, b) -&gt; c
+</span><span class="hs-identifier hs-var">uncurry</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">:</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a, b) -&gt; (a, c)
+</span><span class="hs-identifier hs-var">mapSnd</span></span><span> </span><span class="annot"><span class="annottext">[Score] -&gt; [[Score]]
+</span><a href="Numeric.Probability.Example.Kruskal.html#chop"><span class="hs-identifier hs-var">chop</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a. Score -&gt; [a] -&gt; ([a], [a])
+</span><span class="hs-identifier hs-var">splitAt</span></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068295"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">[Score]
+</span><a href="#local-6989586621679068296"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-233"></span><span>
+</span><span id="line-234"></span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#meeting"><span class="hs-identifier hs-type">meeting</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span>
+</span><span id="line-235"></span><span id="meeting"><span class="annot"><span class="annottext">meeting :: [Score] -&gt; [Score] -&gt; Maybe Score
+</span><a href="Numeric.Probability.Example.Kruskal.html#meeting"><span class="hs-identifier hs-var hs-var">meeting</span></a></span></span><span> </span><span id="local-6989586621679068292"><span class="annot"><span class="annottext">xt :: [Score]
+</span><a href="#local-6989586621679068292"><span class="hs-identifier hs-var">xt</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span id="local-6989586621679068291"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068291"><span class="hs-identifier hs-var">x</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621679068290"><span class="annot"><span class="annottext">[Score]
+</span><a href="#local-6989586621679068290"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679068289"><span class="annot"><span class="annottext">yt :: [Score]
+</span><a href="#local-6989586621679068289"><span class="hs-identifier hs-var">yt</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span id="local-6989586621679068288"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068288"><span class="hs-identifier hs-var">y</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621679068287"><span class="annot"><span class="annottext">[Score]
+</span><a href="#local-6989586621679068287"><span class="hs-identifier hs-var">ys</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-236"></span><span>   </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Ordering
+</span><span class="hs-identifier hs-var">compare</span></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068291"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068288"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-237"></span><span>      </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">LT</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[Score] -&gt; [Score] -&gt; Maybe Score
+</span><a href="Numeric.Probability.Example.Kruskal.html#meeting"><span class="hs-identifier hs-var">meeting</span></a></span><span> </span><span class="annot"><span class="annottext">[Score]
+</span><a href="#local-6989586621679068290"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">[Score]
+</span><a href="#local-6989586621679068289"><span class="hs-identifier hs-var">yt</span></a></span><span>
+</span><span id="line-238"></span><span>      </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">GT</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[Score] -&gt; [Score] -&gt; Maybe Score
+</span><a href="Numeric.Probability.Example.Kruskal.html#meeting"><span class="hs-identifier hs-var">meeting</span></a></span><span> </span><span class="annot"><span class="annottext">[Score]
+</span><a href="#local-6989586621679068292"><span class="hs-identifier hs-var">xt</span></a></span><span> </span><span class="annot"><span class="annottext">[Score]
+</span><a href="#local-6989586621679068287"><span class="hs-identifier hs-var">ys</span></a></span><span>
+</span><span id="line-239"></span><span>      </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">EQ</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068291"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-240"></span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#meeting"><span class="hs-identifier hs-var">meeting</span></a></span><span> </span><span class="annot"><span class="annottext">[Score]
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">[Score]
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-241"></span><span>
+</span><span id="line-242"></span><span class="hs-comment">{- |
+This is a bruteforce implementation of the original game:
+We just roll the die @maxScore@ times
+and then jump from die to die according to the number of pips.
+-}</span><span>
+</span><span id="line-247"></span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#bruteforce"><span class="hs-identifier hs-type">bruteforce</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span class="hs-special">,</span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Random.html#T"><span class="hs-identifier hs-type">Random.T</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-248"></span><span id="bruteforce"><span class="annot"><span class="annottext">bruteforce :: Score -&gt; Score -&gt; (Score, Score) -&gt; T (Maybe Score)
+</span><a href="Numeric.Probability.Example.Kruskal.html#bruteforce"><span class="hs-identifier hs-var hs-var">bruteforce</span></a></span></span><span> </span><span id="local-6989586621679068285"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068285"><span class="hs-identifier hs-var">maxPips</span></a></span></span><span> </span><span id="local-6989586621679068284"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068284"><span class="hs-identifier hs-var">maxScore</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679068283"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068283"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">,</span><span id="local-6989586621679068282"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068282"><span class="hs-identifier hs-var">y</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-249"></span><span>   </span><span id="local-6989586621679068281"><span class="annot"><span class="annottext">[Score]
+</span><a href="#local-6989586621679068281"><span class="hs-identifier hs-var">points</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Applicative m =&gt; Score -&gt; m a -&gt; m [a]
+</span><span class="hs-identifier hs-var">replicateM</span></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068284"><span class="hs-identifier hs-var">maxScore</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall prob (experiment :: * -&gt; *).
+(C prob experiment, Fractional prob) =&gt;
+Score -&gt; experiment Score
+</span><a href="Numeric.Probability.Example.Kruskal.html#die"><span class="hs-identifier hs-var">die</span></a></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068285"><span class="hs-identifier hs-var">maxPips</span></a></span><span>
+</span><span id="line-250"></span><span>   </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679068280"><span class="annot"><span class="annottext">run :: Score -&gt; [Score]
+</span><a href="#local-6989586621679068280"><span class="hs-identifier hs-var hs-var">run</span></a></span></span><span> </span><span id="local-6989586621679068279"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068279"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Score -&gt; [Score] -&gt; [Score]
+</span><a href="Numeric.Probability.Example.Kruskal.html#trace"><span class="hs-identifier hs-var">trace</span></a></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068279"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Score -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">drop</span></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068279"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">[Score]
+</span><a href="#local-6989586621679068281"><span class="hs-identifier hs-var">points</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-251"></span><span>   </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Score] -&gt; [Score] -&gt; Maybe Score
+</span><a href="Numeric.Probability.Example.Kruskal.html#meeting"><span class="hs-identifier hs-var">meeting</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Score -&gt; [Score]
+</span><a href="#local-6989586621679068280"><span class="hs-identifier hs-var">run</span></a></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068283"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Score -&gt; [Score]
+</span><a href="#local-6989586621679068280"><span class="hs-identifier hs-var">run</span></a></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068282"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-252"></span><span>
+</span><span id="line-253"></span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#runSimulation"><span class="hs-identifier hs-type">runSimulation</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-254"></span><span id="runSimulation"><span class="annot"><span class="annottext">runSimulation :: Score -&gt; IO ()
+</span><a href="Numeric.Probability.Example.Kruskal.html#runSimulation"><span class="hs-identifier hs-var hs-var">runSimulation</span></a></span></span><span> </span><span id="local-6989586621679068277"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068277"><span class="hs-identifier hs-var">maxPips</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-255"></span><span>   </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) (m :: * -&gt; *) a b.
+(Foldable t, Monad m) =&gt;
+(a -&gt; m b) -&gt; t a -&gt; m ()
+</span><span class="hs-identifier hs-var">mapM_</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span class="hs-special">(</span><span id="local-6989586621679068276"><span class="annot"><span class="annottext">Maybe Score
+</span><a href="#local-6989586621679068276"><span class="hs-identifier hs-var">m</span></a></span></span><span class="hs-special">,</span><span id="local-6989586621679068275"><span class="annot"><span class="annottext">Probability
+</span><a href="#local-6989586621679068275"><span class="hs-identifier hs-var">p</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-256"></span><span>      </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Maybe Score
+</span><a href="#local-6989586621679068276"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-257"></span><span>         </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621679068274"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068274"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-258"></span><span>            </span><span class="annot"><span class="annottext">forall r. PrintfType r =&gt; String -&gt; r
+</span><span class="hs-identifier hs-var">P.printf</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;%4d %7.2f\n&quot;</span></span><span>
+</span><span id="line-259"></span><span>               </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068274"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Fractional a =&gt; Probability -&gt; a
+</span><span class="hs-identifier hs-var">fromRational</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Probability
+</span><span class="hs-number">100</span></span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span class="annot"><span class="annottext">Probability
+</span><a href="#local-6989586621679068275"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span class="hs-special">)</span><span>
+</span><span id="line-260"></span><span>         </span><span class="annot"><span class="annottext">Maybe Score
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String -&gt; IO ()
+</span><span class="hs-identifier hs-var">putStrLn</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;total: &quot;</span></span><span> </span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Probability
+</span><a href="#local-6989586621679068275"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-261"></span><span>   </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; Dist (Maybe a) -&gt; [(Maybe a, Probability)]
+</span><a href="Numeric.Probability.Example.Kruskal.html#cumulate"><span class="hs-identifier hs-var">cumulate</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-262"></span><span>   </span><span class="annot"><span class="annottext">forall a. StdGen -&gt; T a -&gt; a
+</span><a href="Numeric.Probability.Random.html#runSeed"><span class="hs-identifier hs-var">Random.runSeed</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Score -&gt; StdGen
+</span><span class="hs-identifier hs-var">Rnd.mkStdGen</span></span><span> </span><span class="annot"><span class="annottext">Score
+</span><span class="hs-number">42</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall prob a.
+(Fractional prob, Ord a) =&gt;
+[T a] -&gt; Distribution prob a
+</span><a href="Numeric.Probability.Random.html#dist"><span class="hs-identifier hs-var">Random.dist</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-263"></span><span>   </span><span class="annot"><span class="annottext">forall a. Score -&gt; a -&gt; [a]
+</span><span class="hs-identifier hs-var">replicate</span></span><span> </span><span class="annot"><span class="annottext">Score
+</span><span class="hs-number">100000</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Score -&gt; Score -&gt; (Score, Score) -&gt; T (Maybe Score)
+</span><a href="Numeric.Probability.Example.Kruskal.html#bruteforce"><span class="hs-identifier hs-var">bruteforce</span></a></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068277"><span class="hs-identifier hs-var">maxPips</span></a></span><span> </span><span class="annot"><span class="annottext">Score
+</span><span class="hs-number">120</span></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">,</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Score
+</span><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; m a -&gt; m b
+</span><span class="hs-operator hs-var">=&lt;&lt;</span></span><span> </span><span class="annot"><span class="annottext">forall prob (experiment :: * -&gt; *).
+(C prob experiment, Fractional prob) =&gt;
+Score -&gt; experiment Score
+</span><a href="Numeric.Probability.Example.Kruskal.html#die"><span class="hs-identifier hs-var">die</span></a></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068277"><span class="hs-identifier hs-var">maxPips</span></a></span><span>
+</span><span id="line-264"></span><span>
+</span><span id="line-265"></span><span>
+</span><span id="line-266"></span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#latexDie"><span class="hs-identifier hs-type">latexDie</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-267"></span><span id="latexDie"><span class="annot"><span class="annottext">latexDie :: Score -&gt; String
+</span><a href="Numeric.Probability.Example.Kruskal.html#latexDie"><span class="hs-identifier hs-var hs-var">latexDie</span></a></span></span><span> </span><span id="local-6989586621679068267"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068267"><span class="hs-identifier hs-var">pips</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-268"></span><span>   </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;\\epsdice{&quot;</span></span><span> </span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068267"><span class="hs-identifier hs-var">pips</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;}&quot;</span></span><span>
+</span><span id="line-269"></span><span>
+</span><span id="line-270"></span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#latexMarkedDie"><span class="hs-identifier hs-type">latexMarkedDie</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-271"></span><span id="latexMarkedDie"><span class="annot"><span class="annottext">latexMarkedDie :: Score -&gt; String
+</span><a href="Numeric.Probability.Example.Kruskal.html#latexMarkedDie"><span class="hs-identifier hs-var hs-var">latexMarkedDie</span></a></span></span><span> </span><span id="local-6989586621679068265"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068265"><span class="hs-identifier hs-var">pips</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-272"></span><span>   </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;\\epsdice[black]{&quot;</span></span><span> </span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068265"><span class="hs-identifier hs-var">pips</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;}&quot;</span></span><span>
+</span><span id="line-273"></span><span>
+</span><span id="line-274"></span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#latexFromChain"><span class="hs-identifier hs-type">latexFromChain</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-275"></span><span id="latexFromChain"><span class="annot"><span class="annottext">latexFromChain :: [Score] -&gt; String
+</span><a href="Numeric.Probability.Example.Kruskal.html#latexFromChain"><span class="hs-identifier hs-var hs-var">latexFromChain</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-276"></span><span>   </span><span class="annot"><span class="annottext">[String] -&gt; String
+</span><span class="hs-identifier hs-var">unlines</span></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">Score -&gt; String
+</span><a href="Numeric.Probability.Example.Kruskal.html#latexDie"><span class="hs-identifier hs-var">latexDie</span></a></span><span>
+</span><span id="line-277"></span><span>
+</span><span id="line-278"></span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#latexChoppedFromChain"><span class="hs-identifier hs-type">latexChoppedFromChain</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-279"></span><span id="latexChoppedFromChain"><span class="annot"><span class="annottext">latexChoppedFromChain :: [Score] -&gt; String
+</span><a href="Numeric.Probability.Example.Kruskal.html#latexChoppedFromChain"><span class="hs-identifier hs-var hs-var">latexChoppedFromChain</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-280"></span><span>   </span><span class="annot"><span class="annottext">[String] -&gt; String
+</span><span class="hs-identifier hs-var">unlines</span></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span>
+</span><span id="line-281"></span><span>   </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a b. Foldable t =&gt; (a -&gt; [b]) -&gt; t a -&gt; [b]
+</span><span class="hs-identifier hs-var">concatMap</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span class="hs-special">(</span><span id="local-6989586621679068260"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068260"><span class="hs-identifier hs-var">p</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621679068259"><span class="annot"><span class="annottext">[Score]
+</span><a href="#local-6989586621679068259"><span class="hs-identifier hs-var">ps</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Score -&gt; String
+</span><a href="Numeric.Probability.Example.Kruskal.html#latexMarkedDie"><span class="hs-identifier hs-var">latexMarkedDie</span></a></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068260"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">Score -&gt; String
+</span><a href="Numeric.Probability.Example.Kruskal.html#latexDie"><span class="hs-identifier hs-var">latexDie</span></a></span><span> </span><span class="annot"><span class="annottext">[Score]
+</span><a href="#local-6989586621679068259"><span class="hs-identifier hs-var">ps</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span>
+</span><span id="line-282"></span><span>   </span><span class="annot"><span class="annottext">[Score] -&gt; [[Score]]
+</span><a href="Numeric.Probability.Example.Kruskal.html#chop"><span class="hs-identifier hs-var">chop</span></a></span><span>
+</span><span id="line-283"></span><span>
+</span><span id="line-284"></span><span class="annot"><a href="Numeric.Probability.Example.Kruskal.html#makeChains"><span class="hs-identifier hs-type">makeChains</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-285"></span><span id="makeChains"><span class="annot"><span class="annottext">makeChains :: IO ()
+</span><a href="Numeric.Probability.Example.Kruskal.html#makeChains"><span class="hs-identifier hs-var hs-var">makeChains</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-286"></span><span>   </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679068251"><span class="annot"><span class="annottext">chains :: [[Score]]
+</span><a href="#local-6989586621679068251"><span class="hs-identifier hs-var hs-var">chains</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-287"></span><span>          </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span>
+</span><span id="line-288"></span><span>             </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679068250"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068250"><span class="hs-identifier hs-var">seed</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-289"></span><span>                </span><span class="annot"><span class="annottext">forall a. StdGen -&gt; T a -&gt; a
+</span><a href="Numeric.Probability.Random.html#runSeed"><span class="hs-identifier hs-var">Random.runSeed</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Score -&gt; StdGen
+</span><span class="hs-identifier hs-var">Rnd.mkStdGen</span></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068250"><span class="hs-identifier hs-var">seed</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-290"></span><span>                </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Applicative m =&gt; Score -&gt; m a -&gt; m [a]
+</span><span class="hs-identifier hs-var">replicateM</span></span><span> </span><span class="annot"><span class="annottext">Score
+</span><span class="hs-number">42</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall prob (experiment :: * -&gt; *).
+(C prob experiment, Fractional prob) =&gt;
+Score -&gt; experiment Score
+</span><a href="Numeric.Probability.Example.Kruskal.html#die"><span class="hs-identifier hs-var">die</span></a></span><span> </span><span class="annot"><span class="annottext">Score
+</span><span class="hs-number">6</span></span><span class="hs-special">)</span><span>
+</span><span id="line-291"></span><span>             </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Score
+</span><span class="hs-number">30</span></span><span class="hs-glyph">..</span><span class="annot"><span class="annottext">Score
+</span><span class="hs-number">42</span></span><span class="hs-special">]</span><span>
+</span><span id="line-292"></span><span>   </span><span class="annot"><span class="annottext">String -&gt; String -&gt; IO ()
+</span><span class="hs-identifier hs-var">writeFile</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;KruskalDice.tex&quot;</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-293"></span><span>      </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;\\noindent\n&quot;</span></span><span>
+</span><span id="line-294"></span><span>      </span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span>
+</span><span id="line-295"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. [a] -&gt; [[a]] -&gt; [a]
+</span><span class="hs-identifier hs-var">List.intercalate</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;\\\\[4ex]\n&quot;</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-296"></span><span>       </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;$\\rightarrow$&quot;</span></span><span> </span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">[Score] -&gt; String
+</span><a href="Numeric.Probability.Example.Kruskal.html#latexFromChain"><span class="hs-identifier hs-var">latexFromChain</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[[Score]]
+</span><a href="#local-6989586621679068251"><span class="hs-identifier hs-var">chains</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-297"></span><span>      </span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span>
+</span><span id="line-298"></span><span>      </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;\\newpage\n&quot;</span></span><span> </span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span>
+</span><span id="line-299"></span><span>      </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;\\noindent\n&quot;</span></span><span>
+</span><span id="line-300"></span><span>      </span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span>
+</span><span id="line-301"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. [a] -&gt; [[a]] -&gt; [a]
+</span><span class="hs-identifier hs-var">List.intercalate</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;\\\\[4ex]\n&quot;</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-302"></span><span>       </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;$\\rightarrow$&quot;</span></span><span> </span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">[Score] -&gt; String
+</span><a href="Numeric.Probability.Example.Kruskal.html#latexChoppedFromChain"><span class="hs-identifier hs-var">latexChoppedFromChain</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[[Score]]
+</span><a href="#local-6989586621679068251"><span class="hs-identifier hs-var">chains</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-303"></span></pre></body></html>

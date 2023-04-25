@@ -1,0 +1,821 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Numeric.Probability.Visualize</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Numeric.Probability.Random.html"><span class="hs-identifier">Numeric.Probability.Random</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Rnd</span></span><span>
+</span><span id="line-4"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Numeric.Probability.Expectation.html"><span class="hs-identifier">Numeric.Probability.Expectation</span></a></span><span>
+</span><span id="line-5"></span><span>    </span><span class="hs-special">(</span><span class="annot"><a href="Numeric.Probability.Expectation.html#ToFloat"><span class="hs-identifier">ToFloat</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Numeric.Probability.Expectation.html#FromFloat"><span class="hs-identifier">FromFloat</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Numeric.Probability.Expectation.html#toFloat"><span class="hs-identifier">toFloat</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Numeric.Probability.Expectation.html#fromFloat"><span class="hs-identifier">fromFloat</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-6"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Numeric.Probability.Percentage.html"><span class="hs-identifier">Numeric.Probability.Percentage</span></a></span><span>
+</span><span id="line-7"></span><span>    </span><span class="hs-special">(</span><span class="annot"><a href="Numeric.Probability.Percentage.html#Dist"><span class="hs-identifier">Dist</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Numeric.Probability.Percentage.html#RDist"><span class="hs-identifier">RDist</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Numeric.Probability.PrintList.html"><span class="hs-identifier">Numeric.Probability.PrintList</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Numeric.Probability.PrintList.html#asTuple"><span class="hs-identifier">asTuple</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-9"></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Numeric.Probability.Distribution.html"><span class="hs-identifier">Numeric.Probability.Distribution</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Dist</span></span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">when</span></span><span class="hs-special">,</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.List</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">nub</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">sort</span></span><span class="hs-special">,</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-comment">{- TO DO:
+
+* Change function representation in Plot to
+    xs :: [Float]
+    ys :: [Float]
+  and add functions to create this representation from
+   functions, distributions, and lists
+   (i.e. plotF, plotD, plotL)
+
+-}</span><span>
+</span><span id="line-26"></span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span class="hs-comment">-- | global settings for one figure</span><span>
+</span><span id="line-29"></span><span class="hs-comment">--</span><span>
+</span><span id="line-30"></span><span class="hs-keyword">data</span><span> </span><span id="FigureEnv"><span class="annot"><a href="Numeric.Probability.Visualize.html#FigureEnv"><span class="hs-identifier hs-var">FigureEnv</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="FE"><span class="annot"><a href="Numeric.Probability.Visualize.html#FE"><span class="hs-identifier hs-var">FE</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="fileName"><span class="annot"><span class="annottext">FigureEnv -&gt; String
+</span><a href="Numeric.Probability.Visualize.html#fileName"><span class="hs-identifier hs-var hs-var">fileName</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">,</span><span>
+</span><span id="line-31"></span><span>                      </span><span id="title"><span class="annot"><span class="annottext">FigureEnv -&gt; String
+</span><a href="Numeric.Probability.Visualize.html#title"><span class="hs-identifier hs-var hs-var">title</span></a></span></span><span>    </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">,</span><span>
+</span><span id="line-32"></span><span>                      </span><span id="xLabel"><span class="annot"><span class="annottext">FigureEnv -&gt; String
+</span><a href="Numeric.Probability.Visualize.html#xLabel"><span class="hs-identifier hs-var hs-var">xLabel</span></a></span></span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">,</span><span>
+</span><span id="line-33"></span><span>                      </span><span id="yLabel"><span class="annot"><span class="annottext">FigureEnv -&gt; String
+</span><a href="Numeric.Probability.Visualize.html#yLabel"><span class="hs-identifier hs-var hs-var">yLabel</span></a></span></span><span>   </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-34"></span><span>                 </span><span class="hs-keyword">deriving</span><span> </span><span id="local-6989586621679069319"><span id="local-6989586621679069321"><span id="local-6989586621679069328"><span class="annot"><span class="annottext">Int -&gt; FigureEnv -&gt; ShowS
+[FigureEnv] -&gt; ShowS
+FigureEnv -&gt; String
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+showList :: [FigureEnv] -&gt; ShowS
+$cshowList :: [FigureEnv] -&gt; ShowS
+show :: FigureEnv -&gt; String
+$cshow :: FigureEnv -&gt; String
+showsPrec :: Int -&gt; FigureEnv -&gt; ShowS
+$cshowsPrec :: Int -&gt; FigureEnv -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span class="hs-comment">-- | default settings for figure environment</span><span>
+</span><span id="line-37"></span><span class="hs-comment">--</span><span>
+</span><span id="line-38"></span><span class="annot"><a href="Numeric.Probability.Visualize.html#figure"><span class="hs-identifier hs-type">figure</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Visualize.html#FigureEnv"><span class="hs-identifier hs-type">FigureEnv</span></a></span><span>
+</span><span id="line-39"></span><span id="figure"><span class="annot"><span class="annottext">figure :: FigureEnv
+</span><a href="Numeric.Probability.Visualize.html#figure"><span class="hs-identifier hs-var hs-var">figure</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Numeric.Probability.Visualize.html#FE"><span class="hs-identifier hs-type">FE</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">fileName :: String
+</span><a href="Numeric.Probability.Visualize.html#fileName"><span class="hs-identifier hs-var">fileName</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;FuSE.R&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-40"></span><span>              </span><span class="annot"><span class="annottext">title :: String
+</span><a href="Numeric.Probability.Visualize.html#title"><span class="hs-identifier hs-var">title</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Output&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-41"></span><span>              </span><span class="annot"><span class="annottext">xLabel :: String
+</span><a href="Numeric.Probability.Visualize.html#xLabel"><span class="hs-identifier hs-var">xLabel</span></a></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;x&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-42"></span><span>              </span><span class="annot"><span class="annottext">yLabel :: String
+</span><a href="Numeric.Probability.Visualize.html#yLabel"><span class="hs-identifier hs-var">yLabel</span></a></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;f(x)&quot;</span></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-43"></span><span>
+</span><span id="line-44"></span><span>
+</span><span id="line-45"></span><span class="hs-comment">-- * types to represent settings for individual plots</span><span>
+</span><span id="line-46"></span><span class="hs-comment">--</span><span>
+</span><span id="line-47"></span><span class="hs-keyword">data</span><span> </span><span id="Color"><span class="annot"><a href="Numeric.Probability.Visualize.html#Color"><span class="hs-identifier hs-var">Color</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Black"><span class="annot"><a href="Numeric.Probability.Visualize.html#Black"><span class="hs-identifier hs-var">Black</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Blue"><span class="annot"><a href="Numeric.Probability.Visualize.html#Blue"><span class="hs-identifier hs-var">Blue</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Green"><span class="annot"><a href="Numeric.Probability.Visualize.html#Green"><span class="hs-identifier hs-var">Green</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Red"><span class="annot"><a href="Numeric.Probability.Visualize.html#Red"><span class="hs-identifier hs-var">Red</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Brown"><span class="annot"><a href="Numeric.Probability.Visualize.html#Brown"><span class="hs-identifier hs-var">Brown</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Gray"><span class="annot"><a href="Numeric.Probability.Visualize.html#Gray"><span class="hs-identifier hs-var">Gray</span></a></span></span><span>
+</span><span id="line-48"></span><span>           </span><span class="hs-glyph">|</span><span> </span><span id="Purple"><span class="annot"><a href="Numeric.Probability.Visualize.html#Purple"><span class="hs-identifier hs-var">Purple</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="DarkGray"><span class="annot"><a href="Numeric.Probability.Visualize.html#DarkGray"><span class="hs-identifier hs-var">DarkGray</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Cyan"><span class="annot"><a href="Numeric.Probability.Visualize.html#Cyan"><span class="hs-identifier hs-var">Cyan</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="LightGreen"><span class="annot"><a href="Numeric.Probability.Visualize.html#LightGreen"><span class="hs-identifier hs-var">LightGreen</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Magenta"><span class="annot"><a href="Numeric.Probability.Visualize.html#Magenta"><span class="hs-identifier hs-var">Magenta</span></a></span></span><span>
+</span><span id="line-49"></span><span>           </span><span class="hs-glyph">|</span><span> </span><span id="Orange"><span class="annot"><a href="Numeric.Probability.Visualize.html#Orange"><span class="hs-identifier hs-var">Orange</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Yellow"><span class="annot"><a href="Numeric.Probability.Visualize.html#Yellow"><span class="hs-identifier hs-var">Yellow</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="White"><span class="annot"><a href="Numeric.Probability.Visualize.html#White"><span class="hs-identifier hs-var">White</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Custom"><span class="annot"><a href="Numeric.Probability.Visualize.html#Custom"><span class="hs-identifier hs-var">Custom</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-50"></span><span>           </span><span class="hs-keyword">deriving</span><span> </span><span id="local-6989586621679069294"><span id="local-6989586621679069300"><span class="annot"><span class="annottext">Color -&gt; Color -&gt; Bool
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+/= :: Color -&gt; Color -&gt; Bool
+$c/= :: Color -&gt; Color -&gt; Bool
+== :: Color -&gt; Color -&gt; Bool
+$c== :: Color -&gt; Color -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span>
+</span><span id="line-51"></span><span>
+</span><span id="line-52"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679069288"><span id="local-6989586621679069291"><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="annot"><a href="Numeric.Probability.Visualize.html#Color"><span class="hs-identifier hs-type">Color</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-53"></span><span>  </span><span id="local-6989586621679069284"><span class="annot"><span class="annottext">show :: Color -&gt; String
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">show</span></span></span><span> </span><span class="annot"><span class="annottext">Color
+</span><a href="Numeric.Probability.Visualize.html#Black"><span class="hs-identifier hs-var">Black</span></a></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;\&quot;black\&quot;&quot;</span></span><span>
+</span><span id="line-54"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Color
+</span><a href="Numeric.Probability.Visualize.html#Blue"><span class="hs-identifier hs-var">Blue</span></a></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;\&quot;blue\&quot;&quot;</span></span><span>
+</span><span id="line-55"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Color
+</span><a href="Numeric.Probability.Visualize.html#Green"><span class="hs-identifier hs-var">Green</span></a></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;\&quot;green\&quot;&quot;</span></span><span>
+</span><span id="line-56"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Color
+</span><a href="Numeric.Probability.Visualize.html#Red"><span class="hs-identifier hs-var">Red</span></a></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;\&quot;red\&quot;&quot;</span></span><span>
+</span><span id="line-57"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Color
+</span><a href="Numeric.Probability.Visualize.html#Brown"><span class="hs-identifier hs-var">Brown</span></a></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;\&quot;brown\&quot;&quot;</span></span><span>
+</span><span id="line-58"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Color
+</span><a href="Numeric.Probability.Visualize.html#Gray"><span class="hs-identifier hs-var">Gray</span></a></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;\&quot;gray\&quot;&quot;</span></span><span>
+</span><span id="line-59"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Color
+</span><a href="Numeric.Probability.Visualize.html#Purple"><span class="hs-identifier hs-var">Purple</span></a></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;\&quot;purple\&quot;&quot;</span></span><span>
+</span><span id="line-60"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Color
+</span><a href="Numeric.Probability.Visualize.html#DarkGray"><span class="hs-identifier hs-var">DarkGray</span></a></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;\&quot;darkgray\&quot;&quot;</span></span><span>
+</span><span id="line-61"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Color
+</span><a href="Numeric.Probability.Visualize.html#Cyan"><span class="hs-identifier hs-var">Cyan</span></a></span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;\&quot;cyan\&quot;&quot;</span></span><span>
+</span><span id="line-62"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Color
+</span><a href="Numeric.Probability.Visualize.html#LightGreen"><span class="hs-identifier hs-var">LightGreen</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;\&quot;lightgreen\&quot;&quot;</span></span><span>
+</span><span id="line-63"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Color
+</span><a href="Numeric.Probability.Visualize.html#Magenta"><span class="hs-identifier hs-var">Magenta</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;\&quot;magenta\&quot;&quot;</span></span><span>
+</span><span id="line-64"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Color
+</span><a href="Numeric.Probability.Visualize.html#Orange"><span class="hs-identifier hs-var">Orange</span></a></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;\&quot;orange\&quot;&quot;</span></span><span>
+</span><span id="line-65"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Color
+</span><a href="Numeric.Probability.Visualize.html#Yellow"><span class="hs-identifier hs-var">Yellow</span></a></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;\&quot;yellow\&quot;&quot;</span></span><span>
+</span><span id="line-66"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Color
+</span><a href="Numeric.Probability.Visualize.html#White"><span class="hs-identifier hs-var">White</span></a></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;\&quot;white\&quot;&quot;</span></span><span>
+</span><span id="line-67"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Numeric.Probability.Visualize.html#Custom"><span class="hs-identifier hs-type">Custom</span></a></span><span> </span><span id="local-6989586621679069282"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679069282"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span id="local-6989586621679069281"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679069281"><span class="hs-identifier hs-var">g</span></a></span></span><span> </span><span id="local-6989586621679069280"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679069280"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;rgb(&quot;</span></span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679069282"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">)</span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;, &quot;</span></span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679069281"><span class="hs-identifier hs-var">g</span></a></span><span class="hs-special">)</span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;, &quot;</span></span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679069280"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;)&quot;</span></span><span>
+</span><span id="line-68"></span><span>
+</span><span id="line-69"></span><span class="hs-keyword">data</span><span> </span><span id="LineStyle"><span class="annot"><a href="Numeric.Probability.Visualize.html#LineStyle"><span class="hs-identifier hs-var">LineStyle</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Solid"><span class="annot"><a href="Numeric.Probability.Visualize.html#Solid"><span class="hs-identifier hs-var">Solid</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Dashed"><span class="annot"><a href="Numeric.Probability.Visualize.html#Dashed"><span class="hs-identifier hs-var">Dashed</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Dotted"><span class="annot"><a href="Numeric.Probability.Visualize.html#Dotted"><span class="hs-identifier hs-var">Dotted</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="DotDash"><span class="annot"><a href="Numeric.Probability.Visualize.html#DotDash"><span class="hs-identifier hs-var">DotDash</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="LongDash"><span class="annot"><a href="Numeric.Probability.Visualize.html#LongDash"><span class="hs-identifier hs-var">LongDash</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="TwoDash"><span class="annot"><a href="Numeric.Probability.Visualize.html#TwoDash"><span class="hs-identifier hs-var">TwoDash</span></a></span></span><span>
+</span><span id="line-70"></span><span>                 </span><span class="hs-keyword">deriving</span><span> </span><span id="local-6989586621679069270"><span id="local-6989586621679069272"><span class="annot"><span class="annottext">LineStyle -&gt; LineStyle -&gt; Bool
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+/= :: LineStyle -&gt; LineStyle -&gt; Bool
+$c/= :: LineStyle -&gt; LineStyle -&gt; Bool
+== :: LineStyle -&gt; LineStyle -&gt; Bool
+$c== :: LineStyle -&gt; LineStyle -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span>
+</span><span id="line-71"></span><span>
+</span><span id="line-72"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679069265"><span id="local-6989586621679069268"><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="annot"><a href="Numeric.Probability.Visualize.html#LineStyle"><span class="hs-identifier hs-type">LineStyle</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-73"></span><span>  </span><span id="local-6989586621679069264"><span class="annot"><span class="annottext">show :: LineStyle -&gt; String
+</span><a href="#local-6989586621679069264"><span class="hs-identifier hs-var hs-var hs-var hs-var">show</span></a></span></span><span> </span><span class="annot"><span class="annottext">LineStyle
+</span><a href="Numeric.Probability.Visualize.html#Solid"><span class="hs-identifier hs-var">Solid</span></a></span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;1&quot;</span></span><span>
+</span><span id="line-74"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">LineStyle
+</span><a href="Numeric.Probability.Visualize.html#Dashed"><span class="hs-identifier hs-var">Dashed</span></a></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;2&quot;</span></span><span>
+</span><span id="line-75"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">LineStyle
+</span><a href="Numeric.Probability.Visualize.html#Dotted"><span class="hs-identifier hs-var">Dotted</span></a></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;3&quot;</span></span><span>
+</span><span id="line-76"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">LineStyle
+</span><a href="Numeric.Probability.Visualize.html#DotDash"><span class="hs-identifier hs-var">DotDash</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;4&quot;</span></span><span>
+</span><span id="line-77"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">LineStyle
+</span><a href="Numeric.Probability.Visualize.html#LongDash"><span class="hs-identifier hs-var">LongDash</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;5&quot;</span></span><span>
+</span><span id="line-78"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">LineStyle
+</span><a href="Numeric.Probability.Visualize.html#TwoDash"><span class="hs-identifier hs-var">TwoDash</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;6&quot;</span></span><span>
+</span><span id="line-79"></span><span>
+</span><span id="line-80"></span><span class="hs-keyword">type</span><span> </span><span id="PlotFun"><span class="annot"><a href="Numeric.Probability.Visualize.html#PlotFun"><span class="hs-identifier hs-var">PlotFun</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span>
+</span><span id="line-81"></span><span>
+</span><span id="line-82"></span><span>
+</span><span id="line-83"></span><span class="hs-comment">-- | settings for individual plots</span><span>
+</span><span id="line-84"></span><span class="hs-comment">--</span><span>
+</span><span id="line-85"></span><span class="hs-keyword">data</span><span> </span><span id="Plot"><span class="annot"><a href="Numeric.Probability.Visualize.html#Plot"><span class="hs-identifier hs-var">Plot</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Plot"><span class="annot"><a href="Numeric.Probability.Visualize.html#Plot"><span class="hs-identifier hs-var">Plot</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="ys"><span class="annot"><span class="annottext">Plot -&gt; [Float]
+</span><a href="Numeric.Probability.Visualize.html#ys"><span class="hs-identifier hs-var hs-var">ys</span></a></span></span><span>        </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span class="hs-special">]</span><span class="hs-special">,</span><span>
+</span><span id="line-86"></span><span>                   </span><span id="xs"><span class="annot"><span class="annottext">Plot -&gt; [Float]
+</span><a href="Numeric.Probability.Visualize.html#xs"><span class="hs-identifier hs-var hs-var">xs</span></a></span></span><span>        </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span class="hs-special">]</span><span class="hs-special">,</span><span>
+</span><span id="line-87"></span><span>                   </span><span id="color"><span class="annot"><span class="annottext">Plot -&gt; Color
+</span><a href="Numeric.Probability.Visualize.html#color"><span class="hs-identifier hs-var hs-var">color</span></a></span></span><span>     </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Visualize.html#Color"><span class="hs-identifier hs-type">Color</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-88"></span><span>                   </span><span id="lineStyle"><span class="annot"><span class="annottext">Plot -&gt; LineStyle
+</span><a href="Numeric.Probability.Visualize.html#lineStyle"><span class="hs-identifier hs-var hs-var">lineStyle</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Visualize.html#LineStyle"><span class="hs-identifier hs-type">LineStyle</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-89"></span><span>                   </span><span id="lineWidth"><span class="annot"><span class="annottext">Plot -&gt; Int
+</span><a href="Numeric.Probability.Visualize.html#lineWidth"><span class="hs-identifier hs-var hs-var">lineWidth</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">,</span><span>
+</span><span id="line-90"></span><span>                   </span><span id="label"><span class="annot"><span class="annottext">Plot -&gt; String
+</span><a href="Numeric.Probability.Visualize.html#label"><span class="hs-identifier hs-var hs-var">label</span></a></span></span><span>     </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-91"></span><span>
+</span><span id="line-92"></span><span class="hs-comment">{-
+instance Show Plot where
+  show _ = &quot;Individual plots cannot be printed.\nPlease use plots \
+            \ as arguments to the fig function.&quot;
+-}</span><span>
+</span><span id="line-97"></span><span>
+</span><span id="line-98"></span><span>
+</span><span id="line-99"></span><span class="hs-comment">-- | default plotting environment</span><span>
+</span><span id="line-100"></span><span class="hs-comment">--</span><span>
+</span><span id="line-101"></span><span class="annot"><a href="Numeric.Probability.Visualize.html#plot"><span class="hs-identifier hs-type">plot</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Visualize.html#Plot"><span class="hs-identifier hs-type">Plot</span></a></span><span>
+</span><span id="line-102"></span><span id="plot"><span class="annot"><span class="annottext">plot :: Plot
+</span><a href="Numeric.Probability.Visualize.html#plot"><span class="hs-identifier hs-var hs-var">plot</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Numeric.Probability.Visualize.html#Plot"><span class="hs-identifier hs-type">Plot</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">ys :: [Float]
+</span><a href="Numeric.Probability.Visualize.html#ys"><span class="hs-identifier hs-var">ys</span></a></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0</span></span><span class="hs-special">]</span><span class="hs-special">,</span><span>
+</span><span id="line-103"></span><span>              </span><span class="annot"><span class="annottext">xs :: [Float]
+</span><a href="Numeric.Probability.Visualize.html#xs"><span class="hs-identifier hs-var">xs</span></a></span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0</span></span><span class="hs-special">]</span><span class="hs-special">,</span><span>
+</span><span id="line-104"></span><span>              </span><span class="annot"><span class="annottext">color :: Color
+</span><a href="Numeric.Probability.Visualize.html#color"><span class="hs-identifier hs-var">color</span></a></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Color
+</span><a href="Numeric.Probability.Visualize.html#Black"><span class="hs-identifier hs-var">Black</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-105"></span><span>              </span><span class="annot"><span class="annottext">lineStyle :: LineStyle
+</span><a href="Numeric.Probability.Visualize.html#lineStyle"><span class="hs-identifier hs-var">lineStyle</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">LineStyle
+</span><a href="Numeric.Probability.Visualize.html#Solid"><span class="hs-identifier hs-var">Solid</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-106"></span><span>              </span><span class="annot"><span class="annottext">lineWidth :: Int
+</span><a href="Numeric.Probability.Visualize.html#lineWidth"><span class="hs-identifier hs-var">lineWidth</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span class="hs-special">,</span><span>
+</span><span id="line-107"></span><span>              </span><span class="annot"><span class="annottext">label :: String
+</span><a href="Numeric.Probability.Visualize.html#label"><span class="hs-identifier hs-var">label</span></a></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;&quot;</span></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-108"></span><span>
+</span><span id="line-109"></span><span class="annot"><a href="Numeric.Probability.Visualize.html#colors"><span class="hs-identifier hs-type">colors</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Numeric.Probability.Visualize.html#Color"><span class="hs-identifier hs-type">Color</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-110"></span><span id="colors"><span class="annot"><span class="annottext">colors :: [Color]
+</span><a href="Numeric.Probability.Visualize.html#colors"><span class="hs-identifier hs-var hs-var">colors</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Color
+</span><a href="Numeric.Probability.Visualize.html#Blue"><span class="hs-identifier hs-var">Blue</span></a></span><span class="hs-special">,</span><span class="annot"><span class="annottext">Color
+</span><a href="Numeric.Probability.Visualize.html#Green"><span class="hs-identifier hs-var">Green</span></a></span><span class="hs-special">,</span><span class="annot"><span class="annottext">Color
+</span><a href="Numeric.Probability.Visualize.html#Red"><span class="hs-identifier hs-var">Red</span></a></span><span class="hs-special">,</span><span class="annot"><span class="annottext">Color
+</span><a href="Numeric.Probability.Visualize.html#Purple"><span class="hs-identifier hs-var">Purple</span></a></span><span class="hs-special">,</span><span class="annot"><span class="annottext">Color
+</span><a href="Numeric.Probability.Visualize.html#Black"><span class="hs-identifier hs-var">Black</span></a></span><span class="hs-special">,</span><span class="annot"><span class="annottext">Color
+</span><a href="Numeric.Probability.Visualize.html#Orange"><span class="hs-identifier hs-var">Orange</span></a></span><span class="hs-special">,</span><span class="annot"><span class="annottext">Color
+</span><a href="Numeric.Probability.Visualize.html#Brown"><span class="hs-identifier hs-var">Brown</span></a></span><span class="hs-special">,</span><span class="annot"><span class="annottext">Color
+</span><a href="Numeric.Probability.Visualize.html#Yellow"><span class="hs-identifier hs-var">Yellow</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-111"></span><span>
+</span><span id="line-112"></span><span class="annot"><a href="Numeric.Probability.Visualize.html#setColor"><span class="hs-identifier hs-type">setColor</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Visualize.html#Plot"><span class="hs-identifier hs-type">Plot</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Visualize.html#Color"><span class="hs-identifier hs-type">Color</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Visualize.html#Plot"><span class="hs-identifier hs-type">Plot</span></a></span><span>
+</span><span id="line-113"></span><span id="setColor"><span class="annot"><span class="annottext">setColor :: Plot -&gt; Color -&gt; Plot
+</span><a href="Numeric.Probability.Visualize.html#setColor"><span class="hs-identifier hs-var hs-var">setColor</span></a></span></span><span> </span><span id="local-6989586621679069252"><span class="annot"><span class="annottext">Plot
+</span><a href="#local-6989586621679069252"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span id="local-6989586621679069251"><span class="annot"><span class="annottext">Color
+</span><a href="#local-6989586621679069251"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Plot
+</span><a href="#local-6989586621679069252"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">color :: Color
+</span><a href="Numeric.Probability.Visualize.html#color"><span class="hs-identifier hs-var">color</span></a></span><span class="hs-glyph">=</span><span class="annot"><span class="annottext">Color
+</span><a href="#local-6989586621679069251"><span class="hs-identifier hs-var">c</span></a></span><span class="hs-special">}</span><span>
+</span><span id="line-114"></span><span>
+</span><span id="line-115"></span><span class="annot"><a href="Numeric.Probability.Visualize.html#autoColor"><span class="hs-identifier hs-type">autoColor</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Numeric.Probability.Visualize.html#Plot"><span class="hs-identifier hs-type">Plot</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Numeric.Probability.Visualize.html#Plot"><span class="hs-identifier hs-type">Plot</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-116"></span><span id="autoColor"><span class="annot"><span class="annottext">autoColor :: [Plot] -&gt; [Plot]
+</span><a href="Numeric.Probability.Visualize.html#autoColor"><span class="hs-identifier hs-var hs-var">autoColor</span></a></span></span><span> </span><span id="local-6989586621679069249"><span class="annot"><span class="annottext">[Plot]
+</span><a href="#local-6989586621679069249"><span class="hs-identifier hs-var">ps</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Int
+</span><span class="hs-identifier hs-var">length</span></span><span> </span><span class="annot"><span class="annottext">[Plot]
+</span><a href="#local-6989586621679069249"><span class="hs-identifier hs-var">ps</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;=</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679069246"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a b c. (a -&gt; b -&gt; c) -&gt; [a] -&gt; [b] -&gt; [c]
+</span><span class="hs-identifier hs-var">zipWith</span></span><span> </span><span class="annot"><span class="annottext">Plot -&gt; Color -&gt; Plot
+</span><a href="Numeric.Probability.Visualize.html#setColor"><span class="hs-identifier hs-var">setColor</span></a></span><span> </span><span class="annot"><span class="annottext">[Plot]
+</span><a href="#local-6989586621679069249"><span class="hs-identifier hs-var">ps</span></a></span><span> </span><span class="annot"><span class="annottext">[Color]
+</span><a href="Numeric.Probability.Visualize.html#colors"><span class="hs-identifier hs-var">colors</span></a></span><span>
+</span><span id="line-117"></span><span>             </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span>      </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. HasCallStack =&gt; String -&gt; a
+</span><span class="hs-identifier hs-var">error</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;autoColor works for no more than &quot;</span></span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span>
+</span><span id="line-118"></span><span>                                       </span><span class="annot"><span class="annottext">forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679069246"><span class="hs-identifier hs-var">n</span></a></span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot; plots.&quot;</span></span><span class="hs-special">)</span><span>
+</span><span id="line-119"></span><span>                                </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621679069246"><span class="annot"><span class="annottext">n :: Int
+</span><a href="#local-6989586621679069246"><span class="hs-identifier hs-var hs-var">n</span></a></span></span><span class="hs-glyph">=</span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Int
+</span><span class="hs-identifier hs-var">length</span></span><span> </span><span class="annot"><span class="annottext">[Color]
+</span><a href="Numeric.Probability.Visualize.html#colors"><span class="hs-identifier hs-var">colors</span></a></span><span>
+</span><span id="line-120"></span><span>
+</span><span id="line-121"></span><span class="hs-comment">-- | create a plot from a distribution</span><span>
+</span><span id="line-122"></span><span class="hs-comment">--</span><span>
+</span><span id="line-123"></span><span id="local-6989586621679069483"><span class="annot"><a href="Numeric.Probability.Visualize.html#plotD"><span class="hs-identifier hs-type">plotD</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Expectation.html#ToFloat"><span class="hs-identifier hs-type">ToFloat</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679069483"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Percentage.html#Dist"><span class="hs-identifier hs-type">Dist</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679069483"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Visualize.html#Plot"><span class="hs-identifier hs-type">Plot</span></a></span></span><span>
+</span><span id="line-124"></span><span class="hs-comment">--plotD d = plot{ys = map (\x-&gt;(dp $ prob' x d')) (extract d'),</span><span>
+</span><span id="line-125"></span><span class="hs-comment">--		xs = extract d'}</span><span>
+</span><span id="line-126"></span><span id="plotD"><span class="annot"><span class="annottext">plotD :: forall a. ToFloat a =&gt; Dist a -&gt; Plot
+</span><a href="Numeric.Probability.Visualize.html#plotD"><span class="hs-identifier hs-var hs-var">plotD</span></a></span></span><span> </span><span id="local-6989586621679069240"><span class="annot"><span class="annottext">Dist a
+</span><a href="#local-6989586621679069240"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-127"></span><span>   </span><span class="hs-keyword">let</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679069232"><span class="annot"><span class="annottext">[Float]
+</span><a href="#local-6989586621679069232"><span class="hs-identifier hs-var">tfl</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679069231"><span class="annot"><span class="annottext">[Float]
+</span><a href="#local-6989586621679069231"><span class="hs-identifier hs-var">pdl</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-128"></span><span>          </span><span class="annot"><span class="annottext">forall a b. [(a, b)] -&gt; ([a], [b])
+</span><span class="hs-identifier hs-var">unzip</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a prob. Ord a =&gt; [(a, prob)] -&gt; [(a, prob)]
+</span><a href="Numeric.Probability.Distribution.html#sortElem"><span class="hs-identifier hs-var">Dist.sortElem</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-129"></span><span>          </span><span class="annot"><span class="annottext">forall prob a. (Num prob, Ord a) =&gt; [(a, prob)] -&gt; [(a, prob)]
+</span><a href="Numeric.Probability.Distribution.html#norm%27"><span class="hs-identifier hs-var">Dist.norm'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span class="hs-special">(</span><span id="local-6989586621679069227"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679069227"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">,</span><span id="local-6989586621679069226"><span class="annot"><span class="annottext">T
+</span><a href="#local-6989586621679069226"><span class="hs-identifier hs-var">p</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. ToFloat a =&gt; a -&gt; Float
+</span><a href="Numeric.Probability.Expectation.html#toFloat"><span class="hs-identifier hs-var">toFloat</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679069227"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">forall a. ToFloat a =&gt; a -&gt; Float
+</span><a href="Numeric.Probability.Expectation.html#toFloat"><span class="hs-identifier hs-var">toFloat</span></a></span><span> </span><span class="annot"><span class="annottext">T
+</span><a href="#local-6989586621679069226"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall prob a. T prob a -&gt; [(a, prob)]
+</span><a href="Numeric.Probability.Distribution.html#decons"><span class="hs-identifier hs-var">Dist.decons</span></a></span><span> </span><span class="annot"><span class="annottext">Dist a
+</span><a href="#local-6989586621679069240"><span class="hs-identifier hs-var">d</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-130"></span><span>   </span><span class="hs-keyword">in</span><span>  </span><span class="annot"><span class="annottext">Plot
+</span><a href="Numeric.Probability.Visualize.html#plot"><span class="hs-identifier hs-var">plot</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">xs :: [Float]
+</span><a href="Numeric.Probability.Visualize.html#xs"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Float]
+</span><a href="#local-6989586621679069232"><span class="hs-identifier hs-var">tfl</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">ys :: [Float]
+</span><a href="Numeric.Probability.Visualize.html#ys"><span class="hs-identifier hs-var">ys</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Float]
+</span><a href="#local-6989586621679069231"><span class="hs-identifier hs-var">pdl</span></a></span><span class="hs-special">}</span><span>
+</span><span id="line-131"></span><span>
+</span><span id="line-132"></span><span>
+</span><span id="line-133"></span><span id="local-6989586621679069464"><span class="annot"><a href="Numeric.Probability.Visualize.html#plotRD"><span class="hs-identifier hs-type">plotRD</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Expectation.html#ToFloat"><span class="hs-identifier hs-type">ToFloat</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679069464"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Percentage.html#RDist"><span class="hs-identifier hs-type">RDist</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679069464"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="Numeric.Probability.Visualize.html#Plot"><span class="hs-identifier hs-type">Plot</span></a></span></span><span>
+</span><span id="line-134"></span><span id="plotRD"><span class="annot"><span class="annottext">plotRD :: forall a. ToFloat a =&gt; RDist a -&gt; IO Plot
+</span><a href="Numeric.Probability.Visualize.html#plotRD"><span class="hs-identifier hs-var hs-var">plotRD</span></a></span></span><span> </span><span id="local-6989586621679069219"><span class="annot"><span class="annottext">RDist a
+</span><a href="#local-6989586621679069219"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. T a -&gt; IO a
+</span><a href="Numeric.Probability.Random.html#run"><span class="hs-identifier hs-var">Rnd.run</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">forall a. ToFloat a =&gt; Dist a -&gt; Plot
+</span><a href="Numeric.Probability.Visualize.html#plotD"><span class="hs-identifier hs-var">plotD</span></a></span><span> </span><span class="annot"><span class="annottext">RDist a
+</span><a href="#local-6989586621679069219"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-135"></span><span>
+</span><span id="line-136"></span><span class="hs-comment">-- | create a plot from a function</span><span>
+</span><span id="line-137"></span><span class="hs-comment">--</span><span>
+</span><span id="line-138"></span><span id="local-6989586621679069454"><span id="local-6989586621679069456"><span class="annot"><a href="Numeric.Probability.Visualize.html#plotF"><span class="hs-identifier hs-type">plotF</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Numeric.Probability.Expectation.html#FromFloat"><span class="hs-identifier hs-type">FromFloat</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679069456"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span class="annot"><a href="Numeric.Probability.Expectation.html#ToFloat"><span class="hs-identifier hs-type">ToFloat</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679069454"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span class="hs-special">,</span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span class="hs-special">,</span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679069456"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679069454"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Visualize.html#Plot"><span class="hs-identifier hs-type">Plot</span></a></span></span></span><span>
+</span><span id="line-139"></span><span id="plotF"><span class="annot"><span class="annottext">plotF :: forall a b.
+(FromFloat a, ToFloat b) =&gt;
+(Float, Float, Float) -&gt; (a -&gt; b) -&gt; Plot
+</span><a href="Numeric.Probability.Visualize.html#plotF"><span class="hs-identifier hs-var hs-var">plotF</span></a></span></span><span> </span><span id="local-6989586621679069208"><span class="annot"><span class="annottext">(Float, Float, Float)
+</span><a href="#local-6989586621679069208"><span class="hs-identifier hs-var">xd</span></a></span></span><span> </span><span id="local-6989586621679069207"><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621679069207"><span class="hs-identifier hs-var">g</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Plot
+</span><a href="Numeric.Probability.Visualize.html#plot"><span class="hs-identifier hs-var">plot</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">ys :: [Float]
+</span><a href="Numeric.Probability.Visualize.html#ys"><span class="hs-identifier hs-var">ys</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679069206"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679069206"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-glyph">-&gt;</span><span class="annot"><span class="annottext">forall a. ToFloat a =&gt; a -&gt; Float
+</span><a href="Numeric.Probability.Expectation.html#toFloat"><span class="hs-identifier hs-var">toFloat</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621679069207"><span class="hs-identifier hs-var">g</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. FromFloat a =&gt; Float -&gt; a
+</span><a href="Numeric.Probability.Expectation.html#fromFloat"><span class="hs-identifier hs-var">fromFloat</span></a></span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679069206"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall {c}. (Ord c, Num c) =&gt; (c, c, c) -&gt; [c]
+</span><a href="#local-6989586621679069205"><span class="hs-identifier hs-var">xvals</span></a></span><span> </span><span class="annot"><span class="annottext">(Float, Float, Float)
+</span><a href="#local-6989586621679069208"><span class="hs-identifier hs-var">xd</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span class="annot"><span class="annottext">xs :: [Float]
+</span><a href="Numeric.Probability.Visualize.html#xs"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall {c}. (Ord c, Num c) =&gt; (c, c, c) -&gt; [c]
+</span><a href="#local-6989586621679069205"><span class="hs-identifier hs-var">xvals</span></a></span><span> </span><span class="annot"><span class="annottext">(Float, Float, Float)
+</span><a href="#local-6989586621679069208"><span class="hs-identifier hs-var">xd</span></a></span><span class="hs-special">}</span><span>
+</span><span id="line-140"></span><span>                  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621679069205"><span class="annot"><span class="annottext">xvals :: (c, c, c) -&gt; [c]
+</span><a href="#local-6989586621679069205"><span class="hs-identifier hs-var hs-var">xvals</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679069200"><span class="annot"><span class="annottext">c
+</span><a href="#local-6989586621679069200"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">,</span><span id="local-6989586621679069199"><span class="annot"><span class="annottext">c
+</span><a href="#local-6989586621679069199"><span class="hs-identifier hs-var">b</span></a></span></span><span class="hs-special">,</span><span id="local-6989586621679069198"><span class="annot"><span class="annottext">c
+</span><a href="#local-6989586621679069198"><span class="hs-identifier hs-var">d</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-141"></span><span>                           </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">c
+</span><a href="#local-6989586621679069200"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&gt;</span></span><span> </span><span class="annot"><span class="annottext">c
+</span><a href="#local-6989586621679069199"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">c
+</span><a href="#local-6989586621679069200"><span class="hs-identifier hs-var">a</span></a></span><span class="annot"><span class="annottext">forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="annot"><span class="annottext">(c, c, c) -&gt; [c]
+</span><a href="#local-6989586621679069205"><span class="hs-identifier hs-var">xvals</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">c
+</span><a href="#local-6989586621679069200"><span class="hs-identifier hs-var">a</span></a></span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span class="annot"><span class="annottext">c
+</span><a href="#local-6989586621679069198"><span class="hs-identifier hs-var">d</span></a></span><span class="hs-special">,</span><span class="annot"><span class="annottext">c
+</span><a href="#local-6989586621679069199"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">,</span><span class="annot"><span class="annottext">c
+</span><a href="#local-6989586621679069198"><span class="hs-identifier hs-var">d</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-142"></span><span>
+</span><span id="line-143"></span><span class="hs-comment">-- | create a plot from a list</span><span>
+</span><span id="line-144"></span><span class="hs-comment">--</span><span>
+</span><span id="line-145"></span><span id="local-6989586621679069447"><span class="annot"><a href="Numeric.Probability.Visualize.html#plotL"><span class="hs-identifier hs-type">plotL</span></a></span><span>  </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Expectation.html#ToFloat"><span class="hs-identifier hs-type">ToFloat</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679069447"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679069447"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Visualize.html#Plot"><span class="hs-identifier hs-type">Plot</span></a></span></span><span>
+</span><span id="line-146"></span><span id="plotL"><span class="annot"><span class="annottext">plotL :: forall a. ToFloat a =&gt; [a] -&gt; Plot
+</span><a href="Numeric.Probability.Visualize.html#plotL"><span class="hs-identifier hs-var hs-var">plotL</span></a></span></span><span> </span><span id="local-6989586621679069187"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679069187"><span class="hs-identifier hs-var">vs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Plot
+</span><a href="Numeric.Probability.Visualize.html#plot"><span class="hs-identifier hs-var">plot</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">ys :: [Float]
+</span><a href="Numeric.Probability.Visualize.html#ys"><span class="hs-identifier hs-var">ys</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">forall a. ToFloat a =&gt; a -&gt; Float
+</span><a href="Numeric.Probability.Expectation.html#toFloat"><span class="hs-identifier hs-var">toFloat</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679069187"><span class="hs-identifier hs-var">vs</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">xs :: [Float]
+</span><a href="Numeric.Probability.Visualize.html#xs"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">forall a. ToFloat a =&gt; a -&gt; Float
+</span><a href="Numeric.Probability.Expectation.html#toFloat"><span class="hs-identifier hs-var">toFloat</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span class="hs-glyph">..</span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Int
+</span><span class="hs-identifier hs-var">length</span></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679069187"><span class="hs-identifier hs-var">vs</span></a></span><span class="hs-special">]</span><span class="hs-special">}</span><span>
+</span><span id="line-147"></span><span>
+</span><span id="line-148"></span><span>
+</span><span id="line-149"></span><span id="local-6989586621679069445"><span class="annot"><a href="Numeric.Probability.Visualize.html#plotRL"><span class="hs-identifier hs-type">plotRL</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Expectation.html#ToFloat"><span class="hs-identifier hs-type">ToFloat</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679069445"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Random.html#T"><span class="hs-identifier hs-type">Rnd.T</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679069445"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="Numeric.Probability.Visualize.html#Plot"><span class="hs-identifier hs-type">Plot</span></a></span></span><span>
+</span><span id="line-150"></span><span id="plotRL"><span class="annot"><span class="annottext">plotRL :: forall a. ToFloat a =&gt; T [a] -&gt; IO Plot
+</span><a href="Numeric.Probability.Visualize.html#plotRL"><span class="hs-identifier hs-var hs-var">plotRL</span></a></span></span><span> </span><span id="local-6989586621679069182"><span class="annot"><span class="annottext">T [a]
+</span><a href="#local-6989586621679069182"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. T a -&gt; IO a
+</span><a href="Numeric.Probability.Random.html#run"><span class="hs-identifier hs-var">Rnd.run</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">forall a. ToFloat a =&gt; [a] -&gt; Plot
+</span><a href="Numeric.Probability.Visualize.html#plotL"><span class="hs-identifier hs-var">plotL</span></a></span><span> </span><span class="annot"><span class="annottext">T [a]
+</span><a href="#local-6989586621679069182"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-151"></span><span>
+</span><span id="line-152"></span><span>
+</span><span id="line-153"></span><span class="hs-comment">--yls :: ToFloat a =&gt; [a] -&gt; [Plot] -&gt; [[Float]]</span><span>
+</span><span id="line-154"></span><span class="hs-comment">--yls xs (p:ps) = [f p (toFloat v) | v &lt;- xs ]:yls xs ps</span><span>
+</span><span id="line-155"></span><span class="hs-comment">--yls _  []     = []</span><span>
+</span><span id="line-156"></span><span>
+</span><span id="line-157"></span><span class="annot"><a href="Numeric.Probability.Visualize.html#yls"><span class="hs-identifier hs-type">yls</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Visualize.html#Plot"><span class="hs-identifier hs-type">Plot</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Visualize.html#Plot"><span class="hs-identifier hs-type">Plot</span></a></span><span>
+</span><span id="line-158"></span><span id="yls"><span class="annot"><span class="annottext">yls :: [Float] -&gt; Plot -&gt; Plot
+</span><a href="Numeric.Probability.Visualize.html#yls"><span class="hs-identifier hs-var hs-var">yls</span></a></span></span><span> </span><span id="local-6989586621679069180"><span class="annot"><span class="annottext">[Float]
+</span><a href="#local-6989586621679069180"><span class="hs-identifier hs-var">xl</span></a></span></span><span> </span><span id="local-6989586621679069179"><span class="annot"><span class="annottext">Plot
+</span><a href="#local-6989586621679069179"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Plot
+</span><a href="#local-6989586621679069179"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">xs :: [Float]
+</span><a href="Numeric.Probability.Visualize.html#xs"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-glyph">=</span><span class="annot"><span class="annottext">[Float]
+</span><a href="#local-6989586621679069178"><span class="hs-identifier hs-var">x'</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">ys :: [Float]
+</span><a href="Numeric.Probability.Visualize.html#ys"><span class="hs-identifier hs-var">ys</span></a></span><span class="hs-glyph">=</span><span class="annot"><span class="annottext">[Float]
+</span><a href="#local-6989586621679069177"><span class="hs-identifier hs-var">y'</span></a></span><span class="hs-special">}</span><span>
+</span><span id="line-159"></span><span>	</span><span class="hs-keyword">where</span><span> 	</span><span id="local-6989586621679069176"><span class="annot"><span class="annottext">t :: [(Float, Float)]
+</span><a href="#local-6989586621679069176"><span class="hs-identifier hs-var hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a b. [a] -&gt; [b] -&gt; [(a, b)]
+</span><span class="hs-identifier hs-var">zip</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Plot -&gt; [Float]
+</span><a href="Numeric.Probability.Visualize.html#xs"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">Plot
+</span><a href="#local-6989586621679069179"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Plot -&gt; [Float]
+</span><a href="Numeric.Probability.Visualize.html#ys"><span class="hs-identifier hs-var">ys</span></a></span><span> </span><span class="annot"><span class="annottext">Plot
+</span><a href="#local-6989586621679069179"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-160"></span><span>		</span><span id="local-6989586621679069175"><span class="annot"><span class="annottext">t' :: [(Float, Float)]
+</span><a href="#local-6989586621679069175"><span class="hs-identifier hs-var hs-var">t'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Float] -&gt; [(Float, Float)] -&gt; [(Float, Float)]
+</span><a href="Numeric.Probability.Visualize.html#metaTuple"><span class="hs-identifier hs-var">metaTuple</span></a></span><span> </span><span class="annot"><span class="annottext">[Float]
+</span><a href="#local-6989586621679069180"><span class="hs-identifier hs-var">xl</span></a></span><span> </span><span class="annot"><span class="annottext">[(Float, Float)]
+</span><a href="#local-6989586621679069176"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-161"></span><span>		</span><span class="hs-special">(</span><span id="local-6989586621679069178"><span class="annot"><span class="annottext">[Float]
+</span><a href="#local-6989586621679069178"><span class="hs-identifier hs-var">x'</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679069177"><span class="annot"><span class="annottext">[Float]
+</span><a href="#local-6989586621679069177"><span class="hs-identifier hs-var">y'</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a b. [(a, b)] -&gt; ([a], [b])
+</span><span class="hs-identifier hs-var">unzip</span></span><span> </span><span class="annot"><span class="annottext">[(Float, Float)]
+</span><a href="#local-6989586621679069175"><span class="hs-identifier hs-var">t'</span></a></span><span>
+</span><span id="line-162"></span><span>
+</span><span id="line-163"></span><span class="annot"><a href="Numeric.Probability.Visualize.html#metaTuple"><span class="hs-identifier hs-type">metaTuple</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span class="hs-special">,</span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span class="hs-special">)</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span class="hs-special">,</span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-164"></span><span id="metaTuple"><span class="annot"><span class="annottext">metaTuple :: [Float] -&gt; [(Float, Float)] -&gt; [(Float, Float)]
+</span><a href="Numeric.Probability.Visualize.html#metaTuple"><span class="hs-identifier hs-var hs-var">metaTuple</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679069173"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679069173"><span class="hs-identifier hs-var">x</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621679069172"><span class="annot"><span class="annottext">[Float]
+</span><a href="#local-6989586621679069172"><span class="hs-identifier hs-var">xl</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span id="local-6989586621679069171"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679069171"><span class="hs-identifier hs-var">p</span></a></span></span><span class="hs-special">,</span><span id="local-6989586621679069170"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679069170"><span class="hs-identifier hs-var">v</span></a></span></span><span class="hs-special">)</span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621679069169"><span class="annot"><span class="annottext">[(Float, Float)]
+</span><a href="#local-6989586621679069169"><span class="hs-identifier hs-var">px</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679069171"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679069173"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679069171"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">,</span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679069170"><span class="hs-identifier hs-var">v</span></a></span><span class="hs-special">)</span><span class="annot"><span class="annottext">forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Float] -&gt; [(Float, Float)] -&gt; [(Float, Float)]
+</span><a href="Numeric.Probability.Visualize.html#metaTuple"><span class="hs-identifier hs-var">metaTuple</span></a></span><span> </span><span class="annot"><span class="annottext">[Float]
+</span><a href="#local-6989586621679069172"><span class="hs-identifier hs-var">xl</span></a></span><span> </span><span class="annot"><span class="annottext">[(Float, Float)]
+</span><a href="#local-6989586621679069169"><span class="hs-identifier hs-var">px</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-165"></span><span class="annot"><a href="Numeric.Probability.Visualize.html#metaTuple"><span class="hs-identifier hs-var">metaTuple</span></a></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679069168"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679069168"><span class="hs-identifier hs-var">x</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621679069167"><span class="annot"><span class="annottext">[Float]
+</span><a href="#local-6989586621679069167"><span class="hs-identifier hs-var">xl</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679069166"><span class="annot"><span class="annottext">p' :: [(Float, Float)]
+</span><a href="#local-6989586621679069166"><span class="hs-identifier hs-var">p'</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679069165"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679069165"><span class="hs-identifier hs-var">p</span></a></span></span><span class="hs-special">,</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span class="annot"><span class="annottext">[(Float, Float)]
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-special">)</span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679069165"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&gt;</span></span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679069168"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679069168"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">,</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0</span></span><span class="hs-special">)</span><span class="annot"><span class="annottext">forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Float] -&gt; [(Float, Float)] -&gt; [(Float, Float)]
+</span><a href="Numeric.Probability.Visualize.html#metaTuple"><span class="hs-identifier hs-var">metaTuple</span></a></span><span> </span><span class="annot"><span class="annottext">[Float]
+</span><a href="#local-6989586621679069167"><span class="hs-identifier hs-var">xl</span></a></span><span> </span><span class="annot"><span class="annottext">[(Float, Float)]
+</span><a href="#local-6989586621679069166"><span class="hs-identifier hs-var">p'</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-166"></span><span class="annot"><a href="Numeric.Probability.Visualize.html#metaTuple"><span class="hs-identifier hs-var">metaTuple</span></a></span><span> </span><span id="local-6989586621679069164"><span class="annot"><span class="annottext">[Float]
+</span><a href="#local-6989586621679069164"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679069163"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679069163"><span class="hs-identifier hs-var">v</span></a></span></span><span class="hs-glyph">-&gt;</span><span class="hs-special">(</span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679069163"><span class="hs-identifier hs-var">v</span></a></span><span class="hs-special">,</span><span class="annot"><span class="annottext">Float
+</span><span class="hs-number">0</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Float]
+</span><a href="#local-6989586621679069164"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-167"></span><span class="annot"><a href="Numeric.Probability.Visualize.html#metaTuple"><span class="hs-identifier hs-var">metaTuple</span></a></span><span> </span><span id="local-6989586621679069162"><span class="annot"><span class="annottext">[Float]
+</span><a href="#local-6989586621679069162"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621679069161"><span class="annot"><span class="annottext">[(Float, Float)]
+</span><a href="#local-6989586621679069161"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. HasCallStack =&gt; String -&gt; a
+</span><span class="hs-identifier hs-var">error</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">[Float]
+</span><a href="#local-6989586621679069162"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">[(Float, Float)]
+</span><a href="#local-6989586621679069161"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-168"></span><span>
+</span><span id="line-169"></span><span class="hs-comment">-- | we want to increase the bounds absolutely, account for negative numbers</span><span>
+</span><span id="line-170"></span><span class="hs-comment">--</span><span>
+</span><span id="line-171"></span><span id="local-6989586621679069441"><span class="annot"><a href="Numeric.Probability.Visualize.html#incr"><span class="hs-identifier hs-type">incr</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Numeric.Probability.Visualize.html#decr"><span class="hs-identifier hs-type">decr</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679069441"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Fractional</span></span><span> </span><span class="annot"><a href="#local-6989586621679069441"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679069441"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679069441"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-172"></span><span id="incr"><span class="annot"><span class="annottext">incr :: forall a. (Ord a, Fractional a) =&gt; a -&gt; a
+</span><a href="Numeric.Probability.Visualize.html#incr"><span class="hs-identifier hs-var hs-var">incr</span></a></span></span><span> </span><span id="local-6989586621679069148"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679069148"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-173"></span><span>   </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679069148"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&gt;</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-174"></span><span>     </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679069148"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><span class="hs-number">1.05</span></span><span>
+</span><span id="line-175"></span><span>     </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679069148"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><span class="hs-number">0.95</span></span><span>
+</span><span id="line-176"></span><span>
+</span><span id="line-177"></span><span id="decr"><span class="annot"><span class="annottext">decr :: forall a. (Ord a, Fractional a) =&gt; a -&gt; a
+</span><a href="Numeric.Probability.Visualize.html#decr"><span class="hs-identifier hs-var hs-var">decr</span></a></span></span><span> </span><span id="local-6989586621679069137"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679069137"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-178"></span><span>   </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679069137"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&gt;</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-179"></span><span>     </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679069137"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><span class="hs-number">0.95</span></span><span>
+</span><span id="line-180"></span><span>     </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679069137"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><span class="hs-number">1.05</span></span><span>
+</span><span id="line-181"></span><span>
+</span><span id="line-182"></span><span class="hs-comment">-- | Visualization output</span><span>
+</span><span id="line-183"></span><span class="hs-comment">--</span><span>
+</span><span id="line-184"></span><span class="hs-keyword">type</span><span> </span><span id="Vis"><span class="annot"><a href="Numeric.Probability.Visualize.html#Vis"><span class="hs-identifier hs-var">Vis</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-185"></span><span>
+</span><span id="line-186"></span><span>
+</span><span id="line-187"></span><span class="hs-comment">-- * creating figures</span><span>
+</span><span id="line-188"></span><span class="hs-comment">--</span><span>
+</span><span id="line-189"></span><span class="annot"><a href="Numeric.Probability.Visualize.html#fig"><span class="hs-identifier hs-type">fig</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Numeric.Probability.Visualize.html#Plot"><span class="hs-identifier hs-type">Plot</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Visualize.html#Vis"><span class="hs-identifier hs-type">Vis</span></a></span><span>
+</span><span id="line-190"></span><span id="fig"><span class="annot"><span class="annottext">fig :: [Plot] -&gt; Vis
+</span><a href="Numeric.Probability.Visualize.html#fig"><span class="hs-identifier hs-var hs-var">fig</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">FigureEnv -&gt; [Plot] -&gt; Vis
+</span><a href="Numeric.Probability.Visualize.html#figP"><span class="hs-identifier hs-var">figP</span></a></span><span> </span><span class="annot"><span class="annottext">FigureEnv
+</span><a href="Numeric.Probability.Visualize.html#figure"><span class="hs-identifier hs-var">figure</span></a></span><span>
+</span><span id="line-191"></span><span>
+</span><span id="line-192"></span><span class="annot"><a href="Numeric.Probability.Visualize.html#figP"><span class="hs-identifier hs-type">figP</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Visualize.html#FigureEnv"><span class="hs-identifier hs-type">FigureEnv</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Numeric.Probability.Visualize.html#Plot"><span class="hs-identifier hs-type">Plot</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Visualize.html#Vis"><span class="hs-identifier hs-type">Vis</span></a></span><span>
+</span><span id="line-193"></span><span id="figP"><span class="annot"><span class="annottext">figP :: FigureEnv -&gt; [Plot] -&gt; Vis
+</span><a href="Numeric.Probability.Visualize.html#figP"><span class="hs-identifier hs-var hs-var">figP</span></a></span></span><span> </span><span id="local-6989586621679069134"><span class="annot"><span class="annottext">FigureEnv
+</span><a href="#local-6989586621679069134"><span class="hs-identifier hs-var">fe</span></a></span></span><span> </span><span id="local-6989586621679069133"><span class="annot"><span class="annottext">[Plot]
+</span><a href="#local-6989586621679069133"><span class="hs-identifier hs-var">ps</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span> </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679069129"><span class="annot"><span class="annottext">xl :: [Float]
+</span><a href="#local-6989586621679069129"><span class="hs-identifier hs-var hs-var">xl</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">sort</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a. Eq a =&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">nub</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a b. Foldable t =&gt; (a -&gt; [b]) -&gt; t a -&gt; [b]
+</span><span class="hs-identifier hs-var">concatMap</span></span><span> </span><span class="annot"><span class="annottext">Plot -&gt; [Float]
+</span><a href="Numeric.Probability.Visualize.html#xs"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">[Plot]
+</span><a href="#local-6989586621679069133"><span class="hs-identifier hs-var">ps</span></a></span><span>
+</span><span id="line-194"></span><span>                </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679069125"><span class="annot"><span class="annottext">minx :: Float
+</span><a href="#local-6989586621679069125"><span class="hs-identifier hs-var hs-var">minx</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a. (Foldable t, Ord a) =&gt; t a -&gt; a
+</span><span class="hs-identifier hs-var">minimum</span></span><span> </span><span class="annot"><span class="annottext">[Float]
+</span><a href="#local-6989586621679069129"><span class="hs-identifier hs-var">xl</span></a></span><span>
+</span><span id="line-195"></span><span class="hs-comment">--                let maxx = maximum xl</span><span>
+</span><span id="line-196"></span><span>                </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679069122"><span class="annot"><span class="annottext">n :: Int
+</span><a href="#local-6989586621679069122"><span class="hs-identifier hs-var hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Int
+</span><span class="hs-identifier hs-var">length</span></span><span> </span><span class="annot"><span class="annottext">[Float]
+</span><a href="#local-6989586621679069129"><span class="hs-identifier hs-var">xl</span></a></span><span>
+</span><span id="line-197"></span><span>                </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679069121"><span class="annot"><span class="annottext">ys' :: [[Float]]
+</span><a href="#local-6989586621679069121"><span class="hs-identifier hs-var hs-var">ys'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">Plot -&gt; [Float]
+</span><a href="Numeric.Probability.Visualize.html#ys"><span class="hs-identifier hs-var">ys</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Float] -&gt; Plot -&gt; Plot
+</span><a href="Numeric.Probability.Visualize.html#yls"><span class="hs-identifier hs-var">yls</span></a></span><span> </span><span class="annot"><span class="annottext">[Float]
+</span><a href="#local-6989586621679069129"><span class="hs-identifier hs-var">xl</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Plot]
+</span><a href="#local-6989586621679069133"><span class="hs-identifier hs-var">ps</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-comment">-- yls xl ps</span><span>
+</span><span id="line-198"></span><span>                </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679069116"><span class="annot"><span class="annottext">miny :: Float
+</span><a href="#local-6989586621679069116"><span class="hs-identifier hs-var hs-var">miny</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a. (Foldable t, Ord a) =&gt; t a -&gt; a
+</span><span class="hs-identifier hs-var">minimum</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a. (Foldable t, Ord a) =&gt; t a -&gt; a
+</span><span class="hs-identifier hs-var">minimum</span></span><span> </span><span class="annot"><span class="annottext">[[Float]]
+</span><a href="#local-6989586621679069121"><span class="hs-identifier hs-var">ys'</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-199"></span><span>                </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679069111"><span class="annot"><span class="annottext">maxy :: Float
+</span><a href="#local-6989586621679069111"><span class="hs-identifier hs-var hs-var">maxy</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a. (Foldable t, Ord a) =&gt; t a -&gt; a
+</span><span class="hs-identifier hs-var">maximum</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a. (Foldable t, Ord a) =&gt; t a -&gt; a
+</span><span class="hs-identifier hs-var">maximum</span></span><span> </span><span class="annot"><span class="annottext">[[Float]]
+</span><a href="#local-6989586621679069121"><span class="hs-identifier hs-var">ys'</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-200"></span><span>                </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679069109"><span class="annot"><span class="annottext">out0' :: String -&gt; Vis
+</span><a href="#local-6989586621679069109"><span class="hs-identifier hs-var hs-var">out0'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; Vis
+</span><a href="Numeric.Probability.Visualize.html#out0"><span class="hs-identifier hs-var">out0</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">FigureEnv -&gt; String
+</span><a href="Numeric.Probability.Visualize.html#fileName"><span class="hs-identifier hs-var">fileName</span></a></span><span> </span><span class="annot"><span class="annottext">FigureEnv
+</span><a href="#local-6989586621679069134"><span class="hs-identifier hs-var">fe</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-201"></span><span>                </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679069107"><span class="annot"><span class="annottext">out1' :: String -&gt; Vis
+</span><a href="#local-6989586621679069107"><span class="hs-identifier hs-var hs-var">out1'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; Vis
+</span><a href="Numeric.Probability.Visualize.html#out1"><span class="hs-identifier hs-var">out1</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">FigureEnv -&gt; String
+</span><a href="Numeric.Probability.Visualize.html#fileName"><span class="hs-identifier hs-var">fileName</span></a></span><span> </span><span class="annot"><span class="annottext">FigureEnv
+</span><a href="#local-6989586621679069134"><span class="hs-identifier hs-var">fe</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-202"></span><span>                </span><span class="annot"><span class="annottext">String -&gt; Vis
+</span><a href="#local-6989586621679069109"><span class="hs-identifier hs-var">out0'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;x &lt;- &quot;</span></span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Show a =&gt; [a] -&gt; String
+</span><a href="Numeric.Probability.Visualize.html#vec"><span class="hs-identifier hs-var">vec</span></a></span><span> </span><span class="annot"><span class="annottext">[Float]
+</span><a href="#local-6989586621679069129"><span class="hs-identifier hs-var">xl</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-203"></span><span>                </span><span class="annot"><span class="annottext">String -&gt; Vis
+</span><a href="#local-6989586621679069107"><span class="hs-identifier hs-var">out1'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;y &lt;- &quot;</span></span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Show a =&gt; [a] -&gt; String
+</span><a href="Numeric.Probability.Visualize.html#vec"><span class="hs-identifier hs-var">vec</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. (Ord a, Fractional a) =&gt; a -&gt; a
+</span><a href="Numeric.Probability.Visualize.html#decr"><span class="hs-identifier hs-var">decr</span></a></span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679069116"><span class="hs-identifier hs-var">miny</span></a></span><span class="hs-special">)</span><span class="annot"><span class="annottext">forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Int -&gt; a -&gt; [a]
+</span><span class="hs-identifier hs-var">replicate</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679069122"><span class="hs-identifier hs-var">n</span></a></span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. (Ord a, Fractional a) =&gt; a -&gt; a
+</span><a href="Numeric.Probability.Visualize.html#incr"><span class="hs-identifier hs-var">incr</span></a></span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679069111"><span class="hs-identifier hs-var">maxy</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-204"></span><span>                </span><span class="annot"><span class="annottext">String -&gt; Vis
+</span><a href="#local-6989586621679069107"><span class="hs-identifier hs-var">out1'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;plot(x,y,type=\&quot;n\&quot;,main=\&quot;&quot;</span></span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span>
+</span><span id="line-205"></span><span>                        </span><span class="annot"><span class="annottext">FigureEnv -&gt; String
+</span><a href="Numeric.Probability.Visualize.html#title"><span class="hs-identifier hs-var">title</span></a></span><span>  </span><span class="annot"><span class="annottext">FigureEnv
+</span><a href="#local-6989586621679069134"><span class="hs-identifier hs-var">fe</span></a></span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;\&quot;,xlab=\&quot;&quot;</span></span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span>
+</span><span id="line-206"></span><span>                        </span><span class="annot"><span class="annottext">FigureEnv -&gt; String
+</span><a href="Numeric.Probability.Visualize.html#xLabel"><span class="hs-identifier hs-var">xLabel</span></a></span><span> </span><span class="annot"><span class="annottext">FigureEnv
+</span><a href="#local-6989586621679069134"><span class="hs-identifier hs-var">fe</span></a></span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;\&quot;,ylab=\&quot;&quot;</span></span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span>
+</span><span id="line-207"></span><span>                        </span><span class="annot"><span class="annottext">FigureEnv -&gt; String
+</span><a href="Numeric.Probability.Visualize.html#yLabel"><span class="hs-identifier hs-var">yLabel</span></a></span><span> </span><span class="annot"><span class="annottext">FigureEnv
+</span><a href="#local-6989586621679069134"><span class="hs-identifier hs-var">fe</span></a></span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;\&quot;)&quot;</span></span><span class="hs-special">)</span><span>
+</span><span id="line-208"></span><span>                </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) (m :: * -&gt; *) a b.
+(Foldable t, Monad m) =&gt;
+(a -&gt; m b) -&gt; t a -&gt; m ()
+</span><span class="hs-identifier hs-var">mapM_</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; Vis
+</span><a href="#local-6989586621679069107"><span class="hs-identifier hs-var">out1'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a b c d. (a -&gt; b -&gt; c -&gt; d) -&gt; [a] -&gt; [b] -&gt; [c] -&gt; [d]
+</span><span class="hs-identifier hs-var">zipWith3</span></span><span> </span><span class="annot"><span class="annottext">forall a. ToFloat a =&gt; Int -&gt; Plot -&gt; [a] -&gt; String
+</span><a href="Numeric.Probability.Visualize.html#drawy"><span class="hs-identifier hs-var">drawy</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span> </span><span class="hs-glyph">..</span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">[Plot]
+</span><a href="#local-6989586621679069133"><span class="hs-identifier hs-var">ps</span></a></span><span> </span><span class="annot"><span class="annottext">[[Float]]
+</span><a href="#local-6989586621679069121"><span class="hs-identifier hs-var">ys'</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-209"></span><span>                </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *). Applicative f =&gt; Bool -&gt; f () -&gt; f ()
+</span><span class="hs-identifier hs-var">when</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">null</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a b. Foldable t =&gt; (a -&gt; [b]) -&gt; t a -&gt; [b]
+</span><span class="hs-identifier hs-var">concatMap</span></span><span> </span><span class="annot"><span class="annottext">Plot -&gt; String
+</span><a href="Numeric.Probability.Visualize.html#label"><span class="hs-identifier hs-var">label</span></a></span><span> </span><span class="annot"><span class="annottext">[Plot]
+</span><a href="#local-6989586621679069133"><span class="hs-identifier hs-var">ps</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-210"></span><span>                  </span><span class="annot"><span class="annottext">String -&gt; Vis
+</span><a href="#local-6989586621679069107"><span class="hs-identifier hs-var">out1'</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Float -&gt; Float -&gt; [Plot] -&gt; String
+</span><a href="Numeric.Probability.Visualize.html#legend"><span class="hs-identifier hs-var">legend</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. (Ord a, Fractional a) =&gt; a -&gt; a
+</span><a href="Numeric.Probability.Visualize.html#incr"><span class="hs-identifier hs-var">incr</span></a></span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679069125"><span class="hs-identifier hs-var">minx</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679069111"><span class="hs-identifier hs-var">maxy</span></a></span><span> </span><span class="annot"><span class="annottext">[Plot]
+</span><a href="#local-6989586621679069133"><span class="hs-identifier hs-var">ps</span></a></span><span>
+</span><span id="line-211"></span><span>                </span><span class="annot"><span class="annottext">String -&gt; Vis
+</span><a href="#local-6989586621679069107"><span class="hs-identifier hs-var">out1'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;dev2bitmap(&quot;</span></span><span> </span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">FigureEnv -&gt; String
+</span><a href="Numeric.Probability.Visualize.html#fileName"><span class="hs-identifier hs-var">fileName</span></a></span><span> </span><span class="annot"><span class="annottext">FigureEnv
+</span><a href="#local-6989586621679069134"><span class="hs-identifier hs-var">fe</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;.pdf&quot;</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span>
+</span><span id="line-212"></span><span>                       </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;, type=\&quot;pdfwrite\&quot;)&quot;</span></span><span class="hs-special">)</span><span>
+</span><span id="line-213"></span><span>
+</span><span id="line-214"></span><span>
+</span><span id="line-215"></span><span class="hs-comment">{-
+define:
+  * autoLabel
+  * showParams
+-}</span><span>
+</span><span id="line-220"></span><span>
+</span><span id="line-221"></span><span id="local-6989586621679069417"><span class="annot"><a href="Numeric.Probability.Visualize.html#showParams"><span class="hs-identifier hs-type">showParams</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="annot"><a href="#local-6989586621679069417"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679069417"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span></span><span>
+</span><span id="line-222"></span><span id="showParams"><span class="annot"><span class="annottext">showParams :: forall a. Show a =&gt; [a] -&gt; [String] -&gt; String
+</span><a href="Numeric.Probability.Visualize.html#showParams"><span class="hs-identifier hs-var hs-var">showParams</span></a></span></span><span> </span><span id="local-6989586621679069094"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679069094"><span class="hs-identifier hs-var">xs0</span></a></span></span><span> </span><span id="local-6989586621679069093"><span class="annot"><span class="annottext">[String]
+</span><a href="#local-6989586621679069093"><span class="hs-identifier hs-var">ss</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-223"></span><span>   </span><span class="annot"><span class="annottext">forall a. (a -&gt; String) -&gt; [a] -&gt; String
+</span><a href="Numeric.Probability.PrintList.html#asTuple"><span class="hs-identifier hs-var">asTuple</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. a -&gt; a
+</span><span class="hs-identifier hs-var">id</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a b c. (a -&gt; b -&gt; c) -&gt; [a] -&gt; [b] -&gt; [c]
+</span><span class="hs-identifier hs-var">zipWith</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679069091"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679069091"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621679069090"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679069090"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679069091"><span class="hs-identifier hs-var">x</span></a></span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;:&quot;</span></span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679069090"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679069094"><span class="hs-identifier hs-var">xs0</span></a></span><span> </span><span class="annot"><span class="annottext">[String]
+</span><a href="#local-6989586621679069093"><span class="hs-identifier hs-var">ss</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-224"></span><span>
+</span><span id="line-225"></span><span class="annot"><a href="Numeric.Probability.Visualize.html#legend"><span class="hs-identifier hs-type">legend</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Float</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Numeric.Probability.Visualize.html#Plot"><span class="hs-identifier hs-type">Plot</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-226"></span><span id="legend"><span class="annot"><span class="annottext">legend :: Float -&gt; Float -&gt; [Plot] -&gt; String
+</span><a href="Numeric.Probability.Visualize.html#legend"><span class="hs-identifier hs-var hs-var">legend</span></a></span></span><span> </span><span id="local-6989586621679069089"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679069089"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621679069088"><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679069088"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span id="local-6989586621679069087"><span class="annot"><span class="annottext">[Plot]
+</span><a href="#local-6989586621679069087"><span class="hs-identifier hs-var">ps</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;legend(&quot;</span></span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679069089"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;, &quot;</span></span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Float
+</span><a href="#local-6989586621679069088"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">)</span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;,&quot;</span></span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span>
+</span><span id="line-227"></span><span>                </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;lty=&quot;</span></span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="annot"><span class="annottext">forall a. Show a =&gt; [a] -&gt; String
+</span><a href="Numeric.Probability.Visualize.html#vec"><span class="hs-identifier hs-var">vec</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">Plot -&gt; LineStyle
+</span><a href="Numeric.Probability.Visualize.html#lineStyle"><span class="hs-identifier hs-var">lineStyle</span></a></span><span> </span><span class="annot"><span class="annottext">[Plot]
+</span><a href="#local-6989586621679069087"><span class="hs-identifier hs-var">ps</span></a></span><span class="hs-special">)</span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;,&quot;</span></span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span>
+</span><span id="line-228"></span><span>                </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;col=&quot;</span></span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="annot"><span class="annottext">forall a. Show a =&gt; [a] -&gt; String
+</span><a href="Numeric.Probability.Visualize.html#vec"><span class="hs-identifier hs-var">vec</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">Plot -&gt; Color
+</span><a href="Numeric.Probability.Visualize.html#color"><span class="hs-identifier hs-var">color</span></a></span><span> </span><span class="annot"><span class="annottext">[Plot]
+</span><a href="#local-6989586621679069087"><span class="hs-identifier hs-var">ps</span></a></span><span class="hs-special">)</span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;,&quot;</span></span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span>
+</span><span id="line-229"></span><span>                </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;lwd=&quot;</span></span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="annot"><span class="annottext">forall a. Show a =&gt; [a] -&gt; String
+</span><a href="Numeric.Probability.Visualize.html#vec"><span class="hs-identifier hs-var">vec</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">Plot -&gt; Int
+</span><a href="Numeric.Probability.Visualize.html#lineWidth"><span class="hs-identifier hs-var">lineWidth</span></a></span><span> </span><span class="annot"><span class="annottext">[Plot]
+</span><a href="#local-6989586621679069087"><span class="hs-identifier hs-var">ps</span></a></span><span class="hs-special">)</span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;,&quot;</span></span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span>
+</span><span id="line-230"></span><span>                </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;legend=&quot;</span></span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="annot"><span class="annottext">forall a. Show a =&gt; [a] -&gt; String
+</span><a href="Numeric.Probability.Visualize.html#vec"><span class="hs-identifier hs-var">vec</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">Plot -&gt; String
+</span><a href="Numeric.Probability.Visualize.html#label"><span class="hs-identifier hs-var">label</span></a></span><span> </span><span class="annot"><span class="annottext">[Plot]
+</span><a href="#local-6989586621679069087"><span class="hs-identifier hs-var">ps</span></a></span><span class="hs-special">)</span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;)&quot;</span></span><span>
+</span><span id="line-231"></span><span>
+</span><span id="line-232"></span><span id="local-6989586621679069420"><span class="annot"><a href="Numeric.Probability.Visualize.html#drawy"><span class="hs-identifier hs-type">drawy</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Expectation.html#ToFloat"><span class="hs-identifier hs-type">ToFloat</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679069420"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Visualize.html#Plot"><span class="hs-identifier hs-type">Plot</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679069420"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span></span><span>
+</span><span id="line-233"></span><span id="drawy"><span class="annot"><span class="annottext">drawy :: forall a. ToFloat a =&gt; Int -&gt; Plot -&gt; [a] -&gt; String
+</span><a href="Numeric.Probability.Visualize.html#drawy"><span class="hs-identifier hs-var hs-var">drawy</span></a></span></span><span> </span><span id="local-6989586621679069078"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679069078"><span class="hs-identifier hs-var">yn</span></a></span></span><span> </span><span id="local-6989586621679069077"><span class="annot"><span class="annottext">Plot
+</span><a href="#local-6989586621679069077"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span id="local-6989586621679069076"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679069076"><span class="hs-identifier hs-var">fl</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;y&quot;</span></span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679069078"><span class="hs-identifier hs-var">yn</span></a></span><span class="hs-special">)</span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot; &lt;- &quot;</span></span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Show a =&gt; [a] -&gt; String
+</span><a href="Numeric.Probability.Visualize.html#vec"><span class="hs-identifier hs-var">vec</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">forall a. ToFloat a =&gt; a -&gt; Float
+</span><a href="Numeric.Probability.Expectation.html#toFloat"><span class="hs-identifier hs-var">toFloat</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679069076"><span class="hs-identifier hs-var">fl</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;\n&quot;</span></span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span>
+</span><span id="line-234"></span><span>                </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;lines(x,y&quot;</span></span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679069078"><span class="hs-identifier hs-var">yn</span></a></span><span class="hs-special">)</span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;,col=&quot;</span></span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Plot -&gt; Color
+</span><a href="Numeric.Probability.Visualize.html#color"><span class="hs-identifier hs-var">color</span></a></span><span> </span><span class="annot"><span class="annottext">Plot
+</span><a href="#local-6989586621679069077"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;,&quot;</span></span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span>
+</span><span id="line-235"></span><span>                </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;lty=&quot;</span></span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Plot -&gt; LineStyle
+</span><a href="Numeric.Probability.Visualize.html#lineStyle"><span class="hs-identifier hs-var">lineStyle</span></a></span><span> </span><span class="annot"><span class="annottext">Plot
+</span><a href="#local-6989586621679069077"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;,lwd=&quot;</span></span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Plot -&gt; Int
+</span><a href="Numeric.Probability.Visualize.html#lineWidth"><span class="hs-identifier hs-var">lineWidth</span></a></span><span> </span><span class="annot"><span class="annottext">Plot
+</span><a href="#local-6989586621679069077"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;)&quot;</span></span><span>
+</span><span id="line-236"></span><span>
+</span><span id="line-237"></span><span>
+</span><span id="line-238"></span><span id="local-6989586621679069430"><span class="annot"><a href="Numeric.Probability.Visualize.html#vec"><span class="hs-identifier hs-type">vec</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="annot"><a href="#local-6989586621679069430"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679069430"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span></span><span>
+</span><span id="line-239"></span><span id="vec"><span class="annot"><span class="annottext">vec :: forall a. Show a =&gt; [a] -&gt; String
+</span><a href="Numeric.Probability.Visualize.html#vec"><span class="hs-identifier hs-var hs-var">vec</span></a></span></span><span> </span><span id="local-6989586621679069073"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679069073"><span class="hs-identifier hs-var">xs0</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;c&quot;</span></span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="annot"><span class="annottext">forall a. (a -&gt; String) -&gt; [a] -&gt; String
+</span><a href="Numeric.Probability.PrintList.html#asTuple"><span class="hs-identifier hs-var">asTuple</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679069073"><span class="hs-identifier hs-var">xs0</span></a></span><span>
+</span><span id="line-240"></span><span>
+</span><span id="line-241"></span><span class="annot"><a href="Numeric.Probability.Visualize.html#out0"><span class="hs-identifier hs-type">out0</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-242"></span><span id="out0"><span class="annot"><span class="annottext">out0 :: String -&gt; String -&gt; Vis
+</span><a href="Numeric.Probability.Visualize.html#out0"><span class="hs-identifier hs-var hs-var">out0</span></a></span></span><span> </span><span id="local-6989586621679069071"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679069071"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621679069070"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679069070"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; Vis
+</span><span class="hs-identifier hs-var">writeFile</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679069071"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679069070"><span class="hs-identifier hs-var">s</span></a></span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;\n&quot;</span></span><span class="hs-special">)</span><span>
+</span><span id="line-243"></span><span>
+</span><span id="line-244"></span><span class="annot"><a href="Numeric.Probability.Visualize.html#out1"><span class="hs-identifier hs-type">out1</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">FilePath</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-245"></span><span id="out1"><span class="annot"><span class="annottext">out1 :: String -&gt; String -&gt; Vis
+</span><a href="Numeric.Probability.Visualize.html#out1"><span class="hs-identifier hs-var hs-var">out1</span></a></span></span><span> </span><span id="local-6989586621679069068"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679069068"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621679069067"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679069067"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; Vis
+</span><span class="hs-identifier hs-var">appendFile</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679069068"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679069067"><span class="hs-identifier hs-var">s</span></a></span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;\n&quot;</span></span><span class="hs-special">)</span><span>
+</span><span id="line-246"></span></pre></body></html>

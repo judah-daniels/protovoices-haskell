@@ -1,0 +1,125 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.Bool.HT.Private</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.List</span></span><span>  </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">List</span></span><span>  </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">find</span></span><span class="hs-special">,</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-4"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Maybe</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">fromMaybe</span></span><span class="hs-special">,</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-5"></span><span>
+</span><span id="line-6"></span><span class="hs-comment">{- |
+@if-then-else@ as function.
+
+Example:
+
+&gt; if' (even n) &quot;even&quot; $
+&gt; if' (isPrime n) &quot;prime&quot; $
+&gt; &quot;boring&quot;
+-}</span><span>
+</span><span id="line-15"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Bool.HT.Private.html#if%27"><span class="hs-pragma hs-type">if'</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-16"></span><span id="local-6989586621679042484"><span class="annot"><a href="Data.Bool.HT.Private.html#if%27"><span class="hs-identifier hs-type">if'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679042484"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679042484"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679042484"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-17"></span><span id="if%27"><span class="annot"><span class="annottext">if' :: forall a. Bool -&gt; a -&gt; a -&gt; a
+</span><a href="Data.Bool.HT.Private.html#if%27"><span class="hs-identifier hs-var hs-var">if'</span></a></span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>  </span><span id="local-6989586621679042449"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679042449"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="annot"><span class="annottext">a
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679042449"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-18"></span><span class="annot"><a href="Data.Bool.HT.Private.html#if%27"><span class="hs-identifier hs-var">if'</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679042448"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679042448"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679042448"><span class="hs-identifier hs-var">y</span></a></span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span class="hs-comment">{-|
+The same as 'if'', but the name is chosen
+such that it can be used for GHC-7.0's rebindable if-then-else syntax.
+-}</span><span>
+</span><span id="line-24"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Bool.HT.Private.html#ifThenElse"><span class="hs-pragma hs-type">ifThenElse</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-25"></span><span id="local-6989586621679042446"><span class="annot"><a href="Data.Bool.HT.Private.html#ifThenElse"><span class="hs-identifier hs-type">ifThenElse</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679042446"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679042446"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679042446"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-26"></span><span id="ifThenElse"><span class="annot"><span class="annottext">ifThenElse :: forall a. Bool -&gt; a -&gt; a -&gt; a
+</span><a href="Data.Bool.HT.Private.html#ifThenElse"><span class="hs-identifier hs-var hs-var">ifThenElse</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. Bool -&gt; a -&gt; a -&gt; a
+</span><a href="Data.Bool.HT.Private.html#if%27"><span class="hs-identifier hs-var">if'</span></a></span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span class="hs-comment">{-|
+From a list of expressions choose the one,
+whose condition is true.
+
+Example:
+
+&gt; select &quot;boring&quot; $
+&gt;   (even n, &quot;even&quot;) :
+&gt;   (isPrime n, &quot;prime&quot;) :
+&gt;   []
+-}</span><span>
+</span><span id="line-40"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Bool.HT.Private.html#select"><span class="hs-pragma hs-type">select</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-41"></span><span id="local-6989586621679042482"><span class="annot"><a href="Data.Bool.HT.Private.html#select"><span class="hs-identifier hs-type">select</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Bool.HT.Private.html#select0"><span class="hs-identifier hs-type">select0</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Bool.HT.Private.html#select1"><span class="hs-identifier hs-type">select1</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621679042482"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621679042482"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679042482"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-42"></span><span id="select"><span class="annot"><span class="annottext">select :: forall a. a -&gt; [(Bool, a)] -&gt; a
+</span><a href="Data.Bool.HT.Private.html#select"><span class="hs-identifier hs-var hs-var">select</span></a></span></span><span>  </span><span id="local-6989586621679042440"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679042440"><span class="hs-identifier hs-var">def</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall b a. b -&gt; (a -&gt; b) -&gt; Maybe a -&gt; b
+</span><span class="hs-identifier hs-var">maybe</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679042440"><span class="hs-identifier hs-var">def</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a, b) -&gt; b
+</span><span class="hs-identifier hs-var">snd</span></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a. Foldable t =&gt; (a -&gt; Bool) -&gt; t a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">find</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a, b) -&gt; a
+</span><span class="hs-identifier hs-var">fst</span></span><span>
+</span><span id="line-43"></span><span id="select0"><span class="annot"><span class="annottext">select0 :: forall a. a -&gt; [(Bool, a)] -&gt; a
+</span><a href="Data.Bool.HT.Private.html#select0"><span class="hs-identifier hs-var hs-var">select0</span></a></span></span><span> </span><span id="local-6989586621679042435"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679042435"><span class="hs-identifier hs-var">def</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. a -&gt; Maybe a -&gt; a
+</span><span class="hs-identifier hs-var">fromMaybe</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679042435"><span class="hs-identifier hs-var">def</span></a></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall a b. Eq a =&gt; a -&gt; [(a, b)] -&gt; Maybe b
+</span><span class="hs-identifier hs-var">lookup</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-44"></span><span id="select1"><span class="annot"><span class="annottext">select1 :: forall a. a -&gt; [(Bool, a)] -&gt; a
+</span><a href="Data.Bool.HT.Private.html#select1"><span class="hs-identifier hs-var hs-var">select1</span></a></span></span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a b.
+Foldable t =&gt;
+(a -&gt; b -&gt; b) -&gt; b -&gt; t a -&gt; b
+</span><span class="hs-identifier hs-var">foldr</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a b c. (a -&gt; b -&gt; c) -&gt; (a, b) -&gt; c
+</span><span class="hs-identifier hs-var">uncurry</span></span><span> </span><span class="annot"><span class="annottext">forall a. Bool -&gt; a -&gt; a -&gt; a
+</span><a href="Data.Bool.HT.Private.html#if%27"><span class="hs-identifier hs-var">if'</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-45"></span><span>
+</span><span id="line-46"></span><span>
+</span><span id="line-47"></span><span id="local-6989586621679042459"><span class="annot"><a href="Data.Bool.HT.Private.html#zipIf"><span class="hs-identifier hs-type">zipIf</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679042459"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679042459"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679042459"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span><span>
+</span><span id="line-48"></span><span id="zipIf"><span class="annot"><span class="annottext">zipIf :: forall a. [Bool] -&gt; [a] -&gt; [a] -&gt; [a]
+</span><a href="Data.Bool.HT.Private.html#zipIf"><span class="hs-identifier hs-var hs-var">zipIf</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a b c d. (a -&gt; b -&gt; c -&gt; d) -&gt; [a] -&gt; [b] -&gt; [c] -&gt; [d]
+</span><span class="hs-identifier hs-var">zipWith3</span></span><span> </span><span class="annot"><span class="annottext">forall a. Bool -&gt; a -&gt; a -&gt; a
+</span><a href="Data.Bool.HT.Private.html#if%27"><span class="hs-identifier hs-var">if'</span></a></span><span>
+</span><span id="line-49"></span><span>
+</span><span id="line-50"></span><span class="hs-keyword">infixr</span><span> </span><span class="hs-number">1</span><span> </span><span class="annot"><a href="Data.Bool.HT.Private.html#%3F%3A"><span class="hs-operator hs-type">?:</span></a></span><span>
+</span><span id="line-51"></span><span>
+</span><span id="line-52"></span><span class="hs-comment">{- |
+Like the @?@ operator of the C progamming language.
+
+&gt;&gt;&gt; True ?: (&quot;yes&quot;, &quot;no&quot;)
+&quot;yes&quot;
+&gt;&gt;&gt; False ?: (&quot;yes&quot;, &quot;no&quot;)
+&quot;no&quot;
+-}</span><span>
+</span><span id="line-60"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">(</span><span class="hs-pragma">?:</span><span class="hs-pragma">)</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-61"></span><span id="local-6989586621679042454"><span class="annot"><a href="Data.Bool.HT.Private.html#%3F%3A"><span class="hs-operator hs-type">(?:)</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679042454"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span class="annot"><a href="#local-6989586621679042454"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679042454"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-62"></span><span id="%3F%3A"><span class="annot"><span class="annottext">?: :: forall a. Bool -&gt; (a, a) -&gt; a
+</span><a href="Data.Bool.HT.Private.html#%3F%3A"><span class="hs-operator hs-var hs-var">(?:)</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a b c. (a -&gt; b -&gt; c) -&gt; (a, b) -&gt; c
+</span><span class="hs-identifier hs-var">uncurry</span></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall a. Bool -&gt; a -&gt; a -&gt; a
+</span><a href="Data.Bool.HT.Private.html#if%27"><span class="hs-identifier hs-var">if'</span></a></span><span>
+</span><span id="line-63"></span><span>
+</span><span id="line-64"></span><span>
+</span><span id="line-65"></span><span class="hs-comment">-- precedence below (||) and (&amp;&amp;)</span><span>
+</span><span id="line-66"></span><span class="hs-keyword">infixr</span><span> </span><span class="hs-number">1</span><span> </span><span class="annot"><a href="Data.Bool.HT.Private.html#implies"><span class="hs-operator hs-type">`implies`</span></a></span><span>
+</span><span id="line-67"></span><span>
+</span><span id="line-68"></span><span class="hs-comment">{- |
+Logical operator for implication.
+
+Funnily because of the ordering of 'Bool' it holds:
+
+prop&gt; \a b -&gt; implies a b == (a&lt;=b)
+-}</span><span>
+</span><span id="line-75"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Bool.HT.Private.html#implies"><span class="hs-pragma hs-type">implies</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-76"></span><span class="annot"><a href="Data.Bool.HT.Private.html#implies"><span class="hs-identifier hs-type">implies</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-77"></span><span id="implies"><span class="annot"><span class="annottext">implies :: Bool -&gt; Bool -&gt; Bool
+</span><a href="Data.Bool.HT.Private.html#implies"><span class="hs-identifier hs-var hs-var">implies</span></a></span></span><span> </span><span id="local-6989586621679042426"><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621679042426"><span class="hs-identifier hs-var">prerequisite</span></a></span></span><span> </span><span id="local-6989586621679042425"><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621679042425"><span class="hs-identifier hs-var">conclusion</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-78"></span><span>   </span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621679042426"><span class="hs-identifier hs-var">prerequisite</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">||</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621679042425"><span class="hs-identifier hs-var">conclusion</span></a></span><span>
+</span><span id="line-79"></span></pre></body></html>

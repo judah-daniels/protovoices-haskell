@@ -1,0 +1,191 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.Function.HT.Private</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.List</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">genericReplicate</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">unfoldr</span></span><span class="hs-special">)</span><span>
+</span><span id="line-4"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.Maybe.HT.html"><span class="hs-identifier">Data.Maybe.HT</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.Maybe.HT.html#toMaybe"><span class="hs-identifier">toMaybe</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-5"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.Tuple.HT.html"><span class="hs-identifier">Data.Tuple.HT</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.Tuple.Lazy.html#swap"><span class="hs-identifier">swap</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-6"></span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- $setup</span><span>
+</span><span id="line-8"></span><span class="hs-comment">-- &gt;&gt;&gt; import Test.QuickCheck (NonNegative(NonNegative))</span><span>
+</span><span id="line-9"></span><span>
+</span><span id="line-10"></span><span class="hs-comment">{- |
+Compositional power of a function,
+i.e. apply the function @n@ times to a value.
+It is rather the same as @iter@
+in Simon Thompson: \&quot;The Craft of Functional Programming\&quot;, page 172
+-}</span><span>
+</span><span id="line-16"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Function.HT.Private.html#nest"><span class="hs-pragma hs-type">nest</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-17"></span><span id="local-6989586621679043276"><span class="annot"><a href="Data.Function.HT.Private.html#nest"><span class="hs-identifier hs-type">nest</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679043276"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679043276"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679043276"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679043276"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-18"></span><span id="nest"><span class="annot"><span class="annottext">nest :: forall a. Int -&gt; (a -&gt; a) -&gt; a -&gt; a
+</span><a href="Data.Function.HT.Private.html#nest"><span class="hs-identifier hs-var hs-var">nest</span></a></span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; a
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679043221"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679043221"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679043221"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-19"></span><span class="annot"><a href="Data.Function.HT.Private.html#nest"><span class="hs-identifier hs-var">nest</span></a></span><span> </span><span id="local-6989586621679043220"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679043220"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span id="local-6989586621679043219"><span class="annot"><span class="annottext">a -&gt; a
+</span><a href="#local-6989586621679043219"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621679043218"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679043218"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; a
+</span><a href="#local-6989586621679043219"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Int -&gt; (a -&gt; a) -&gt; a -&gt; a
+</span><a href="Data.Function.HT.Private.html#nest"><span class="hs-identifier hs-var">nest</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679043220"><span class="hs-identifier hs-var">n</span></a></span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">a -&gt; a
+</span><a href="#local-6989586621679043219"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679043218"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span class="hs-comment">{- |
+prop&gt; \(NonNegative n) x -&gt; nest n succ x == nest1 n succ (x::Integer)
+prop&gt; \(NonNegative n) x -&gt; nest n succ x == nest2 n succ (x::Integer)
+-}</span><span>
+</span><span id="line-25"></span><span id="local-6989586621679043217"><span class="annot"><a href="Data.Function.HT.Private.html#nest1"><span class="hs-identifier hs-type">nest1</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Function.HT.Private.html#nest2"><span class="hs-identifier hs-type">nest2</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679043217"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679043217"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679043217"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679043217"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-26"></span><span id="nest1"><span class="annot"><span class="annottext">nest1 :: forall a. Int -&gt; (a -&gt; a) -&gt; a -&gt; a
+</span><a href="Data.Function.HT.Private.html#nest1"><span class="hs-identifier hs-var hs-var">nest1</span></a></span></span><span> </span><span id="local-6989586621679043212"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679043212"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span id="local-6989586621679043211"><span class="annot"><span class="annottext">a -&gt; a
+</span><a href="#local-6989586621679043211"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a b.
+Foldable t =&gt;
+(a -&gt; b -&gt; b) -&gt; b -&gt; t a -&gt; b
+</span><span class="hs-identifier hs-var">foldr</span></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">(.)</span></span><span> </span><span class="annot"><span class="annottext">forall a. a -&gt; a
+</span><span class="hs-identifier hs-var">id</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Int -&gt; a -&gt; [a]
+</span><span class="hs-identifier hs-var">replicate</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679043212"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; a
+</span><a href="#local-6989586621679043211"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-27"></span><span id="nest2"><span class="annot"><span class="annottext">nest2 :: forall a. Int -&gt; (a -&gt; a) -&gt; a -&gt; a
+</span><a href="Data.Function.HT.Private.html#nest2"><span class="hs-identifier hs-var hs-var">nest2</span></a></span></span><span> </span><span id="local-6989586621679043206"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679043206"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span id="local-6989586621679043205"><span class="annot"><span class="annottext">a -&gt; a
+</span><a href="#local-6989586621679043205"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621679043204"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679043204"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. (a -&gt; a) -&gt; a -&gt; [a]
+</span><span class="hs-identifier hs-var">iterate</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; a
+</span><a href="#local-6989586621679043205"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679043204"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. [a] -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">!!</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679043206"><span class="hs-identifier hs-var">n</span></a></span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span>
+</span><span id="line-30"></span><span class="hs-comment">{- |
+@powerAssociative@ is an auxiliary function that,
+for an associative operation @op@,
+computes the same value as
+
+  @powerAssociative op a0 a n = foldr op a0 (genericReplicate n a)@
+
+but applies &quot;op&quot; O(log n) times and works for large n.
+-}</span><span>
+</span><span id="line-39"></span><span>
+</span><span id="line-40"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Function.HT.Private.html#powerAssociative"><span class="hs-pragma hs-type">powerAssociative</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-41"></span><span id="local-6989586621679043261"><span class="annot"><a href="Data.Function.HT.Private.html#powerAssociative"><span class="hs-identifier hs-type">powerAssociative</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679043261"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679043261"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679043261"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679043261"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679043261"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679043261"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-42"></span><span id="powerAssociative"><span class="annot"><span class="annottext">powerAssociative :: forall a. (a -&gt; a -&gt; a) -&gt; a -&gt; a -&gt; Integer -&gt; a
+</span><a href="Data.Function.HT.Private.html#powerAssociative"><span class="hs-identifier hs-var hs-var">powerAssociative</span></a></span></span><span> </span><span id="local-6989586621679043198"><span class="annot"><span class="annottext">a -&gt; a -&gt; a
+</span><a href="#local-6989586621679043198"><span class="hs-identifier hs-var">op</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-43"></span><span>   </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679043183"><span class="annot"><span class="annottext">go :: a -&gt; a -&gt; t -&gt; a
+</span><a href="#local-6989586621679043183"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span id="local-6989586621679043182"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679043182"><span class="hs-identifier hs-var">acc</span></a></span></span><span> </span><span class="annot"><span class="annottext">a
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">t
+</span><span class="hs-number">0</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679043182"><span class="hs-identifier hs-var">acc</span></a></span><span>
+</span><span id="line-44"></span><span>       </span><span class="annot"><a href="#local-6989586621679043183"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span id="local-6989586621679043181"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679043181"><span class="hs-identifier hs-var">acc</span></a></span></span><span> </span><span id="local-6989586621679043180"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679043180"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679043179"><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679043179"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; t -&gt; a
+</span><a href="#local-6989586621679043183"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">forall a. Integral a =&gt; a -&gt; Bool
+</span><span class="hs-identifier hs-var">even</span></span><span> </span><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679043179"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679043181"><span class="hs-identifier hs-var">acc</span></a></span><span> </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; a
+</span><a href="#local-6989586621679043198"><span class="hs-identifier hs-var">op</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679043181"><span class="hs-identifier hs-var">acc</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679043180"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; a -&gt; a
+</span><a href="#local-6989586621679043198"><span class="hs-identifier hs-var">op</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679043180"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679043180"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Integral a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">div</span></span><span> </span><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679043179"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">t
+</span><span class="hs-number">2</span></span><span class="hs-special">)</span><span>
+</span><span id="line-45"></span><span>   </span><span class="hs-keyword">in</span><span>  </span><span class="annot"><span class="annottext">forall {t}. Integral t =&gt; a -&gt; a -&gt; t -&gt; a
+</span><a href="#local-6989586621679043183"><span class="hs-identifier hs-var">go</span></a></span><span>
+</span><span id="line-46"></span><span>
+</span><span id="line-47"></span><span class="hs-comment">{- |
+prop&gt; \a0 a (NonNegative n) -&gt; powerAssociative (+) a0 a n == (powerAssociativeList (+) a0 a n :: Integer)
+prop&gt; \a0 a (NonNegative n) -&gt; powerAssociative (+) a0 a n == (powerAssociativeNaive (+) a0 a n :: Integer)
+-}</span><span>
+</span><span id="line-51"></span><span id="local-6989586621679043176"><span class="annot"><a href="Data.Function.HT.Private.html#powerAssociativeList"><span class="hs-identifier hs-type">powerAssociativeList</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Function.HT.Private.html#powerAssociativeNaive"><span class="hs-identifier hs-type">powerAssociativeNaive</span></a></span><span> </span><span class="hs-glyph">::</span><span>
+</span><span id="line-52"></span><span>   </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679043176"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679043176"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679043176"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679043176"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679043176"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679043176"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-53"></span><span id="powerAssociativeList"><span class="annot"><span class="annottext">powerAssociativeList :: forall a. (a -&gt; a -&gt; a) -&gt; a -&gt; a -&gt; Integer -&gt; a
+</span><a href="Data.Function.HT.Private.html#powerAssociativeList"><span class="hs-identifier hs-var hs-var">powerAssociativeList</span></a></span></span><span> </span><span id="local-6989586621679043163"><span class="annot"><span class="annottext">a -&gt; a -&gt; a
+</span><a href="#local-6989586621679043163"><span class="hs-identifier hs-var">op</span></a></span></span><span> </span><span id="local-6989586621679043162"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679043162"><span class="hs-identifier hs-var">a0</span></a></span></span><span> </span><span id="local-6989586621679043161"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679043161"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679043160"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621679043160"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-54"></span><span>   </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) b a.
+Foldable t =&gt;
+(b -&gt; a -&gt; b) -&gt; b -&gt; t a -&gt; b
+</span><span class="hs-identifier hs-var">foldl</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679043158"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679043158"><span class="hs-identifier hs-var">acc</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679043157"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621679043157"><span class="hs-identifier hs-var">bit</span></a></span></span><span class="hs-special">,</span><span id="local-6989586621679043156"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679043156"><span class="hs-identifier hs-var">pow</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621679043157"><span class="hs-identifier hs-var">bit</span></a></span><span class="annot"><span class="annottext">forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">0</span></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679043158"><span class="hs-identifier hs-var">acc</span></a></span><span> </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; a
+</span><a href="#local-6989586621679043163"><span class="hs-identifier hs-var">op</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679043158"><span class="hs-identifier hs-var">acc</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679043156"><span class="hs-identifier hs-var">pow</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679043162"><span class="hs-identifier hs-var">a0</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-55"></span><span>   </span><span class="annot"><span class="annottext">forall a b. [a] -&gt; [b] -&gt; [(a, b)]
+</span><span class="hs-identifier hs-var">zip</span></span><span>
+</span><span id="line-56"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall b a. (b -&gt; Maybe (a, b)) -&gt; b -&gt; [a]
+</span><span class="hs-identifier hs-var">unfoldr</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679043155"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621679043155"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall a. Bool -&gt; a -&gt; Maybe a
+</span><a href="Data.Maybe.HT.html#toMaybe"><span class="hs-identifier hs-var">toMaybe</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621679043155"><span class="hs-identifier hs-var">k</span></a></span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&gt;</span></span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">0</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a, b) -&gt; (b, a)
+</span><a href="Data.Tuple.Lazy.html#swap"><span class="hs-identifier hs-var">swap</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a. Integral a =&gt; a -&gt; a -&gt; (a, a)
+</span><span class="hs-identifier hs-var">divMod</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621679043155"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">2</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621679043160"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-57"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. (a -&gt; a) -&gt; a -&gt; [a]
+</span><span class="hs-identifier hs-var">iterate</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679043152"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679043152"><span class="hs-identifier hs-var">pow</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; a
+</span><a href="#local-6989586621679043163"><span class="hs-identifier hs-var">op</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679043152"><span class="hs-identifier hs-var">pow</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679043152"><span class="hs-identifier hs-var">pow</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679043161"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-58"></span><span>
+</span><span id="line-59"></span><span id="powerAssociativeNaive"><span class="annot"><span class="annottext">powerAssociativeNaive :: forall a. (a -&gt; a -&gt; a) -&gt; a -&gt; a -&gt; Integer -&gt; a
+</span><a href="Data.Function.HT.Private.html#powerAssociativeNaive"><span class="hs-identifier hs-var hs-var">powerAssociativeNaive</span></a></span></span><span> </span><span id="local-6989586621679043149"><span class="annot"><span class="annottext">a -&gt; a -&gt; a
+</span><a href="#local-6989586621679043149"><span class="hs-identifier hs-var">op</span></a></span></span><span> </span><span id="local-6989586621679043148"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679043148"><span class="hs-identifier hs-var">a0</span></a></span></span><span> </span><span id="local-6989586621679043147"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679043147"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679043146"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621679043146"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-60"></span><span>   </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a b.
+Foldable t =&gt;
+(a -&gt; b -&gt; b) -&gt; b -&gt; t a -&gt; b
+</span><span class="hs-identifier hs-var">foldr</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; a
+</span><a href="#local-6989586621679043149"><span class="hs-identifier hs-var">op</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679043148"><span class="hs-identifier hs-var">a0</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall i a. Integral i =&gt; i -&gt; a -&gt; [a]
+</span><span class="hs-identifier hs-var">genericReplicate</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621679043146"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679043147"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-61"></span><span>
+</span><span id="line-62"></span><span>
+</span><span id="line-63"></span><span class="hs-keyword">infixl</span><span> </span><span class="hs-number">0</span><span> </span><span class="annot"><a href="Data.Function.HT.Private.html#%24%25"><span class="hs-operator hs-type">$%</span></a></span><span>
+</span><span id="line-64"></span><span>
+</span><span id="line-65"></span><span class="hs-comment">{- |
+Flipped version of '($)'.
+
+It was discussed as (&amp;) in
+http://www.haskell.org/pipermail/libraries/2012-November/018832.html
+
+I am not sure, that we need it.
+It is not exported for now.
+-}</span><span>
+</span><span id="line-74"></span><span id="local-6989586621679043236"><span id="local-6989586621679043237"><span class="annot"><a href="Data.Function.HT.Private.html#%24%25"><span class="hs-operator hs-type">($%)</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621679043237"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679043237"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679043236"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679043236"><span class="hs-identifier hs-type">b</span></a></span></span></span><span>
+</span><span id="line-75"></span><span id="%24%25"><span class="annot"><span class="annottext">$% :: forall a b. a -&gt; (a -&gt; b) -&gt; b
+</span><a href="Data.Function.HT.Private.html#%24%25"><span class="hs-operator hs-var hs-var">($%)</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">($)</span></span><span>
+</span><span id="line-76"></span></pre></body></html>

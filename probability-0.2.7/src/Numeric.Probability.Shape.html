@@ -1,0 +1,69 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">{- |
+Collection of some shapes of distribution.
+-}</span><span>
+</span><span id="line-4"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Numeric.Probability.Shape</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-5"></span><span>
+</span><span id="line-6"></span><span class="hs-comment">{- |
+A shape is a mapping from the interval @[0,1]@ to non-negative numbers.
+They need not to be normalized (sum up to 1)
+because this is done by subsequent steps.
+(It would also be impossible to normalize the function in a way
+that each discretization is normalized as well.)
+-}</span><span>
+</span><span id="line-13"></span><span class="hs-keyword">type</span><span> </span><span id="T"><span class="annot"><a href="Numeric.Probability.Shape.html#T"><span class="hs-identifier hs-var">T</span></a></span></span><span> </span><span id="local-6989586621679063818"><span class="annot"><a href="#local-6989586621679063818"><span class="hs-identifier hs-type">prob</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="#local-6989586621679063818"><span class="hs-identifier hs-type">prob</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679063818"><span class="hs-identifier hs-type">prob</span></a></span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span id="local-6989586621679063835"><span class="annot"><a href="Numeric.Probability.Shape.html#linear"><span class="hs-identifier hs-type">linear</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Fractional</span></span><span> </span><span class="annot"><a href="#local-6989586621679063835"><span class="hs-identifier hs-type">prob</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Shape.html#T"><span class="hs-identifier hs-type">T</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679063835"><span class="hs-identifier hs-type">prob</span></a></span></span><span>
+</span><span id="line-17"></span><span id="linear"><span class="annot"><span class="annottext">linear :: forall prob. Fractional prob =&gt; T prob
+</span><a href="Numeric.Probability.Shape.html#linear"><span class="hs-identifier hs-var hs-var">linear</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. a -&gt; a
+</span><span class="hs-identifier hs-var">id</span></span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span id="local-6989586621679063814"><span class="annot"><a href="Numeric.Probability.Shape.html#uniform"><span class="hs-identifier hs-type">uniform</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Fractional</span></span><span> </span><span class="annot"><a href="#local-6989586621679063814"><span class="hs-identifier hs-type">prob</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Shape.html#T"><span class="hs-identifier hs-type">T</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679063814"><span class="hs-identifier hs-type">prob</span></a></span></span><span>
+</span><span id="line-20"></span><span id="uniform"><span class="annot"><span class="annottext">uniform :: forall prob. Fractional prob =&gt; T prob
+</span><a href="Numeric.Probability.Shape.html#uniform"><span class="hs-identifier hs-var hs-var">uniform</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a b. a -&gt; b -&gt; a
+</span><span class="hs-identifier hs-var">const</span></span><span> </span><span class="annot"><span class="annottext">prob
+</span><span class="hs-number">1</span></span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span id="local-6989586621679063827"><span class="annot"><a href="Numeric.Probability.Shape.html#negExp"><span class="hs-identifier hs-type">negExp</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Floating</span></span><span> </span><span class="annot"><a href="#local-6989586621679063827"><span class="hs-identifier hs-type">prob</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Shape.html#T"><span class="hs-identifier hs-type">T</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679063827"><span class="hs-identifier hs-type">prob</span></a></span></span><span>
+</span><span id="line-23"></span><span id="negExp"><span class="annot"><span class="annottext">negExp :: forall prob. Floating prob =&gt; T prob
+</span><a href="Numeric.Probability.Shape.html#negExp"><span class="hs-identifier hs-var hs-var">negExp</span></a></span></span><span> </span><span id="local-6989586621679063800"><span class="annot"><span class="annottext">prob
+</span><a href="#local-6989586621679063800"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall prob. Floating prob =&gt; T prob
+</span><span class="hs-identifier hs-var">exp</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">-</span><span class="annot"><span class="annottext">prob
+</span><a href="#local-6989586621679063800"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-24"></span><span>
+</span><span id="line-25"></span><span id="local-6989586621679063798"><span class="annot"><a href="Numeric.Probability.Shape.html#normal"><span class="hs-identifier hs-type">normal</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Floating</span></span><span> </span><span class="annot"><a href="#local-6989586621679063798"><span class="hs-identifier hs-type">prob</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Shape.html#T"><span class="hs-identifier hs-type">T</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679063798"><span class="hs-identifier hs-type">prob</span></a></span></span><span>
+</span><span id="line-26"></span><span id="normal"><span class="annot"><span class="annottext">normal :: forall prob. Floating prob =&gt; T prob
+</span><a href="Numeric.Probability.Shape.html#normal"><span class="hs-identifier hs-var hs-var">normal</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall prob. Floating prob =&gt; prob -&gt; prob -&gt; prob -&gt; prob
+</span><a href="Numeric.Probability.Shape.html#normalCurve"><span class="hs-identifier hs-var">normalCurve</span></a></span><span> </span><span class="annot"><span class="annottext">prob
+</span><span class="hs-number">0.5</span></span><span> </span><span class="annot"><span class="annottext">prob
+</span><span class="hs-number">0.5</span></span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span id="local-6989586621679063823"><span class="annot"><a href="Numeric.Probability.Shape.html#normalCurve"><span class="hs-identifier hs-type">normalCurve</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Floating</span></span><span> </span><span class="annot"><a href="#local-6989586621679063823"><span class="hs-identifier hs-type">prob</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span>
+</span><span id="line-29"></span><span>   </span><span class="annot"><a href="#local-6989586621679063823"><span class="hs-identifier hs-type">prob</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679063823"><span class="hs-identifier hs-type">prob</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679063823"><span class="hs-identifier hs-type">prob</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679063823"><span class="hs-identifier hs-type">prob</span></a></span></span><span>
+</span><span id="line-30"></span><span id="normalCurve"><span class="annot"><span class="annottext">normalCurve :: forall prob. Floating prob =&gt; prob -&gt; prob -&gt; prob -&gt; prob
+</span><a href="Numeric.Probability.Shape.html#normalCurve"><span class="hs-identifier hs-var hs-var">normalCurve</span></a></span></span><span> </span><span id="local-6989586621679063773"><span class="annot"><span class="annottext">prob
+</span><a href="#local-6989586621679063773"><span class="hs-identifier hs-var">mean</span></a></span></span><span> </span><span id="local-6989586621679063772"><span class="annot"><span class="annottext">prob
+</span><a href="#local-6989586621679063772"><span class="hs-identifier hs-var">dev</span></a></span></span><span> </span><span id="local-6989586621679063771"><span class="annot"><span class="annottext">prob
+</span><a href="#local-6989586621679063771"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-31"></span><span>   </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679063768"><span class="annot"><span class="annottext">u :: prob
+</span><a href="#local-6989586621679063768"><span class="hs-identifier hs-var hs-var">u</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">prob
+</span><a href="#local-6989586621679063771"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">prob
+</span><a href="#local-6989586621679063773"><span class="hs-identifier hs-var">mean</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall a. Fractional a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">/</span></span><span> </span><span class="annot"><span class="annottext">prob
+</span><a href="#local-6989586621679063772"><span class="hs-identifier hs-var">dev</span></a></span><span>
+</span><span id="line-32"></span><span>   </span><span class="hs-keyword">in</span><span>  </span><span class="annot"><span class="annottext">forall prob. Floating prob =&gt; T prob
+</span><span class="hs-identifier hs-var">exp</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">-</span><span class="annot"><span class="annottext">prob
+</span><span class="hs-number">1</span></span><span class="annot"><span class="annottext">forall a. Fractional a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">/</span></span><span class="annot"><span class="annottext">prob
+</span><span class="hs-number">2</span></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">prob
+</span><a href="#local-6989586621679063768"><span class="hs-identifier hs-var">u</span></a></span><span class="annot"><span class="annottext">forall a b. (Num a, Integral b) =&gt; a -&gt; b -&gt; a
+</span><span class="hs-operator hs-var">^</span></span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">2</span></span><span class="hs-glyph">::</span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall a. Fractional a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">/</span></span><span> </span><span class="annot"><span class="annottext">forall prob. Floating prob =&gt; T prob
+</span><span class="hs-identifier hs-var">sqrt</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">prob
+</span><span class="hs-number">2</span></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">forall a. Floating a =&gt; a
+</span><span class="hs-identifier hs-var">pi</span></span><span class="hs-special">)</span><span>
+</span><span id="line-33"></span></pre></body></html>

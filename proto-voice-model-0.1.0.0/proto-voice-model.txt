@@ -129,6 +129,14 @@ mapEvalScore :: (v -> w) -> Eval tr tr' slc slc' v -> Eval tr tr' slc slc' w
 --   function returns the product of the two component evaluators' results.
 productEval :: Eval tr1 tr' slc1 slc' v1 -> Eval tr2 tr' slc2 slc' v2 -> Eval (tr1, tr2) tr' (slc1, slc2) slc' (v1, v2)
 
+-- | A combined evaluator for unsplits, unspreads, and unfreezes with an
+--   impure unsplit evaluator. Additionally, contains a function for
+--   mapping terminal slices to derivation slices.
+data EvalImpure tr tr' slc slc' v
+EvalImpure :: Eval tr tr' slc slc' v -> UnsplitImpure tr slc v -> EvalImpure tr tr' slc slc' v
+[evalPure] :: EvalImpure tr tr' slc slc' v -> Eval tr tr' slc slc' v
+[evalUnsplitRandom] :: EvalImpure tr tr' slc slc' v -> UnsplitImpure tr slc v
+
 -- | A flag that is used to restrict spread operations to right branching.
 data RightBranchSpread
 RBBranches :: RightBranchSpread
@@ -208,6 +216,7 @@ debugAnalysis :: forall tr slc s f h. (Show tr, Show slc, Show s, Show h) => (s 
 --   functions that just return spread, split, and freeze operations by
 --   wrapping those into the appropriate <a>Leftmost</a> constructors.
 mkLeftmostEval :: UnspreadMiddle tr slc h -> UnspreadLeft tr slc -> UnspreadRight tr slc -> (StartStop slc -> tr -> slc -> tr -> StartStop slc -> [(tr, s)]) -> (StartStop slc -> Maybe tr' -> StartStop slc -> [(tr, f)]) -> (slc' -> slc) -> Eval tr tr' slc slc' (Leftmost s f h)
+mkLeftmostEvalImpure :: UnspreadMiddle tr slc h -> UnspreadLeft tr slc -> UnspreadRight tr slc -> (StartStop slc -> tr -> slc -> tr -> StartStop slc -> [(tr, s)]) -> (StartStop slc -> tr -> slc -> tr -> StartStop slc -> IO [(tr, s)]) -> (StartStop slc -> Maybe tr' -> StartStop slc -> [(tr, f)]) -> (slc' -> slc) -> EvalImpure tr tr' slc slc' (Leftmost s f h)
 
 -- | A wrapper around leftmost derivations that tracks information about
 --   the derivation state in the type. Number of open transitions:
@@ -1061,19 +1070,374 @@ instance Data.Aeson.Types.FromJSON.FromJSON PBHModel.Params
 instance GHC.Show.Show PBHModel.ChordLabel
 
 
+-- | This module contains functions for the generative aspects of
+--   protovoice derivations:
+--   
+--   <ul>
+--   <li>manually constructing protovoice operations (see <a>PVGrammar</a>)
+--   using a monadic interface</li>
+--   <li>applying ("replaying") these operations.</li>
+--   </ul>
+module PVGrammar.Generate
+
+-- | Create a freeze operation (alias for <a>FreezeOp</a>). Can be used
+--   together with the <a>freeze</a> action within a monadic derivation.
+mkFreeze :: Freeze
+
+-- | Create a split operation monadically
+--   
+--   <pre>
+--   mkSplit $ do
+--     ... -- internal split actions
+--   </pre>
+--   
+--   Can be used together with the <a>split</a> action within a monadic
+--   derivation.
+mkSplit :: Writer (Split n) a -> Split n
+
+-- | During a split, split an existing regular edge between two notes.
+splitRegular :: (Ord n, Hashable n) => StartStop n -> StartStop n -> n -> DoubleOrnament -> Bool -> Bool -> Writer (Split n) ()
+
+-- | During a split, split an existing passing edge, introducing a new
+--   passing note.
+splitPassing :: (Ord n, Hashable n) => n -> n -> n -> PassingOrnament -> Bool -> Bool -> Writer (Split n) ()
+
+-- | During a split, add a new single-sided ornament to a left parent note.
+addToLeft :: (Ord n, Hashable n) => n -> n -> RightOrnament -> Bool -> Writer (Split n) ()
+
+-- | During a split, add a new single-sided ornament to a right parent
+--   note.
+addToRight :: (Ord n, Hashable n) => n -> n -> LeftOrnament -> Bool -> Writer (Split n) ()
+
+-- | During a split, add a new passing edge between the left parent slice
+--   and the child slice.
+addPassingLeft :: (Ord n, Hashable n) => n -> n -> Writer (Split n) ()
+
+-- | During a split, add a new passing edge between the child slice and the
+--   right parent slice.
+addPassingRight :: (Ord n, Hashable n) => n -> n -> Writer (Split n) ()
+
+-- | Create a spread operation monadically
+--   
+--   <pre>
+--   mkSpread $ do
+--     ... -- internal spread actions
+--   </pre>
+--   
+--   Can be used together with the <a>spread</a> action within a monadic
+--   derivation.
+mkSpread :: Writer (Endo (Spread n)) () -> Spread n
+
+-- | During a spread, distribute one of the parent notes to the child
+--   slices of a spread.
+spreadNote :: (Ord n, Hashable n) => n -> SpreadDirection -> Bool -> Writer (Endo (Spread n)) ()
+
+-- | During a spread, add a new passing edge between the child slices of a
+--   spread.
+addPassing :: (Ord n, Hashable n) => n -> n -> Writer (Endo (Spread n)) ()
+
+-- | During a spread, add a new repetition edge between two notes of the
+--   same pitch class but from different octaves.
+addOctaveRepetition :: (Ord n, Hashable n) => n -> n -> Writer (Endo (Spread n)) ()
+
+-- | A derivation player for protovoices. The default version of the PV
+--   player drops all edges that are not used later on when generating
+--   child transitions. This behaviour matches the intermediate
+--   representation of the parsers, which only track edges that are
+--   necessary to explain the downstream notes. If you want to generate all
+--   edges (i.e., all functional relations between notes) use
+--   <a>derivationPlayerPVAllEdges</a>.
+derivationPlayerPV :: (Eq n, Ord n, Notation n, Hashable n, Eq (IntervalOf n), HasPitch n) => DerivationPlayer (Split n) Freeze (Spread n) (Notes n) (Edges n)
+
+-- | A derivation player for protovoices that produces all edges that
+--   express a functional relation between two notes. For a version that
+--   only produces "necessary" edges, use <a>derivationPlayerPV</a>.
+derivationPlayerPVAllEdges :: (Eq n, Ord n, Notation n, Hashable n, Eq (IntervalOf n), HasPitch n) => DerivationPlayer (Split n) Freeze (Spread n) (Notes n) (Edges n)
+
+-- | Tries to apply a split operation to the parent transition.
+applySplit :: forall n. (Ord n, Notation n, Hashable n) => Split n -> Edges n -> Either String (Edges n, Notes n, Edges n)
+
+-- | A variant of <a>applySplit</a> that inserts all protovoice edges into
+--   the child transitions, even those that are not "kept" (used for
+--   further elaboration). This is useful when you want to see all
+--   relations between notes in the piece.
+applySplitAllEdges :: forall n. (Ord n, Notation n, Hashable n) => Split n -> Edges n -> Either String (Edges n, Notes n, Edges n)
+
+-- | Tries to apply a freeze operation to a transition.
+applyFreeze :: (Eq (IntervalOf n), HasPitch n) => Freeze -> Edges n -> Either String (Edges n)
+
+-- | Tries to apply a spread operation to the parent transitions and slice.
+applySpread :: forall n. (Ord n, Notation n, Hashable n) => Spread n -> Edges n -> Notes n -> Edges n -> Either String (Edges n, Notes n, Edges n, Notes n, Edges n)
+
+-- | Indicates whether a transition can be frozen (i.e., doesn't contain
+--   non-"tie" edges).
+freezable :: (Eq (IntervalOf n), HasPitch n) => Edges n -> Bool
+
+-- | A specialized version of <a>debugAnalysis</a> for protovoice
+--   derivations. Prints the steps and intermediate configurations of a
+--   derivation.
+debugPVAnalysis :: (Notation n, Ord n, Hashable n, HasPitch n, Eq (IntervalOf n)) => PVAnalysis n -> IO (Either String ())
+
+-- | Compares the output of a derivation with the original piece (as
+--   provided to the parser). Returns <a>True</a> if the output matches the
+--   original and <a>False</a> if the output doesn't match or the
+--   derivation is invalid.
+checkDerivation :: (Ord n, Notation n, Hashable n, Eq (IntervalOf n), HasPitch n, Show n) => [Leftmost (Split n) Freeze (Spread n)] -> Path [n] [Edge n] -> Bool
+
+
+-- | This module contains a simple (and musically rather naive)
+--   probabilistic model of protovoice derivations. This model can be used
+--   to sample a derivation, evaluate a derivations probability, or infer
+--   posterior distributions of the model parmeters from given derivations
+--   (i.e., "learn" the model's probabilities).
+--   
+--   This model is a <i>locally conjugate</i> model: It samples a
+--   derivation using a sequence of random decisions with certain
+--   probabilities. These probabilities are generally unknown, so they are
+--   themselves modeled as random variables with prior distributions. The
+--   full model &lt;math&gt; thus splits into &lt;math&gt; the prior over
+--   the probability variables &lt;math&gt; and the likelihood of the
+--   derivation(s) given these probabilities &lt;math&gt; Given all prior
+--   decisions, the likelihood of a decision &lt;math&gt; based on some
+--   parameter &lt;math&gt; &lt;math&gt; is <a>conjugate</a> with the prior
+--   of that parameter &lt;math&gt;, which means that the posterior of the
+--   parameters given one (or several) derivation(s) &lt;math&gt; can be
+--   computed analytically.
+--   
+--   The parameters &lt;math&gt; and their prior distributions are
+--   represented by the higher-kinded type <a>PVParams</a>. Different
+--   instantiations of this type (using <a>Hyper</a> or <a>Probs</a>)
+--   results in concrete record types that represent prior or posterior
+--   distributions or concrete values (probabilities) for the parameters.
+--   <a>PVParams</a> also supports <a>jeffreysPrior</a> and
+--   <a>uniformPrior</a> as default priors, as well as <a>sampleProbs</a>
+--   for sampling from a prior (see <a>Inferenc.Conjugate</a>).
+--   
+--   The likelihood &lt;math&gt; of a derivation is represented by
+--   <a>sampleDerivation</a>. It can be executed under different "modes"
+--   (probability monads) for sampling, inference, or tracing (see
+--   <a>Inference.Conjugate</a>). The decisions during the derivation are
+--   represented by a <a>Trace</a> (here <tt>Trace PVParams</tt>). In order
+--   to learn from a given derivation, the corresponding trace can be
+--   obtained using <a>observeDerivation</a>. A combination of getting a
+--   trace and learning from it is provided by <a>trainSinglePiece</a>.
+module PVGrammar.Prob.Simple
+
+-- | The combined parameters for inner and outer operations.
+data PVParams f
+PVParams :: PVParamsOuter f -> PVParamsInner f -> PVParams f
+[_pOuter] :: PVParams f -> PVParamsOuter f
+[_pInner] :: PVParams f -> PVParamsInner f
+
+-- | Parameters for decisions about outer operations (split, spread,
+--   freeze).
+data PVParamsOuter f
+PVParamsOuter :: f Beta -> f Beta -> f Beta -> f Beta -> PVParamsOuter f
+[_pSingleFreeze] :: PVParamsOuter f -> f Beta
+[_pDoubleLeft] :: PVParamsOuter f -> f Beta
+[_pDoubleLeftFreeze] :: PVParamsOuter f -> f Beta
+[_pDoubleRightSplit] :: PVParamsOuter f -> f Beta
+
+-- | Parameters for decisions about inner operations (elaboration and
+--   distribution within splits and spreads).
+data PVParamsInner f
+PVParamsInner :: f Beta -> f Beta -> f Beta -> f Beta -> f Beta -> f Beta -> f Beta -> f Beta -> f Beta -> f Beta -> f Beta -> f Beta -> f Beta -> f Beta -> f Beta -> f Beta -> f Beta -> f Beta -> f Beta -> f Beta -> f (Dirichlet 3) -> f Beta -> f Beta -> PVParamsInner f
+[_pElaborateRegular] :: PVParamsInner f -> f Beta
+[_pElaborateL] :: PVParamsInner f -> f Beta
+[_pElaborateR] :: PVParamsInner f -> f Beta
+[_pRootFifths] :: PVParamsInner f -> f Beta
+[_pKeepL] :: PVParamsInner f -> f Beta
+[_pKeepR] :: PVParamsInner f -> f Beta
+[_pRepeatOverNeighbor] :: PVParamsInner f -> f Beta
+[_pNBChromatic] :: PVParamsInner f -> f Beta
+[_pNBAlt] :: PVParamsInner f -> f Beta
+[_pRepeatLeftOverRight] :: PVParamsInner f -> f Beta
+[_pRepeatAlter] :: PVParamsInner f -> f Beta
+[_pRepeatAlterUp] :: PVParamsInner f -> f Beta
+[_pRepeatAlterSemis] :: PVParamsInner f -> f Beta
+[_pConnect] :: PVParamsInner f -> f Beta
+[_pConnectChromaticLeftOverRight] :: PVParamsInner f -> f Beta
+[_pPassUp] :: PVParamsInner f -> f Beta
+[_pPassLeftOverRight] :: PVParamsInner f -> f Beta
+[_pNewPassingLeft] :: PVParamsInner f -> f Beta
+[_pNewPassingRight] :: PVParamsInner f -> f Beta
+[_pNewPassingMid] :: PVParamsInner f -> f Beta
+[_pNoteSpreadDirection] :: PVParamsInner f -> f (Dirichlet 3)
+[_pNotesOnOtherSide] :: PVParamsInner f -> f Beta
+[_pSpreadRepetitionEdge] :: PVParamsInner f -> f Beta
+
+-- | A probabilistic program that samples a derivation starting from a
+--   given root path. Can be interpreted by the interpreter functions in
+--   <a>Inference.Conjugate</a>.
+sampleDerivation :: _ => Path (Edges SPitch) (Notes SPitch) -> m (Either String [PVLeftmost SPitch])
+
+-- | A shorthand for <a>sampleDerivation</a> starting from ⋊——⋉.
+sampleDerivation' :: _ => m (Either String [PVLeftmost SPitch])
+
+-- | Walk through a derivation (starting at a given root path) and return
+--   the corresponding <a>Trace</a> (if possible). The trace can be used
+--   together with <a>sampleDerivation</a> for inference
+--   (<a>getPosterior</a>) or for showing the trace (<a>printTrace</a>).
+observeDerivation :: [PVLeftmost SPitch] -> Path (Edges SPitch) (Notes SPitch) -> Either String (Trace PVParams)
+
+-- | A shorthand for <a>observeDerivation</a> starting from ⋊——⋉.
+observeDerivation' :: [PVLeftmost SPitch] -> Either String (Trace PVParams)
+
+-- | A helper function that tests whether <a>observeDerivation'</a>
+--   followed by <a>sampleDerivation'</a> restores the original derivation.
+--   Useful for testing the compatibility of the two functions.
+roundtrip :: FilePath -> IO (Either String [PVLeftmost SPitch])
+
+-- | Helper function: Load a single derivation and infer the corresponding
+--   posterior for a uniform prior.
+trainSinglePiece :: FilePath -> IO (Maybe (PVParams HyperRep))
+instance GHC.Show.Show PVGrammar.Prob.Simple.MagicalOctaves
+instance GHC.Classes.Ord PVGrammar.Prob.Simple.MagicalOctaves
+instance GHC.Classes.Eq PVGrammar.Prob.Simple.MagicalOctaves
+instance Inference.Conjugate.Distribution PVGrammar.Prob.Simple.MagicalOctaves
+instance GHC.Generics.Generic (PVGrammar.Prob.Simple.PVParams f)
+instance (GHC.Show.Show (f Inference.Conjugate.Beta), GHC.Show.Show (f Inference.Conjugate.Beta), GHC.Show.Show (f Inference.Conjugate.Beta), GHC.Show.Show (f (Inference.Conjugate.Dirichlet 3)), GHC.Show.Show (f Inference.Conjugate.Beta)) => GHC.Show.Show (PVGrammar.Prob.Simple.PVParams f)
+instance GHC.Generics.Generic (PVGrammar.Prob.Simple.PVParamsInner f)
+instance (GHC.Show.Show (f Inference.Conjugate.Beta), GHC.Show.Show (f Inference.Conjugate.Beta), GHC.Show.Show (f Inference.Conjugate.Beta), GHC.Show.Show (f (Inference.Conjugate.Dirichlet 3)), GHC.Show.Show (f Inference.Conjugate.Beta)) => GHC.Show.Show (PVGrammar.Prob.Simple.PVParamsInner f)
+instance GHC.Generics.Generic (PVGrammar.Prob.Simple.PVParamsOuter f)
+instance GHC.Show.Show (f Inference.Conjugate.Beta) => GHC.Show.Show (PVGrammar.Prob.Simple.PVParamsOuter f)
+
+module Probability
+
+-- | Computes the multinomial log probability density function
+--   parameterised by prob, evaluated at the vector xs. The sum of the
+--   observations for all categories must add up to the number of samples,
+--   n. The probabilties must be NORMALISED!
+multinomialLogProb :: Vector Double -> Vector Double -> Double
+sampleR :: StatefulGen g IO => g -> Int -> [a] -> IO [a]
+categoricalLogProb :: Int -> Vector Double -> Maybe Double
+pickRandomChoice :: StatefulGen g IO => g -> [slc] -> MaybeT IO slc
+pickReservoir10 :: StatefulGen g IO => g -> [slc] -> MaybeT IO [slc]
+collectRandomSample :: StatefulGen g IO => g -> MaybeT IO [a] -> IO [a]
+collectRandomChoice :: StatefulGen g IO => g -> MaybeT IO a -> IO [a]
+mixture :: Maybe (Vector Double) -> Maybe (Vector Double) -> Maybe (Vector Double)
+
+-- | Sample n elements from a list sample :: Show a =&gt; Int -&gt; [a]
+--   -&gt; Reservoir a [a] sample n xs = do let len = length xs let
+--   updateReservoir x = do ys &lt;- get i &lt;- lift $ randomRIO (0, len)
+--   if i &lt; n then put (take i ys ++ [x] ++ drop (i + 1) ys) else return
+--   () liftIO $ putStrLn "Reservoir sampling..." liftIO $ putStrLn $ "List
+--   length: " ++ show len liftIO $ putStrLn $ "Reservoir size: " ++ show n
+--   liftIO $ putStrLn "Reservoir:" liftIO $ putStrLn "---------" put (take
+--   n xs) forM_ (drop n xs) $ x -&gt; do updateReservoir x get &gt;&gt;=
+--   liftIO . putStrLn . show get
+data Prob a
+data RandomChoice a
+testProb :: IO ()
+poissonSample :: StatefulGen g IO => g -> Double -> IO Int
+sample :: RandomChoice a -> StdGen -> [a] -> Prob a
+reservoirSample :: StatefulGen g IO => g -> Int -> [a] -> IO [a]
+pickRandom :: StatefulGen g m => g -> [a] -> m (Maybe a)
+
+
+-- | This module contains code that is specific to parsing the protovoice
+--   grammar. It implements a number of evaluators (<a>Eval</a>) that can
+--   be used with the various parsers.
+module PVGrammar.Parse
+
+-- | A constraint alias for note types.
+type IsNote n = (HasPitch n, Diatonic (ICOf (IntervalOf n)), Eq (ICOf (IntervalOf n)))
+
+-- | The evaluator that represents the proto-voice grammar. As scores it
+--   returns a representation of each operation. These scores do not form a
+--   semiring, but can be embedded into different semirings using
+--   <a>mapEvalScore</a>.
+protoVoiceEvaluator :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n) => Eval (Edges n) (t (Edge n)) (Notes n) (t2 n) (PVLeftmost n)
+protoVoiceEvaluatorImpure :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n) => EvalImpure (Edges n) (t (Edge n)) (Notes n) (t2 n) (PVLeftmost n)
+
+-- | A restricted version of the PV evaluator that prohibits split
+--   operations in which one of the parent slices is repeated entirely.
+protoVoiceEvaluatorNoRepSplit :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n) => Eval (Edges n) (t (Edge n)) (Notes n) (t2 n) (PVLeftmost n)
+protoVoiceEvaluatorLimitedSize :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n) => Int -> Eval (Edges n) (t (Edge n)) (Notes n) (t2 n) (PVLeftmost n)
+
+-- | An evaluator for protovoices that produces values in the
+--   <a>Derivations</a> semiring.
+pvDerivUnrestricted :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n) => Eval (Edges n) (t (Edge n)) (Notes n) (t2 n) (Derivations (PVLeftmost n))
+
+-- | An evaluator for protovoices that produces values in the
+--   <a>Derivations</a> semiring.
+--   
+--   <ul>
+--   <li>Enforces right-branching spreads (see
+--   <a>rightBranchSpread</a>).</li>
+--   </ul>
+pvDerivRightBranch :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n) => Eval (Merged, (RightBranchSpread, Edges n)) (t (Edge n)) ((), ((), Notes n)) (t2 n) (Derivations (PVLeftmost n))
+
+-- | An evaluator for protovoices that produces values in the counting
+--   semiring.
+pvCountUnrestricted :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n) => Eval (Edges n) (t (Edge n)) (Notes n) (t2 n) Int
+
+-- | An evaluator for protovoices that produces values in the counting
+--   semiring.
+--   
+--   <ul>
+--   <li>Prohibits split operations in which one of the parent slices is
+--   repeated entirely (see <a>protoVoiceEvaluatorNoRepSplit</a>).</li>
+--   </ul>
+pvCountNoRepSplit :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n) => Eval (Edges n) (t (Edge n)) (Notes n) (t2 n) Int
+
+-- | An evaluator for protovoices that produces values in the counting
+--   semiring.
+--   
+--   <ul>
+--   <li>Prohibits split operations in which one of the parent slices is
+--   repeated entirely (see <a>protoVoiceEvaluatorNoRepSplit</a>).</li>
+--   <li>Enforces right-branching spreads (see
+--   <a>rightBranchSpread</a>).</li>
+--   </ul>
+pvCountNoRepSplitRightBranch :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n) => Eval (RightBranchSpread, Edges n) (t (Edge n)) ((), Notes n) (t2 n) Int
+
+-- | An evaluator for protovoices that produces values in the counting
+--   semiring.
+--   
+--   <ul>
+--   <li>Prohibits split operations in which one of the parent slices is
+--   repeated entirely (see <a>protoVoiceEvaluatorNoRepSplit</a>).</li>
+--   <li>Enforces right-branching spreads (see
+--   <a>rightBranchSpread</a>).</li>
+--   <li>Normalizes the order of adjacent split and spread operations to
+--   split-before-spread (see <a>splitFirst</a>).</li>
+--   </ul>
+pvCountNoRepSplitRightBranchSplitFirst :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n) => Eval (Merged, (RightBranchSpread, Edges n)) (t (Edge n)) ((), ((), Notes n)) (t2 n) Int
+instance (Control.DeepSeq.NFData a, Control.DeepSeq.NFData b) => Control.DeepSeq.NFData (PVGrammar.Parse.EdgeEither a b)
+instance (Data.Hashable.Class.Hashable a, Data.Hashable.Class.Hashable b) => Data.Hashable.Class.Hashable (PVGrammar.Parse.EdgeEither a b)
+instance GHC.Generics.Generic (PVGrammar.Parse.EdgeEither a b)
+instance (GHC.Show.Show a, GHC.Show.Show b) => GHC.Show.Show (PVGrammar.Parse.EdgeEither a b)
+instance (GHC.Classes.Ord a, GHC.Classes.Ord b) => GHC.Classes.Ord (PVGrammar.Parse.EdgeEither a b)
+instance (GHC.Classes.Eq a, GHC.Classes.Eq b) => GHC.Classes.Eq (PVGrammar.Parse.EdgeEither a b)
+instance (Control.DeepSeq.NFData a, Control.DeepSeq.NFData b, Control.DeepSeq.NFData c, Control.DeepSeq.NFData d) => Control.DeepSeq.NFData (PVGrammar.Parse.Elaboration a b c d)
+instance (Data.Hashable.Class.Hashable a, Data.Hashable.Class.Hashable b, Data.Hashable.Class.Hashable c, Data.Hashable.Class.Hashable d) => Data.Hashable.Class.Hashable (PVGrammar.Parse.Elaboration a b c d)
+instance GHC.Generics.Generic (PVGrammar.Parse.Elaboration a b c d)
+instance (GHC.Show.Show a, GHC.Show.Show b, GHC.Show.Show c, GHC.Show.Show d) => GHC.Show.Show (PVGrammar.Parse.Elaboration a b c d)
+instance (GHC.Classes.Ord a, GHC.Classes.Ord b, GHC.Classes.Ord c, GHC.Classes.Ord d) => GHC.Classes.Ord (PVGrammar.Parse.Elaboration a b c d)
+instance (GHC.Classes.Eq a, GHC.Classes.Eq b, GHC.Classes.Eq c, GHC.Classes.Eq d) => GHC.Classes.Eq (PVGrammar.Parse.Elaboration a b c d)
+
+
 -- | This module contains
 module Harmony
 
 -- | Provides a score measuring how much the slice matches the chord
 --   annoation
 evaluateSlice :: Notes SIC -> ChordType -> Double
+rotateVector :: Int -> Vector a -> Maybe (Vector a)
 mostLikelyLabelFromSliceWithProb :: Notes SPitch -> (ChordLabel, Double)
+probsRegs :: Maybe ChordLabel -> Maybe ChordLabel -> DoubleOrnament -> Maybe (Vector Double)
+probsPassings :: Maybe ChordLabel -> Maybe ChordLabel -> PassingOrnament -> Maybe (Vector Double)
+probsFromLeft :: Maybe ChordLabel -> RightOrnament -> Maybe (Vector Double)
+probsFromRight :: Maybe ChordLabel -> LeftOrnament -> Maybe (Vector Double)
+probsParent :: Maybe ChordLabel -> Maybe (Vector Double)
 mostLikelyLabelFromSlice :: Notes SPitch -> ChordLabel
 labelLikelihoodGivenSlice :: ChordLabel -> Notes SPitch -> Double
 allLabelLikelihoodsGivenSlice :: Notes SPitch -> Vector (Double, ChordLabel)
 transposeSlice :: Pitch SIC -> Notes SPitch -> Notes SIC
-multinomialLogProb :: Vector Double -> Vector Double -> Double
-categoricalLogProb :: Int -> Vector Double -> Double
+notePos :: SPitch -> Maybe Int
+notesVector :: Notes SPitch -> Vector Double
+noteVector :: SPitch -> Maybe (Vector Double)
 ornamentLogLikelihood :: ChordLabel -> SPitch -> Double
 chordToneLogLikelihood :: ChordLabel -> SPitch -> Double
 scoreSegment' :: Notes SPitch -> ChordLabel -> Double
@@ -1220,6 +1584,7 @@ ActionDouble :: (StartStop ns, Trans tr, ns, Trans tr, StartStop ns) -> Leftmost
 --   ...=[]——[]——[]—... ...=[]——[]——[]—... &gt; ...=[]==[]——[]—... <i> </i>
 --   <i> </i> &gt; [] [] []——[]
 exploreStates :: forall es es' ns ns' s f h. (Show s, Show f, Show h, Show es, Show es', Show ns, Show ns') => SliceWrapper ns -> Eval es es' ns ns' (Leftmost s f h) -> SearchState es es' ns (Leftmost s f h) -> ExceptT String IO [SearchState es es' ns (Leftmost s f h)]
+exploreStates' :: forall es es' ns ns' s f h. (Show s, Show f, Show h, Show es, Show es', Show ns, Show ns') => SliceWrapper ns -> EvalImpure es es' ns ns' (Leftmost s f h) -> SearchState es es' ns (Leftmost s f h) -> ExceptT String IO [SearchState es es' ns (Leftmost s f h)]
 
 -- | Returns <a>True</a> if the parse is complete and has been reduced to
 --   only one slice per segment
@@ -1261,226 +1626,23 @@ instance GHC.Show.Show es => GHC.Show.Show (HeuristicParser.Trans es)
 instance GHC.Show.Show ns => GHC.Show.Show (HeuristicParser.SliceWrapped ns)
 instance GHC.Show.Show ns => GHC.Show.Show (HeuristicParser.Slice ns)
 
+
+-- | This module contains
+module Heuristics
+applyHeuristic :: ((State SPitch, State SPitch) -> ExceptT String IO Double) -> (State SPitch, State SPitch) -> ExceptT String IO Double
+
+-- | Basic heuristic for protovoice operations: Consists of two factors:
+--   P(n|p,l), the probability of each child note considering the parent
+--   notes. P(p|l) the plausibility of the parent notes being chord tones
+--   of the corresponding parent slices.
+heuristicZero :: (State SPitch, State SPitch) -> ExceptT String IO Double
+type State ns = SearchState (Edges ns) [Edge ns] (Notes ns) (PVLeftmost ns)
+
 module Algorithm.RandomChoiceSearch
 
 -- | Entry point to the search algorithm Picks random choice from a split
 --   or spread operation Skewed towards splits.
 randomChoiceSearch :: Show state => state -> (state -> ExceptT String IO [state]) -> (state -> Bool) -> (state -> String) -> ExceptT String IO state
-
-module Algorithm.HeuristicSearch
-aab :: Int -> [a] -> IO [a]
-stochasticBeamSearch :: Int -> Int -> SearchState' -> (SearchState' -> ExceptT String IO [SearchState']) -> (SearchState' -> Bool) -> ((SearchState', SearchState') -> ExceptT String IO Double) -> ExceptT String IO SearchState'
-dualStochasticBeamSearch :: Int -> Int -> SearchState' -> (SearchState' -> ExceptT String IO [SearchState']) -> (SearchState' -> Bool) -> ((SearchState', SearchState') -> ExceptT String IO Double) -> ExceptT String IO SearchState'
-stochasticBeamSearchLimited :: Int -> Int -> SearchState' -> (SearchState' -> ExceptT String IO [SearchState']) -> (SearchState' -> Bool) -> ((SearchState', SearchState') -> ExceptT String IO Double) -> ExceptT String IO SearchState'
-
--- | Entry point to the search algorithm
-beamSearch :: Int -> SearchState' -> (SearchState' -> ExceptT String IO [SearchState']) -> (SearchState' -> Bool) -> ((SearchState', SearchState') -> ExceptT String IO Double) -> ExceptT String IO SearchState'
-reservoirSample :: StatefulGen g IO => g -> Int -> [a] -> IO [a]
-instance GHC.Classes.Eq Algorithm.HeuristicSearch.PvOp
-
-
--- | This module contains functions for the generative aspects of
---   protovoice derivations:
---   
---   <ul>
---   <li>manually constructing protovoice operations (see <a>PVGrammar</a>)
---   using a monadic interface</li>
---   <li>applying ("replaying") these operations.</li>
---   </ul>
-module PVGrammar.Generate
-
--- | Create a freeze operation (alias for <a>FreezeOp</a>). Can be used
---   together with the <a>freeze</a> action within a monadic derivation.
-mkFreeze :: Freeze
-
--- | Create a split operation monadically
---   
---   <pre>
---   mkSplit $ do
---     ... -- internal split actions
---   </pre>
---   
---   Can be used together with the <a>split</a> action within a monadic
---   derivation.
-mkSplit :: Writer (Split n) a -> Split n
-
--- | During a split, split an existing regular edge between two notes.
-splitRegular :: (Ord n, Hashable n) => StartStop n -> StartStop n -> n -> DoubleOrnament -> Bool -> Bool -> Writer (Split n) ()
-
--- | During a split, split an existing passing edge, introducing a new
---   passing note.
-splitPassing :: (Ord n, Hashable n) => n -> n -> n -> PassingOrnament -> Bool -> Bool -> Writer (Split n) ()
-
--- | During a split, add a new single-sided ornament to a left parent note.
-addToLeft :: (Ord n, Hashable n) => n -> n -> RightOrnament -> Bool -> Writer (Split n) ()
-
--- | During a split, add a new single-sided ornament to a right parent
---   note.
-addToRight :: (Ord n, Hashable n) => n -> n -> LeftOrnament -> Bool -> Writer (Split n) ()
-
--- | During a split, add a new passing edge between the left parent slice
---   and the child slice.
-addPassingLeft :: (Ord n, Hashable n) => n -> n -> Writer (Split n) ()
-
--- | During a split, add a new passing edge between the child slice and the
---   right parent slice.
-addPassingRight :: (Ord n, Hashable n) => n -> n -> Writer (Split n) ()
-
--- | Create a spread operation monadically
---   
---   <pre>
---   mkSpread $ do
---     ... -- internal spread actions
---   </pre>
---   
---   Can be used together with the <a>spread</a> action within a monadic
---   derivation.
-mkSpread :: Writer (Endo (Spread n)) () -> Spread n
-
--- | During a spread, distribute one of the parent notes to the child
---   slices of a spread.
-spreadNote :: (Ord n, Hashable n) => n -> SpreadDirection -> Bool -> Writer (Endo (Spread n)) ()
-
--- | During a spread, add a new passing edge between the child slices of a
---   spread.
-addPassing :: (Ord n, Hashable n) => n -> n -> Writer (Endo (Spread n)) ()
-
--- | During a spread, add a new repetition edge between two notes of the
---   same pitch class but from different octaves.
-addOctaveRepetition :: (Ord n, Hashable n) => n -> n -> Writer (Endo (Spread n)) ()
-
--- | A derivation player for protovoices. The default version of the PV
---   player drops all edges that are not used later on when generating
---   child transitions. This behaviour matches the intermediate
---   representation of the parsers, which only track edges that are
---   necessary to explain the downstream notes. If you want to generate all
---   edges (i.e., all functional relations between notes) use
---   <a>derivationPlayerPVAllEdges</a>.
-derivationPlayerPV :: (Eq n, Ord n, Notation n, Hashable n, Eq (IntervalOf n), HasPitch n) => DerivationPlayer (Split n) Freeze (Spread n) (Notes n) (Edges n)
-
--- | A derivation player for protovoices that produces all edges that
---   express a functional relation between two notes. For a version that
---   only produces "necessary" edges, use <a>derivationPlayerPV</a>.
-derivationPlayerPVAllEdges :: (Eq n, Ord n, Notation n, Hashable n, Eq (IntervalOf n), HasPitch n) => DerivationPlayer (Split n) Freeze (Spread n) (Notes n) (Edges n)
-
--- | Tries to apply a split operation to the parent transition.
-applySplit :: forall n. (Ord n, Notation n, Hashable n) => Split n -> Edges n -> Either String (Edges n, Notes n, Edges n)
-
--- | A variant of <a>applySplit</a> that inserts all protovoice edges into
---   the child transitions, even those that are not "kept" (used for
---   further elaboration). This is useful when you want to see all
---   relations between notes in the piece.
-applySplitAllEdges :: forall n. (Ord n, Notation n, Hashable n) => Split n -> Edges n -> Either String (Edges n, Notes n, Edges n)
-
--- | Tries to apply a freeze operation to a transition.
-applyFreeze :: (Eq (IntervalOf n), HasPitch n) => Freeze -> Edges n -> Either String (Edges n)
-
--- | Tries to apply a spread operation to the parent transitions and slice.
-applySpread :: forall n. (Ord n, Notation n, Hashable n) => Spread n -> Edges n -> Notes n -> Edges n -> Either String (Edges n, Notes n, Edges n, Notes n, Edges n)
-
--- | Indicates whether a transition can be frozen (i.e., doesn't contain
---   non-"tie" edges).
-freezable :: (Eq (IntervalOf n), HasPitch n) => Edges n -> Bool
-
--- | A specialized version of <a>debugAnalysis</a> for protovoice
---   derivations. Prints the steps and intermediate configurations of a
---   derivation.
-debugPVAnalysis :: (Notation n, Ord n, Hashable n, HasPitch n, Eq (IntervalOf n)) => PVAnalysis n -> IO (Either String ())
-
--- | Compares the output of a derivation with the original piece (as
---   provided to the parser). Returns <a>True</a> if the output matches the
---   original and <a>False</a> if the output doesn't match or the
---   derivation is invalid.
-checkDerivation :: (Ord n, Notation n, Hashable n, Eq (IntervalOf n), HasPitch n, Show n) => [Leftmost (Split n) Freeze (Spread n)] -> Path [n] [Edge n] -> Bool
-
-
--- | This module contains
-module Heuristics
-applyHeuristic :: ((State SPitch, State SPitch) -> ExceptT String IO Double) -> (State SPitch, State SPitch) -> ExceptT String IO Double
-heuristicZero :: (State SPitch, State SPitch) -> ExceptT String IO Double
-type State ns = SearchState (Edges ns) [Edge ns] (Notes ns) (PVLeftmost ns)
-
-
--- | This module contains code that is specific to parsing the protovoice
---   grammar. It implements a number of evaluators (<a>Eval</a>) that can
---   be used with the various parsers.
-module PVGrammar.Parse
-
--- | A constraint alias for note types.
-type IsNote n = (HasPitch n, Diatonic (ICOf (IntervalOf n)), Eq (ICOf (IntervalOf n)))
-
--- | The evaluator that represents the proto-voice grammar. As scores it
---   returns a representation of each operation. These scores do not form a
---   semiring, but can be embedded into different semirings using
---   <a>mapEvalScore</a>.
-protoVoiceEvaluator :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n) => Eval (Edges n) (t (Edge n)) (Notes n) (t2 n) (PVLeftmost n)
-
--- | A restricted version of the PV evaluator that prohibits split
---   operations in which one of the parent slices is repeated entirely.
-protoVoiceEvaluatorNoRepSplit :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n) => Eval (Edges n) (t (Edge n)) (Notes n) (t2 n) (PVLeftmost n)
-protoVoiceEvaluatorLimitedSize :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n) => Int -> Eval (Edges n) (t (Edge n)) (Notes n) (t2 n) (PVLeftmost n)
-
--- | An evaluator for protovoices that produces values in the
---   <a>Derivations</a> semiring.
-pvDerivUnrestricted :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n) => Eval (Edges n) (t (Edge n)) (Notes n) (t2 n) (Derivations (PVLeftmost n))
-
--- | An evaluator for protovoices that produces values in the
---   <a>Derivations</a> semiring.
---   
---   <ul>
---   <li>Enforces right-branching spreads (see
---   <a>rightBranchSpread</a>).</li>
---   </ul>
-pvDerivRightBranch :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n) => Eval (Merged, (RightBranchSpread, Edges n)) (t (Edge n)) ((), ((), Notes n)) (t2 n) (Derivations (PVLeftmost n))
-
--- | An evaluator for protovoices that produces values in the counting
---   semiring.
-pvCountUnrestricted :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n) => Eval (Edges n) (t (Edge n)) (Notes n) (t2 n) Int
-
--- | An evaluator for protovoices that produces values in the counting
---   semiring.
---   
---   <ul>
---   <li>Prohibits split operations in which one of the parent slices is
---   repeated entirely (see <a>protoVoiceEvaluatorNoRepSplit</a>).</li>
---   </ul>
-pvCountNoRepSplit :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n) => Eval (Edges n) (t (Edge n)) (Notes n) (t2 n) Int
-
--- | An evaluator for protovoices that produces values in the counting
---   semiring.
---   
---   <ul>
---   <li>Prohibits split operations in which one of the parent slices is
---   repeated entirely (see <a>protoVoiceEvaluatorNoRepSplit</a>).</li>
---   <li>Enforces right-branching spreads (see
---   <a>rightBranchSpread</a>).</li>
---   </ul>
-pvCountNoRepSplitRightBranch :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n) => Eval (RightBranchSpread, Edges n) (t (Edge n)) ((), Notes n) (t2 n) Int
-
--- | An evaluator for protovoices that produces values in the counting
---   semiring.
---   
---   <ul>
---   <li>Prohibits split operations in which one of the parent slices is
---   repeated entirely (see <a>protoVoiceEvaluatorNoRepSplit</a>).</li>
---   <li>Enforces right-branching spreads (see
---   <a>rightBranchSpread</a>).</li>
---   <li>Normalizes the order of adjacent split and spread operations to
---   split-before-spread (see <a>splitFirst</a>).</li>
---   </ul>
-pvCountNoRepSplitRightBranchSplitFirst :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n) => Eval (Merged, (RightBranchSpread, Edges n)) (t (Edge n)) ((), ((), Notes n)) (t2 n) Int
-instance (Control.DeepSeq.NFData a, Control.DeepSeq.NFData b) => Control.DeepSeq.NFData (PVGrammar.Parse.EdgeEither a b)
-instance (Data.Hashable.Class.Hashable a, Data.Hashable.Class.Hashable b) => Data.Hashable.Class.Hashable (PVGrammar.Parse.EdgeEither a b)
-instance GHC.Generics.Generic (PVGrammar.Parse.EdgeEither a b)
-instance (GHC.Show.Show a, GHC.Show.Show b) => GHC.Show.Show (PVGrammar.Parse.EdgeEither a b)
-instance (GHC.Classes.Ord a, GHC.Classes.Ord b) => GHC.Classes.Ord (PVGrammar.Parse.EdgeEither a b)
-instance (GHC.Classes.Eq a, GHC.Classes.Eq b) => GHC.Classes.Eq (PVGrammar.Parse.EdgeEither a b)
-instance (Control.DeepSeq.NFData a, Control.DeepSeq.NFData b, Control.DeepSeq.NFData c, Control.DeepSeq.NFData d) => Control.DeepSeq.NFData (PVGrammar.Parse.Elaboration a b c d)
-instance (Data.Hashable.Class.Hashable a, Data.Hashable.Class.Hashable b, Data.Hashable.Class.Hashable c, Data.Hashable.Class.Hashable d) => Data.Hashable.Class.Hashable (PVGrammar.Parse.Elaboration a b c d)
-instance GHC.Generics.Generic (PVGrammar.Parse.Elaboration a b c d)
-instance (GHC.Show.Show a, GHC.Show.Show b, GHC.Show.Show c, GHC.Show.Show d) => GHC.Show.Show (PVGrammar.Parse.Elaboration a b c d)
-instance (GHC.Classes.Ord a, GHC.Classes.Ord b, GHC.Classes.Ord c, GHC.Classes.Ord d) => GHC.Classes.Ord (PVGrammar.Parse.Elaboration a b c d)
-instance (GHC.Classes.Eq a, GHC.Classes.Eq b, GHC.Classes.Eq c, GHC.Classes.Eq d) => GHC.Classes.Eq (PVGrammar.Parse.Elaboration a b c d)
 
 
 -- | This module contains functionality for reading chord and slice data
@@ -1509,7 +1671,7 @@ chordsFromFile :: FilePath -> IO [ChordLabel]
 writeJSONToFile :: ToJSON a => FilePath -> a -> IO ()
 
 -- | Coverts the results of a parsing algorithm to a JSON value
-writeResultsToJSON :: [Notes SPitch] -> [ChordLabel] -> Maybe [PVLeftmost SPitch] -> Accuracy -> LogLikelihood -> String -> Time -> Int -> Value
+writeResultsToJSON :: [Notes SPitch] -> [ChordLabel] -> Maybe (PVAnalysis SPitch) -> Accuracy -> LogLikelihood -> String -> Time -> Int -> Value
 
 -- | Used when the algorithm fails. Contains NANs in all fields.
 nullResultToJSON :: Show a => a -> Value
@@ -1524,18 +1686,31 @@ module Algorithm.RandomSampleParser
 -- | Generates a path of random notes for the given number of segments
 randomSamplePath :: Int -> IO (Path (Edges SPitch) (Notes SPitch))
 randomSamplePathSBS :: [[InputSlice SPitch]] -> IO [Notes SPitch]
+poissonSample :: StatefulGen g IO => g -> Double -> IO Int
+
+module Algorithm.HeuristicSearch
+aab :: Int -> [a] -> IO [a]
+stochasticSearch :: Int -> SearchState' -> (SearchState' -> ExceptT String IO [SearchState']) -> (SearchState' -> Bool) -> ((SearchState', SearchState') -> ExceptT String IO Double) -> ExceptT String IO SearchState'
+stochasticBeamSearch :: Int -> Int -> SearchState' -> (SearchState' -> ExceptT String IO [SearchState']) -> (SearchState' -> Bool) -> ((SearchState', SearchState') -> ExceptT String IO Double) -> ExceptT String IO SearchState'
+dualStochasticBeamSearch :: Int -> Int -> SearchState' -> (SearchState' -> ExceptT String IO [SearchState']) -> (SearchState' -> Bool) -> ((SearchState', SearchState') -> ExceptT String IO Double) -> ExceptT String IO SearchState'
+stochasticBeamSearchLimited :: Int -> Int -> SearchState' -> (SearchState' -> ExceptT String IO [SearchState']) -> (SearchState' -> Bool) -> ((SearchState', SearchState') -> ExceptT String IO Double) -> ExceptT String IO SearchState'
+
+-- | Entry point to the search algorithm
+beamSearch :: Int -> SearchState' -> (SearchState' -> ExceptT String IO [SearchState']) -> (SearchState' -> Bool) -> ((SearchState', SearchState') -> ExceptT String IO Double) -> ExceptT String IO SearchState'
+instance GHC.Classes.Eq Algorithm.HeuristicSearch.PvOp
 
 module Core
 
 module Algorithm
 data AlgoInput
-AlgoInput :: Eval (Edges SPitch) [Edge SPitch] (Notes SPitch) [SPitch] (PVLeftmost SPitch) -> [InputSlice SPitch] -> [ChordLabel] -> AlgoInput
+AlgoInputPure :: Eval (Edges SPitch) [Edge SPitch] (Notes SPitch) [SPitch] (PVLeftmost SPitch) -> [InputSlice SPitch] -> [ChordLabel] -> AlgoInput
+AlgoInputImpure :: EvalImpure (Edges SPitch) [Edge SPitch] (Notes SPitch) [SPitch] (PVLeftmost SPitch) -> [InputSlice SPitch] -> [ChordLabel] -> AlgoInput
 class (Show algo) => ParseAlgo algo
 runParse :: ParseAlgo algo => algo -> AlgoInput -> IO (Maybe AlgoResult)
 data AlgoResult
-AlgoResult :: [Notes SPitch] -> Maybe [PVLeftmost SPitch] -> [ChordLabel] -> AlgoResult
+AlgoResult :: [Notes SPitch] -> Maybe (PVAnalysis SPitch) -> [ChordLabel] -> AlgoResult
 [arTop] :: AlgoResult -> [Notes SPitch]
-[arOps] :: AlgoResult -> Maybe [PVLeftmost SPitch]
+[arOps] :: AlgoResult -> Maybe (PVAnalysis SPitch)
 [arLabels] :: AlgoResult -> [ChordLabel]
 data AlgoType
 RandomWalk :: AlgoType
@@ -1548,6 +1723,7 @@ DualStochasticBeamSearch :: BeamWidth -> ResevoirSize -> AlgoType
 StochasticBeamSearchLimited :: BeamWidth -> ResevoirSize -> MaxNotesPerSlice -> AlgoType
 BeamSearchPerSegment :: BeamWidth -> AlgoType
 DualBeamSearch :: UnspreadWidth -> UnsplitWidth -> AlgoType
+StochasticSearch :: AlgoType
 type UnsplitWidth = Int
 type UnspreadWidth = Int
 type BeamWidth = Int
@@ -1556,124 +1732,6 @@ instance GHC.Classes.Eq Algorithm.AlgoType
 instance GHC.Read.Read Algorithm.AlgoType
 instance GHC.Show.Show Algorithm.AlgoType
 instance Algorithm.ParseAlgo Algorithm.AlgoType
-
-
--- | This module contains a simple (and musically rather naive)
---   probabilistic model of protovoice derivations. This model can be used
---   to sample a derivation, evaluate a derivations probability, or infer
---   posterior distributions of the model parmeters from given derivations
---   (i.e., "learn" the model's probabilities).
---   
---   This model is a <i>locally conjugate</i> model: It samples a
---   derivation using a sequence of random decisions with certain
---   probabilities. These probabilities are generally unknown, so they are
---   themselves modeled as random variables with prior distributions. The
---   full model &lt;math&gt; thus splits into &lt;math&gt; the prior over
---   the probability variables &lt;math&gt; and the likelihood of the
---   derivation(s) given these probabilities &lt;math&gt; Given all prior
---   decisions, the likelihood of a decision &lt;math&gt; based on some
---   parameter &lt;math&gt; &lt;math&gt; is <a>conjugate</a> with the prior
---   of that parameter &lt;math&gt;, which means that the posterior of the
---   parameters given one (or several) derivation(s) &lt;math&gt; can be
---   computed analytically.
---   
---   The parameters &lt;math&gt; and their prior distributions are
---   represented by the higher-kinded type <a>PVParams</a>. Different
---   instantiations of this type (using <a>Hyper</a> or <a>Probs</a>)
---   results in concrete record types that represent prior or posterior
---   distributions or concrete values (probabilities) for the parameters.
---   <a>PVParams</a> also supports <a>jeffreysPrior</a> and
---   <a>uniformPrior</a> as default priors, as well as <a>sampleProbs</a>
---   for sampling from a prior (see <a>Inferenc.Conjugate</a>).
---   
---   The likelihood &lt;math&gt; of a derivation is represented by
---   <a>sampleDerivation</a>. It can be executed under different "modes"
---   (probability monads) for sampling, inference, or tracing (see
---   <a>Inference.Conjugate</a>). The decisions during the derivation are
---   represented by a <a>Trace</a> (here <tt>Trace PVParams</tt>). In order
---   to learn from a given derivation, the corresponding trace can be
---   obtained using <a>observeDerivation</a>. A combination of getting a
---   trace and learning from it is provided by <a>trainSinglePiece</a>.
-module PVGrammar.Prob.Simple
-
--- | The combined parameters for inner and outer operations.
-data PVParams f
-PVParams :: PVParamsOuter f -> PVParamsInner f -> PVParams f
-[_pOuter] :: PVParams f -> PVParamsOuter f
-[_pInner] :: PVParams f -> PVParamsInner f
-
--- | Parameters for decisions about outer operations (split, spread,
---   freeze).
-data PVParamsOuter f
-PVParamsOuter :: f Beta -> f Beta -> f Beta -> f Beta -> PVParamsOuter f
-[_pSingleFreeze] :: PVParamsOuter f -> f Beta
-[_pDoubleLeft] :: PVParamsOuter f -> f Beta
-[_pDoubleLeftFreeze] :: PVParamsOuter f -> f Beta
-[_pDoubleRightSplit] :: PVParamsOuter f -> f Beta
-
--- | Parameters for decisions about inner operations (elaboration and
---   distribution within splits and spreads).
-data PVParamsInner f
-PVParamsInner :: f Beta -> f Beta -> f Beta -> f Beta -> f Beta -> f Beta -> f Beta -> f Beta -> f Beta -> f Beta -> f Beta -> f Beta -> f Beta -> f Beta -> f Beta -> f Beta -> f Beta -> f Beta -> f Beta -> f Beta -> f (Dirichlet 3) -> f Beta -> f Beta -> PVParamsInner f
-[_pElaborateRegular] :: PVParamsInner f -> f Beta
-[_pElaborateL] :: PVParamsInner f -> f Beta
-[_pElaborateR] :: PVParamsInner f -> f Beta
-[_pRootFifths] :: PVParamsInner f -> f Beta
-[_pKeepL] :: PVParamsInner f -> f Beta
-[_pKeepR] :: PVParamsInner f -> f Beta
-[_pRepeatOverNeighbor] :: PVParamsInner f -> f Beta
-[_pNBChromatic] :: PVParamsInner f -> f Beta
-[_pNBAlt] :: PVParamsInner f -> f Beta
-[_pRepeatLeftOverRight] :: PVParamsInner f -> f Beta
-[_pRepeatAlter] :: PVParamsInner f -> f Beta
-[_pRepeatAlterUp] :: PVParamsInner f -> f Beta
-[_pRepeatAlterSemis] :: PVParamsInner f -> f Beta
-[_pConnect] :: PVParamsInner f -> f Beta
-[_pConnectChromaticLeftOverRight] :: PVParamsInner f -> f Beta
-[_pPassUp] :: PVParamsInner f -> f Beta
-[_pPassLeftOverRight] :: PVParamsInner f -> f Beta
-[_pNewPassingLeft] :: PVParamsInner f -> f Beta
-[_pNewPassingRight] :: PVParamsInner f -> f Beta
-[_pNewPassingMid] :: PVParamsInner f -> f Beta
-[_pNoteSpreadDirection] :: PVParamsInner f -> f (Dirichlet 3)
-[_pNotesOnOtherSide] :: PVParamsInner f -> f Beta
-[_pSpreadRepetitionEdge] :: PVParamsInner f -> f Beta
-
--- | A probabilistic program that samples a derivation starting from a
---   given root path. Can be interpreted by the interpreter functions in
---   <a>Inference.Conjugate</a>.
-sampleDerivation :: _ => Path (Edges SPitch) (Notes SPitch) -> m (Either String [PVLeftmost SPitch])
-
--- | A shorthand for <a>sampleDerivation</a> starting from ⋊——⋉.
-sampleDerivation' :: _ => m (Either String [PVLeftmost SPitch])
-
--- | Walk through a derivation (starting at a given root path) and return
---   the corresponding <a>Trace</a> (if possible). The trace can be used
---   together with <a>sampleDerivation</a> for inference
---   (<a>getPosterior</a>) or for showing the trace (<a>printTrace</a>).
-observeDerivation :: [PVLeftmost SPitch] -> Path (Edges SPitch) (Notes SPitch) -> Either String (Trace PVParams)
-
--- | A shorthand for <a>observeDerivation</a> starting from ⋊——⋉.
-observeDerivation' :: [PVLeftmost SPitch] -> Either String (Trace PVParams)
-
--- | A helper function that tests whether <a>observeDerivation'</a>
---   followed by <a>sampleDerivation'</a> restores the original derivation.
---   Useful for testing the compatibility of the two functions.
-roundtrip :: FilePath -> IO (Either String [PVLeftmost SPitch])
-
--- | Helper function: Load a single derivation and infer the corresponding
---   posterior for a uniform prior.
-trainSinglePiece :: FilePath -> IO (Maybe (PVParams HyperRep))
-instance GHC.Show.Show PVGrammar.Prob.Simple.MagicalOctaves
-instance GHC.Classes.Ord PVGrammar.Prob.Simple.MagicalOctaves
-instance GHC.Classes.Eq PVGrammar.Prob.Simple.MagicalOctaves
-instance Inference.Conjugate.Distribution PVGrammar.Prob.Simple.MagicalOctaves
-instance GHC.Generics.Generic (PVGrammar.Prob.Simple.PVParams f)
-instance (GHC.Show.Show (f Inference.Conjugate.Beta), GHC.Show.Show (f Inference.Conjugate.Beta), GHC.Show.Show (f Inference.Conjugate.Beta), GHC.Show.Show (f (Inference.Conjugate.Dirichlet 3)), GHC.Show.Show (f Inference.Conjugate.Beta)) => GHC.Show.Show (PVGrammar.Prob.Simple.PVParams f)
-instance GHC.Generics.Generic (PVGrammar.Prob.Simple.PVParamsInner f)
-instance (GHC.Show.Show (f Inference.Conjugate.Beta), GHC.Show.Show (f Inference.Conjugate.Beta), GHC.Show.Show (f Inference.Conjugate.Beta), GHC.Show.Show (f (Inference.Conjugate.Dirichlet 3)), GHC.Show.Show (f Inference.Conjugate.Beta)) => GHC.Show.Show (PVGrammar.Prob.Simple.PVParamsInner f)
-instance GHC.Generics.Generic (PVGrammar.Prob.Simple.PVParamsOuter f)
-instance GHC.Show.Show (f Inference.Conjugate.Beta) => GHC.Show.Show (PVGrammar.Prob.Simple.PVParamsOuter f)
 
 
 -- | <i>This module is deprecated, use <a>Scoring.FunTyped</a> instead.</i>

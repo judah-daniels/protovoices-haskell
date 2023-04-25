@@ -1,0 +1,175 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-- | Simulation</span><span>
+</span><span id="line-2"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Numeric.Probability.Simulation</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-3"></span><span>
+</span><span id="line-4"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Numeric.Probability.Distribution.html"><span class="hs-identifier">Numeric.Probability.Distribution</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Dist</span></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Numeric.Probability.Random.html"><span class="hs-identifier">Numeric.Probability.Random</span></a></span><span>       </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Rnd</span></span><span>
+</span><span id="line-6"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Numeric.Probability.Trace.html"><span class="hs-identifier">Numeric.Probability.Trace</span></a></span><span>        </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Trace</span></span><span>
+</span><span id="line-7"></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">System.Random</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Random</span></span><span class="hs-special">,</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-9"></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Numeric.Probability.Monad.html"><span class="hs-identifier">Numeric.Probability.Monad</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">MonadExt</span></span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span>
+</span><span id="line-13"></span><span class="hs-comment">{-
+
+Naming convention:
+
+ * @*@   takes @n :: Int@ and a generator and iterates the generator n times
+
+ * @.@   produces a single result
+
+ * @..@  produces a trace
+
+ * @~@   takes @k :: Int@ [and @n :: Int@] and a generator and simulates
+         the [n-fold repetition of the] generator k times
+
+
+There are the following functions:
+
+ * @n *.  t@   iterates t and produces a distribution
+
+ * @n *.. t@   iterates t and produces a trace
+
+ * @k     ~.  t@   simulates t and produces a distribution
+
+ * @(k,n) ~*. t@   simulates the n-fold repetition of t and produces a distribution
+
+ * @(k,n) ~.. t@   simulates the n-fold repetition of t and produces a trace
+
+
+Iteration captures three iteration strategies:
+iter builds an n-fold composition of a (randomized) transition
+while and until implement conditional repetitions
+
+The class Iterate allows the overloading of iteration for different
+kinds of generators, namely transitions and Rnd.change changes:
+
+ *  @Trans   a = a -&gt; Dist a    ==&gt;   c = Dist@
+
+ *  @RChange a = a -&gt; Rnd.T a   ==&gt;   c = Rnd.T = IO@
+
+-}</span><span>
+</span><span id="line-52"></span><span>
+</span><span id="line-53"></span><span>
+</span><span id="line-54"></span><span class="hs-comment">{- |
+Simulation means to repeat a Rnd.change change many times and
+to accumulate all results into a distribution. Therefore,
+simulation can be regarded as an approximation of distributions
+through randomization.
+
+The Sim class allows the overloading of simulation for different
+kinds of generators, namely transitions and Rnd.change changes:
+
+  * @Trans   a = a -&gt; Dist a   ==&gt;   c = Dist@
+
+  * @RChange a = a -&gt; Rnd.T a  ==&gt;   c = Rnd.T = IO@
+-}</span><span>
+</span><span id="line-67"></span><span class="hs-keyword">class</span><span> </span><span id="C"><span class="annot"><a href="Numeric.Probability.Simulation.html#C"><span class="hs-identifier hs-var">C</span></a></span></span><span> </span><span id="local-6989586621679066326"><span class="annot"><a href="#local-6989586621679066326"><span class="hs-identifier hs-type">c</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-68"></span><span>  </span><span class="hs-comment">-- | returns the final randomized transition</span><span>
+</span><span id="line-69"></span><span>  </span><span id="~."><span class="annot"><a href="Numeric.Probability.Simulation.html#~."><span class="hs-operator hs-type">(~.)</span></a></span></span><span>  </span><span class="hs-glyph">::</span><span> </span><span id="local-6989586621679066334"><span id="local-6989586621679066335"><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Fractional</span></span><span> </span><span class="annot"><a href="#local-6989586621679066335"><span class="hs-identifier hs-type">prob</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679066335"><span class="hs-identifier hs-type">prob</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Random</span></span><span> </span><span class="annot"><a href="#local-6989586621679066335"><span class="hs-identifier hs-type">prob</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679066334"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span>
+</span><span id="line-70"></span><span>              </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>       </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679066334"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679066326"><span class="hs-identifier hs-type">c</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679066334"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Random.html#Transition"><span class="hs-identifier hs-type">Rnd.Transition</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679066335"><span class="hs-identifier hs-type">prob</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679066334"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-71"></span><span>  </span><span class="hs-comment">-- | returns the whole trace for a k-fold simulation</span><span>
+</span><span id="line-72"></span><span>  </span><span id="~.."><span class="annot"><a href="Numeric.Probability.Simulation.html#~.."><span class="hs-operator hs-type">(~..)</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span id="local-6989586621679066330"><span id="local-6989586621679066331"><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Fractional</span></span><span> </span><span class="annot"><a href="#local-6989586621679066331"><span class="hs-identifier hs-type">prob</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679066331"><span class="hs-identifier hs-type">prob</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Random</span></span><span> </span><span class="annot"><a href="#local-6989586621679066331"><span class="hs-identifier hs-type">prob</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679066330"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span>
+</span><span id="line-73"></span><span>              </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">,</span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679066330"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679066326"><span class="hs-identifier hs-type">c</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679066330"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Trace.html#RExpand"><span class="hs-identifier hs-type">Trace.RExpand</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679066331"><span class="hs-identifier hs-type">prob</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679066330"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-74"></span><span>  </span><span class="hs-comment">-- | returns the whole trace for a single simulation</span><span>
+</span><span id="line-75"></span><span>  </span><span id="~%2A."><span class="annot"><a href="Numeric.Probability.Simulation.html#~%2A."><span class="hs-operator hs-type">(~*.)</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span id="local-6989586621679066327"><span id="local-6989586621679066328"><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Fractional</span></span><span> </span><span class="annot"><a href="#local-6989586621679066328"><span class="hs-identifier hs-type">prob</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679066328"><span class="hs-identifier hs-type">prob</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Random</span></span><span> </span><span class="annot"><a href="#local-6989586621679066328"><span class="hs-identifier hs-type">prob</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679066327"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span>
+</span><span id="line-76"></span><span>              </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">,</span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679066327"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679066326"><span class="hs-identifier hs-type">c</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679066327"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Random.html#Transition"><span class="hs-identifier hs-type">Rnd.Transition</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679066328"><span class="hs-identifier hs-type">prob</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679066327"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-77"></span><span>
+</span><span id="line-78"></span><span class="hs-keyword">infix</span><span> </span><span class="hs-number">6</span><span> </span><span class="annot"><a href="Numeric.Probability.Simulation.html#~."><span class="hs-operator hs-type">~.</span></a></span><span> </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Numeric.Probability.Simulation.html#~.."><span class="hs-operator hs-type">~..</span></a></span><span>
+</span><span id="line-79"></span><span>
+</span><span id="line-80"></span><span class="hs-keyword">infix</span><span> </span><span class="hs-number">8</span><span> </span><span class="annot"><a href="Numeric.Probability.Simulation.html#~%2A."><span class="hs-operator hs-type">~*.</span></a></span><span>
+</span><span id="line-81"></span><span>
+</span><span id="line-82"></span><span>
+</span><span id="line-83"></span><span class="hs-comment">-- simulation for transitions</span><span>
+</span><span id="line-84"></span><span class="hs-comment">--</span><span>
+</span><span id="line-85"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679066324"><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Num</span></span><span> </span><span class="annot"><a href="#local-6989586621679066324"><span class="hs-identifier hs-type">prob</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679066324"><span class="hs-identifier hs-type">prob</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Random</span></span><span> </span><span class="annot"><a href="#local-6989586621679066324"><span class="hs-identifier hs-type">prob</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Simulation.html#C"><span class="hs-identifier hs-type">C</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Numeric.Probability.Distribution.html#T"><span class="hs-identifier hs-type">Dist.T</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679066324"><span class="hs-identifier hs-type">prob</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-86"></span><span>  </span><span id="local-6989586621679066267"><span class="annot"><span class="annottext">~. :: forall prob a.
+(Fractional prob, Ord prob, Random prob, Ord a) =&gt;
+Int -&gt; (a -&gt; T prob a) -&gt; Transition prob a
+</span><a href="#local-6989586621679066267"><span class="hs-operator hs-var hs-var hs-var hs-var">(~.)</span></a></span></span><span>  </span><span id="local-6989586621679066266"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679066266"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (c :: * -&gt; *) prob a.
+(C c, Fractional prob, Ord prob, Random prob, Ord a) =&gt;
+Int -&gt; (a -&gt; c a) -&gt; Transition prob a
+</span><a href="Numeric.Probability.Simulation.html#~."><span class="hs-operator hs-var">(~.)</span></a></span><span>  </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679066266"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall prob a.
+(Num prob, Ord prob, Random prob) =&gt;
+T prob a -&gt; Change a
+</span><a href="Numeric.Probability.Random.html#change"><span class="hs-identifier hs-var">Rnd.change</span></a></span><span>
+</span><span id="line-87"></span><span>  </span><span id="local-6989586621679066251"><span class="annot"><span class="annottext">~.. :: forall prob a.
+(Fractional prob, Ord prob, Random prob, Ord a) =&gt;
+(Int, Int) -&gt; (a -&gt; T prob a) -&gt; RExpand prob a
+</span><a href="#local-6989586621679066251"><span class="hs-operator hs-var hs-var hs-var hs-var">(~..)</span></a></span></span><span> </span><span id="local-6989586621679066250"><span class="annot"><span class="annottext">(Int, Int)
+</span><a href="#local-6989586621679066250"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (c :: * -&gt; *) prob a.
+(C c, Fractional prob, Ord prob, Random prob, Ord a) =&gt;
+(Int, Int) -&gt; (a -&gt; c a) -&gt; RExpand prob a
+</span><a href="Numeric.Probability.Simulation.html#~.."><span class="hs-operator hs-var">(~..)</span></a></span><span> </span><span class="annot"><span class="annottext">(Int, Int)
+</span><a href="#local-6989586621679066250"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall prob a.
+(Num prob, Ord prob, Random prob) =&gt;
+T prob a -&gt; Change a
+</span><a href="Numeric.Probability.Random.html#change"><span class="hs-identifier hs-var">Rnd.change</span></a></span><span>
+</span><span id="line-88"></span><span>  </span><span id="local-6989586621679066237"><span class="annot"><span class="annottext">~*. :: forall prob a.
+(Fractional prob, Ord prob, Random prob, Ord a) =&gt;
+(Int, Int) -&gt; (a -&gt; T prob a) -&gt; Transition prob a
+</span><a href="#local-6989586621679066237"><span class="hs-operator hs-var hs-var hs-var hs-var">(~*.)</span></a></span></span><span> </span><span id="local-6989586621679066236"><span class="annot"><span class="annottext">(Int, Int)
+</span><a href="#local-6989586621679066236"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (c :: * -&gt; *) prob a.
+(C c, Fractional prob, Ord prob, Random prob, Ord a) =&gt;
+(Int, Int) -&gt; (a -&gt; c a) -&gt; Transition prob a
+</span><a href="Numeric.Probability.Simulation.html#~%2A."><span class="hs-operator hs-var">(~*.)</span></a></span><span> </span><span class="annot"><span class="annottext">(Int, Int)
+</span><a href="#local-6989586621679066236"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall prob a.
+(Num prob, Ord prob, Random prob) =&gt;
+T prob a -&gt; Change a
+</span><a href="Numeric.Probability.Random.html#change"><span class="hs-identifier hs-var">Rnd.change</span></a></span><span>
+</span><span id="line-89"></span><span>
+</span><span id="line-90"></span><span>
+</span><span id="line-91"></span><span class="hs-comment">-- simulation for Rnd.change changes</span><span>
+</span><span id="line-92"></span><span class="hs-comment">--</span><span>
+</span><span id="line-93"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Numeric.Probability.Simulation.html#C"><span class="hs-identifier hs-type">C</span></a></span><span> </span><span class="annot"><a href="Numeric.Probability.Random.html#T"><span class="hs-identifier hs-type">Rnd.T</span></a></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-94"></span><span>  </span><span id="local-6989586621679066226"><span class="annot"><span class="annottext">~. :: forall prob a.
+(Fractional prob, Ord prob, Random prob, Ord a) =&gt;
+Int -&gt; (a -&gt; T a) -&gt; Transition prob a
+</span><a href="#local-6989586621679066226"><span class="hs-operator hs-var hs-var hs-var hs-var">(~.)</span></a></span></span><span>     </span><span id="local-6989586621679066225"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679066225"><span class="hs-identifier hs-var">n</span></a></span></span><span>  </span><span id="local-6989586621679066224"><span class="annot"><span class="annottext">a -&gt; T a
+</span><a href="#local-6989586621679066224"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall prob a.
+(Fractional prob, Ord a) =&gt;
+[T a] -&gt; Distribution prob a
+</span><a href="Numeric.Probability.Random.html#dist"><span class="hs-identifier hs-var">Rnd.dist</span></a></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall a. Int -&gt; a -&gt; [a]
+</span><span class="hs-identifier hs-var">replicate</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679066225"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; T a
+</span><a href="#local-6989586621679066224"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-95"></span><span>  </span><span id="local-6989586621679066213"><span class="annot"><span class="annottext">~.. :: forall prob a.
+(Fractional prob, Ord prob, Random prob, Ord a) =&gt;
+(Int, Int) -&gt; (a -&gt; T a) -&gt; RExpand prob a
+</span><a href="#local-6989586621679066213"><span class="hs-operator hs-var hs-var hs-var hs-var">(~..)</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679066212"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679066212"><span class="hs-identifier hs-var">k</span></a></span></span><span class="hs-special">,</span><span id="local-6989586621679066211"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679066211"><span class="hs-identifier hs-var">n</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679066210"><span class="annot"><span class="annottext">a -&gt; T a
+</span><a href="#local-6989586621679066210"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall prob a.
+(Fractional prob, Ord a) =&gt;
+[RTrace a] -&gt; RSpace prob a
+</span><a href="Numeric.Probability.Trace.html#merge"><span class="hs-identifier hs-var">Trace.merge</span></a></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall a. Int -&gt; a -&gt; [a]
+</span><span class="hs-identifier hs-var">replicate</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679066212"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; Int -&gt; (a -&gt; m a) -&gt; a -&gt; m [a]
+</span><a href="Numeric.Probability.Monad.html#walk"><span class="hs-identifier hs-var">MonadExt.walk</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679066211"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; T a
+</span><a href="#local-6989586621679066210"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-96"></span><span>  </span><span id="local-6989586621679066197"><span class="annot"><span class="annottext">~*. :: forall prob a.
+(Fractional prob, Ord prob, Random prob, Ord a) =&gt;
+(Int, Int) -&gt; (a -&gt; T a) -&gt; Transition prob a
+</span><a href="#local-6989586621679066197"><span class="hs-operator hs-var hs-var hs-var hs-var">(~*.)</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679066196"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679066196"><span class="hs-identifier hs-var">k</span></a></span></span><span class="hs-special">,</span><span id="local-6989586621679066195"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679066195"><span class="hs-identifier hs-var">n</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679066194"><span class="annot"><span class="annottext">a -&gt; T a
+</span><a href="#local-6989586621679066194"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679066196"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">forall (c :: * -&gt; *) prob a.
+(C c, Fractional prob, Ord prob, Random prob, Ord a) =&gt;
+Int -&gt; (a -&gt; c a) -&gt; Transition prob a
+</span><a href="Numeric.Probability.Simulation.html#~."><span class="hs-operator hs-var">~.</span></a></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; Int -&gt; (a -&gt; m a) -&gt; a -&gt; m a
+</span><a href="Numeric.Probability.Monad.html#iterate"><span class="hs-identifier hs-var">MonadExt.iterate</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679066195"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; T a
+</span><a href="#local-6989586621679066194"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-97"></span></pre></body></html>

@@ -1,0 +1,422 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Numeric.Probability.Example.TreeGrowth</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Numeric.Probability.Distribution.html"><span class="hs-identifier">Numeric.Probability.Distribution</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Dist</span></span><span>
+</span><span id="line-4"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Numeric.Probability.Transition.html"><span class="hs-identifier">Numeric.Probability.Transition</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Trans</span></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Numeric.Probability.Random.html"><span class="hs-identifier">Numeric.Probability.Random</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Rnd</span></span><span>
+</span><span id="line-6"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Numeric.Probability.Trace.html"><span class="hs-identifier">Numeric.Probability.Trace</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Trace</span></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Numeric.Probability.Simulation.html"><span class="hs-identifier">Numeric.Probability.Simulation</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Numeric.Probability.Simulation.html#~.."><span class="hs-operator">(~..)</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Numeric.Probability.Simulation.html#~%2A."><span class="hs-operator">(~*.)</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Numeric.Probability.Percentage.html"><span class="hs-identifier">Numeric.Probability.Percentage</span></a></span><span>
+</span><span id="line-9"></span><span>    </span><span class="hs-special">(</span><span class="annot"><a href="Numeric.Probability.Percentage.html#Dist"><span class="hs-identifier">Dist</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Numeric.Probability.Percentage.html#Trans"><span class="hs-identifier">Trans</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Numeric.Probability.Percentage.html#RTrans"><span class="hs-identifier">RTrans</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Numeric.Probability.Percentage.html#Expand"><span class="hs-identifier">Expand</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Numeric.Probability.Percentage.html#RExpand"><span class="hs-identifier">RExpand</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Numeric.Probability.Percentage.html#Space"><span class="hs-identifier">Space</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-10"></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Numeric.Probability.Visualize.html"><span class="hs-identifier">Numeric.Probability.Visualize</span></a></span><span> </span><span class="hs-special">(</span><span>
+</span><span id="line-12"></span><span>      </span><span class="annot"><a href="Numeric.Probability.Visualize.html#Vis"><span class="hs-identifier">Vis</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Numeric.Probability.Visualize.html#Color"><span class="hs-identifier">Color</span></a></span><span class="hs-special">(</span><span class="annot"><a href="Numeric.Probability.Visualize.html#Green"><span class="hs-identifier">Green</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Numeric.Probability.Visualize.html#Red"><span class="hs-identifier">Red</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Numeric.Probability.Visualize.html#Blue"><span class="hs-identifier">Blue</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Numeric.Probability.Visualize.html#Plot"><span class="hs-identifier">Plot</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-13"></span><span>      </span><span class="annot"><a href="Numeric.Probability.Visualize.html#fig"><span class="hs-identifier">fig</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Numeric.Probability.Visualize.html#figP"><span class="hs-identifier">figP</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Numeric.Probability.Visualize.html#figure"><span class="hs-identifier">figure</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Numeric.Probability.Visualize.html#title"><span class="hs-identifier">title</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-14"></span><span>      </span><span class="annot"><a href="Numeric.Probability.Visualize.html#xLabel"><span class="hs-identifier">xLabel</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Numeric.Probability.Visualize.html#yLabel"><span class="hs-identifier">yLabel</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Numeric.Probability.Visualize.html#plotD"><span class="hs-identifier">plotD</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Numeric.Probability.Visualize.html#color"><span class="hs-identifier">color</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Numeric.Probability.Visualize.html#label"><span class="hs-identifier">label</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-15"></span><span>   </span><span class="hs-special">)</span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Numeric.Probability.Monad.html"><span class="hs-identifier">Numeric.Probability.Monad</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">MonadExt</span></span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span class="hs-keyword">type</span><span> </span><span id="Height"><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#Height"><span class="hs-identifier hs-var">Height</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span class="hs-keyword">data</span><span> </span><span id="Tree"><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#Tree"><span class="hs-identifier hs-var">Tree</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Alive"><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#Alive"><span class="hs-identifier hs-var">Alive</span></a></span></span><span> </span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#Height"><span class="hs-identifier hs-type">Height</span></a></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Hit"><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#Hit"><span class="hs-identifier hs-var">Hit</span></a></span></span><span> </span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#Height"><span class="hs-identifier hs-type">Height</span></a></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Fallen"><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#Fallen"><span class="hs-identifier hs-var">Fallen</span></a></span></span><span>
+</span><span id="line-23"></span><span>	    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679069579"><span id="local-6989586621679069581"><span id="local-6989586621679069584"><span id="local-6989586621679069587"><span id="local-6989586621679069590"><span id="local-6989586621679069594"><span id="local-6989586621679069598"><span class="annot"><span class="annottext">Eq Tree
+Tree -&gt; Tree -&gt; Bool
+Tree -&gt; Tree -&gt; Ordering
+Tree -&gt; Tree -&gt; Tree
+forall a.
+Eq a
+-&gt; (a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+min :: Tree -&gt; Tree -&gt; Tree
+$cmin :: Tree -&gt; Tree -&gt; Tree
+max :: Tree -&gt; Tree -&gt; Tree
+$cmax :: Tree -&gt; Tree -&gt; Tree
+&gt;= :: Tree -&gt; Tree -&gt; Bool
+$c&gt;= :: Tree -&gt; Tree -&gt; Bool
+&gt; :: Tree -&gt; Tree -&gt; Bool
+$c&gt; :: Tree -&gt; Tree -&gt; Bool
+&lt;= :: Tree -&gt; Tree -&gt; Bool
+$c&lt;= :: Tree -&gt; Tree -&gt; Bool
+&lt; :: Tree -&gt; Tree -&gt; Bool
+$c&lt; :: Tree -&gt; Tree -&gt; Bool
+compare :: Tree -&gt; Tree -&gt; Ordering
+$ccompare :: Tree -&gt; Tree -&gt; Ordering
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span id="local-6989586621679069571"><span id="local-6989586621679069576"><span class="annot"><span class="annottext">Tree -&gt; Tree -&gt; Bool
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+/= :: Tree -&gt; Tree -&gt; Bool
+$c/= :: Tree -&gt; Tree -&gt; Bool
+== :: Tree -&gt; Tree -&gt; Bool
+$c== :: Tree -&gt; Tree -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span id="local-6989586621679069560"><span id="local-6989586621679069562"><span id="local-6989586621679069568"><span class="annot"><span class="annottext">Height -&gt; Tree -&gt; ShowS
+[Tree] -&gt; ShowS
+Tree -&gt; String
+forall a.
+(Height -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+showList :: [Tree] -&gt; ShowS
+$cshowList :: [Tree] -&gt; ShowS
+show :: Tree -&gt; String
+$cshow :: Tree -&gt; String
+showsPrec :: Height -&gt; Tree -&gt; ShowS
+$cshowsPrec :: Height -&gt; Tree -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-24"></span><span>
+</span><span id="line-25"></span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#grow"><span class="hs-identifier hs-type">grow</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Percentage.html#Trans"><span class="hs-identifier hs-type">Trans</span></a></span><span> </span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#Tree"><span class="hs-identifier hs-type">Tree</span></a></span><span>
+</span><span id="line-26"></span><span id="grow"><span class="annot"><span class="annottext">grow :: Trans Tree
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#grow"><span class="hs-identifier hs-var hs-var">grow</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#Alive"><span class="hs-identifier hs-type">Alive</span></a></span><span> </span><span id="local-6989586621679069557"><span class="annot"><span class="annottext">Height
+</span><a href="#local-6989586621679069557"><span class="hs-identifier hs-var">h</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall prob a. Floating prob =&gt; Spread prob a
+</span><a href="Numeric.Probability.Distribution.html#normal"><span class="hs-identifier hs-var">Dist.normal</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">Height -&gt; Tree
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#Alive"><span class="hs-identifier hs-var">Alive</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Height
+</span><a href="#local-6989586621679069557"><span class="hs-identifier hs-var">h</span></a></span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span class="annot"><span class="annottext">Height
+</span><span class="hs-number">1</span></span><span class="hs-glyph">..</span><span class="annot"><span class="annottext">Height
+</span><a href="#local-6989586621679069557"><span class="hs-identifier hs-var">h</span></a></span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span class="annot"><span class="annottext">Height
+</span><span class="hs-number">5</span></span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-27"></span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#grow"><span class="hs-identifier hs-var">grow</span></a></span><span> </span><span class="annot"><span class="annottext">Tree
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. HasCallStack =&gt; String -&gt; a
+</span><span class="hs-identifier hs-var">error</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;TreeGrowth.grow: only alive trees can grow&quot;</span></span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#hit"><span class="hs-identifier hs-type">hit</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Percentage.html#Trans"><span class="hs-identifier hs-type">Trans</span></a></span><span> </span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#Tree"><span class="hs-identifier hs-type">Tree</span></a></span><span>
+</span><span id="line-30"></span><span id="hit"><span class="annot"><span class="annottext">hit :: Trans Tree
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#hit"><span class="hs-identifier hs-var hs-var">hit</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#Alive"><span class="hs-identifier hs-type">Alive</span></a></span><span> </span><span id="local-6989586621679069552"><span class="annot"><span class="annottext">Height
+</span><a href="#local-6989586621679069552"><span class="hs-identifier hs-var">h</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall prob a. Num prob =&gt; a -&gt; T prob a
+</span><a href="Numeric.Probability.Distribution.html#certainly"><span class="hs-identifier hs-var">Dist.certainly</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Height -&gt; Tree
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#Hit"><span class="hs-identifier hs-var">Hit</span></a></span><span> </span><span class="annot"><span class="annottext">Height
+</span><a href="#local-6989586621679069552"><span class="hs-identifier hs-var">h</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-31"></span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#hit"><span class="hs-identifier hs-var">hit</span></a></span><span> </span><span class="annot"><span class="annottext">Tree
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. HasCallStack =&gt; String -&gt; a
+</span><span class="hs-identifier hs-var">error</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;TreeGrowth.hit: only alive trees can be hit&quot;</span></span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#fall"><span class="hs-identifier hs-type">fall</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Percentage.html#Trans"><span class="hs-identifier hs-type">Trans</span></a></span><span> </span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#Tree"><span class="hs-identifier hs-type">Tree</span></a></span><span>
+</span><span id="line-34"></span><span id="fall"><span class="annot"><span class="annottext">fall :: Trans Tree
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#fall"><span class="hs-identifier hs-var hs-var">fall</span></a></span></span><span> </span><span class="annot"><span class="annottext">Tree
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall prob a. Num prob =&gt; a -&gt; T prob a
+</span><a href="Numeric.Probability.Distribution.html#certainly"><span class="hs-identifier hs-var">Dist.certainly</span></a></span><span> </span><span class="annot"><span class="annottext">Tree
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#Fallen"><span class="hs-identifier hs-var">Fallen</span></a></span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#evolve"><span class="hs-identifier hs-type">evolve</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Percentage.html#Trans"><span class="hs-identifier hs-type">Trans</span></a></span><span> </span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#Tree"><span class="hs-identifier hs-type">Tree</span></a></span><span>
+</span><span id="line-37"></span><span id="evolve"><span class="annot"><span class="annottext">evolve :: Trans Tree
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#evolve"><span class="hs-identifier hs-var hs-var">evolve</span></a></span></span><span> </span><span id="local-6989586621679069548"><span class="annot"><span class="annottext">Tree
+</span><a href="#local-6989586621679069548"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-38"></span><span>   </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Tree
+</span><a href="#local-6989586621679069548"><span class="hs-identifier hs-var">t</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-39"></span><span>      </span><span class="hs-special">(</span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#Alive"><span class="hs-identifier hs-type">Alive</span></a></span><span> </span><span class="annot"><span class="annottext">Height
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall prob a. (Num prob, Ord a) =&gt; T prob (T prob a) -&gt; T prob a
+</span><a href="Numeric.Probability.Transition.html#unfold"><span class="hs-identifier hs-var">Trans.unfold</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall prob a. Fractional prob =&gt; [Height] -&gt; Spread prob a
+</span><a href="Numeric.Probability.Distribution.html#enum"><span class="hs-identifier hs-var">Dist.enum</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Height
+</span><span class="hs-number">90</span></span><span class="hs-special">,</span><span class="annot"><span class="annottext">Height
+</span><span class="hs-number">4</span></span><span class="hs-special">,</span><span class="annot"><span class="annottext">Height
+</span><span class="hs-number">6</span></span><span class="hs-special">]</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Trans Tree
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#grow"><span class="hs-identifier hs-var">grow</span></a></span><span class="hs-special">,</span><span class="annot"><span class="annottext">Trans Tree
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#hit"><span class="hs-identifier hs-var">hit</span></a></span><span class="hs-special">,</span><span class="annot"><span class="annottext">Trans Tree
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#fall"><span class="hs-identifier hs-var">fall</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Tree
+</span><a href="#local-6989586621679069548"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-40"></span><span class="hs-comment">--    (Alive _) -&gt; Trans.unfold (Dist.relative [0.9,0.04,0.06] [grow,hit,fall]) t</span><span>
+</span><span id="line-41"></span><span>      </span><span class="annot"><span class="annottext">Tree
+</span><span class="hs-identifier">_</span></span><span>         </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall prob a. Num prob =&gt; a -&gt; T prob a
+</span><a href="Numeric.Probability.Distribution.html#certainly"><span class="hs-identifier hs-var">Dist.certainly</span></a></span><span> </span><span class="annot"><span class="annottext">Tree
+</span><a href="#local-6989586621679069548"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span class="hs-comment">{- |
+tree growth simulation:
+ start with seed and run for n generations
+-}</span><span>
+</span><span id="line-47"></span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#seed"><span class="hs-identifier hs-type">seed</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#Tree"><span class="hs-identifier hs-type">Tree</span></a></span><span>
+</span><span id="line-48"></span><span id="seed"><span class="annot"><span class="annottext">seed :: Tree
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#seed"><span class="hs-identifier hs-var hs-var">seed</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Height -&gt; Tree
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#Alive"><span class="hs-identifier hs-var">Alive</span></a></span><span> </span><span class="annot"><span class="annottext">Height
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-49"></span><span>
+</span><span id="line-50"></span><span>
+</span><span id="line-51"></span><span class="hs-comment">-- * exact results</span><span>
+</span><span id="line-52"></span><span>
+</span><span id="line-53"></span><span class="hs-comment">-- | @tree n@ : tree distribution after n generations</span><span>
+</span><span id="line-54"></span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#tree"><span class="hs-identifier hs-type">tree</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#Tree"><span class="hs-identifier hs-type">Tree</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Percentage.html#Dist"><span class="hs-identifier hs-type">Dist</span></a></span><span> </span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#Tree"><span class="hs-identifier hs-type">Tree</span></a></span><span>
+</span><span id="line-55"></span><span id="tree"><span class="annot"><span class="annottext">tree :: Height -&gt; Trans Tree
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#tree"><span class="hs-identifier hs-var hs-var">tree</span></a></span></span><span> </span><span id="local-6989586621679069543"><span class="annot"><span class="annottext">Height
+</span><a href="#local-6989586621679069543"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; Height -&gt; (a -&gt; m a) -&gt; a -&gt; m a
+</span><a href="Numeric.Probability.Monad.html#iterate"><span class="hs-identifier hs-var">MonadExt.iterate</span></a></span><span> </span><span class="annot"><span class="annottext">Height
+</span><a href="#local-6989586621679069543"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">Trans Tree
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#evolve"><span class="hs-identifier hs-var">evolve</span></a></span><span>
+</span><span id="line-56"></span><span>
+</span><span id="line-57"></span><span class="hs-comment">-- | @hist n@ : history of tree distributions for n generations</span><span>
+</span><span id="line-58"></span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#hist"><span class="hs-identifier hs-type">hist</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Percentage.html#Expand"><span class="hs-identifier hs-type">Expand</span></a></span><span> </span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#Tree"><span class="hs-identifier hs-type">Tree</span></a></span><span>
+</span><span id="line-59"></span><span id="hist"><span class="annot"><span class="annottext">hist :: Height -&gt; Expand Tree
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#hist"><span class="hs-identifier hs-var hs-var">hist</span></a></span></span><span> </span><span id="local-6989586621679069540"><span class="annot"><span class="annottext">Height
+</span><a href="#local-6989586621679069540"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. Height -&gt; Change a -&gt; Walk a
+</span><a href="Numeric.Probability.Trace.html#walk"><span class="hs-identifier hs-var">Trace.walk</span></a></span><span> </span><span class="annot"><span class="annottext">Height
+</span><a href="#local-6989586621679069540"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Trans Tree
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#evolve"><span class="hs-identifier hs-var">evolve</span></a></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; m a -&gt; m b
+</span><span class="hs-operator hs-var">=&lt;&lt;</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span>
+</span><span id="line-60"></span><span>
+</span><span id="line-61"></span><span>
+</span><span id="line-62"></span><span class="hs-comment">-- * simulation results</span><span>
+</span><span id="line-63"></span><span>
+</span><span id="line-64"></span><span class="hs-comment">{- |
+Since '(*.)' is overloaded for Trans and RChange,
+we can run the simulation ~. directly to @n *. live@.
+-}</span><span>
+</span><span id="line-68"></span><span>
+</span><span id="line-69"></span><span class="hs-comment">--simTree k n = k ~. tree n</span><span>
+</span><span id="line-70"></span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#simTree"><span class="hs-identifier hs-type">simTree</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Percentage.html#RTrans"><span class="hs-identifier hs-type">RTrans</span></a></span><span> </span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#Tree"><span class="hs-identifier hs-type">Tree</span></a></span><span>
+</span><span id="line-71"></span><span id="simTree"><span class="annot"><span class="annottext">simTree :: Height -&gt; Height -&gt; RTrans Tree
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#simTree"><span class="hs-identifier hs-var hs-var">simTree</span></a></span></span><span> </span><span id="local-6989586621679069535"><span class="annot"><span class="annottext">Height
+</span><a href="#local-6989586621679069535"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span id="local-6989586621679069534"><span class="annot"><span class="annottext">Height
+</span><a href="#local-6989586621679069534"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Height
+</span><a href="#local-6989586621679069535"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">,</span><span class="annot"><span class="annottext">Height
+</span><a href="#local-6989586621679069534"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall (c :: * -&gt; *) prob a.
+(C c, Fractional prob, Ord prob, Random prob, Ord a) =&gt;
+(Height, Height) -&gt; (a -&gt; c a) -&gt; Transition prob a
+</span><a href="Numeric.Probability.Simulation.html#~%2A."><span class="hs-operator hs-var">~*.</span></a></span><span> </span><span class="annot"><span class="annottext">Trans Tree
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#evolve"><span class="hs-identifier hs-var">evolve</span></a></span><span>
+</span><span id="line-72"></span><span>
+</span><span id="line-73"></span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#simHist"><span class="hs-identifier hs-type">simHist</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Percentage.html#RExpand"><span class="hs-identifier hs-type">RExpand</span></a></span><span> </span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#Tree"><span class="hs-identifier hs-type">Tree</span></a></span><span>
+</span><span id="line-74"></span><span id="simHist"><span class="annot"><span class="annottext">simHist :: Height -&gt; Height -&gt; RExpand Tree
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#simHist"><span class="hs-identifier hs-var hs-var">simHist</span></a></span></span><span> </span><span id="local-6989586621679069532"><span class="annot"><span class="annottext">Height
+</span><a href="#local-6989586621679069532"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span id="local-6989586621679069531"><span class="annot"><span class="annottext">Height
+</span><a href="#local-6989586621679069531"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Height
+</span><a href="#local-6989586621679069532"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">,</span><span class="annot"><span class="annottext">Height
+</span><a href="#local-6989586621679069531"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall (c :: * -&gt; *) prob a.
+(C c, Fractional prob, Ord prob, Random prob, Ord a) =&gt;
+(Height, Height) -&gt; (a -&gt; c a) -&gt; RExpand prob a
+</span><a href="Numeric.Probability.Simulation.html#~.."><span class="hs-operator hs-var">~..</span></a></span><span> </span><span class="annot"><span class="annottext">Trans Tree
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#evolve"><span class="hs-identifier hs-var">evolve</span></a></span><span>
+</span><span id="line-75"></span><span>
+</span><span id="line-76"></span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#t2"><span class="hs-identifier hs-type">t2</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Percentage.html#Dist"><span class="hs-identifier hs-type">Dist</span></a></span><span> </span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#Tree"><span class="hs-identifier hs-type">Tree</span></a></span><span>
+</span><span id="line-77"></span><span id="t2"><span class="annot"><span class="annottext">t2 :: Dist Tree
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#t2"><span class="hs-identifier hs-var hs-var">t2</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Height -&gt; Trans Tree
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#tree"><span class="hs-identifier hs-var">tree</span></a></span><span> </span><span class="annot"><span class="annottext">Height
+</span><span class="hs-number">2</span></span><span> </span><span class="annot"><span class="annottext">Tree
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#seed"><span class="hs-identifier hs-var">seed</span></a></span><span>
+</span><span id="line-78"></span><span>
+</span><span id="line-79"></span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#h2"><span class="hs-identifier hs-type">h2</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Percentage.html#Space"><span class="hs-identifier hs-type">Space</span></a></span><span> </span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#Tree"><span class="hs-identifier hs-type">Tree</span></a></span><span>
+</span><span id="line-80"></span><span id="h2"><span class="annot"><span class="annottext">h2 :: Space Tree
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#h2"><span class="hs-identifier hs-var hs-var">h2</span></a></span></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Height -&gt; Expand Tree
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#hist"><span class="hs-identifier hs-var">hist</span></a></span><span> </span><span class="annot"><span class="annottext">Height
+</span><span class="hs-number">2</span></span><span> </span><span class="annot"><span class="annottext">Tree
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#seed"><span class="hs-identifier hs-var">seed</span></a></span><span>
+</span><span id="line-81"></span><span>
+</span><span id="line-82"></span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#sh2"><span class="hs-identifier hs-type">sh2</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#st2"><span class="hs-identifier hs-type">st2</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-83"></span><span id="st2"><span class="annot"><span class="annottext">st2 :: IO ()
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#st2"><span class="hs-identifier hs-var hs-var">st2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. Show a =&gt; T a -&gt; IO ()
+</span><a href="Numeric.Probability.Random.html#print"><span class="hs-identifier hs-var">Rnd.print</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Height -&gt; Height -&gt; RTrans Tree
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#simTree"><span class="hs-identifier hs-var">simTree</span></a></span><span> </span><span class="annot"><span class="annottext">Height
+</span><span class="hs-number">2000</span></span><span> </span><span class="annot"><span class="annottext">Height
+</span><span class="hs-number">2</span></span><span> </span><span class="annot"><span class="annottext">Tree
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#seed"><span class="hs-identifier hs-var">seed</span></a></span><span>
+</span><span id="line-84"></span><span id="sh2"><span class="annot"><span class="annottext">sh2 :: IO ()
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#sh2"><span class="hs-identifier hs-var hs-var">sh2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. Show a =&gt; T a -&gt; IO ()
+</span><a href="Numeric.Probability.Random.html#print"><span class="hs-identifier hs-var">Rnd.print</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Height -&gt; Height -&gt; RExpand Tree
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#simHist"><span class="hs-identifier hs-var">simHist</span></a></span><span> </span><span class="annot"><span class="annottext">Height
+</span><span class="hs-number">2000</span></span><span> </span><span class="annot"><span class="annottext">Height
+</span><span class="hs-number">2</span></span><span> </span><span class="annot"><span class="annottext">Tree
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#seed"><span class="hs-identifier hs-var">seed</span></a></span><span>
+</span><span id="line-85"></span><span>
+</span><span id="line-86"></span><span>
+</span><span id="line-87"></span><span class="hs-comment">-- Alternatives:</span><span>
+</span><span id="line-88"></span><span class="hs-comment">--</span><span>
+</span><span id="line-89"></span><span class="hs-comment">-- simTree k n = k ~. n *. random evolve</span><span>
+</span><span id="line-90"></span><span class="hs-comment">-- simTree k n = (k,n) ~*. evolve</span><span>
+</span><span id="line-91"></span><span>
+</span><span id="line-92"></span><span>
+</span><span id="line-93"></span><span class="hs-comment">-- take a trace</span><span>
+</span><span id="line-94"></span><span>
+</span><span id="line-95"></span><span>
+</span><span id="line-96"></span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#height"><span class="hs-identifier hs-type">height</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#Tree"><span class="hs-identifier hs-type">Tree</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-97"></span><span id="height"><span class="annot"><span class="annottext">height :: Tree -&gt; Height
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#height"><span class="hs-identifier hs-var hs-var">height</span></a></span></span><span> </span><span class="annot"><span class="annottext">Tree
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#Fallen"><span class="hs-identifier hs-var">Fallen</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Height
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-98"></span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#height"><span class="hs-identifier hs-var">height</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#Hit"><span class="hs-identifier hs-type">Hit</span></a></span><span> </span><span id="local-6989586621679069524"><span class="annot"><span class="annottext">Height
+</span><a href="#local-6989586621679069524"><span class="hs-identifier hs-var">h</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Height
+</span><a href="#local-6989586621679069524"><span class="hs-identifier hs-var">h</span></a></span><span>
+</span><span id="line-99"></span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#height"><span class="hs-identifier hs-var">height</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#Alive"><span class="hs-identifier hs-type">Alive</span></a></span><span> </span><span id="local-6989586621679069523"><span class="annot"><span class="annottext">Height
+</span><a href="#local-6989586621679069523"><span class="hs-identifier hs-var">h</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Height
+</span><a href="#local-6989586621679069523"><span class="hs-identifier hs-var">h</span></a></span><span>
+</span><span id="line-100"></span><span class="hs-comment">{--
+myPlot = plotD ((5 *. evolve) (Alive 0) &gt;&gt;= height)
+
+myPlot2 = figP figure{title=&quot;Tree Growth&quot;,xLabel=&quot;Height (m)&quot;,
+                yLabel=&quot;Probability&quot;}
+                (autoColor [
+		plotD ((5 *. evolve) (Alive 0) &gt;&gt;= height)
+		])
+
+--}</span><span>
+</span><span id="line-110"></span><span>
+</span><span id="line-111"></span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#p1"><span class="hs-identifier hs-type">p1</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#p2"><span class="hs-identifier hs-type">p2</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#p3"><span class="hs-identifier hs-type">p3</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#p4"><span class="hs-identifier hs-type">p4</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#p5"><span class="hs-identifier hs-type">p5</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#p6"><span class="hs-identifier hs-type">p6</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Visualize.html#Vis"><span class="hs-identifier hs-type">Vis</span></a></span><span>
+</span><span id="line-112"></span><span>
+</span><span id="line-113"></span><span id="p1"><span class="annot"><span class="annottext">p1 :: IO ()
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#p1"><span class="hs-identifier hs-var hs-var">p1</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Plot] -&gt; IO ()
+</span><a href="Numeric.Probability.Visualize.html#fig"><span class="hs-identifier hs-var">fig</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">forall a. ToFloat a =&gt; Dist a -&gt; Plot
+</span><a href="Numeric.Probability.Visualize.html#plotD"><span class="hs-identifier hs-var">plotD</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall prob a. Floating prob =&gt; Spread prob a
+</span><a href="Numeric.Probability.Distribution.html#normal"><span class="hs-identifier hs-var">Dist.normal</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="annot"><span class="annottext">Height
+</span><span class="hs-number">1</span></span><span class="hs-glyph">..</span><span class="annot"><span class="annottext">Height
+</span><span class="hs-number">20</span></span><span class="hs-special">]</span><span class="hs-glyph">::</span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">]</span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-114"></span><span>
+</span><span id="line-115"></span><span id="p2"><span class="annot"><span class="annottext">p2 :: IO ()
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#p2"><span class="hs-identifier hs-var hs-var">p2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Plot] -&gt; IO ()
+</span><a href="Numeric.Probability.Visualize.html#fig"><span class="hs-identifier hs-var">fig</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">forall a. ToFloat a =&gt; Dist a -&gt; Plot
+</span><a href="Numeric.Probability.Visualize.html#plotD"><span class="hs-identifier hs-var">plotD</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall prob b a.
+(Num prob, Ord b) =&gt;
+(a -&gt; b) -&gt; T prob a -&gt; T prob b
+</span><a href="Numeric.Probability.Distribution.html#map"><span class="hs-identifier hs-var">Dist.map</span></a></span><span> </span><span class="annot"><span class="annottext">Tree -&gt; Height
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#height"><span class="hs-identifier hs-var">height</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Height -&gt; Trans Tree
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#tree"><span class="hs-identifier hs-var">tree</span></a></span><span> </span><span class="annot"><span class="annottext">Height
+</span><span class="hs-number">5</span></span><span> </span><span class="annot"><span class="annottext">Tree
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#seed"><span class="hs-identifier hs-var">seed</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-116"></span><span>
+</span><span id="line-117"></span><span id="p3"><span class="annot"><span class="annottext">p3 :: IO ()
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#p3"><span class="hs-identifier hs-var hs-var">p3</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">FigureEnv -&gt; [Plot] -&gt; IO ()
+</span><a href="Numeric.Probability.Visualize.html#figP"><span class="hs-identifier hs-var">figP</span></a></span><span> </span><span class="annot"><span class="annottext">FigureEnv
+</span><a href="Numeric.Probability.Visualize.html#figure"><span class="hs-identifier hs-var">figure</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">title :: String
+</span><a href="Numeric.Probability.Visualize.html#title"><span class="hs-identifier hs-var">title</span></a></span><span class="hs-glyph">=</span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Tree Growth&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-118"></span><span>            </span><span class="annot"><span class="annottext">xLabel :: String
+</span><a href="Numeric.Probability.Visualize.html#xLabel"><span class="hs-identifier hs-var">xLabel</span></a></span><span class="hs-glyph">=</span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Height (ft)&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-119"></span><span>            </span><span class="annot"><span class="annottext">yLabel :: String
+</span><a href="Numeric.Probability.Visualize.html#yLabel"><span class="hs-identifier hs-var">yLabel</span></a></span><span class="hs-glyph">=</span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Probability&quot;</span></span><span class="hs-special">}</span><span>
+</span><span id="line-120"></span><span>	    </span><span class="hs-special">[</span><span class="annot"><span class="annottext">forall a. ToFloat a =&gt; Dist a -&gt; Plot
+</span><a href="Numeric.Probability.Visualize.html#plotD"><span class="hs-identifier hs-var">plotD</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall prob b a.
+(Num prob, Ord b) =&gt;
+(a -&gt; b) -&gt; T prob a -&gt; T prob b
+</span><a href="Numeric.Probability.Distribution.html#map"><span class="hs-identifier hs-var">Dist.map</span></a></span><span> </span><span class="annot"><span class="annottext">Tree -&gt; Height
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#height"><span class="hs-identifier hs-var">height</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Height -&gt; Trans Tree
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#tree"><span class="hs-identifier hs-var">tree</span></a></span><span> </span><span class="annot"><span class="annottext">Height
+</span><span class="hs-number">5</span></span><span> </span><span class="annot"><span class="annottext">Tree
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#seed"><span class="hs-identifier hs-var">seed</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-121"></span><span>
+</span><span id="line-122"></span><span>
+</span><span id="line-123"></span><span id="p4"><span class="annot"><span class="annottext">p4 :: IO ()
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#p4"><span class="hs-identifier hs-var hs-var">p4</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">FigureEnv -&gt; [Plot] -&gt; IO ()
+</span><a href="Numeric.Probability.Visualize.html#figP"><span class="hs-identifier hs-var">figP</span></a></span><span> </span><span class="annot"><span class="annottext">FigureEnv
+</span><a href="Numeric.Probability.Visualize.html#figure"><span class="hs-identifier hs-var">figure</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">title :: String
+</span><a href="Numeric.Probability.Visualize.html#title"><span class="hs-identifier hs-var">title</span></a></span><span class="hs-glyph">=</span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Tree Growth&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-124"></span><span>            </span><span class="annot"><span class="annottext">xLabel :: String
+</span><a href="Numeric.Probability.Visualize.html#xLabel"><span class="hs-identifier hs-var">xLabel</span></a></span><span class="hs-glyph">=</span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Height (ft)&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-125"></span><span>            </span><span class="annot"><span class="annottext">yLabel :: String
+</span><a href="Numeric.Probability.Visualize.html#yLabel"><span class="hs-identifier hs-var">yLabel</span></a></span><span class="hs-glyph">=</span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Probability&quot;</span></span><span class="hs-special">}</span><span>
+</span><span id="line-126"></span><span>            </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Height -&gt; Plot
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#heightAtTime"><span class="hs-identifier hs-var">heightAtTime</span></a></span><span> </span><span class="annot"><span class="annottext">Height
+</span><span class="hs-number">5</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Height -&gt; Plot
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#heightAtTime"><span class="hs-identifier hs-var">heightAtTime</span></a></span><span> </span><span class="annot"><span class="annottext">Height
+</span><span class="hs-number">10</span></span><span class="hs-special">,</span><span class="annot"><span class="annottext">Height -&gt; Plot
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#heightAtTime"><span class="hs-identifier hs-var">heightAtTime</span></a></span><span> </span><span class="annot"><span class="annottext">Height
+</span><span class="hs-number">15</span></span><span class="hs-special">]</span><span>
+</span><span id="line-127"></span><span>
+</span><span id="line-128"></span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#heightAtTime"><span class="hs-identifier hs-type">heightAtTime</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Visualize.html#Plot"><span class="hs-identifier hs-type">Plot</span></a></span><span>
+</span><span id="line-129"></span><span id="heightAtTime"><span class="annot"><span class="annottext">heightAtTime :: Height -&gt; Plot
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#heightAtTime"><span class="hs-identifier hs-var hs-var">heightAtTime</span></a></span></span><span> </span><span id="local-6989586621679069514"><span class="annot"><span class="annottext">Height
+</span><a href="#local-6989586621679069514"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. ToFloat a =&gt; Dist a -&gt; Plot
+</span><a href="Numeric.Probability.Visualize.html#plotD"><span class="hs-identifier hs-var">plotD</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall prob b a.
+(Num prob, Ord b) =&gt;
+(a -&gt; b) -&gt; T prob a -&gt; T prob b
+</span><a href="Numeric.Probability.Distribution.html#map"><span class="hs-identifier hs-var">Dist.map</span></a></span><span> </span><span class="annot"><span class="annottext">Tree -&gt; Height
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#height"><span class="hs-identifier hs-var">height</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Height -&gt; Trans Tree
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#tree"><span class="hs-identifier hs-var">tree</span></a></span><span> </span><span class="annot"><span class="annottext">Height
+</span><a href="#local-6989586621679069514"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">Tree
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#seed"><span class="hs-identifier hs-var">seed</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-130"></span><span>
+</span><span id="line-131"></span><span id="p5"><span class="annot"><span class="annottext">p5 :: IO ()
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#p5"><span class="hs-identifier hs-var hs-var">p5</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">FigureEnv -&gt; [Plot] -&gt; IO ()
+</span><a href="Numeric.Probability.Visualize.html#figP"><span class="hs-identifier hs-var">figP</span></a></span><span> </span><span class="annot"><span class="annottext">FigureEnv
+</span><a href="Numeric.Probability.Visualize.html#figure"><span class="hs-identifier hs-var">figure</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">title :: String
+</span><a href="Numeric.Probability.Visualize.html#title"><span class="hs-identifier hs-var">title</span></a></span><span class="hs-glyph">=</span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Tree Growth&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-132"></span><span>            </span><span class="annot"><span class="annottext">xLabel :: String
+</span><a href="Numeric.Probability.Visualize.html#xLabel"><span class="hs-identifier hs-var">xLabel</span></a></span><span class="hs-glyph">=</span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Height (ft)&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-133"></span><span>            </span><span class="annot"><span class="annottext">yLabel :: String
+</span><a href="Numeric.Probability.Visualize.html#yLabel"><span class="hs-identifier hs-var">yLabel</span></a></span><span class="hs-glyph">=</span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Probability&quot;</span></span><span class="hs-special">}</span><span>
+</span><span id="line-134"></span><span>            </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">Height -&gt; Plot
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#heightAtTime"><span class="hs-identifier hs-var">heightAtTime</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Height
+</span><span class="hs-number">3</span></span><span class="hs-special">,</span><span class="annot"><span class="annottext">Height
+</span><span class="hs-number">5</span></span><span class="hs-special">,</span><span class="annot"><span class="annottext">Height
+</span><span class="hs-number">7</span></span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-135"></span><span>
+</span><span id="line-136"></span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#heightCurve"><span class="hs-identifier hs-type">heightCurve</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">,</span><span class="annot"><a href="Numeric.Probability.Visualize.html#Color"><span class="hs-identifier hs-type">Color</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Visualize.html#Plot"><span class="hs-identifier hs-type">Plot</span></a></span><span>
+</span><span id="line-137"></span><span id="heightCurve"><span class="annot"><span class="annottext">heightCurve :: (Height, Color) -&gt; Plot
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#heightCurve"><span class="hs-identifier hs-var hs-var">heightCurve</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679069512"><span class="annot"><span class="annottext">Height
+</span><a href="#local-6989586621679069512"><span class="hs-identifier hs-var">n</span></a></span></span><span class="hs-special">,</span><span id="local-6989586621679069511"><span class="annot"><span class="annottext">Color
+</span><a href="#local-6989586621679069511"><span class="hs-identifier hs-var">c</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Height -&gt; Plot
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#heightAtTime"><span class="hs-identifier hs-var">heightAtTime</span></a></span><span> </span><span class="annot"><span class="annottext">Height
+</span><a href="#local-6989586621679069512"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span class="hs-special">{</span><span class="annot"><span class="annottext">color :: Color
+</span><a href="Numeric.Probability.Visualize.html#color"><span class="hs-identifier hs-var">color</span></a></span><span class="hs-glyph">=</span><span class="annot"><span class="annottext">Color
+</span><a href="#local-6989586621679069511"><span class="hs-identifier hs-var">c</span></a></span><span class="hs-special">,</span><span class="annot"><span class="annottext">label :: String
+</span><a href="Numeric.Probability.Visualize.html#label"><span class="hs-identifier hs-var">label</span></a></span><span class="hs-glyph">=</span><span class="annot"><span class="annottext">forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Height
+</span><a href="#local-6989586621679069512"><span class="hs-identifier hs-var">n</span></a></span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot; Years&quot;</span></span><span class="hs-special">}</span><span>
+</span><span id="line-138"></span><span>
+</span><span id="line-139"></span><span id="p6"><span class="annot"><span class="annottext">p6 :: IO ()
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#p6"><span class="hs-identifier hs-var hs-var">p6</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">FigureEnv -&gt; [Plot] -&gt; IO ()
+</span><a href="Numeric.Probability.Visualize.html#figP"><span class="hs-identifier hs-var">figP</span></a></span><span> </span><span class="annot"><span class="annottext">FigureEnv
+</span><a href="Numeric.Probability.Visualize.html#figure"><span class="hs-identifier hs-var">figure</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">title :: String
+</span><a href="Numeric.Probability.Visualize.html#title"><span class="hs-identifier hs-var">title</span></a></span><span class="hs-glyph">=</span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Tree Growth&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-140"></span><span>            </span><span class="annot"><span class="annottext">xLabel :: String
+</span><a href="Numeric.Probability.Visualize.html#xLabel"><span class="hs-identifier hs-var">xLabel</span></a></span><span class="hs-glyph">=</span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Height (ft)&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-141"></span><span>            </span><span class="annot"><span class="annottext">yLabel :: String
+</span><a href="Numeric.Probability.Visualize.html#yLabel"><span class="hs-identifier hs-var">yLabel</span></a></span><span class="hs-glyph">=</span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Probability&quot;</span></span><span class="hs-special">}</span><span>
+</span><span id="line-142"></span><span>            </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">(Height, Color) -&gt; Plot
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#heightCurve"><span class="hs-identifier hs-var">heightCurve</span></a></span><span>
+</span><span id="line-143"></span><span>	    </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="annottext">Height
+</span><span class="hs-number">3</span></span><span class="hs-special">,</span><span class="annot"><span class="annottext">Color
+</span><a href="Numeric.Probability.Visualize.html#Blue"><span class="hs-identifier hs-var">Blue</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span class="hs-special">(</span><span class="annot"><span class="annottext">Height
+</span><span class="hs-number">5</span></span><span class="hs-special">,</span><span class="annot"><span class="annottext">Color
+</span><a href="Numeric.Probability.Visualize.html#Green"><span class="hs-identifier hs-var">Green</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span class="hs-special">(</span><span class="annot"><span class="annottext">Height
+</span><span class="hs-number">7</span></span><span class="hs-special">,</span><span class="annot"><span class="annottext">Color
+</span><a href="Numeric.Probability.Visualize.html#Red"><span class="hs-identifier hs-var">Red</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-144"></span><span>
+</span><span id="line-145"></span><span>
+</span><span id="line-146"></span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#done"><span class="hs-identifier hs-type">done</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#Tree"><span class="hs-identifier hs-type">Tree</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-147"></span><span id="done"><span class="annot"><span class="annottext">done :: Tree -&gt; Bool
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#done"><span class="hs-identifier hs-var hs-var">done</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#Alive"><span class="hs-identifier hs-type">Alive</span></a></span><span> </span><span id="local-6989586621679069508"><span class="annot"><span class="annottext">Height
+</span><a href="#local-6989586621679069508"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Height
+</span><a href="#local-6989586621679069508"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&gt;=</span></span><span> </span><span class="annot"><span class="annottext">Height
+</span><span class="hs-number">5</span></span><span>
+</span><span id="line-148"></span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#done"><span class="hs-identifier hs-var">done</span></a></span><span> </span><span class="annot"><span class="annottext">Tree
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-149"></span><span>
+</span><span id="line-150"></span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#ev5"><span class="hs-identifier hs-type">ev5</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#Tree"><span class="hs-identifier hs-type">Tree</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Percentage.html#Dist"><span class="hs-identifier hs-type">Dist</span></a></span><span> </span><span class="annot"><a href="Numeric.Probability.Example.TreeGrowth.html#Tree"><span class="hs-identifier hs-type">Tree</span></a></span><span>
+</span><span id="line-151"></span><span id="ev5"><span class="annot"><span class="annottext">ev5 :: Trans Tree
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#ev5"><span class="hs-identifier hs-var hs-var">ev5</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a.
+Monad m =&gt;
+(a -&gt; Bool) -&gt; (a -&gt; m a) -&gt; a -&gt; m a
+</span><a href="Numeric.Probability.Monad.html#while"><span class="hs-identifier hs-var">MonadExt.while</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Tree -&gt; Bool
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#done"><span class="hs-identifier hs-var">done</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Trans Tree
+</span><a href="Numeric.Probability.Example.TreeGrowth.html#evolve"><span class="hs-identifier hs-var">evolve</span></a></span><span>
+</span><span id="line-152"></span></pre></body></html>

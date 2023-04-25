@@ -1,0 +1,276 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span id="local-6989586621679065131"><span id="local-6989586621679065132"><span id="local-6989586621679065133"><span id="local-6989586621679065134"></span></span></span></span><span class="hs-comment">{- |
+You take part in a screening test for a disease
+that you have with a probability 'pDisease'.
+The test can fail in two ways:
+If you are ill,
+the test says with probability 'pFalseNegative' that you are healthy.
+If you are healthy,
+it says with probability 'pFalsePositive' that you are ill.
+
+Now consider the test is positive -
+what is the probability that you are indeed ill?
+-}</span><span>
+</span><span id="line-13"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Numeric.Probability.Example.Diagnosis</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Numeric.Probability.Distribution.html"><span class="hs-identifier">Numeric.Probability.Distribution</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Dist</span></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Numeric.Probability.Distribution.html"><span class="hs-identifier">Numeric.Probability.Distribution</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Numeric.Probability.Distribution.html#%3F%3F"><span class="hs-operator">(??)</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Numeric.Probability.Distribution.html#%3F%3D%3C%3C"><span class="hs-operator">(?=&lt;&lt;)</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">type</span><span> </span><span id="Probability"><span class="annot"><a href="Numeric.Probability.Example.Diagnosis.html#Probability"><span class="hs-identifier hs-var">Probability</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Rational</span></span><span>
+</span><span id="line-20"></span><span class="hs-keyword">type</span><span> </span><span id="Dist"><span class="annot"><a href="Numeric.Probability.Example.Diagnosis.html#Dist"><span class="hs-identifier hs-var">Dist</span></a></span></span><span> </span><span id="local-6989586621679065103"><span class="annot"><a href="#local-6989586621679065103"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Numeric.Probability.Distribution.html#T"><span class="hs-identifier hs-type">Dist.T</span></a></span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Diagnosis.html#Probability"><span class="hs-identifier hs-type">Probability</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679065103"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span class="hs-keyword">data</span><span> </span><span id="State"><span class="annot"><a href="Numeric.Probability.Example.Diagnosis.html#State"><span class="hs-identifier hs-var">State</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Healthy"><span class="annot"><a href="Numeric.Probability.Example.Diagnosis.html#Healthy"><span class="hs-identifier hs-var">Healthy</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Ill"><span class="annot"><a href="Numeric.Probability.Example.Diagnosis.html#Ill"><span class="hs-identifier hs-var">Ill</span></a></span></span><span>
+</span><span id="line-24"></span><span>   </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679065097"><span id="local-6989586621679065099"><span class="annot"><span class="annottext">State -&gt; State -&gt; Bool
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+/= :: State -&gt; State -&gt; Bool
+$c/= :: State -&gt; State -&gt; Bool
+== :: State -&gt; State -&gt; Bool
+$c== :: State -&gt; State -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679065077"><span id="local-6989586621679065079"><span id="local-6989586621679065082"><span id="local-6989586621679065085"><span id="local-6989586621679065088"><span id="local-6989586621679065090"><span id="local-6989586621679065092"><span class="annot"><span class="annottext">Eq State
+State -&gt; State -&gt; Bool
+State -&gt; State -&gt; Ordering
+State -&gt; State -&gt; State
+forall a.
+Eq a
+-&gt; (a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+min :: State -&gt; State -&gt; State
+$cmin :: State -&gt; State -&gt; State
+max :: State -&gt; State -&gt; State
+$cmax :: State -&gt; State -&gt; State
+&gt;= :: State -&gt; State -&gt; Bool
+$c&gt;= :: State -&gt; State -&gt; Bool
+&gt; :: State -&gt; State -&gt; Bool
+$c&gt; :: State -&gt; State -&gt; Bool
+&lt;= :: State -&gt; State -&gt; Bool
+$c&lt;= :: State -&gt; State -&gt; Bool
+&lt; :: State -&gt; State -&gt; Bool
+$c&lt; :: State -&gt; State -&gt; Bool
+compare :: State -&gt; State -&gt; Ordering
+$ccompare :: State -&gt; State -&gt; Ordering
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679065070"><span id="local-6989586621679065072"><span id="local-6989586621679065074"><span class="annot"><span class="annottext">Int -&gt; State -&gt; ShowS
+[State] -&gt; ShowS
+State -&gt; String
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+showList :: [State] -&gt; ShowS
+$cshowList :: [State] -&gt; ShowS
+show :: State -&gt; String
+$cshow :: State -&gt; String
+showsPrec :: Int -&gt; State -&gt; ShowS
+$cshowsPrec :: Int -&gt; State -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679065031"><span id="local-6989586621679065033"><span id="local-6989586621679065037"><span id="local-6989586621679065041"><span id="local-6989586621679065043"><span id="local-6989586621679065053"><span id="local-6989586621679065059"><span id="local-6989586621679065067"><span class="annot"><span class="annottext">Int -&gt; State
+State -&gt; Int
+State -&gt; [State]
+State -&gt; State
+State -&gt; State -&gt; [State]
+State -&gt; State -&gt; State -&gt; [State]
+forall a.
+(a -&gt; a)
+-&gt; (a -&gt; a)
+-&gt; (Int -&gt; a)
+-&gt; (a -&gt; Int)
+-&gt; (a -&gt; [a])
+-&gt; (a -&gt; a -&gt; [a])
+-&gt; (a -&gt; a -&gt; [a])
+-&gt; (a -&gt; a -&gt; a -&gt; [a])
+-&gt; Enum a
+enumFromThenTo :: State -&gt; State -&gt; State -&gt; [State]
+$cenumFromThenTo :: State -&gt; State -&gt; State -&gt; [State]
+enumFromTo :: State -&gt; State -&gt; [State]
+$cenumFromTo :: State -&gt; State -&gt; [State]
+enumFromThen :: State -&gt; State -&gt; [State]
+$cenumFromThen :: State -&gt; State -&gt; [State]
+enumFrom :: State -&gt; [State]
+$cenumFrom :: State -&gt; [State]
+fromEnum :: State -&gt; Int
+$cfromEnum :: State -&gt; Int
+toEnum :: Int -&gt; State
+$ctoEnum :: Int -&gt; State
+pred :: State -&gt; State
+$cpred :: State -&gt; State
+succ :: State -&gt; State
+$csucc :: State -&gt; State
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Enum</span></span></span></span></span></span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span class="hs-keyword">data</span><span> </span><span id="Finding"><span class="annot"><a href="Numeric.Probability.Example.Diagnosis.html#Finding"><span class="hs-identifier hs-var">Finding</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Negative"><span class="annot"><a href="Numeric.Probability.Example.Diagnosis.html#Negative"><span class="hs-identifier hs-var">Negative</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Positive"><span class="annot"><a href="Numeric.Probability.Example.Diagnosis.html#Positive"><span class="hs-identifier hs-var">Positive</span></a></span></span><span>
+</span><span id="line-27"></span><span>   </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679065024"><span id="local-6989586621679065026"><span class="annot"><span class="annottext">Finding -&gt; Finding -&gt; Bool
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+/= :: Finding -&gt; Finding -&gt; Bool
+$c/= :: Finding -&gt; Finding -&gt; Bool
+== :: Finding -&gt; Finding -&gt; Bool
+$c== :: Finding -&gt; Finding -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679065005"><span id="local-6989586621679065007"><span id="local-6989586621679065010"><span id="local-6989586621679065013"><span id="local-6989586621679065016"><span id="local-6989586621679065018"><span id="local-6989586621679065020"><span class="annot"><span class="annottext">Eq Finding
+Finding -&gt; Finding -&gt; Bool
+Finding -&gt; Finding -&gt; Ordering
+Finding -&gt; Finding -&gt; Finding
+forall a.
+Eq a
+-&gt; (a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+min :: Finding -&gt; Finding -&gt; Finding
+$cmin :: Finding -&gt; Finding -&gt; Finding
+max :: Finding -&gt; Finding -&gt; Finding
+$cmax :: Finding -&gt; Finding -&gt; Finding
+&gt;= :: Finding -&gt; Finding -&gt; Bool
+$c&gt;= :: Finding -&gt; Finding -&gt; Bool
+&gt; :: Finding -&gt; Finding -&gt; Bool
+$c&gt; :: Finding -&gt; Finding -&gt; Bool
+&lt;= :: Finding -&gt; Finding -&gt; Bool
+$c&lt;= :: Finding -&gt; Finding -&gt; Bool
+&lt; :: Finding -&gt; Finding -&gt; Bool
+$c&lt; :: Finding -&gt; Finding -&gt; Bool
+compare :: Finding -&gt; Finding -&gt; Ordering
+$ccompare :: Finding -&gt; Finding -&gt; Ordering
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679064999"><span id="local-6989586621679065001"><span id="local-6989586621679065003"><span class="annot"><span class="annottext">Int -&gt; Finding -&gt; ShowS
+[Finding] -&gt; ShowS
+Finding -&gt; String
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+showList :: [Finding] -&gt; ShowS
+$cshowList :: [Finding] -&gt; ShowS
+show :: Finding -&gt; String
+$cshow :: Finding -&gt; String
+showsPrec :: Int -&gt; Finding -&gt; ShowS
+$cshowsPrec :: Int -&gt; Finding -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679064966"><span id="local-6989586621679064968"><span id="local-6989586621679064972"><span id="local-6989586621679064975"><span id="local-6989586621679064977"><span id="local-6989586621679064985"><span id="local-6989586621679064991"><span id="local-6989586621679064997"><span class="annot"><span class="annottext">Int -&gt; Finding
+Finding -&gt; Int
+Finding -&gt; [Finding]
+Finding -&gt; Finding
+Finding -&gt; Finding -&gt; [Finding]
+Finding -&gt; Finding -&gt; Finding -&gt; [Finding]
+forall a.
+(a -&gt; a)
+-&gt; (a -&gt; a)
+-&gt; (Int -&gt; a)
+-&gt; (a -&gt; Int)
+-&gt; (a -&gt; [a])
+-&gt; (a -&gt; a -&gt; [a])
+-&gt; (a -&gt; a -&gt; [a])
+-&gt; (a -&gt; a -&gt; a -&gt; [a])
+-&gt; Enum a
+enumFromThenTo :: Finding -&gt; Finding -&gt; Finding -&gt; [Finding]
+$cenumFromThenTo :: Finding -&gt; Finding -&gt; Finding -&gt; [Finding]
+enumFromTo :: Finding -&gt; Finding -&gt; [Finding]
+$cenumFromTo :: Finding -&gt; Finding -&gt; [Finding]
+enumFromThen :: Finding -&gt; Finding -&gt; [Finding]
+$cenumFromThen :: Finding -&gt; Finding -&gt; [Finding]
+enumFrom :: Finding -&gt; [Finding]
+$cenumFrom :: Finding -&gt; [Finding]
+fromEnum :: Finding -&gt; Int
+$cfromEnum :: Finding -&gt; Int
+toEnum :: Int -&gt; Finding
+$ctoEnum :: Int -&gt; Finding
+pred :: Finding -&gt; Finding
+$cpred :: Finding -&gt; Finding
+succ :: Finding -&gt; Finding
+$csucc :: Finding -&gt; Finding
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Enum</span></span></span></span></span></span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span>
+</span><span id="line-30"></span><span class="annot"><a href="Numeric.Probability.Example.Diagnosis.html#pDisease"><span class="hs-identifier hs-type">pDisease</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Diagnosis.html#pFalseNegative"><span class="hs-identifier hs-type">pFalseNegative</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Diagnosis.html#pFalsePositive"><span class="hs-identifier hs-type">pFalsePositive</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Diagnosis.html#Probability"><span class="hs-identifier hs-type">Probability</span></a></span><span>
+</span><span id="line-31"></span><span id="pDisease"><span class="annot"><span class="annottext">pDisease :: Probability
+</span><a href="Numeric.Probability.Example.Diagnosis.html#pDisease"><span class="hs-identifier hs-var hs-var">pDisease</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Probability
+</span><span class="hs-number">0.001</span></span><span>
+</span><span id="line-32"></span><span id="pFalseNegative"><span class="annot"><span class="annottext">pFalseNegative :: Probability
+</span><a href="Numeric.Probability.Example.Diagnosis.html#pFalseNegative"><span class="hs-identifier hs-var hs-var">pFalseNegative</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Probability
+</span><span class="hs-number">0.01</span></span><span>
+</span><span id="line-33"></span><span id="pFalsePositive"><span class="annot"><span class="annottext">pFalsePositive :: Probability
+</span><a href="Numeric.Probability.Example.Diagnosis.html#pFalsePositive"><span class="hs-identifier hs-var hs-var">pFalsePositive</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Probability
+</span><span class="hs-number">0.01</span></span><span>
+</span><span id="line-34"></span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span class="annot"><a href="Numeric.Probability.Example.Diagnosis.html#dist"><span class="hs-identifier hs-type">dist</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Diagnosis.html#Dist"><span class="hs-identifier hs-type">Dist</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Numeric.Probability.Example.Diagnosis.html#State"><span class="hs-identifier hs-type">State</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Diagnosis.html#Finding"><span class="hs-identifier hs-type">Finding</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-37"></span><span id="dist"><span class="annot"><span class="annottext">dist :: Dist (State, Finding)
+</span><a href="Numeric.Probability.Example.Diagnosis.html#dist"><span class="hs-identifier hs-var hs-var">dist</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-38"></span><span>   </span><span class="hs-keyword">do</span><span> </span><span id="local-6989586621679064961"><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621679064961"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall prob a. Num prob =&gt; prob -&gt; a -&gt; a -&gt; T prob a
+</span><a href="Numeric.Probability.Distribution.html#choose"><span class="hs-identifier hs-var">Dist.choose</span></a></span><span> </span><span class="annot"><span class="annottext">Probability
+</span><a href="Numeric.Probability.Example.Diagnosis.html#pDisease"><span class="hs-identifier hs-var">pDisease</span></a></span><span> </span><span class="annot"><span class="annottext">State
+</span><a href="Numeric.Probability.Example.Diagnosis.html#Ill"><span class="hs-identifier hs-var">Ill</span></a></span><span> </span><span class="annot"><span class="annottext">State
+</span><a href="Numeric.Probability.Example.Diagnosis.html#Healthy"><span class="hs-identifier hs-var">Healthy</span></a></span><span>
+</span><span id="line-39"></span><span>      </span><span id="local-6989586621679064959"><span class="annot"><span class="annottext">Finding
+</span><a href="#local-6989586621679064959"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621679064961"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-40"></span><span>              </span><span class="annot"><span class="annottext">State
+</span><a href="Numeric.Probability.Example.Diagnosis.html#Ill"><span class="hs-identifier hs-var">Ill</span></a></span><span>     </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall prob a. Num prob =&gt; prob -&gt; a -&gt; a -&gt; T prob a
+</span><a href="Numeric.Probability.Distribution.html#choose"><span class="hs-identifier hs-var">Dist.choose</span></a></span><span> </span><span class="annot"><span class="annottext">Probability
+</span><a href="Numeric.Probability.Example.Diagnosis.html#pFalseNegative"><span class="hs-identifier hs-var">pFalseNegative</span></a></span><span> </span><span class="annot"><span class="annottext">Finding
+</span><a href="Numeric.Probability.Example.Diagnosis.html#Negative"><span class="hs-identifier hs-var">Negative</span></a></span><span> </span><span class="annot"><span class="annottext">Finding
+</span><a href="Numeric.Probability.Example.Diagnosis.html#Positive"><span class="hs-identifier hs-var">Positive</span></a></span><span>
+</span><span id="line-41"></span><span>              </span><span class="annot"><span class="annottext">State
+</span><a href="Numeric.Probability.Example.Diagnosis.html#Healthy"><span class="hs-identifier hs-var">Healthy</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall prob a. Num prob =&gt; prob -&gt; a -&gt; a -&gt; T prob a
+</span><a href="Numeric.Probability.Distribution.html#choose"><span class="hs-identifier hs-var">Dist.choose</span></a></span><span> </span><span class="annot"><span class="annottext">Probability
+</span><a href="Numeric.Probability.Example.Diagnosis.html#pFalsePositive"><span class="hs-identifier hs-var">pFalsePositive</span></a></span><span> </span><span class="annot"><span class="annottext">Finding
+</span><a href="Numeric.Probability.Example.Diagnosis.html#Positive"><span class="hs-identifier hs-var">Positive</span></a></span><span> </span><span class="annot"><span class="annottext">Finding
+</span><a href="Numeric.Probability.Example.Diagnosis.html#Negative"><span class="hs-identifier hs-var">Negative</span></a></span><span>
+</span><span id="line-42"></span><span>      </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621679064961"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">,</span><span class="annot"><span class="annottext">Finding
+</span><a href="#local-6989586621679064959"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-43"></span><span>
+</span><span id="line-44"></span><span>
+</span><span id="line-45"></span><span class="hs-comment">{- |
+Alternative way for computing the distribution.
+It is usually more efficient because we do not need to switch on the healthy state.
+-}</span><span>
+</span><span id="line-49"></span><span class="annot"><a href="Numeric.Probability.Example.Diagnosis.html#distAlt"><span class="hs-identifier hs-type">distAlt</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Diagnosis.html#Dist"><span class="hs-identifier hs-type">Dist</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Numeric.Probability.Example.Diagnosis.html#State"><span class="hs-identifier hs-type">State</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Diagnosis.html#Finding"><span class="hs-identifier hs-type">Finding</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-50"></span><span id="distAlt"><span class="annot"><span class="annottext">distAlt :: Dist (State, Finding)
+</span><a href="Numeric.Probability.Example.Diagnosis.html#distAlt"><span class="hs-identifier hs-var hs-var">distAlt</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-51"></span><span>   </span><span class="hs-keyword">do</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679064957"><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621679064957"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-special">,</span><span id="local-6989586621679064956"><span class="annot"><span class="annottext">T Probability Finding
+</span><a href="#local-6989586621679064956"><span class="hs-identifier hs-var">fr</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span>
+</span><span id="line-52"></span><span>          </span><span class="annot"><span class="annottext">forall prob a. Num prob =&gt; prob -&gt; a -&gt; a -&gt; T prob a
+</span><a href="Numeric.Probability.Distribution.html#choose"><span class="hs-identifier hs-var">Dist.choose</span></a></span><span> </span><span class="annot"><span class="annottext">Probability
+</span><a href="Numeric.Probability.Example.Diagnosis.html#pDisease"><span class="hs-identifier hs-var">pDisease</span></a></span><span>
+</span><span id="line-53"></span><span>             </span><span class="hs-special">(</span><span class="annot"><span class="annottext">State
+</span><a href="Numeric.Probability.Example.Diagnosis.html#Ill"><span class="hs-identifier hs-var">Ill</span></a></span><span class="hs-special">,</span><span>     </span><span class="annot"><span class="annottext">forall prob a. Num prob =&gt; prob -&gt; a -&gt; a -&gt; T prob a
+</span><a href="Numeric.Probability.Distribution.html#choose"><span class="hs-identifier hs-var">Dist.choose</span></a></span><span> </span><span class="annot"><span class="annottext">Probability
+</span><a href="Numeric.Probability.Example.Diagnosis.html#pFalseNegative"><span class="hs-identifier hs-var">pFalseNegative</span></a></span><span> </span><span class="annot"><span class="annottext">Finding
+</span><a href="Numeric.Probability.Example.Diagnosis.html#Negative"><span class="hs-identifier hs-var">Negative</span></a></span><span> </span><span class="annot"><span class="annottext">Finding
+</span><a href="Numeric.Probability.Example.Diagnosis.html#Positive"><span class="hs-identifier hs-var">Positive</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-54"></span><span>             </span><span class="hs-special">(</span><span class="annot"><span class="annottext">State
+</span><a href="Numeric.Probability.Example.Diagnosis.html#Healthy"><span class="hs-identifier hs-var">Healthy</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">forall prob a. Num prob =&gt; prob -&gt; a -&gt; a -&gt; T prob a
+</span><a href="Numeric.Probability.Distribution.html#choose"><span class="hs-identifier hs-var">Dist.choose</span></a></span><span> </span><span class="annot"><span class="annottext">Probability
+</span><a href="Numeric.Probability.Example.Diagnosis.html#pFalsePositive"><span class="hs-identifier hs-var">pFalsePositive</span></a></span><span> </span><span class="annot"><span class="annottext">Finding
+</span><a href="Numeric.Probability.Example.Diagnosis.html#Positive"><span class="hs-identifier hs-var">Positive</span></a></span><span> </span><span class="annot"><span class="annottext">Finding
+</span><a href="Numeric.Probability.Example.Diagnosis.html#Negative"><span class="hs-identifier hs-var">Negative</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-55"></span><span>      </span><span id="local-6989586621679064955"><span class="annot"><span class="annottext">Finding
+</span><a href="#local-6989586621679064955"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">T Probability Finding
+</span><a href="#local-6989586621679064956"><span class="hs-identifier hs-var">fr</span></a></span><span>
+</span><span id="line-56"></span><span>      </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621679064957"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">,</span><span class="annot"><span class="annottext">Finding
+</span><a href="#local-6989586621679064955"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-57"></span><span>
+</span><span id="line-58"></span><span>
+</span><span id="line-59"></span><span class="annot"><a href="Numeric.Probability.Example.Diagnosis.html#p"><span class="hs-identifier hs-type">p</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Diagnosis.html#Probability"><span class="hs-identifier hs-type">Probability</span></a></span><span>
+</span><span id="line-60"></span><span id="p"><span class="annot"><span class="annottext">p :: Probability
+</span><a href="Numeric.Probability.Example.Diagnosis.html#p"><span class="hs-identifier hs-var hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Eq a =&gt; a -&gt; Event a
+</span><a href="Numeric.Probability.Distribution.html#just"><span class="hs-identifier hs-var">Dist.just</span></a></span><span> </span><span class="annot"><span class="annottext">State
+</span><a href="Numeric.Probability.Example.Diagnosis.html#Ill"><span class="hs-identifier hs-var">Ill</span></a></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a, b) -&gt; a
+</span><span class="hs-identifier hs-var">fst</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall prob a. Num prob =&gt; Event a -&gt; T prob a -&gt; prob
+</span><a href="Numeric.Probability.Distribution.html#%3F%3F"><span class="hs-operator hs-var">??</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Eq a =&gt; a -&gt; Event a
+</span><a href="Numeric.Probability.Distribution.html#just"><span class="hs-identifier hs-var">Dist.just</span></a></span><span> </span><span class="annot"><span class="annottext">Finding
+</span><a href="Numeric.Probability.Example.Diagnosis.html#Positive"><span class="hs-identifier hs-var">Positive</span></a></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a, b) -&gt; b
+</span><span class="hs-identifier hs-var">snd</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall prob a.
+Fractional prob =&gt;
+(a -&gt; Bool) -&gt; T prob a -&gt; T prob a
+</span><a href="Numeric.Probability.Distribution.html#%3F%3D%3C%3C"><span class="hs-operator hs-var">?=&lt;&lt;</span></a></span><span> </span><span class="annot"><span class="annottext">Dist (State, Finding)
+</span><a href="Numeric.Probability.Example.Diagnosis.html#dist"><span class="hs-identifier hs-var">dist</span></a></span><span>
+</span><span id="line-61"></span></pre></body></html>

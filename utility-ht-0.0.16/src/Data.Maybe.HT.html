@@ -1,0 +1,73 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.Maybe.HT</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">fromMaybe</span></span><span class="hs-special">,</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-4"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">msum</span></span><span class="hs-special">,</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-5"></span><span>
+</span><span id="line-6"></span><span class="hs-comment">{- $setup
+&gt;&gt;&gt; import Control.Monad (guard)
+-}</span><span>
+</span><span id="line-9"></span><span>
+</span><span id="line-10"></span><span class="hs-comment">{-
+It was proposed as addition to Data.Maybe and rejected at that time.
+&lt;http://www.haskell.org/pipermail/libraries/2004-July/002381.html&gt;
+-}</span><span>
+</span><span id="line-14"></span><span class="hs-comment">{- | Returns 'Just' if the precondition is fulfilled.
+prop&gt; \b x -&gt;  (guard b &gt;&gt; x)  ==  (toMaybe b =&lt;&lt; (x::Maybe Char))
+-}</span><span>
+</span><span id="line-17"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Maybe.HT.html#toMaybe"><span class="hs-pragma hs-type">toMaybe</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-18"></span><span id="local-6989586621679042645"><span class="annot"><a href="Data.Maybe.HT.html#toMaybe"><span class="hs-identifier hs-type">toMaybe</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679042645"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679042645"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-19"></span><span id="toMaybe"><span class="annot"><span class="annottext">toMaybe :: forall a. Bool -&gt; a -&gt; Maybe a
+</span><a href="Data.Maybe.HT.html#toMaybe"><span class="hs-identifier hs-var hs-var">toMaybe</span></a></span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-20"></span><span class="annot"><a href="Data.Maybe.HT.html#toMaybe"><span class="hs-identifier hs-var">toMaybe</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>  </span><span id="local-6989586621679042621"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679042621"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679042621"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span class="hs-keyword">infixl</span><span> </span><span class="hs-number">6</span><span> </span><span class="annot"><a href="Data.Maybe.HT.html#%3F-%3E"><span class="hs-operator hs-type">?-&gt;</span></a></span><span>
+</span><span id="line-24"></span><span>
+</span><span id="line-25"></span><span class="hs-comment">{- |
+This is an infix version of 'fmap'
+for writing 'Data.Bool.HT.select' style expressions
+using test functions, that produce 'Maybe's.
+
+The precedence is chosen to be higher than '(:)',
+in order to allow:
+
+&gt; alternatives default $
+&gt;    checkForA ?-&gt; (\a -&gt; f a) :
+&gt;    checkForB ?-&gt; (\b -&gt; g b) :
+&gt;    []
+
+The operation is left associative
+in order to allow to write
+
+&gt; checkForA ?-&gt; f ?-&gt; g
+
+which is equivalent to
+
+&gt; checkForA ?-&gt; g . f
+
+due to the functor law.
+-}</span><span>
+</span><span id="line-49"></span><span id="local-6989586621679042641"><span id="local-6989586621679042642"><span class="annot"><a href="Data.Maybe.HT.html#%3F-%3E"><span class="hs-operator hs-type">(?-&gt;)</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679042642"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679042642"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679042641"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679042641"><span class="hs-identifier hs-type">b</span></a></span></span></span><span>
+</span><span id="line-50"></span><span id="%3F-%3E"><span class="annot"><span class="annottext">?-&gt; :: forall a b. Maybe a -&gt; (a -&gt; b) -&gt; Maybe b
+</span><a href="Data.Maybe.HT.html#%3F-%3E"><span class="hs-operator hs-var hs-var">(?-&gt;)</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span>
+</span><span id="line-51"></span><span>
+</span><span id="line-52"></span><span id="local-6989586621679042634"><span class="annot"><a href="Data.Maybe.HT.html#alternatives"><span class="hs-identifier hs-type">alternatives</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="#local-6989586621679042634"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679042634"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679042634"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-53"></span><span id="alternatives"><span class="annot"><span class="annottext">alternatives :: forall a. a -&gt; [Maybe a] -&gt; a
+</span><a href="Data.Maybe.HT.html#alternatives"><span class="hs-identifier hs-var hs-var">alternatives</span></a></span></span><span> </span><span id="local-6989586621679042611"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679042611"><span class="hs-identifier hs-var">deflt</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. a -&gt; Maybe a -&gt; a
+</span><span class="hs-identifier hs-var">fromMaybe</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679042611"><span class="hs-identifier hs-var">deflt</span></a></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) (m :: * -&gt; *) a.
+(Foldable t, MonadPlus m) =&gt;
+t (m a) -&gt; m a
+</span><span class="hs-identifier hs-var">msum</span></span><span>
+</span><span id="line-54"></span></pre></body></html>

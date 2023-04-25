@@ -1,0 +1,395 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Numeric.Probability.Example.MontyHall</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Numeric.Probability.Distribution.html"><span class="hs-identifier">Numeric.Probability.Distribution</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Dist</span></span><span>
+</span><span id="line-4"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Numeric.Probability.Transition.html"><span class="hs-identifier">Numeric.Probability.Transition</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Trans</span></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Numeric.Probability.Simulation.html"><span class="hs-identifier">Numeric.Probability.Simulation</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Numeric.Probability.Simulation.html#~."><span class="hs-operator">(~.)</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-6"></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Numeric.Probability.Percentage.html"><span class="hs-identifier">Numeric.Probability.Percentage</span></a></span><span>
+</span><span id="line-8"></span><span>    </span><span class="hs-special">(</span><span class="annot"><a href="Numeric.Probability.Percentage.html#Dist"><span class="hs-identifier">Dist</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Numeric.Probability.Percentage.html#RDist"><span class="hs-identifier">RDist</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Numeric.Probability.Percentage.html#Trans"><span class="hs-identifier">Trans</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-9"></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Numeric.Probability.Monad.html"><span class="hs-identifier">Numeric.Probability.Monad</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">MonadExt</span></span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.List</span></span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><span class="hs-operator">(\\)</span></span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="hs-comment">{- no Random instance for Rational
+type Probability = Rational
+type Dist a  = Dist.T  Probability a
+type RDist a = Rnd.Distribution Probability a
+type Trans a = Transition    Probability a
+-}</span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span class="hs-keyword">data</span><span> </span><span id="Door"><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#Door"><span class="hs-identifier hs-var">Door</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="A"><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#A"><span class="hs-identifier hs-var">A</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="B"><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#B"><span class="hs-identifier hs-var">B</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="C"><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#C"><span class="hs-identifier hs-var">C</span></a></span></span><span>
+</span><span id="line-23"></span><span>            </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679068133"><span id="local-6989586621679068135"><span class="annot"><span class="annottext">Door -&gt; Door -&gt; Bool
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+/= :: Door -&gt; Door -&gt; Bool
+$c/= :: Door -&gt; Door -&gt; Bool
+== :: Door -&gt; Door -&gt; Bool
+$c== :: Door -&gt; Door -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span id="local-6989586621679068113"><span id="local-6989586621679068115"><span id="local-6989586621679068118"><span id="local-6989586621679068121"><span id="local-6989586621679068124"><span id="local-6989586621679068126"><span id="local-6989586621679068128"><span class="annot"><span class="annottext">Eq Door
+Door -&gt; Door -&gt; Bool
+Door -&gt; Door -&gt; Ordering
+Door -&gt; Door -&gt; Door
+forall a.
+Eq a
+-&gt; (a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+min :: Door -&gt; Door -&gt; Door
+$cmin :: Door -&gt; Door -&gt; Door
+max :: Door -&gt; Door -&gt; Door
+$cmax :: Door -&gt; Door -&gt; Door
+&gt;= :: Door -&gt; Door -&gt; Bool
+$c&gt;= :: Door -&gt; Door -&gt; Bool
+&gt; :: Door -&gt; Door -&gt; Bool
+$c&gt; :: Door -&gt; Door -&gt; Bool
+&lt;= :: Door -&gt; Door -&gt; Bool
+$c&lt;= :: Door -&gt; Door -&gt; Bool
+&lt; :: Door -&gt; Door -&gt; Bool
+$c&lt; :: Door -&gt; Door -&gt; Bool
+compare :: Door -&gt; Door -&gt; Ordering
+$ccompare :: Door -&gt; Door -&gt; Ordering
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span id="local-6989586621679068106"><span id="local-6989586621679068108"><span id="local-6989586621679068110"><span class="annot"><span class="annottext">Int -&gt; Door -&gt; ShowS
+[Door] -&gt; ShowS
+Door -&gt; String
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+showList :: [Door] -&gt; ShowS
+$cshowList :: [Door] -&gt; ShowS
+show :: Door -&gt; String
+$cshow :: Door -&gt; String
+showsPrec :: Int -&gt; Door -&gt; ShowS
+$cshowsPrec :: Int -&gt; Door -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-24"></span><span>
+</span><span id="line-25"></span><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#doors"><span class="hs-identifier hs-type">doors</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#Door"><span class="hs-identifier hs-type">Door</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-26"></span><span id="doors"><span class="annot"><span class="annottext">doors :: [Door]
+</span><a href="Numeric.Probability.Example.MontyHall.html#doors"><span class="hs-identifier hs-var hs-var">doors</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Door
+</span><a href="Numeric.Probability.Example.MontyHall.html#A"><span class="hs-identifier hs-var">A</span></a></span><span class="hs-special">,</span><span class="annot"><span class="annottext">Door
+</span><a href="Numeric.Probability.Example.MontyHall.html#B"><span class="hs-identifier hs-var">B</span></a></span><span class="hs-special">,</span><span class="annot"><span class="annottext">Door
+</span><a href="Numeric.Probability.Example.MontyHall.html#C"><span class="hs-identifier hs-var">C</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span class="hs-keyword">data</span><span> </span><span id="State"><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#State"><span class="hs-identifier hs-var">State</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Doors"><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#Doors"><span class="hs-identifier hs-var">Doors</span></a></span></span><span> </span><span class="hs-special">{</span><span id="prize"><span class="annot"><span class="annottext">State -&gt; Door
+</span><a href="Numeric.Probability.Example.MontyHall.html#prize"><span class="hs-identifier hs-var hs-var">prize</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#Door"><span class="hs-identifier hs-type">Door</span></a></span><span class="hs-special">,</span><span> </span><span id="chosen"><span class="annot"><span class="annottext">State -&gt; Door
+</span><a href="Numeric.Probability.Example.MontyHall.html#chosen"><span class="hs-identifier hs-var hs-var">chosen</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#Door"><span class="hs-identifier hs-type">Door</span></a></span><span class="hs-special">,</span><span> </span><span id="opened"><span class="annot"><span class="annottext">State -&gt; Door
+</span><a href="Numeric.Probability.Example.MontyHall.html#opened"><span class="hs-identifier hs-var hs-var">opened</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#Door"><span class="hs-identifier hs-type">Door</span></a></span><span class="hs-special">}</span><span>
+</span><span id="line-29"></span><span>             </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679068093"><span id="local-6989586621679068098"><span class="annot"><span class="annottext">State -&gt; State -&gt; Bool
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+/= :: State -&gt; State -&gt; Bool
+$c/= :: State -&gt; State -&gt; Bool
+== :: State -&gt; State -&gt; Bool
+$c== :: State -&gt; State -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span id="local-6989586621679068068"><span id="local-6989586621679068070"><span id="local-6989586621679068073"><span id="local-6989586621679068076"><span id="local-6989586621679068079"><span id="local-6989586621679068084"><span id="local-6989586621679068089"><span class="annot"><span class="annottext">Eq State
+State -&gt; State -&gt; Bool
+State -&gt; State -&gt; Ordering
+State -&gt; State -&gt; State
+forall a.
+Eq a
+-&gt; (a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+min :: State -&gt; State -&gt; State
+$cmin :: State -&gt; State -&gt; State
+max :: State -&gt; State -&gt; State
+$cmax :: State -&gt; State -&gt; State
+&gt;= :: State -&gt; State -&gt; Bool
+$c&gt;= :: State -&gt; State -&gt; Bool
+&gt; :: State -&gt; State -&gt; Bool
+$c&gt; :: State -&gt; State -&gt; Bool
+&lt;= :: State -&gt; State -&gt; Bool
+$c&lt;= :: State -&gt; State -&gt; Bool
+&lt; :: State -&gt; State -&gt; Bool
+$c&lt; :: State -&gt; State -&gt; Bool
+compare :: State -&gt; State -&gt; Ordering
+$ccompare :: State -&gt; State -&gt; Ordering
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span id="local-6989586621679068057"><span id="local-6989586621679068059"><span id="local-6989586621679068066"><span class="annot"><span class="annottext">Int -&gt; State -&gt; ShowS
+[State] -&gt; ShowS
+State -&gt; String
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+showList :: [State] -&gt; ShowS
+$cshowList :: [State] -&gt; ShowS
+show :: State -&gt; String
+$cshow :: State -&gt; String
+showsPrec :: Int -&gt; State -&gt; ShowS
+$cshowsPrec :: Int -&gt; State -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-30"></span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span class="hs-comment">-- | initial configuration of the game status</span><span>
+</span><span id="line-33"></span><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#start"><span class="hs-identifier hs-type">start</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#State"><span class="hs-identifier hs-type">State</span></a></span><span>
+</span><span id="line-34"></span><span id="start"><span class="annot"><span class="annottext">start :: State
+</span><a href="Numeric.Probability.Example.MontyHall.html#start"><span class="hs-identifier hs-var hs-var">start</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#Doors"><span class="hs-identifier hs-type">Doors</span></a></span><span> </span><span class="hs-special">{</span><span class="annot"><span class="annottext">prize :: Door
+</span><a href="Numeric.Probability.Example.MontyHall.html#prize"><span class="hs-identifier hs-var">prize</span></a></span><span class="hs-glyph">=</span><span class="annot"><span class="annottext">forall {a}. a
+</span><a href="#local-6989586621679068055"><span class="hs-identifier hs-var">u</span></a></span><span class="hs-special">,</span><span class="annot"><span class="annottext">chosen :: Door
+</span><a href="Numeric.Probability.Example.MontyHall.html#chosen"><span class="hs-identifier hs-var">chosen</span></a></span><span class="hs-glyph">=</span><span class="annot"><span class="annottext">forall {a}. a
+</span><a href="#local-6989586621679068055"><span class="hs-identifier hs-var">u</span></a></span><span class="hs-special">,</span><span class="annot"><span class="annottext">opened :: Door
+</span><a href="Numeric.Probability.Example.MontyHall.html#opened"><span class="hs-identifier hs-var">opened</span></a></span><span class="hs-glyph">=</span><span class="annot"><span class="annottext">forall {a}. a
+</span><a href="#local-6989586621679068055"><span class="hs-identifier hs-var">u</span></a></span><span class="hs-special">}</span><span> </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621679068055"><span class="annot"><span class="annottext">u :: a
+</span><a href="#local-6989586621679068055"><span class="hs-identifier hs-var hs-var">u</span></a></span></span><span class="hs-glyph">=</span><span class="annot"><span class="annottext">forall a. HasCallStack =&gt; a
+</span><span class="hs-identifier hs-var">undefined</span></span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span class="hs-comment">{- |
+Steps of the game:
+
+ (1) hide the prize
+
+ (2) choose a door
+
+ (3) open a non-open door, not revealing the prize
+
+ (4) apply strategy: switch or stay
+-}</span><span>
+</span><span id="line-48"></span><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#hide"><span class="hs-identifier hs-type">hide</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Percentage.html#Trans"><span class="hs-identifier hs-type">Trans</span></a></span><span> </span><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#State"><span class="hs-identifier hs-type">State</span></a></span><span>
+</span><span id="line-49"></span><span id="hide"><span class="annot"><span class="annottext">hide :: Trans State
+</span><a href="Numeric.Probability.Example.MontyHall.html#hide"><span class="hs-identifier hs-var hs-var">hide</span></a></span></span><span> </span><span id="local-6989586621679068050"><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621679068050"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall prob a. Fractional prob =&gt; Spread prob a
+</span><a href="Numeric.Probability.Distribution.html#uniform"><span class="hs-identifier hs-var">Dist.uniform</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621679068050"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-special">{</span><span class="annot"><span class="annottext">prize :: Door
+</span><a href="Numeric.Probability.Example.MontyHall.html#prize"><span class="hs-identifier hs-var">prize</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Door
+</span><a href="#local-6989586621679068048"><span class="hs-identifier hs-var">d</span></a></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">|</span><span> </span><span id="local-6989586621679068048"><span class="annot"><span class="annottext">Door
+</span><a href="#local-6989586621679068048"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[Door]
+</span><a href="Numeric.Probability.Example.MontyHall.html#doors"><span class="hs-identifier hs-var">doors</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-50"></span><span>
+</span><span id="line-51"></span><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#choose"><span class="hs-identifier hs-type">choose</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Percentage.html#Trans"><span class="hs-identifier hs-type">Trans</span></a></span><span> </span><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#State"><span class="hs-identifier hs-type">State</span></a></span><span>
+</span><span id="line-52"></span><span id="choose"><span class="annot"><span class="annottext">choose :: Trans State
+</span><a href="Numeric.Probability.Example.MontyHall.html#choose"><span class="hs-identifier hs-var hs-var">choose</span></a></span></span><span> </span><span id="local-6989586621679068046"><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621679068046"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall prob a. Fractional prob =&gt; Spread prob a
+</span><a href="Numeric.Probability.Distribution.html#uniform"><span class="hs-identifier hs-var">Dist.uniform</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621679068046"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-special">{</span><span class="annot"><span class="annottext">chosen :: Door
+</span><a href="Numeric.Probability.Example.MontyHall.html#chosen"><span class="hs-identifier hs-var">chosen</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Door
+</span><a href="#local-6989586621679068045"><span class="hs-identifier hs-var">d</span></a></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">|</span><span> </span><span id="local-6989586621679068045"><span class="annot"><span class="annottext">Door
+</span><a href="#local-6989586621679068045"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[Door]
+</span><a href="Numeric.Probability.Example.MontyHall.html#doors"><span class="hs-identifier hs-var">doors</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-53"></span><span>
+</span><span id="line-54"></span><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#open"><span class="hs-identifier hs-type">open</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Percentage.html#Trans"><span class="hs-identifier hs-type">Trans</span></a></span><span> </span><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#State"><span class="hs-identifier hs-type">State</span></a></span><span>
+</span><span id="line-55"></span><span id="open"><span class="annot"><span class="annottext">open :: Trans State
+</span><a href="Numeric.Probability.Example.MontyHall.html#open"><span class="hs-identifier hs-var hs-var">open</span></a></span></span><span> </span><span id="local-6989586621679068043"><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621679068043"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall prob a. Fractional prob =&gt; Spread prob a
+</span><a href="Numeric.Probability.Distribution.html#uniform"><span class="hs-identifier hs-var">Dist.uniform</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621679068043"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-special">{</span><span class="annot"><span class="annottext">opened :: Door
+</span><a href="Numeric.Probability.Example.MontyHall.html#opened"><span class="hs-identifier hs-var">opened</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Door
+</span><a href="#local-6989586621679068042"><span class="hs-identifier hs-var">d</span></a></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">|</span><span> </span><span id="local-6989586621679068042"><span class="annot"><span class="annottext">Door
+</span><a href="#local-6989586621679068042"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[Door]
+</span><a href="Numeric.Probability.Example.MontyHall.html#doors"><span class="hs-identifier hs-var">doors</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Eq a =&gt; [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">\\</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">State -&gt; Door
+</span><a href="Numeric.Probability.Example.MontyHall.html#prize"><span class="hs-identifier hs-var">prize</span></a></span><span> </span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621679068043"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">,</span><span class="annot"><span class="annottext">State -&gt; Door
+</span><a href="Numeric.Probability.Example.MontyHall.html#chosen"><span class="hs-identifier hs-var">chosen</span></a></span><span> </span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621679068043"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">]</span><span class="hs-special">]</span><span>
+</span><span id="line-56"></span><span>
+</span><span id="line-57"></span><span class="hs-keyword">type</span><span> </span><span id="Strategy"><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#Strategy"><span class="hs-identifier hs-var">Strategy</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Numeric.Probability.Percentage.html#Trans"><span class="hs-identifier hs-type">Trans</span></a></span><span> </span><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#State"><span class="hs-identifier hs-type">State</span></a></span><span>
+</span><span id="line-58"></span><span>
+</span><span id="line-59"></span><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#switch"><span class="hs-identifier hs-type">switch</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#Strategy"><span class="hs-identifier hs-type">Strategy</span></a></span><span>
+</span><span id="line-60"></span><span id="switch"><span class="annot"><span class="annottext">switch :: Trans State
+</span><a href="Numeric.Probability.Example.MontyHall.html#switch"><span class="hs-identifier hs-var hs-var">switch</span></a></span></span><span> </span><span id="local-6989586621679068039"><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621679068039"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall prob a. Fractional prob =&gt; Spread prob a
+</span><a href="Numeric.Probability.Distribution.html#uniform"><span class="hs-identifier hs-var">Dist.uniform</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621679068039"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-special">{</span><span class="annot"><span class="annottext">chosen :: Door
+</span><a href="Numeric.Probability.Example.MontyHall.html#chosen"><span class="hs-identifier hs-var">chosen</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Door
+</span><a href="#local-6989586621679068038"><span class="hs-identifier hs-var">d</span></a></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">|</span><span> </span><span id="local-6989586621679068038"><span class="annot"><span class="annottext">Door
+</span><a href="#local-6989586621679068038"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[Door]
+</span><a href="Numeric.Probability.Example.MontyHall.html#doors"><span class="hs-identifier hs-var">doors</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Eq a =&gt; [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">\\</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">State -&gt; Door
+</span><a href="Numeric.Probability.Example.MontyHall.html#chosen"><span class="hs-identifier hs-var">chosen</span></a></span><span> </span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621679068039"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">,</span><span class="annot"><span class="annottext">State -&gt; Door
+</span><a href="Numeric.Probability.Example.MontyHall.html#opened"><span class="hs-identifier hs-var">opened</span></a></span><span> </span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621679068039"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">]</span><span class="hs-special">]</span><span>
+</span><span id="line-61"></span><span>
+</span><span id="line-62"></span><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#stay"><span class="hs-identifier hs-type">stay</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#Strategy"><span class="hs-identifier hs-type">Strategy</span></a></span><span>
+</span><span id="line-63"></span><span id="stay"><span class="annot"><span class="annottext">stay :: Trans State
+</span><a href="Numeric.Probability.Example.MontyHall.html#stay"><span class="hs-identifier hs-var hs-var">stay</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall prob a. Num prob =&gt; T prob a
+</span><a href="Numeric.Probability.Transition.html#id"><span class="hs-identifier hs-var">Trans.id</span></a></span><span>
+</span><span id="line-64"></span><span>
+</span><span id="line-65"></span><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#game"><span class="hs-identifier hs-type">game</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#Strategy"><span class="hs-identifier hs-type">Strategy</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Percentage.html#Trans"><span class="hs-identifier hs-type">Trans</span></a></span><span> </span><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#State"><span class="hs-identifier hs-type">State</span></a></span><span>
+</span><span id="line-66"></span><span id="game"><span class="annot"><span class="annottext">game :: Trans State -&gt; Trans State
+</span><a href="Numeric.Probability.Example.MontyHall.html#game"><span class="hs-identifier hs-var hs-var">game</span></a></span></span><span> </span><span id="local-6989586621679068034"><span class="annot"><span class="annottext">Trans State
+</span><a href="#local-6989586621679068034"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; [a -&gt; m a] -&gt; a -&gt; m a
+</span><a href="Numeric.Probability.Monad.html#compose"><span class="hs-identifier hs-var">MonadExt.compose</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Trans State
+</span><a href="Numeric.Probability.Example.MontyHall.html#hide"><span class="hs-identifier hs-var">hide</span></a></span><span class="hs-special">,</span><span class="annot"><span class="annottext">Trans State
+</span><a href="Numeric.Probability.Example.MontyHall.html#choose"><span class="hs-identifier hs-var">choose</span></a></span><span class="hs-special">,</span><span class="annot"><span class="annottext">Trans State
+</span><a href="Numeric.Probability.Example.MontyHall.html#open"><span class="hs-identifier hs-var">open</span></a></span><span class="hs-special">,</span><span class="annot"><span class="annottext">Trans State
+</span><a href="#local-6989586621679068034"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-67"></span><span>
+</span><span id="line-68"></span><span>
+</span><span id="line-69"></span><span class="hs-comment">-- * Playing the game</span><span>
+</span><span id="line-70"></span><span>
+</span><span id="line-71"></span><span class="hs-keyword">data</span><span> </span><span id="Outcome"><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#Outcome"><span class="hs-identifier hs-var">Outcome</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Win"><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#Win"><span class="hs-identifier hs-var">Win</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="Lose"><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#Lose"><span class="hs-identifier hs-var">Lose</span></a></span></span><span>
+</span><span id="line-72"></span><span>               </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679068027"><span id="local-6989586621679068029"><span class="annot"><span class="annottext">Outcome -&gt; Outcome -&gt; Bool
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+/= :: Outcome -&gt; Outcome -&gt; Bool
+$c/= :: Outcome -&gt; Outcome -&gt; Bool
+== :: Outcome -&gt; Outcome -&gt; Bool
+$c== :: Outcome -&gt; Outcome -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span id="local-6989586621679068008"><span id="local-6989586621679068010"><span id="local-6989586621679068013"><span id="local-6989586621679068016"><span id="local-6989586621679068019"><span id="local-6989586621679068021"><span id="local-6989586621679068023"><span class="annot"><span class="annottext">Eq Outcome
+Outcome -&gt; Outcome -&gt; Bool
+Outcome -&gt; Outcome -&gt; Ordering
+Outcome -&gt; Outcome -&gt; Outcome
+forall a.
+Eq a
+-&gt; (a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+min :: Outcome -&gt; Outcome -&gt; Outcome
+$cmin :: Outcome -&gt; Outcome -&gt; Outcome
+max :: Outcome -&gt; Outcome -&gt; Outcome
+$cmax :: Outcome -&gt; Outcome -&gt; Outcome
+&gt;= :: Outcome -&gt; Outcome -&gt; Bool
+$c&gt;= :: Outcome -&gt; Outcome -&gt; Bool
+&gt; :: Outcome -&gt; Outcome -&gt; Bool
+$c&gt; :: Outcome -&gt; Outcome -&gt; Bool
+&lt;= :: Outcome -&gt; Outcome -&gt; Bool
+$c&lt;= :: Outcome -&gt; Outcome -&gt; Bool
+&lt; :: Outcome -&gt; Outcome -&gt; Bool
+$c&lt; :: Outcome -&gt; Outcome -&gt; Bool
+compare :: Outcome -&gt; Outcome -&gt; Ordering
+$ccompare :: Outcome -&gt; Outcome -&gt; Ordering
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span id="local-6989586621679068002"><span id="local-6989586621679068004"><span id="local-6989586621679068006"><span class="annot"><span class="annottext">Int -&gt; Outcome -&gt; ShowS
+[Outcome] -&gt; ShowS
+Outcome -&gt; String
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+showList :: [Outcome] -&gt; ShowS
+$cshowList :: [Outcome] -&gt; ShowS
+show :: Outcome -&gt; String
+$cshow :: Outcome -&gt; String
+showsPrec :: Int -&gt; Outcome -&gt; ShowS
+$cshowsPrec :: Int -&gt; Outcome -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-73"></span><span>
+</span><span id="line-74"></span><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#result"><span class="hs-identifier hs-type">result</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#State"><span class="hs-identifier hs-type">State</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#Outcome"><span class="hs-identifier hs-type">Outcome</span></a></span><span>
+</span><span id="line-75"></span><span id="result"><span class="annot"><span class="annottext">result :: State -&gt; Outcome
+</span><a href="Numeric.Probability.Example.MontyHall.html#result"><span class="hs-identifier hs-var hs-var">result</span></a></span></span><span> </span><span id="local-6989586621679068000"><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621679068000"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">State -&gt; Door
+</span><a href="Numeric.Probability.Example.MontyHall.html#chosen"><span class="hs-identifier hs-var">chosen</span></a></span><span> </span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621679068000"><span class="hs-identifier hs-var">s</span></a></span><span class="annot"><span class="annottext">forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span class="annot"><span class="annottext">State -&gt; Door
+</span><a href="Numeric.Probability.Example.MontyHall.html#prize"><span class="hs-identifier hs-var">prize</span></a></span><span> </span><span class="annot"><span class="annottext">State
+</span><a href="#local-6989586621679068000"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">Outcome
+</span><a href="Numeric.Probability.Example.MontyHall.html#Win"><span class="hs-identifier hs-var">Win</span></a></span><span> </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">Outcome
+</span><a href="Numeric.Probability.Example.MontyHall.html#Lose"><span class="hs-identifier hs-var">Lose</span></a></span><span>
+</span><span id="line-76"></span><span>
+</span><span id="line-77"></span><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#eval"><span class="hs-identifier hs-type">eval</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#Strategy"><span class="hs-identifier hs-type">Strategy</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Percentage.html#Dist"><span class="hs-identifier hs-type">Dist</span></a></span><span> </span><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#Outcome"><span class="hs-identifier hs-type">Outcome</span></a></span><span>
+</span><span id="line-78"></span><span id="eval"><span class="annot"><span class="annottext">eval :: Trans State -&gt; Dist Outcome
+</span><a href="Numeric.Probability.Example.MontyHall.html#eval"><span class="hs-identifier hs-var hs-var">eval</span></a></span></span><span> </span><span id="local-6989586621679067998"><span class="annot"><span class="annottext">Trans State
+</span><a href="#local-6989586621679067998"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall prob b a.
+(Num prob, Ord b) =&gt;
+(a -&gt; b) -&gt; T prob a -&gt; T prob b
+</span><a href="Numeric.Probability.Distribution.html#map"><span class="hs-identifier hs-var">Dist.map</span></a></span><span> </span><span class="annot"><span class="annottext">State -&gt; Outcome
+</span><a href="Numeric.Probability.Example.MontyHall.html#result"><span class="hs-identifier hs-var">result</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Trans State -&gt; Trans State
+</span><a href="Numeric.Probability.Example.MontyHall.html#game"><span class="hs-identifier hs-var">game</span></a></span><span> </span><span class="annot"><span class="annottext">Trans State
+</span><a href="#local-6989586621679067998"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">State
+</span><a href="Numeric.Probability.Example.MontyHall.html#start"><span class="hs-identifier hs-var">start</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-79"></span><span>
+</span><span id="line-80"></span><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#simEval"><span class="hs-identifier hs-type">simEval</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#Strategy"><span class="hs-identifier hs-type">Strategy</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Percentage.html#RDist"><span class="hs-identifier hs-type">RDist</span></a></span><span> </span><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#Outcome"><span class="hs-identifier hs-type">Outcome</span></a></span><span>
+</span><span id="line-81"></span><span id="simEval"><span class="annot"><span class="annottext">simEval :: Int -&gt; Trans State -&gt; RDist Outcome
+</span><a href="Numeric.Probability.Example.MontyHall.html#simEval"><span class="hs-identifier hs-var hs-var">simEval</span></a></span></span><span> </span><span id="local-6989586621679067995"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679067995"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span id="local-6989586621679067994"><span class="annot"><span class="annottext">Trans State
+</span><a href="#local-6989586621679067994"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall prob b a.
+(Num prob, Ord b) =&gt;
+(a -&gt; b) -&gt; T prob a -&gt; T prob b
+</span><a href="Numeric.Probability.Distribution.html#map"><span class="hs-identifier hs-var">Dist.map</span></a></span><span> </span><span class="annot"><span class="annottext">State -&gt; Outcome
+</span><a href="Numeric.Probability.Example.MontyHall.html#result"><span class="hs-identifier hs-var">result</span></a></span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">`fmap`</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679067995"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">forall (c :: * -&gt; *) prob a.
+(C c, Fractional prob, Ord prob, Random prob, Ord a) =&gt;
+Int -&gt; (a -&gt; c a) -&gt; Transition prob a
+</span><a href="Numeric.Probability.Simulation.html#~."><span class="hs-operator hs-var">~.</span></a></span><span> </span><span class="annot"><span class="annottext">Trans State -&gt; Trans State
+</span><a href="Numeric.Probability.Example.MontyHall.html#game"><span class="hs-identifier hs-var">game</span></a></span><span> </span><span class="annot"><span class="annottext">Trans State
+</span><a href="#local-6989586621679067994"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">State
+</span><a href="Numeric.Probability.Example.MontyHall.html#start"><span class="hs-identifier hs-var">start</span></a></span><span>
+</span><span id="line-82"></span><span>
+</span><span id="line-83"></span><span>
+</span><span id="line-84"></span><span class="hs-comment">-- * Alternative modeling</span><span>
+</span><span id="line-85"></span><span>
+</span><span id="line-86"></span><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#firstChoice"><span class="hs-identifier hs-type">firstChoice</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Percentage.html#Dist"><span class="hs-identifier hs-type">Dist</span></a></span><span> </span><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#Outcome"><span class="hs-identifier hs-type">Outcome</span></a></span><span>
+</span><span id="line-87"></span><span id="firstChoice"><span class="annot"><span class="annottext">firstChoice :: Dist Outcome
+</span><a href="Numeric.Probability.Example.MontyHall.html#firstChoice"><span class="hs-identifier hs-var hs-var">firstChoice</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall prob a. Fractional prob =&gt; Spread prob a
+</span><a href="Numeric.Probability.Distribution.html#uniform"><span class="hs-identifier hs-var">Dist.uniform</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Outcome
+</span><a href="Numeric.Probability.Example.MontyHall.html#Win"><span class="hs-identifier hs-var">Win</span></a></span><span class="hs-special">,</span><span class="annot"><span class="annottext">Outcome
+</span><a href="Numeric.Probability.Example.MontyHall.html#Lose"><span class="hs-identifier hs-var">Lose</span></a></span><span class="hs-special">,</span><span class="annot"><span class="annottext">Outcome
+</span><a href="Numeric.Probability.Example.MontyHall.html#Lose"><span class="hs-identifier hs-var">Lose</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-88"></span><span>
+</span><span id="line-89"></span><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#switch%27"><span class="hs-identifier hs-type">switch'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Percentage.html#Trans"><span class="hs-identifier hs-type">Trans</span></a></span><span> </span><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#Outcome"><span class="hs-identifier hs-type">Outcome</span></a></span><span>
+</span><span id="line-90"></span><span id="switch%27"><span class="annot"><span class="annottext">switch' :: Trans Outcome
+</span><a href="Numeric.Probability.Example.MontyHall.html#switch%27"><span class="hs-identifier hs-var hs-var">switch'</span></a></span></span><span> </span><span class="annot"><span class="annottext">Outcome
+</span><a href="Numeric.Probability.Example.MontyHall.html#Win"><span class="hs-identifier hs-var">Win</span></a></span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall prob a. Num prob =&gt; T prob a
+</span><a href="Numeric.Probability.Distribution.html#certainly"><span class="hs-identifier hs-var">Dist.certainly</span></a></span><span> </span><span class="annot"><span class="annottext">Outcome
+</span><a href="Numeric.Probability.Example.MontyHall.html#Lose"><span class="hs-identifier hs-var">Lose</span></a></span><span>
+</span><span id="line-91"></span><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#switch%27"><span class="hs-identifier hs-var">switch'</span></a></span><span> </span><span class="annot"><span class="annottext">Outcome
+</span><a href="Numeric.Probability.Example.MontyHall.html#Lose"><span class="hs-identifier hs-var">Lose</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall prob a. Num prob =&gt; T prob a
+</span><a href="Numeric.Probability.Distribution.html#certainly"><span class="hs-identifier hs-var">Dist.certainly</span></a></span><span> </span><span class="annot"><span class="annottext">Outcome
+</span><a href="Numeric.Probability.Example.MontyHall.html#Win"><span class="hs-identifier hs-var">Win</span></a></span><span>
+</span><span id="line-92"></span><span>
+</span><span id="line-93"></span><span>
+</span><span id="line-94"></span><span class="hs-comment">-- * Play the game the monadic way</span><span>
+</span><span id="line-95"></span><span>
+</span><span id="line-96"></span><span class="hs-keyword">type</span><span> </span><span id="StrategyM"><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#StrategyM"><span class="hs-identifier hs-var">StrategyM</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#Door"><span class="hs-identifier hs-type">Door</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#Door"><span class="hs-identifier hs-type">Door</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#Door"><span class="hs-identifier hs-type">Door</span></a></span><span>
+</span><span id="line-97"></span><span>
+</span><span id="line-98"></span><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#stayM"><span class="hs-identifier hs-type">stayM</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#StrategyM"><span class="hs-identifier hs-type">StrategyM</span></a></span><span>
+</span><span id="line-99"></span><span id="stayM"><span class="annot"><span class="annottext">stayM :: Door -&gt; Door -&gt; Door
+</span><a href="Numeric.Probability.Example.MontyHall.html#stayM"><span class="hs-identifier hs-var hs-var">stayM</span></a></span></span><span> </span><span id="local-6989586621679067988"><span class="annot"><span class="annottext">Door
+</span><a href="#local-6989586621679067988"><span class="hs-identifier hs-var">chosenDoor</span></a></span></span><span> </span><span id="local-6989586621679067987"><span class="annot"><span class="annottext">Door
+</span><a href="#local-6989586621679067987"><span class="hs-identifier hs-var">_openedDoor</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Door
+</span><a href="#local-6989586621679067988"><span class="hs-identifier hs-var">chosenDoor</span></a></span><span>
+</span><span id="line-100"></span><span>
+</span><span id="line-101"></span><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#switchM"><span class="hs-identifier hs-type">switchM</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#StrategyM"><span class="hs-identifier hs-type">StrategyM</span></a></span><span>
+</span><span id="line-102"></span><span id="switchM"><span class="annot"><span class="annottext">switchM :: Door -&gt; Door -&gt; Door
+</span><a href="Numeric.Probability.Example.MontyHall.html#switchM"><span class="hs-identifier hs-var hs-var">switchM</span></a></span></span><span> </span><span id="local-6989586621679067985"><span class="annot"><span class="annottext">Door
+</span><a href="#local-6989586621679067985"><span class="hs-identifier hs-var">chosenDoor</span></a></span></span><span> </span><span id="local-6989586621679067984"><span class="annot"><span class="annottext">Door
+</span><a href="#local-6989586621679067984"><span class="hs-identifier hs-var">openedDoor</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-103"></span><span>   </span><span class="hs-keyword">let</span><span> </span><span class="hs-special">[</span><span id="local-6989586621679067982"><span class="annot"><span class="annottext">Door
+</span><a href="#local-6989586621679067982"><span class="hs-identifier hs-var">finalDoor</span></a></span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Door]
+</span><a href="Numeric.Probability.Example.MontyHall.html#doors"><span class="hs-identifier hs-var">doors</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Eq a =&gt; [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">\\</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Door
+</span><a href="#local-6989586621679067985"><span class="hs-identifier hs-var">chosenDoor</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Door
+</span><a href="#local-6989586621679067984"><span class="hs-identifier hs-var">openedDoor</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-104"></span><span>   </span><span class="hs-keyword">in</span><span>  </span><span class="annot"><span class="annottext">Door
+</span><a href="#local-6989586621679067982"><span class="hs-identifier hs-var">finalDoor</span></a></span><span>
+</span><span id="line-105"></span><span>
+</span><span id="line-106"></span><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#evalM"><span class="hs-identifier hs-type">evalM</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#StrategyM"><span class="hs-identifier hs-type">StrategyM</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Percentage.html#Dist"><span class="hs-identifier hs-type">Dist</span></a></span><span> </span><span class="annot"><a href="Numeric.Probability.Example.MontyHall.html#Outcome"><span class="hs-identifier hs-type">Outcome</span></a></span><span>
+</span><span id="line-107"></span><span id="evalM"><span class="annot"><span class="annottext">evalM :: (Door -&gt; Door -&gt; Door) -&gt; Dist Outcome
+</span><a href="Numeric.Probability.Example.MontyHall.html#evalM"><span class="hs-identifier hs-var hs-var">evalM</span></a></span></span><span> </span><span id="local-6989586621679067980"><span class="annot"><span class="annottext">Door -&gt; Door -&gt; Door
+</span><a href="#local-6989586621679067980"><span class="hs-identifier hs-var">chooseFinalDoor</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-108"></span><span>   </span><span class="hs-keyword">do</span><span> </span><span id="local-6989586621679067979"><span class="annot"><span class="annottext">Door
+</span><a href="#local-6989586621679067979"><span class="hs-identifier hs-var">prizeDoor</span></a></span></span><span>  </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall prob a. Fractional prob =&gt; Spread prob a
+</span><a href="Numeric.Probability.Distribution.html#uniform"><span class="hs-identifier hs-var">Dist.uniform</span></a></span><span> </span><span class="annot"><span class="annottext">[Door]
+</span><a href="Numeric.Probability.Example.MontyHall.html#doors"><span class="hs-identifier hs-var">doors</span></a></span><span>
+</span><span id="line-109"></span><span>      </span><span id="local-6989586621679067978"><span class="annot"><span class="annottext">Door
+</span><a href="#local-6989586621679067978"><span class="hs-identifier hs-var">chosenDoor</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall prob a. Fractional prob =&gt; Spread prob a
+</span><a href="Numeric.Probability.Distribution.html#uniform"><span class="hs-identifier hs-var">Dist.uniform</span></a></span><span> </span><span class="annot"><span class="annottext">[Door]
+</span><a href="Numeric.Probability.Example.MontyHall.html#doors"><span class="hs-identifier hs-var">doors</span></a></span><span>
+</span><span id="line-110"></span><span>      </span><span id="local-6989586621679067977"><span class="annot"><span class="annottext">Door
+</span><a href="#local-6989586621679067977"><span class="hs-identifier hs-var">openedDoor</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall prob a. Fractional prob =&gt; Spread prob a
+</span><a href="Numeric.Probability.Distribution.html#uniform"><span class="hs-identifier hs-var">Dist.uniform</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Door]
+</span><a href="Numeric.Probability.Example.MontyHall.html#doors"><span class="hs-identifier hs-var">doors</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Eq a =&gt; [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">\\</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Door
+</span><a href="#local-6989586621679067979"><span class="hs-identifier hs-var">prizeDoor</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Door
+</span><a href="#local-6989586621679067978"><span class="hs-identifier hs-var">chosenDoor</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-111"></span><span>      </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Door -&gt; Door -&gt; Door
+</span><a href="#local-6989586621679067980"><span class="hs-identifier hs-var">chooseFinalDoor</span></a></span><span> </span><span class="annot"><span class="annottext">Door
+</span><a href="#local-6989586621679067978"><span class="hs-identifier hs-var">chosenDoor</span></a></span><span> </span><span class="annot"><span class="annottext">Door
+</span><a href="#local-6989586621679067977"><span class="hs-identifier hs-var">openedDoor</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Door
+</span><a href="#local-6989586621679067979"><span class="hs-identifier hs-var">prizeDoor</span></a></span><span>
+</span><span id="line-112"></span><span>                </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">Outcome
+</span><a href="Numeric.Probability.Example.MontyHall.html#Win"><span class="hs-identifier hs-var">Win</span></a></span><span> </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">Outcome
+</span><a href="Numeric.Probability.Example.MontyHall.html#Lose"><span class="hs-identifier hs-var">Lose</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-113"></span></pre></body></html>

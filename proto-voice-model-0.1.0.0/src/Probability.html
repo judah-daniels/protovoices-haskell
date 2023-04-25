@@ -1,0 +1,1022 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE UndecidableInstances #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Probability</span><span>
+</span><span id="line-4"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Probability.html#multinomialLogProb"><span class="hs-identifier">multinomialLogProb</span></a></span><span>
+</span><span id="line-5"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Probability.html#sampleR"><span class="hs-identifier">sampleR</span></a></span><span>
+</span><span id="line-6"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Probability.html#categoricalLogProb"><span class="hs-identifier">categoricalLogProb</span></a></span><span>
+</span><span id="line-7"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Probability.html#pickRandomChoice"><span class="hs-identifier">pickRandomChoice</span></a></span><span>
+</span><span id="line-8"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Probability.html#pickReservoir10"><span class="hs-identifier">pickReservoir10</span></a></span><span>
+</span><span id="line-9"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Probability.html#collectRandomSample"><span class="hs-identifier">collectRandomSample</span></a></span><span>
+</span><span id="line-10"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Probability.html#collectRandomChoice"><span class="hs-identifier">collectRandomChoice</span></a></span><span>
+</span><span id="line-11"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Probability.html#mixture"><span class="hs-identifier">mixture</span></a></span><span>
+</span><span id="line-12"></span><span>  </span><span class="hs-comment">-- , ProbTIO</span><span>
+</span><span id="line-13"></span><span>  </span><span class="hs-comment">-- , ProbT</span><span>
+</span><span id="line-14"></span><span>  </span><span class="hs-comment">-- , pickRandom'</span><span>
+</span><span id="line-15"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Probability.html#Prob"><span class="hs-identifier">Prob</span></a></span><span>
+</span><span id="line-16"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Probability.html#RandomChoice"><span class="hs-identifier">RandomChoice</span></a></span><span>
+</span><span id="line-17"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Probability.html#testProb"><span class="hs-identifier">testProb</span></a></span><span>
+</span><span id="line-18"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Probability.html#poissonSample"><span class="hs-identifier">poissonSample</span></a></span><span>
+</span><span id="line-19"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Probability.html#sample"><span class="hs-identifier">sample</span></a></span><span>
+</span><span id="line-20"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Probability.html#reservoirSample"><span class="hs-identifier">reservoirSample</span></a></span><span>
+</span><span id="line-21"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Probability.html#pickRandom"><span class="hs-identifier">pickRandom</span></a></span><span>
+</span><span id="line-22"></span><span>  </span><span class="hs-special">)</span><span>
+</span><span id="line-23"></span><span class="hs-keyword">where</span><span>
+</span><span id="line-24"></span><span>
+</span><span id="line-25"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad</span></span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Trans.Maybe</span></span><span>
+</span><span id="line-27"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Vector</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">V</span></span><span>
+</span><span id="line-28"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Debug.Trace</span></span><span>
+</span><span id="line-29"></span><span>
+</span><span id="line-30"></span><span class="hs-comment">-- import Numeric.Probability.Distribution as P</span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Trans</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">lift</span></span><span class="hs-special">)</span><span>
+</span><span id="line-33"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Maybe</span></span><span>
+</span><span id="line-34"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Numeric.SpecFunctions</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">logGamma</span></span><span class="hs-special">)</span><span>
+</span><span id="line-35"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">System.Random</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">R</span></span><span>
+</span><span id="line-36"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">System.Random.Stateful</span></span><span>
+</span><span id="line-37"></span><span>
+</span><span id="line-38"></span><span class="hs-comment">{- | Sample n elements from a list
+sample :: Show a =&gt; Int -&gt; [a] -&gt; Reservoir a [a]
+sample n xs = do
+  let len = length xs
+  let updateReservoir x = do
+        ys &lt;- get
+        i &lt;- lift $ randomRIO (0, len)
+        if i &lt; n
+          then put (take i ys ++ [x] ++ drop (i + 1) ys)
+          else return ()
+  liftIO $ putStrLn &quot;Reservoir sampling...&quot;
+  liftIO $ putStrLn $ &quot;List length: &quot; ++ show len
+  liftIO $ putStrLn $ &quot;Reservoir size: &quot; ++ show n
+  liftIO $ putStrLn &quot;Reservoir:&quot;
+  liftIO $ putStrLn &quot;---------&quot;
+  put (take n xs)
+  forM_ (drop n xs) $ \x -&gt; do
+    updateReservoir x
+    get &gt;&gt;= liftIO . putStrLn . show
+  get
+-}</span><span>
+</span><span id="line-59"></span><span>
+</span><span id="line-60"></span><span class="hs-comment">-- testProb i = do</span><span>
+</span><span id="line-61"></span><span class="hs-comment">-- x &lt;- YesProb $ 5</span><span>
+</span><span id="line-62"></span><span class="hs-comment">-- -- y &lt;- [1, 2, 3]</span><span>
+</span><span id="line-63"></span><span class="hs-comment">-- pure $ x</span><span>
+</span><span id="line-64"></span><span class="hs-comment">--</span><span>
+</span><span id="line-65"></span><span class="hs-comment">-- testProb :: Prob Int</span><span>
+</span><span id="line-66"></span><span class="hs-comment">-- testProb = do</span><span>
+</span><span id="line-67"></span><span class="hs-comment">--   x &lt;- YesProb [1]</span><span>
+</span><span id="line-68"></span><span class="hs-comment">--   y &lt;- YesProb [x + 2]</span><span>
+</span><span id="line-69"></span><span class="hs-comment">--   return x</span><span>
+</span><span id="line-70"></span><span class="hs-comment">--</span><span>
+</span><span id="line-71"></span><span class="hs-comment">-- testtest :: IO (Prob Int)</span><span>
+</span><span id="line-72"></span><span class="hs-comment">-- testtest = do</span><span>
+</span><span id="line-73"></span><span class="hs-comment">--   gen &lt;- initStdGen</span><span>
+</span><span id="line-74"></span><span class="hs-comment">--   mgen &lt;- newIOGenM gen</span><span>
+</span><span id="line-75"></span><span class="hs-comment">--   pure $ (sample mgen $ testProb 8)</span><span>
+</span><span id="line-76"></span><span>
+</span><span id="line-77"></span><span class="hs-comment">-- data Prob a b = Prob [a] Int</span><span>
+</span><span id="line-78"></span><span class="hs-comment">-- instance RandomChoice (Prob Int) where</span><span>
+</span><span id="line-79"></span><span class="hs-comment">--   sample gen [] = NoProb</span><span>
+</span><span id="line-80"></span><span class="hs-comment">--   sample gen (x : xs) = YesProb x</span><span>
+</span><span id="line-81"></span><span class="hs-comment">-- testtest :: StatefulGen g Prob =&gt; g -&gt; Prob Int</span><span>
+</span><span id="line-82"></span><span class="hs-comment">-- testtest mgen = do</span><span>
+</span><span id="line-83"></span><span class="hs-comment">--   x &lt;- sample mgen [1, 2, 3]</span><span>
+</span><span id="line-84"></span><span class="hs-comment">--   y &lt;- sample mgen [4, 5, 6]</span><span>
+</span><span id="line-85"></span><span class="hs-comment">--   pure $ x + y</span><span>
+</span><span id="line-86"></span><span>
+</span><span id="line-87"></span><span class="hs-comment">-- testProb :: IO ()</span><span>
+</span><span id="line-88"></span><span class="hs-comment">-- testProb = do</span><span>
+</span><span id="line-89"></span><span class="hs-comment">--   gen &lt;- initStdGen</span><span>
+</span><span id="line-90"></span><span class="hs-comment">--   mgen &lt;- newIOGenM gen</span><span>
+</span><span id="line-91"></span><span class="hs-comment">--   print $ runRandomChoice mgen (testtest mgen)</span><span>
+</span><span id="line-92"></span><span>
+</span><span id="line-93"></span><span class="hs-comment">-- testtest :: StdGen -&gt; Prob' Int</span><span>
+</span><span id="line-94"></span><span class="hs-comment">-- testtest gen = do</span><span>
+</span><span id="line-95"></span><span class="hs-comment">--   x &lt;- sample gen [1 .. 10]</span><span>
+</span><span id="line-96"></span><span class="hs-comment">--   y &lt;- sample gen [1 .. 10]</span><span>
+</span><span id="line-97"></span><span class="hs-comment">--   a &lt;- sample gen [4, 5, 6]</span><span>
+</span><span id="line-98"></span><span class="hs-comment">--   s &lt;- sample gen [4, 5, 6]</span><span>
+</span><span id="line-99"></span><span class="hs-comment">--   d &lt;- sample gen [4, 5, 6]</span><span>
+</span><span id="line-100"></span><span class="hs-comment">--   pure $ x * y * a * s * d</span><span>
+</span><span id="line-101"></span><span>
+</span><span id="line-102"></span><span class="hs-comment">-- mgen &lt;- newIOGenM gen</span><span>
+</span><span id="line-103"></span><span class="hs-comment">-- print $ runRandomChoice (testtest gen)</span><span>
+</span><span id="line-104"></span><span>
+</span><span id="line-105"></span><span class="hs-keyword">newtype</span><span> </span><span id="Prob"><span class="annot"><a href="Probability.html#Prob"><span class="hs-identifier hs-var">Prob</span></a></span></span><span> </span><span id="local-6989586621679522840"><span class="annot"><a href="#local-6989586621679522840"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Prob"><span class="annot"><a href="Probability.html#Prob"><span class="hs-identifier hs-var">Prob</span></a></span></span><span> </span><span class="annot"><a href="#local-6989586621679522840"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-106"></span><span>
+</span><span id="line-107"></span><span class="hs-keyword">newtype</span><span> </span><span id="RandomChoice"><span class="annot"><a href="Probability.html#RandomChoice"><span class="hs-identifier hs-var">RandomChoice</span></a></span></span><span> </span><span id="local-6989586621679523046"><span class="annot"><a href="#local-6989586621679523046"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="RandomChoice"><span class="annot"><a href="Probability.html#RandomChoice"><span class="hs-identifier hs-var">RandomChoice</span></a></span></span><span>
+</span><span id="line-108"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="sample"><span class="annot"><span class="annottext">forall a. RandomChoice a -&gt; StdGen -&gt; [a] -&gt; Prob a
+</span><a href="Probability.html#sample"><span class="hs-identifier hs-var hs-var">sample</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">StdGen</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679523046"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Probability.html#Prob"><span class="hs-identifier hs-type">Prob</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679523046"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-109"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-110"></span><span>
+</span><span id="line-111"></span><span id="local-6989586621679523041"><span id="local-6989586621679523042"><span class="annot"><a href="Probability.html#pickReservoir10"><span class="hs-identifier hs-type">pickReservoir10</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">StatefulGen</span></span><span> </span><span class="annot"><a href="#local-6989586621679523042"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679523042"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679523041"><span class="hs-identifier hs-type">slc</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MaybeT</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679523041"><span class="hs-identifier hs-type">slc</span></a></span><span class="hs-special">]</span></span></span><span>
+</span><span id="line-112"></span><span id="pickReservoir10"><span class="annot"><span class="annottext">pickReservoir10 :: forall g slc. StatefulGen g IO =&gt; g -&gt; [slc] -&gt; MaybeT IO [slc]
+</span><a href="Probability.html#pickReservoir10"><span class="hs-identifier hs-var hs-var">pickReservoir10</span></a></span></span><span> </span><span id="local-6989586621679522821"><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679522821"><span class="hs-identifier hs-var">gen</span></a></span></span><span> </span><span id="local-6989586621679522820"><span class="annot"><span class="annottext">[slc]
+</span><a href="#local-6989586621679522820"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-113"></span><span>  </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *). Alternative f =&gt; Bool -&gt; f ()
+</span><span class="hs-identifier hs-var">guard</span></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">null</span></span><span> </span><span class="annot"><span class="annottext">[slc]
+</span><a href="#local-6989586621679522820"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-114"></span><span>  </span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(MonadTrans t, Monad m) =&gt;
+m a -&gt; t m a
+</span><span class="hs-identifier hs-var">lift</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall g a. StatefulGen g IO =&gt; g -&gt; Int -&gt; [a] -&gt; IO [a]
+</span><a href="Probability.html#sampleR"><span class="hs-identifier hs-var">sampleR</span></a></span><span> </span><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679522821"><span class="hs-identifier hs-var">gen</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">10</span></span><span> </span><span class="annot"><span class="annottext">[slc]
+</span><a href="#local-6989586621679522820"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-115"></span><span>
+</span><span id="line-116"></span><span id="local-6989586621679523016"><span id="local-6989586621679523017"><span class="annot"><a href="Probability.html#pickRandomChoice"><span class="hs-identifier hs-type">pickRandomChoice</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">StatefulGen</span></span><span> </span><span class="annot"><a href="#local-6989586621679523017"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679523017"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679523016"><span class="hs-identifier hs-type">slc</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MaybeT</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621679523016"><span class="hs-identifier hs-type">slc</span></a></span></span></span><span>
+</span><span id="line-117"></span><span id="pickRandomChoice"><span class="annot"><span class="annottext">pickRandomChoice :: forall g slc. StatefulGen g IO =&gt; g -&gt; [slc] -&gt; MaybeT IO slc
+</span><a href="Probability.html#pickRandomChoice"><span class="hs-identifier hs-var hs-var">pickRandomChoice</span></a></span></span><span> </span><span id="local-6989586621679522798"><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679522798"><span class="hs-identifier hs-var">gen</span></a></span></span><span> </span><span id="local-6989586621679522797"><span class="annot"><span class="annottext">[slc]
+</span><a href="#local-6989586621679522797"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-118"></span><span>  </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *). Alternative f =&gt; Bool -&gt; f ()
+</span><span class="hs-identifier hs-var">guard</span></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">null</span></span><span> </span><span class="annot"><span class="annottext">[slc]
+</span><a href="#local-6989586621679522797"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-119"></span><span>  </span><span id="local-6989586621679522796"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522796"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall (t :: (* -&gt; *) -&gt; * -&gt; *) (m :: * -&gt; *) a.
+(MonadTrans t, Monad m) =&gt;
+m a -&gt; t m a
+</span><span class="hs-identifier hs-var">lift</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a g (m :: * -&gt; *).
+(UniformRange a, StatefulGen g m) =&gt;
+(a, a) -&gt; g -&gt; m a
+</span><span class="hs-identifier hs-var">uniformRM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Int
+</span><span class="hs-identifier hs-var">length</span></span><span> </span><span class="annot"><span class="annottext">[slc]
+</span><a href="#local-6989586621679522797"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679522798"><span class="hs-identifier hs-var">gen</span></a></span><span>
+</span><span id="line-120"></span><span>  </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[slc]
+</span><a href="#local-6989586621679522797"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. [a] -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">!!</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522796"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-121"></span><span>
+</span><span id="line-122"></span><span class="hs-comment">-- With a simple list, this is pretty instant as long as the total list is less than 1000000</span><span>
+</span><span id="line-123"></span><span class="hs-comment">-- Cost is based on size of list rather than reservoir size.</span><span>
+</span><span id="line-124"></span><span id="local-6989586621679523018"><span id="local-6989586621679523019"><span class="annot"><a href="Probability.html#sampleR"><span class="hs-identifier hs-type">sampleR</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">StatefulGen</span></span><span> </span><span class="annot"><a href="#local-6989586621679523019"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679523019"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679523018"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679523018"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span></span><span>
+</span><span id="line-125"></span><span id="sampleR"><span class="annot"><span class="annottext">sampleR :: forall g a. StatefulGen g IO =&gt; g -&gt; Int -&gt; [a] -&gt; IO [a]
+</span><a href="Probability.html#sampleR"><span class="hs-identifier hs-var hs-var">sampleR</span></a></span></span><span> </span><span id="local-6989586621679522776"><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679522776"><span class="hs-identifier hs-var">gen</span></a></span></span><span> </span><span id="local-6989586621679522775"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522775"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span id="local-6989586621679522774"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679522774"><span class="hs-identifier hs-var">xs</span></a></span></span><span>
+</span><span id="line-126"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522773"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;=</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522775"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679522774"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-127"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-128"></span><span>      </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679522771"><span class="annot"><span class="annottext">res :: Vector a
+</span><a href="#local-6989586621679522771"><span class="hs-identifier hs-var hs-var">res</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. [a] -&gt; Vector a
+</span><span class="hs-identifier hs-var">V.fromList</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a. Int -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">take</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522775"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679522774"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-129"></span><span>      </span><span id="local-6989586621679522768"><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679522768"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall a g (m :: * -&gt; *).
+(UniformRange a, StatefulGen g m) =&gt;
+(a, a) -&gt; g -&gt; m a
+</span><span class="hs-identifier hs-var">uniformRM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Double
+</span><span class="hs-number">0</span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Double
+</span><span class="hs-number">1</span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679522776"><span class="hs-identifier hs-var">gen</span></a></span><span>
+</span><span id="line-130"></span><span>      </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679522759"><span class="annot"><span class="annottext">w :: Double
+</span><a href="#local-6989586621679522759"><span class="hs-identifier hs-var hs-var">w</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. Floating a =&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">exp</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Floating a =&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">log</span></span><span> </span><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679522768"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Fractional a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">/</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522775"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-131"></span><span>      </span><span id="local-6989586621679522755"><span class="annot"><span class="annottext">Vector a
+</span><a href="#local-6989586621679522755"><span class="hs-identifier hs-var">z</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall {f :: * -&gt; *} {t} {t} {a}.
+(UniformRange t, StatefulGen t f, RealFrac t, Floating t) =&gt;
+t -&gt; Int -&gt; Vector a -&gt; t -&gt; [a] -&gt; f (Vector a)
+</span><a href="#local-6989586621679522754"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679522776"><span class="hs-identifier hs-var">gen</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522775"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">Vector a
+</span><a href="#local-6989586621679522771"><span class="hs-identifier hs-var">res</span></a></span><span> </span><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679522759"><span class="hs-identifier hs-var">w</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Int -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">drop</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522775"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679522774"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-132"></span><span>      </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a. Vector a -&gt; [a]
+</span><span class="hs-identifier hs-var">V.toList</span></span><span> </span><span class="annot"><span class="annottext">Vector a
+</span><a href="#local-6989586621679522755"><span class="hs-identifier hs-var">z</span></a></span><span>
+</span><span id="line-133"></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-134"></span><span>  </span><span class="hs-comment">-- go :: g -&gt; Int -&gt; V.Vector t -&gt; Double -&gt; [t] -&gt; V.Vector t</span><span>
+</span><span id="line-135"></span><span>  </span><span id="local-6989586621679522754"><span class="annot"><span class="annottext">go :: t -&gt; Int -&gt; Vector a -&gt; t -&gt; [a] -&gt; f (Vector a)
+</span><a href="#local-6989586621679522754"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span id="local-6989586621679522715"><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679522715"><span class="hs-identifier hs-var">gen</span></a></span></span><span> </span><span id="local-6989586621679522714"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522714"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span id="local-6989586621679522713"><span class="annot"><span class="annottext">Vector a
+</span><a href="#local-6989586621679522713"><span class="hs-identifier hs-var">res</span></a></span></span><span> </span><span id="local-6989586621679522712"><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679522712"><span class="hs-identifier hs-var">w</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Vector a
+</span><a href="#local-6989586621679522713"><span class="hs-identifier hs-var">res</span></a></span><span>
+</span><span id="line-136"></span><span>  </span><span class="annot"><a href="#local-6989586621679522754"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span id="local-6989586621679522711"><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679522711"><span class="hs-identifier hs-var">gen</span></a></span></span><span> </span><span id="local-6989586621679522710"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522710"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span id="local-6989586621679522709"><span class="annot"><span class="annottext">Vector a
+</span><a href="#local-6989586621679522709"><span class="hs-identifier hs-var">res</span></a></span></span><span> </span><span id="local-6989586621679522708"><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679522708"><span class="hs-identifier hs-var">w</span></a></span></span><span> </span><span id="local-6989586621679522707"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679522707"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-137"></span><span>    </span><span id="local-6989586621679522706"><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679522706"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall a g (m :: * -&gt; *).
+(UniformRange a, StatefulGen g m) =&gt;
+(a, a) -&gt; g -&gt; m a
+</span><span class="hs-identifier hs-var">uniformRM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">t
+</span><span class="hs-number">0</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">t
+</span><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679522711"><span class="hs-identifier hs-var">gen</span></a></span><span>
+</span><span id="line-138"></span><span>    </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679522698"><span class="annot"><span class="annottext">jump :: Int
+</span><a href="#local-6989586621679522698"><span class="hs-identifier hs-var hs-var">jump</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a b. (RealFrac a, Integral b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">floor</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Floating a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">logBase</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">t
+</span><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679522708"><span class="hs-identifier hs-var">w</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679522706"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span>
+</span><span id="line-139"></span><span>    </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522710"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522698"><span class="hs-identifier hs-var">jump</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&gt;</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522773"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span>
+</span><span id="line-140"></span><span>      </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Vector a
+</span><a href="#local-6989586621679522709"><span class="hs-identifier hs-var">res</span></a></span><span>
+</span><span id="line-141"></span><span>      </span><span class="hs-keyword">else</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">forall a. Int -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">drop</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522698"><span class="hs-identifier hs-var">jump</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679522707"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-142"></span><span>        </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Vector a
+</span><a href="#local-6989586621679522709"><span class="hs-identifier hs-var">res</span></a></span><span>
+</span><span id="line-143"></span><span>        </span><span id="local-6989586621679522693"><span class="annot"><span class="annottext">xss :: [a]
+</span><a href="#local-6989586621679522693"><span class="hs-identifier hs-var">xss</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span id="local-6989586621679522692"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679522692"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-144"></span><span>          </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679522691"><span class="annot"><span class="annottext">xss :: [a]
+</span><a href="#local-6989586621679522691"><span class="hs-identifier hs-var hs-var">xss</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. Int -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">drop</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522698"><span class="hs-identifier hs-var">jump</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679522707"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-145"></span><span>          </span><span id="local-6989586621679522690"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522690"><span class="hs-identifier hs-var">rint</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall a g (m :: * -&gt; *).
+(UniformRange a, StatefulGen g m) =&gt;
+(a, a) -&gt; g -&gt; m a
+</span><span class="hs-identifier hs-var">uniformRM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522775"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679522711"><span class="hs-identifier hs-var">gen</span></a></span><span>
+</span><span id="line-146"></span><span>          </span><span id="local-6989586621679522689"><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679522689"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall a g (m :: * -&gt; *).
+(UniformRange a, StatefulGen g m) =&gt;
+(a, a) -&gt; g -&gt; m a
+</span><span class="hs-identifier hs-var">uniformRM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">t
+</span><span class="hs-number">0</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">t
+</span><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679522711"><span class="hs-identifier hs-var">gen</span></a></span><span>
+</span><span id="line-147"></span><span>          </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679522688"><span class="annot"><span class="annottext">newres :: Vector a
+</span><a href="#local-6989586621679522688"><span class="hs-identifier hs-var hs-var">newres</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Vector a
+</span><a href="#local-6989586621679522709"><span class="hs-identifier hs-var">res</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Vector a -&gt; [(Int, a)] -&gt; Vector a
+</span><span class="hs-operator hs-var">V.//</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522690"><span class="hs-identifier hs-var">rint</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679522692"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-148"></span><span>          </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679522680"><span class="annot"><span class="annottext">w' :: t
+</span><a href="#local-6989586621679522680"><span class="hs-identifier hs-var hs-var">w'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679522708"><span class="hs-identifier hs-var">w</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">forall a. Floating a =&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">exp</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Floating a =&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">log</span></span><span> </span><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679522689"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Fractional a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">/</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522775"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-149"></span><span>          </span><span class="annot"><span class="annottext">t -&gt; Int -&gt; Vector a -&gt; t -&gt; [a] -&gt; f (Vector a)
+</span><a href="#local-6989586621679522754"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679522711"><span class="hs-identifier hs-var">gen</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522710"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522698"><span class="hs-identifier hs-var">jump</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Vector a
+</span><a href="#local-6989586621679522688"><span class="hs-identifier hs-var">newres</span></a></span><span> </span><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679522680"><span class="hs-identifier hs-var">w'</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679522691"><span class="hs-identifier hs-var">xss</span></a></span><span>
+</span><span id="line-150"></span><span>  </span><span id="local-6989586621679522773"><span class="annot"><span class="annottext">n :: Int
+</span><a href="#local-6989586621679522773"><span class="hs-identifier hs-var hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Int
+</span><span class="hs-identifier hs-var">length</span></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679522774"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-151"></span><span>
+</span><span id="line-152"></span><span class="hs-comment">-- runRVar dist StdRandom</span><span>
+</span><span id="line-153"></span><span>
+</span><span id="line-154"></span><span class="hs-comment">-- testtest :: IO ()</span><span>
+</span><span id="line-155"></span><span class="hs-comment">-- testtest = do</span><span>
+</span><span id="line-156"></span><span class="hs-comment">--   let c = oneOf [1, 2, 3, 4]</span><span>
+</span><span id="line-157"></span><span class="hs-comment">--   print $ &quot;hi&quot;</span><span>
+</span><span id="line-158"></span><span>
+</span><span id="line-159"></span><span class="hs-comment">-- pickOne :: StatefulGen g IO =&gt; g -&gt; ProbTMIO Int</span><span>
+</span><span id="line-160"></span><span class="hs-comment">-- pickOne = undefined</span><span>
+</span><span id="line-161"></span><span>
+</span><span id="line-162"></span><span class="hs-comment">-- choice &lt;-</span><span>
+</span><span id="line-163"></span><span>
+</span><span id="line-164"></span><span class="hs-comment">-- pickRandom'' gen xs = do</span><span>
+</span><span id="line-165"></span><span class="hs-comment">--   i &lt;- lift $ uniformRM (0, length xs - 1) gen</span><span>
+</span><span id="line-166"></span><span class="hs-comment">--   pure $ xs !! i</span><span>
+</span><span id="line-167"></span><span>
+</span><span id="line-168"></span><span class="hs-comment">-- testtest' :: StatefulGen g IO =&gt; g -&gt; ProbTMIO Int</span><span>
+</span><span id="line-169"></span><span class="hs-comment">-- testtest' g = do</span><span>
+</span><span id="line-170"></span><span class="hs-comment">--   x &lt;- undefined</span><span>
+</span><span id="line-171"></span><span class="hs-comment">--   pure undefined</span><span>
+</span><span id="line-172"></span><span>
+</span><span id="line-173"></span><span class="hs-comment">-- extract $ pickRandom' [1, 2, 3, 4]</span><span>
+</span><span id="line-174"></span><span class="hs-comment">-- t</span><span>
+</span><span id="line-175"></span><span id="local-6989586621679522986"><span class="annot"><a href="Probability.html#testtest"><span class="hs-identifier hs-type">testtest</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">StatefulGen</span></span><span> </span><span class="annot"><a href="#local-6989586621679522986"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679522986"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MaybeT</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span></span><span>
+</span><span id="line-176"></span><span id="testtest"><span class="annot"><span class="annottext">testtest :: forall g. StatefulGen g IO =&gt; g -&gt; Int -&gt; MaybeT IO Int
+</span><a href="Probability.html#testtest"><span class="hs-identifier hs-var hs-var">testtest</span></a></span></span><span> </span><span id="local-6989586621679522672"><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679522672"><span class="hs-identifier hs-var">g</span></a></span></span><span> </span><span id="local-6989586621679522671"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522671"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall g slc. StatefulGen g IO =&gt; g -&gt; [slc] -&gt; MaybeT IO slc
+</span><a href="Probability.html#pickRandomChoice"><span class="hs-identifier hs-var">pickRandomChoice</span></a></span><span> </span><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679522672"><span class="hs-identifier hs-var">g</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span> </span><span class="hs-glyph">..</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522671"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-177"></span><span>
+</span><span id="line-178"></span><span id="local-6989586621679522670"><span class="annot"><a href="Probability.html#testtest%27"><span class="hs-identifier hs-type">testtest'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">StatefulGen</span></span><span> </span><span class="annot"><a href="#local-6989586621679522670"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679522670"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MaybeT</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span></span><span>
+</span><span id="line-179"></span><span id="testtest%27"><span class="annot"><span class="annottext">testtest' :: forall g. StatefulGen g IO =&gt; g -&gt; Int -&gt; MaybeT IO Int
+</span><a href="Probability.html#testtest%27"><span class="hs-identifier hs-var hs-var">testtest'</span></a></span></span><span> </span><span id="local-6989586621679522662"><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679522662"><span class="hs-identifier hs-var">g</span></a></span></span><span> </span><span id="local-6989586621679522661"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522661"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall g slc. StatefulGen g IO =&gt; g -&gt; [slc] -&gt; MaybeT IO slc
+</span><a href="Probability.html#pickRandomChoice"><span class="hs-identifier hs-var">pickRandomChoice</span></a></span><span> </span><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679522662"><span class="hs-identifier hs-var">g</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">10</span></span><span> </span><span class="hs-glyph">..</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">10</span></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522661"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-180"></span><span>
+</span><span id="line-181"></span><span id="abc"><span class="annot"><span class="annottext">abc :: g -&gt; MaybeT IO Int
+</span><a href="Probability.html#abc"><span class="hs-identifier hs-var hs-var">abc</span></a></span></span><span> </span><span id="local-6989586621679522643"><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679522643"><span class="hs-identifier hs-var">mgen</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-182"></span><span>  </span><span id="local-6989586621679522642"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522642"><span class="hs-identifier hs-var">j</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall g slc. StatefulGen g IO =&gt; g -&gt; [slc] -&gt; MaybeT IO slc
+</span><a href="Probability.html#pickRandomChoice"><span class="hs-identifier hs-var">pickRandomChoice</span></a></span><span> </span><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679522643"><span class="hs-identifier hs-var">mgen</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span> </span><span class="hs-glyph">..</span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">10000</span></span><span class="hs-special">]</span><span>
+</span><span id="line-183"></span><span>  </span><span id="local-6989586621679522641"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522641"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall g. StatefulGen g IO =&gt; g -&gt; Int -&gt; MaybeT IO Int
+</span><a href="Probability.html#testtest"><span class="hs-identifier hs-var">testtest</span></a></span><span> </span><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679522643"><span class="hs-identifier hs-var">mgen</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522642"><span class="hs-identifier hs-var">j</span></a></span><span>
+</span><span id="line-184"></span><span>  </span><span id="local-6989586621679522640"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522640"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall g. StatefulGen g IO =&gt; g -&gt; Int -&gt; MaybeT IO Int
+</span><a href="Probability.html#testtest"><span class="hs-identifier hs-var">testtest</span></a></span><span> </span><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679522643"><span class="hs-identifier hs-var">mgen</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522641"><span class="hs-identifier hs-var">k</span></a></span><span>
+</span><span id="line-185"></span><span>  </span><span class="annot"><span class="annottext">forall g slc. StatefulGen g IO =&gt; g -&gt; [slc] -&gt; MaybeT IO slc
+</span><a href="Probability.html#pickRandomChoice"><span class="hs-identifier hs-var">pickRandomChoice</span></a></span><span> </span><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679522643"><span class="hs-identifier hs-var">mgen</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span> </span><span class="hs-glyph">..</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522642"><span class="hs-identifier hs-var">j</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522641"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522640"><span class="hs-identifier hs-var">l</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-186"></span><span>
+</span><span id="line-187"></span><span class="annot"><a href="Probability.html#testProb"><span class="hs-identifier hs-type">testProb</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-188"></span><span id="testProb"><span class="annot"><span class="annottext">testProb :: IO ()
+</span><a href="Probability.html#testProb"><span class="hs-identifier hs-var hs-var">testProb</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-189"></span><span>  </span><span id="local-6989586621679522639"><span class="annot"><span class="annottext">StdGen
+</span><a href="#local-6989586621679522639"><span class="hs-identifier hs-var">gen</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *). MonadIO m =&gt; m StdGen
+</span><span class="hs-identifier hs-var">initStdGen</span></span><span>
+</span><span id="line-190"></span><span>  </span><span id="local-6989586621679522637"><span class="annot"><span class="annottext">IOGenM StdGen
+</span><a href="#local-6989586621679522637"><span class="hs-identifier hs-var">mgen</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) g. MonadIO m =&gt; g -&gt; m (IOGenM g)
+</span><span class="hs-identifier hs-var">newIOGenM</span></span><span> </span><span class="annot"><span class="annottext">StdGen
+</span><a href="#local-6989586621679522639"><span class="hs-identifier hs-var">gen</span></a></span><span>
+</span><span id="line-191"></span><span>  </span><span id="local-6989586621679522635"><span class="annot"><span class="annottext">[Int]
+</span><a href="#local-6989586621679522635"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall g a. StatefulGen g IO =&gt; g -&gt; MaybeT IO a -&gt; IO [a]
+</span><a href="Probability.html#collectRandomChoice"><span class="hs-identifier hs-var">collectRandomChoice</span></a></span><span> </span><span class="annot"><span class="annottext">IOGenM StdGen
+</span><a href="#local-6989586621679522637"><span class="hs-identifier hs-var">mgen</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-192"></span><span>    </span><span id="local-6989586621679522634"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522634"><span class="hs-identifier hs-var">j</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall g slc. StatefulGen g IO =&gt; g -&gt; [slc] -&gt; MaybeT IO slc
+</span><a href="Probability.html#pickRandomChoice"><span class="hs-identifier hs-var">pickRandomChoice</span></a></span><span> </span><span class="annot"><span class="annottext">IOGenM StdGen
+</span><a href="#local-6989586621679522637"><span class="hs-identifier hs-var">mgen</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span> </span><span class="hs-glyph">..</span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">10000</span></span><span class="hs-special">]</span><span>
+</span><span id="line-193"></span><span>    </span><span id="local-6989586621679522633"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522633"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall g. StatefulGen g IO =&gt; g -&gt; Int -&gt; MaybeT IO Int
+</span><a href="Probability.html#testtest"><span class="hs-identifier hs-var">testtest</span></a></span><span> </span><span class="annot"><span class="annottext">IOGenM StdGen
+</span><a href="#local-6989586621679522637"><span class="hs-identifier hs-var">mgen</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522634"><span class="hs-identifier hs-var">j</span></a></span><span>
+</span><span id="line-194"></span><span>    </span><span class="annot"><span class="annottext">forall g. StatefulGen g IO =&gt; g -&gt; Int -&gt; MaybeT IO Int
+</span><a href="Probability.html#testtest"><span class="hs-identifier hs-var">testtest</span></a></span><span> </span><span class="annot"><span class="annottext">IOGenM StdGen
+</span><a href="#local-6989586621679522637"><span class="hs-identifier hs-var">mgen</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522633"><span class="hs-identifier hs-var">k</span></a></span><span>
+</span><span id="line-195"></span><span>
+</span><span id="line-196"></span><span>  </span><span id="local-6989586621679522632"><span class="annot"><span class="annottext">Maybe Int
+</span><a href="#local-6989586621679522632"><span class="hs-identifier hs-var">j</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. MaybeT m a -&gt; m (Maybe a)
+</span><span class="hs-identifier hs-var">runMaybeT</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall {g}. StatefulGen g IO =&gt; g -&gt; MaybeT IO Int
+</span><a href="Probability.html#abc"><span class="hs-identifier hs-var">abc</span></a></span><span> </span><span class="annot"><span class="annottext">IOGenM StdGen
+</span><a href="#local-6989586621679522637"><span class="hs-identifier hs-var">mgen</span></a></span><span>
+</span><span id="line-197"></span><span>
+</span><span id="line-198"></span><span>  </span><span id="local-6989586621679522630"><span class="annot"><span class="annottext">Maybe Int
+</span><a href="#local-6989586621679522630"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. MaybeT m a -&gt; m (Maybe a)
+</span><span class="hs-identifier hs-var">runMaybeT</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall g slc. StatefulGen g IO =&gt; g -&gt; [slc] -&gt; MaybeT IO slc
+</span><a href="Probability.html#pickRandomChoice"><span class="hs-identifier hs-var">pickRandomChoice</span></a></span><span> </span><span class="annot"><span class="annottext">IOGenM StdGen
+</span><a href="#local-6989586621679522637"><span class="hs-identifier hs-var">mgen</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-199"></span><span>  </span><span id="local-6989586621679522629"><span class="annot"><span class="annottext">Maybe [Integer]
+</span><a href="#local-6989586621679522629"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. MaybeT m a -&gt; m (Maybe a)
+</span><span class="hs-identifier hs-var">runMaybeT</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall g slc. StatefulGen g IO =&gt; g -&gt; [slc] -&gt; MaybeT IO [slc]
+</span><a href="Probability.html#pickReservoir10"><span class="hs-identifier hs-var">pickReservoir10</span></a></span><span> </span><span class="annot"><span class="annottext">IOGenM StdGen
+</span><a href="#local-6989586621679522637"><span class="hs-identifier hs-var">mgen</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">1</span></span><span> </span><span class="hs-glyph">..</span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">1000000</span></span><span class="hs-special">]</span><span>
+</span><span id="line-200"></span><span>  </span><span id="local-6989586621679522628"><span class="annot"><span class="annottext">Maybe [Int]
+</span><a href="#local-6989586621679522628"><span class="hs-identifier hs-var">ys</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. MaybeT m a -&gt; m (Maybe a)
+</span><span class="hs-identifier hs-var">runMaybeT</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall g slc. StatefulGen g IO =&gt; g -&gt; [slc] -&gt; MaybeT IO [slc]
+</span><a href="Probability.html#pickReservoir10"><span class="hs-identifier hs-var">pickReservoir10</span></a></span><span> </span><span class="annot"><span class="annottext">IOGenM StdGen
+</span><a href="#local-6989586621679522637"><span class="hs-identifier hs-var">mgen</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-201"></span><span>  </span><span class="annot"><span class="annottext">forall a. Show a =&gt; a -&gt; IO ()
+</span><span class="hs-identifier hs-var">print</span></span><span> </span><span class="annot"><span class="annottext">Maybe Int
+</span><a href="#local-6989586621679522632"><span class="hs-identifier hs-var">j</span></a></span><span>
+</span><span id="line-202"></span><span>  </span><span class="annot"><span class="annottext">forall a. Show a =&gt; a -&gt; IO ()
+</span><span class="hs-identifier hs-var">print</span></span><span> </span><span class="annot"><span class="annottext">[Int]
+</span><a href="#local-6989586621679522635"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-203"></span><span>  </span><span class="annot"><span class="annottext">forall a. Show a =&gt; a -&gt; IO ()
+</span><span class="hs-identifier hs-var">print</span></span><span> </span><span class="annot"><span class="annottext">Maybe Int
+</span><a href="#local-6989586621679522630"><span class="hs-identifier hs-var">y</span></a></span><span>
+</span><span id="line-204"></span><span>  </span><span class="annot"><span class="annottext">forall a. Show a =&gt; a -&gt; IO ()
+</span><span class="hs-identifier hs-var">print</span></span><span> </span><span class="annot"><span class="annottext">Maybe [Integer]
+</span><a href="#local-6989586621679522629"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-205"></span><span>  </span><span class="annot"><span class="annottext">forall a. Show a =&gt; a -&gt; IO ()
+</span><span class="hs-identifier hs-var">print</span></span><span> </span><span class="annot"><span class="annottext">Maybe [Int]
+</span><a href="#local-6989586621679522628"><span class="hs-identifier hs-var">ys</span></a></span><span>
+</span><span id="line-206"></span><span>
+</span><span id="line-207"></span><span id="local-6989586621679522972"><span id="local-6989586621679522973"><span class="annot"><a href="Probability.html#collectRandomSample"><span class="hs-identifier hs-type">collectRandomSample</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">StatefulGen</span></span><span> </span><span class="annot"><a href="#local-6989586621679522973"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679522973"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MaybeT</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679522972"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679522972"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span></span><span>
+</span><span id="line-208"></span><span id="collectRandomSample"><span class="annot"><span class="annottext">collectRandomSample :: forall g a. StatefulGen g IO =&gt; g -&gt; MaybeT IO [a] -&gt; IO [a]
+</span><a href="Probability.html#collectRandomSample"><span class="hs-identifier hs-var hs-var">collectRandomSample</span></a></span></span><span> </span><span id="local-6989586621679522621"><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679522621"><span class="hs-identifier hs-var">mgen</span></a></span></span><span> </span><span id="local-6989586621679522620"><span class="annot"><span class="annottext">MaybeT IO [a]
+</span><a href="#local-6989586621679522620"><span class="hs-identifier hs-var">prob</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-209"></span><span>  </span><span id="local-6989586621679522619"><span class="annot"><span class="annottext">Maybe [a]
+</span><a href="#local-6989586621679522619"><span class="hs-identifier hs-var">res</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. MaybeT m a -&gt; m (Maybe a)
+</span><span class="hs-identifier hs-var">runMaybeT</span></span><span> </span><span class="annot"><span class="annottext">MaybeT IO [a]
+</span><a href="#local-6989586621679522620"><span class="hs-identifier hs-var">prob</span></a></span><span>
+</span><span id="line-210"></span><span>  </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Maybe [a]
+</span><a href="#local-6989586621679522619"><span class="hs-identifier hs-var">res</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-211"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621679522618"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679522618"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679522618"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-212"></span><span>    </span><span class="annot"><span class="annottext">Maybe [a]
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-213"></span><span>
+</span><span id="line-214"></span><span id="local-6989586621679522978"><span id="local-6989586621679522979"><span class="annot"><a href="Probability.html#collectRandomChoice"><span class="hs-identifier hs-type">collectRandomChoice</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">StatefulGen</span></span><span> </span><span class="annot"><a href="#local-6989586621679522979"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679522979"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MaybeT</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><a href="#local-6989586621679522978"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679522978"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span></span><span>
+</span><span id="line-215"></span><span id="collectRandomChoice"><span class="annot"><span class="annottext">collectRandomChoice :: forall g a. StatefulGen g IO =&gt; g -&gt; MaybeT IO a -&gt; IO [a]
+</span><a href="Probability.html#collectRandomChoice"><span class="hs-identifier hs-var hs-var">collectRandomChoice</span></a></span></span><span> </span><span id="local-6989586621679522611"><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679522611"><span class="hs-identifier hs-var">mgen</span></a></span></span><span> </span><span id="local-6989586621679522610"><span class="annot"><span class="annottext">MaybeT IO a
+</span><a href="#local-6989586621679522610"><span class="hs-identifier hs-var">prob</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-216"></span><span>  </span><span id="local-6989586621679522609"><span class="annot"><span class="annottext">Maybe a
+</span><a href="#local-6989586621679522609"><span class="hs-identifier hs-var">res</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. MaybeT m a -&gt; m (Maybe a)
+</span><span class="hs-identifier hs-var">runMaybeT</span></span><span> </span><span class="annot"><span class="annottext">MaybeT IO a
+</span><a href="#local-6989586621679522610"><span class="hs-identifier hs-var">prob</span></a></span><span>
+</span><span id="line-217"></span><span>  </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Maybe a
+</span><a href="#local-6989586621679522609"><span class="hs-identifier hs-var">res</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-218"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621679522608"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679522608"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679522608"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-219"></span><span>    </span><span class="annot"><span class="annottext">Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-220"></span><span>
+</span><span id="line-221"></span><span class="hs-comment">-- collectRandomChoice :: StatefulGen g IO =&gt; g -&gt; MaybeT IO a -&gt; IO [a]</span><span>
+</span><span id="line-222"></span><span class="hs-comment">-- collectRandomChoice mgen prob = do</span><span>
+</span><span id="line-223"></span><span class="hs-comment">--   res &lt;- runMaybeT prob</span><span>
+</span><span id="line-224"></span><span class="hs-comment">--   case res of</span><span>
+</span><span id="line-225"></span><span class="hs-comment">--     Just a -&gt; pure [a]</span><span>
+</span><span id="line-226"></span><span class="hs-comment">--     Nothing -&gt; pure []</span><span>
+</span><span id="line-227"></span><span>
+</span><span id="line-228"></span><span class="hs-comment">--   Just a -&gt; pure [a]</span><span>
+</span><span id="line-229"></span><span>
+</span><span id="line-230"></span><span class="hs-comment">-- res &lt;- pickRandom' mgen [1 .. 10000000]</span><span>
+</span><span id="line-231"></span><span class="hs-comment">-- -- res &lt;- pickRandom mgen [1 .. 10000000]</span><span>
+</span><span id="line-232"></span><span class="hs-comment">-- print $ extract $ res</span><span>
+</span><span id="line-233"></span><span>
+</span><span id="line-234"></span><span class="hs-comment">-- print $ res</span><span>
+</span><span id="line-235"></span><span>
+</span><span id="line-236"></span><span class="hs-comment">-- runRandomChoice gen testtest</span><span>
+</span><span id="line-237"></span><span>
+</span><span id="line-238"></span><span class="hs-comment">-- runRandomChoice :: StdGen -&gt; Prob' a -&gt; a</span><span>
+</span><span id="line-239"></span><span class="hs-comment">-- runRandomChoice g pa =</span><span>
+</span><span id="line-240"></span><span>
+</span><span id="line-241"></span><span class="hs-comment">-- instance Functor RandomChoice where</span><span>
+</span><span id="line-242"></span><span class="hs-comment">--   fmap :: (a -&gt; b) -&gt; RandomChoice a -&gt; RandomChoice b</span><span>
+</span><span id="line-243"></span><span class="hs-comment">--   fmap f (RandomChoice sample) = RandomChoice (\g (b : bs) -&gt; Prob' b)</span><span>
+</span><span id="line-244"></span><span class="hs-comment">--</span><span>
+</span><span id="line-245"></span><span class="hs-comment">-- instance Applicative RandomChoice where</span><span>
+</span><span id="line-246"></span><span class="hs-comment">--   pure :: a -&gt; RandomChoice a</span><span>
+</span><span id="line-247"></span><span class="hs-comment">--   pure a = RandomChoice doSample</span><span>
+</span><span id="line-248"></span><span class="hs-comment">--    where</span><span>
+</span><span id="line-249"></span><span class="hs-comment">--     -- gen = mkStdGen 10</span><span>
+</span><span id="line-250"></span><span class="hs-comment">--     doSample :: StdGen -&gt; [a] -&gt; Prob' a</span><span>
+</span><span id="line-251"></span><span class="hs-comment">--     doSample gen (x : xs) = Prob' x</span><span>
+</span><span id="line-252"></span><span class="hs-comment">--</span><span>
+</span><span id="line-253"></span><span class="hs-comment">--   (&lt;*&gt;) :: RandomChoice (a -&gt; b) -&gt; RandomChoice a -&gt; RandomChoice b</span><span>
+</span><span id="line-254"></span><span class="hs-comment">--   RandomChoice sample &lt;*&gt; RandomChoice sample' =</span><span>
+</span><span id="line-255"></span><span class="hs-comment">--     RandomChoice (\g (b : bs) -&gt; Prob' b)</span><span>
+</span><span id="line-256"></span><span class="hs-comment">--</span><span>
+</span><span id="line-257"></span><span class="hs-comment">-- RandomChoice (\gen xs -&gt;</span><span>
+</span><span id="line-258"></span><span class="hs-comment">--   Prob' b)</span><span>
+</span><span id="line-259"></span><span>
+</span><span id="line-260"></span><span class="hs-comment">--  sample gen (x : xs) = (x, gen)</span><span>
+</span><span id="line-261"></span><span>
+</span><span id="line-262"></span><span class="hs-comment">--</span><span>
+</span><span id="line-263"></span><span class="hs-comment">-- instance Monad RandomChoice where</span><span>
+</span><span id="line-264"></span><span class="hs-comment">--   (&gt;&gt;=) :: RandomChoice a -&gt; (a -&gt; RandomChoice b) -&gt; RandomChoice b</span><span>
+</span><span id="line-265"></span><span class="hs-comment">--   RandomChoice sample &gt;&gt;= f = RandomChoice (\g (b : bs) -&gt; Prob' b)</span><span>
+</span><span id="line-266"></span><span>
+</span><span id="line-267"></span><span class="hs-comment">-- where</span><span>
+</span><span id="line-268"></span><span class="hs-comment">--   (p, g) = f ()</span><span>
+</span><span id="line-269"></span><span>
+</span><span id="line-270"></span><span class="hs-comment">-- sample :: (Show a) =&gt; StdGen -&gt; [a] -&gt; Prob' a</span><span>
+</span><span id="line-271"></span><span class="hs-comment">-- sample gen [] = undefined</span><span>
+</span><span id="line-272"></span><span class="hs-comment">-- sample gen xs =</span><span>
+</span><span id="line-273"></span><span class="hs-comment">--   let (r, g) = uniformR (0 :: Int, length xs - 1 :: Int) gen</span><span>
+</span><span id="line-274"></span><span class="hs-comment">--    in trace (show xs) $ Prob' (xs !! r) g</span><span>
+</span><span id="line-275"></span><span>
+</span><span id="line-276"></span><span class="hs-comment">-- runRandomChoice :: Prob' a -&gt; [a]</span><span>
+</span><span id="line-277"></span><span class="hs-comment">-- runRandomChoice (YesProb a) = [a]</span><span>
+</span><span id="line-278"></span><span class="hs-comment">-- runRandomChoice gen NoProb = []</span><span>
+</span><span id="line-279"></span><span class="hs-comment">-- runRandomChoice (Prob' a g) = [a]</span><span>
+</span><span id="line-280"></span><span>
+</span><span id="line-281"></span><span class="hs-comment">--</span><span>
+</span><span id="line-282"></span><span class="hs-comment">-- instance Functor RandomChoice where</span><span>
+</span><span id="line-283"></span><span class="hs-comment">--   fmap :: (a -&gt; b) -&gt; RandomChoice a -&gt; RandomChoice b</span><span>
+</span><span id="line-284"></span><span class="hs-comment">--   fmap f (RandomChoice a) = RandomChoice $ f a</span><span>
+</span><span id="line-285"></span><span class="hs-comment">--</span><span>
+</span><span id="line-286"></span><span class="hs-comment">-- instance Applicative RandomChoice where</span><span>
+</span><span id="line-287"></span><span class="hs-comment">--   pure :: a -&gt; RandomChoice a</span><span>
+</span><span id="line-288"></span><span class="hs-comment">--   pure = RandomChoice</span><span>
+</span><span id="line-289"></span><span class="hs-comment">--   (&lt;*&gt;) :: RandomChoice (a -&gt; b) -&gt; RandomChoice a -&gt; RandomChoice b</span><span>
+</span><span id="line-290"></span><span class="hs-comment">--   RandomChoice f &lt;*&gt; RandomChoice a = RandomChoice (f a)</span><span>
+</span><span id="line-291"></span><span>
+</span><span id="line-292"></span><span class="hs-comment">-- let (r, g) = uniformR (0 :: Int, length xs - 1 :: Int) gen</span><span>
+</span><span id="line-293"></span><span class="hs-comment">-- in</span><span>
+</span><span id="line-294"></span><span class="hs-comment">-- Prob' (xs !! r) g</span><span>
+</span><span id="line-295"></span><span class="hs-comment">-- f a</span><span>
+</span><span id="line-296"></span><span class="hs-comment">-- sample :: (Show a) =&gt; StdGen -&gt; [a] -&gt; Prob' a</span><span>
+</span><span id="line-297"></span><span class="hs-comment">-- sample gen [] = undefined</span><span>
+</span><span id="line-298"></span><span class="hs-comment">-- sample gen xs =</span><span>
+</span><span id="line-299"></span><span>
+</span><span id="line-300"></span><span class="hs-comment">-- sample :: StatefulGen</span><span>
+</span><span id="line-301"></span><span class="hs-comment">-- sample gen [] = NoProb</span><span>
+</span><span id="line-302"></span><span class="hs-comment">-- sample gen (x : xs) = YesProb x</span><span>
+</span><span id="line-303"></span><span>
+</span><span id="line-304"></span><span class="hs-comment">-- instance Monad RandomChoice</span><span>
+</span><span id="line-305"></span><span>
+</span><span id="line-306"></span><span class="hs-comment">-- instance Functor Prob' where</span><span>
+</span><span id="line-307"></span><span class="hs-comment">-- fmap :: (a -&gt; b) -&gt; Prob a -&gt; Prob b</span><span>
+</span><span id="line-308"></span><span class="hs-comment">-- fmap f NoProb = NoProb</span><span>
+</span><span id="line-309"></span><span class="hs-comment">-- fmap f (Prob' a) = Prob' (f a)</span><span>
+</span><span id="line-310"></span><span>
+</span><span id="line-311"></span><span class="hs-comment">-- instance Applicative Prob' where</span><span>
+</span><span id="line-312"></span><span class="hs-comment">-- NoProb &lt;*&gt; _ = NoProb</span><span>
+</span><span id="line-313"></span><span class="hs-comment">-- _ &lt;*&gt; NoProb = NoProb</span><span>
+</span><span id="line-314"></span><span class="hs-comment">-- YesProb a &lt;*&gt; YesProb b = YesProb a</span><span>
+</span><span id="line-315"></span><span class="hs-comment">-- pure :: a -&gt; Prob' a</span><span>
+</span><span id="line-316"></span><span class="hs-comment">-- pure a = Prob' a</span><span>
+</span><span id="line-317"></span><span>
+</span><span id="line-318"></span><span class="hs-comment">-- (&lt;*&gt;) :: Prob (a -&gt; b) -&gt; Prob a -&gt; Prob b</span><span>
+</span><span id="line-319"></span><span class="hs-comment">-- NoProb &lt;*&gt; _ = NoProb</span><span>
+</span><span id="line-320"></span><span class="hs-comment">-- _ &lt;*&gt; NoProb = NoProb</span><span>
+</span><span id="line-321"></span><span class="hs-comment">--   Prob' f &lt;*&gt; Prob' x = Prob' (f x)</span><span>
+</span><span id="line-322"></span><span class="hs-comment">--</span><span>
+</span><span id="line-323"></span><span class="hs-comment">-- instance Monad Prob' where</span><span>
+</span><span id="line-324"></span><span class="hs-comment">--   -- NoProb &gt;&gt;= k = NoProb</span><span>
+</span><span id="line-325"></span><span class="hs-comment">--   Prob' x &gt;&gt;= k = k x</span><span>
+</span><span id="line-326"></span><span>
+</span><span id="line-327"></span><span class="hs-comment">--</span><span>
+</span><span id="line-328"></span><span class="hs-comment">--</span><span>
+</span><span id="line-329"></span><span>
+</span><span id="line-330"></span><span class="hs-comment">{- | Computes the multinomial log probability density function parameterised by prob, evaluated at the vector xs.
+The sum of the observations for all categories must add up to the number of samples, n.
+  The probabilties must be NORMALISED!
+-}</span><span>
+</span><span id="line-334"></span><span class="annot"><a href="Probability.html#multinomialLogProb"><span class="hs-identifier hs-type">multinomialLogProb</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">V.Vector</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">V.Vector</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span>
+</span><span id="line-335"></span><span id="multinomialLogProb"><span class="annot"><span class="annottext">multinomialLogProb :: Vector Double -&gt; Vector Double -&gt; Double
+</span><a href="Probability.html#multinomialLogProb"><span class="hs-identifier hs-var hs-var">multinomialLogProb</span></a></span></span><span> </span><span id="local-6989586621679522607"><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679522607"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span id="local-6989586621679522606"><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679522606"><span class="hs-identifier hs-var">probs</span></a></span></span><span>
+</span><span id="line-336"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679522605"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Double
+</span><span class="hs-number">0</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">-</span><span class="annot"><span class="annottext">Double
+</span><span class="hs-number">100</span></span><span>
+</span><span id="line-337"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">forall a. Vector a -&gt; Int
+</span><span class="hs-identifier hs-var">V.length</span></span><span> </span><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679522607"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">/=</span></span><span> </span><span class="annot"><span class="annottext">forall a. Vector a -&gt; Int
+</span><span class="hs-identifier hs-var">V.length</span></span><span> </span><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679522606"><span class="hs-identifier hs-var">probs</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-glyph">-</span><span class="annot"><span class="annottext">Double
+</span><span class="hs-number">100</span></span><span>
+</span><span id="line-338"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679522602"><span class="hs-identifier hs-var">logFactorialN</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679522601"><span class="hs-identifier hs-var">logPowers</span></a></span><span>
+</span><span id="line-339"></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-340"></span><span>  </span><span id="local-6989586621679522605"><span class="annot"><span class="annottext">n :: Double
+</span><a href="#local-6989586621679522605"><span class="hs-identifier hs-var hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a. (Foldable t, Num a) =&gt; t a -&gt; a
+</span><span class="hs-identifier hs-var">sum</span></span><span> </span><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679522607"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-341"></span><span>  </span><span id="local-6989586621679522602"><span class="annot"><span class="annottext">logFactorialN :: Double
+</span><a href="#local-6989586621679522602"><span class="hs-identifier hs-var hs-var">logFactorialN</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Double -&gt; Double
+</span><span class="hs-identifier hs-var">logGamma</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679522605"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Double
+</span><span class="hs-number">1</span></span><span>
+</span><span id="line-342"></span><span>  </span><span id="local-6989586621679522601"><span class="annot"><span class="annottext">logPowers :: Double
+</span><a href="#local-6989586621679522601"><span class="hs-identifier hs-var hs-var">logPowers</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; Vector a -&gt; a
+</span><span class="hs-identifier hs-var">V.sum</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a b c. (a -&gt; b -&gt; c) -&gt; Vector a -&gt; Vector b -&gt; Vector c
+</span><span class="hs-identifier hs-var">V.zipWith</span></span><span> </span><span class="annot"><span class="annottext">Double -&gt; Double -&gt; Double
+</span><a href="#local-6989586621679522591"><span class="hs-identifier hs-var">powers</span></a></span><span> </span><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679522607"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679522606"><span class="hs-identifier hs-var">probs</span></a></span><span>
+</span><span id="line-343"></span><span>   </span><span class="hs-keyword">where</span><span>
+</span><span id="line-344"></span><span>    </span><span id="local-6989586621679522591"><span class="annot"><span class="annottext">powers :: Double -&gt; Double -&gt; Double
+</span><a href="#local-6989586621679522591"><span class="hs-identifier hs-var hs-var">powers</span></a></span></span><span> </span><span id="local-6989586621679522585"><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679522585"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621679522584"><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679522584"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679522585"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">forall a. Floating a =&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">log</span></span><span> </span><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679522584"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Double -&gt; Double
+</span><span class="hs-identifier hs-var">logGamma</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679522585"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Double
+</span><span class="hs-number">1</span></span><span class="hs-special">)</span><span>
+</span><span id="line-345"></span><span>
+</span><span id="line-346"></span><span class="hs-comment">-- Calculates the probability density of a multinomial distribution at the given point</span><span>
+</span><span id="line-347"></span><span class="annot"><a href="Probability.html#categoricalLogProb"><span class="hs-identifier hs-type">categoricalLogProb</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">V.Vector</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span>
+</span><span id="line-348"></span><span id="categoricalLogProb"><span class="annot"><span class="annottext">categoricalLogProb :: Int -&gt; Vector Double -&gt; Maybe Double
+</span><a href="Probability.html#categoricalLogProb"><span class="hs-identifier hs-var hs-var">categoricalLogProb</span></a></span></span><span> </span><span id="local-6989586621679522583"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522583"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621679522582"><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679522582"><span class="hs-identifier hs-var">probs</span></a></span></span><span>
+</span><span id="line-349"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522583"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&gt;=</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522583"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;</span></span><span> </span><span class="annot"><span class="annottext">forall a. Vector a -&gt; Int
+</span><span class="hs-identifier hs-var">V.length</span></span><span> </span><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679522582"><span class="hs-identifier hs-var">probs</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a. Floating a =&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">log</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679522582"><span class="hs-identifier hs-var">probs</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Vector a -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">V.!</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522583"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-350"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-351"></span><span>
+</span><span id="line-352"></span><span class="hs-comment">-- With a simple list, this is pretty instant as long as the total list is less than 1000000</span><span>
+</span><span id="line-353"></span><span class="hs-comment">-- Cost is based on size of list rather than reservoir size.</span><span>
+</span><span id="line-354"></span><span id="local-6989586621679522577"><span id="local-6989586621679522578"><span class="annot"><a href="Probability.html#reservoirSample"><span class="hs-identifier hs-type">reservoirSample</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">StatefulGen</span></span><span> </span><span class="annot"><a href="#local-6989586621679522578"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679522578"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679522577"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679522577"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span></span><span>
+</span><span id="line-355"></span><span id="reservoirSample"><span class="annot"><span class="annottext">reservoirSample :: forall g a. StatefulGen g IO =&gt; g -&gt; Int -&gt; [a] -&gt; IO [a]
+</span><a href="Probability.html#reservoirSample"><span class="hs-identifier hs-var hs-var">reservoirSample</span></a></span></span><span> </span><span id="local-6989586621679522562"><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679522562"><span class="hs-identifier hs-var">gen</span></a></span></span><span> </span><span id="local-6989586621679522561"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522561"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span id="local-6989586621679522560"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679522560"><span class="hs-identifier hs-var">xs</span></a></span></span><span>
+</span><span id="line-356"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522559"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;=</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522561"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679522560"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-357"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-358"></span><span>      </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679522558"><span class="annot"><span class="annottext">res :: Vector a
+</span><a href="#local-6989586621679522558"><span class="hs-identifier hs-var hs-var">res</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. [a] -&gt; Vector a
+</span><span class="hs-identifier hs-var">V.fromList</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a. Int -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">take</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522561"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679522560"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-359"></span><span>      </span><span id="local-6989586621679522557"><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679522557"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall a g (m :: * -&gt; *).
+(UniformRange a, StatefulGen g m) =&gt;
+(a, a) -&gt; g -&gt; m a
+</span><span class="hs-identifier hs-var">uniformRM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Double
+</span><span class="hs-number">0</span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Double
+</span><span class="hs-number">1</span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679522562"><span class="hs-identifier hs-var">gen</span></a></span><span>
+</span><span id="line-360"></span><span>      </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679522549"><span class="annot"><span class="annottext">w :: Double
+</span><a href="#local-6989586621679522549"><span class="hs-identifier hs-var hs-var">w</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. Floating a =&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">exp</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Floating a =&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">log</span></span><span> </span><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679522557"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Fractional a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">/</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522561"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-361"></span><span>      </span><span id="local-6989586621679522548"><span class="annot"><span class="annottext">Vector a
+</span><a href="#local-6989586621679522548"><span class="hs-identifier hs-var">z</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall {f :: * -&gt; *} {t} {t} {a}.
+(UniformRange t, StatefulGen t f, RealFrac t, Floating t) =&gt;
+t -&gt; Int -&gt; Vector a -&gt; t -&gt; [a] -&gt; f (Vector a)
+</span><a href="#local-6989586621679522547"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679522562"><span class="hs-identifier hs-var">gen</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522561"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">Vector a
+</span><a href="#local-6989586621679522558"><span class="hs-identifier hs-var">res</span></a></span><span> </span><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679522549"><span class="hs-identifier hs-var">w</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Int -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">drop</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522561"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679522560"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-362"></span><span>      </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a. Vector a -&gt; [a]
+</span><span class="hs-identifier hs-var">V.toList</span></span><span> </span><span class="annot"><span class="annottext">Vector a
+</span><a href="#local-6989586621679522548"><span class="hs-identifier hs-var">z</span></a></span><span>
+</span><span id="line-363"></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-364"></span><span>  </span><span class="hs-comment">-- go :: g -&gt; Int -&gt; V.Vector t -&gt; Double -&gt; [t] -&gt; V.Vector t</span><span>
+</span><span id="line-365"></span><span>  </span><span id="local-6989586621679522547"><span class="annot"><span class="annottext">go :: t -&gt; Int -&gt; Vector a -&gt; t -&gt; [a] -&gt; f (Vector a)
+</span><a href="#local-6989586621679522547"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span id="local-6989586621679522513"><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679522513"><span class="hs-identifier hs-var">gen</span></a></span></span><span> </span><span id="local-6989586621679522512"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522512"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span id="local-6989586621679522511"><span class="annot"><span class="annottext">Vector a
+</span><a href="#local-6989586621679522511"><span class="hs-identifier hs-var">res</span></a></span></span><span> </span><span id="local-6989586621679522510"><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679522510"><span class="hs-identifier hs-var">w</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Vector a
+</span><a href="#local-6989586621679522511"><span class="hs-identifier hs-var">res</span></a></span><span>
+</span><span id="line-366"></span><span>  </span><span class="annot"><a href="#local-6989586621679522547"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span id="local-6989586621679522509"><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679522509"><span class="hs-identifier hs-var">gen</span></a></span></span><span> </span><span id="local-6989586621679522508"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522508"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span id="local-6989586621679522507"><span class="annot"><span class="annottext">Vector a
+</span><a href="#local-6989586621679522507"><span class="hs-identifier hs-var">res</span></a></span></span><span> </span><span id="local-6989586621679522506"><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679522506"><span class="hs-identifier hs-var">w</span></a></span></span><span> </span><span id="local-6989586621679522505"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679522505"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-367"></span><span>    </span><span id="local-6989586621679522504"><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679522504"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall a g (m :: * -&gt; *).
+(UniformRange a, StatefulGen g m) =&gt;
+(a, a) -&gt; g -&gt; m a
+</span><span class="hs-identifier hs-var">uniformRM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">t
+</span><span class="hs-number">0</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">t
+</span><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679522509"><span class="hs-identifier hs-var">gen</span></a></span><span>
+</span><span id="line-368"></span><span>    </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679522496"><span class="annot"><span class="annottext">jump :: Int
+</span><a href="#local-6989586621679522496"><span class="hs-identifier hs-var hs-var">jump</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a b. (RealFrac a, Integral b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">floor</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Floating a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">logBase</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">t
+</span><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679522506"><span class="hs-identifier hs-var">w</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679522504"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span>
+</span><span id="line-369"></span><span>    </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522508"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522496"><span class="hs-identifier hs-var">jump</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&gt;</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522559"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span>
+</span><span id="line-370"></span><span>      </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Vector a
+</span><a href="#local-6989586621679522507"><span class="hs-identifier hs-var">res</span></a></span><span>
+</span><span id="line-371"></span><span>      </span><span class="hs-keyword">else</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">forall a. Int -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">drop</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522496"><span class="hs-identifier hs-var">jump</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679522505"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-372"></span><span>        </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Vector a
+</span><a href="#local-6989586621679522507"><span class="hs-identifier hs-var">res</span></a></span><span>
+</span><span id="line-373"></span><span>        </span><span id="local-6989586621679522495"><span class="annot"><span class="annottext">xss :: [a]
+</span><a href="#local-6989586621679522495"><span class="hs-identifier hs-var">xss</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span id="local-6989586621679522494"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679522494"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-374"></span><span>          </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679522493"><span class="annot"><span class="annottext">xss :: [a]
+</span><a href="#local-6989586621679522493"><span class="hs-identifier hs-var hs-var">xss</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. Int -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">drop</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522496"><span class="hs-identifier hs-var">jump</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679522505"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-375"></span><span>          </span><span id="local-6989586621679522492"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522492"><span class="hs-identifier hs-var">rint</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall a g (m :: * -&gt; *).
+(UniformRange a, StatefulGen g m) =&gt;
+(a, a) -&gt; g -&gt; m a
+</span><span class="hs-identifier hs-var">uniformRM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522561"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679522509"><span class="hs-identifier hs-var">gen</span></a></span><span>
+</span><span id="line-376"></span><span>          </span><span id="local-6989586621679522491"><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679522491"><span class="hs-identifier hs-var">r</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall a g (m :: * -&gt; *).
+(UniformRange a, StatefulGen g m) =&gt;
+(a, a) -&gt; g -&gt; m a
+</span><span class="hs-identifier hs-var">uniformRM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">t
+</span><span class="hs-number">0</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">t
+</span><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679522509"><span class="hs-identifier hs-var">gen</span></a></span><span>
+</span><span id="line-377"></span><span>          </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679522490"><span class="annot"><span class="annottext">newres :: Vector a
+</span><a href="#local-6989586621679522490"><span class="hs-identifier hs-var hs-var">newres</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Vector a
+</span><a href="#local-6989586621679522507"><span class="hs-identifier hs-var">res</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Vector a -&gt; [(Int, a)] -&gt; Vector a
+</span><span class="hs-operator hs-var">V.//</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522492"><span class="hs-identifier hs-var">rint</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679522494"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-378"></span><span>          </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679522483"><span class="annot"><span class="annottext">w' :: t
+</span><a href="#local-6989586621679522483"><span class="hs-identifier hs-var hs-var">w'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679522506"><span class="hs-identifier hs-var">w</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">forall a. Floating a =&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">exp</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Floating a =&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">log</span></span><span> </span><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679522491"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Fractional a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">/</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522561"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-379"></span><span>          </span><span class="annot"><span class="annottext">t -&gt; Int -&gt; Vector a -&gt; t -&gt; [a] -&gt; f (Vector a)
+</span><a href="#local-6989586621679522547"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679522509"><span class="hs-identifier hs-var">gen</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522508"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522496"><span class="hs-identifier hs-var">jump</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Vector a
+</span><a href="#local-6989586621679522490"><span class="hs-identifier hs-var">newres</span></a></span><span> </span><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679522483"><span class="hs-identifier hs-var">w'</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679522493"><span class="hs-identifier hs-var">xss</span></a></span><span>
+</span><span id="line-380"></span><span>  </span><span id="local-6989586621679522559"><span class="annot"><span class="annottext">n :: Int
+</span><a href="#local-6989586621679522559"><span class="hs-identifier hs-var hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Int
+</span><span class="hs-identifier hs-var">length</span></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679522560"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-381"></span><span>
+</span><span id="line-382"></span><span id="local-6989586621679522951"><span id="local-6989586621679522952"><span id="local-6989586621679522953"><span class="annot"><a href="Probability.html#pickRandom"><span class="hs-identifier hs-type">pickRandom</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">StatefulGen</span></span><span> </span><span class="annot"><a href="#local-6989586621679522953"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679522952"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679522953"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679522951"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679522952"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679522951"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span></span><span>
+</span><span id="line-383"></span><span id="pickRandom"><span class="annot"><span class="annottext">pickRandom :: forall g (m :: * -&gt; *) a.
+StatefulGen g m =&gt;
+g -&gt; [a] -&gt; m (Maybe a)
+</span><a href="Probability.html#pickRandom"><span class="hs-identifier hs-var hs-var">pickRandom</span></a></span></span><span> </span><span class="annot"><span class="annottext">g
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-384"></span><span class="annot"><a href="Probability.html#pickRandom"><span class="hs-identifier hs-var">pickRandom</span></a></span><span> </span><span id="local-6989586621679522469"><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679522469"><span class="hs-identifier hs-var">gen</span></a></span></span><span> </span><span id="local-6989586621679522468"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679522468"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-385"></span><span>  </span><span id="local-6989586621679522467"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522467"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall a g (m :: * -&gt; *).
+(UniformRange a, StatefulGen g m) =&gt;
+(a, a) -&gt; g -&gt; m a
+</span><span class="hs-identifier hs-var">uniformRM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Int
+</span><span class="hs-identifier hs-var">length</span></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679522468"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679522469"><span class="hs-identifier hs-var">gen</span></a></span><span>
+</span><span id="line-386"></span><span>  </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679522468"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. [a] -&gt; Int -&gt; a
+</span><span class="hs-operator hs-var">!!</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679522467"><span class="hs-identifier hs-var">i</span></a></span><span>
+</span><span id="line-387"></span><span>
+</span><span id="line-388"></span><span class="hs-comment">-- Takes the average of two profiles</span><span>
+</span><span id="line-389"></span><span class="annot"><a href="Probability.html#mixture"><span class="hs-identifier hs-type">mixture</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">V.Vector</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">V.Vector</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">V.Vector</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span class="hs-special">)</span><span>
+</span><span id="line-390"></span><span id="mixture"><span class="annot"><span class="annottext">mixture :: Maybe (Vector Double)
+-&gt; Maybe (Vector Double) -&gt; Maybe (Vector Double)
+</span><a href="Probability.html#mixture"><span class="hs-identifier hs-var hs-var">mixture</span></a></span></span><span> </span><span id="local-6989586621679522466"><span class="annot"><span class="annottext">Maybe (Vector Double)
+</span><a href="#local-6989586621679522466"><span class="hs-identifier hs-var">v1m</span></a></span></span><span> </span><span id="local-6989586621679522465"><span class="annot"><span class="annottext">Maybe (Vector Double)
+</span><a href="#local-6989586621679522465"><span class="hs-identifier hs-var">v2m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-391"></span><span>  </span><span id="local-6989586621679522464"><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679522464"><span class="hs-identifier hs-var">v1</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Maybe (Vector Double)
+</span><a href="#local-6989586621679522466"><span class="hs-identifier hs-var">v1m</span></a></span><span>
+</span><span id="line-392"></span><span>  </span><span id="local-6989586621679522463"><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679522463"><span class="hs-identifier hs-var">v2</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Maybe (Vector Double)
+</span><a href="#local-6989586621679522465"><span class="hs-identifier hs-var">v2m</span></a></span><span>
+</span><span id="line-393"></span><span>  </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">forall a. Vector a -&gt; Int
+</span><span class="hs-identifier hs-var">V.length</span></span><span> </span><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679522464"><span class="hs-identifier hs-var">v1</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">forall a. Vector a -&gt; Int
+</span><span class="hs-identifier hs-var">V.length</span></span><span> </span><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679522463"><span class="hs-identifier hs-var">v2</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Fractional a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">/</span></span><span> </span><span class="annot"><span class="annottext">Double
+</span><span class="hs-number">2</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">forall a b c. (a -&gt; b -&gt; c) -&gt; Vector a -&gt; Vector b -&gt; Vector c
+</span><span class="hs-identifier hs-var">V.zipWith</span></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">(+)</span></span><span> </span><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679522464"><span class="hs-identifier hs-var">v1</span></a></span><span> </span><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679522463"><span class="hs-identifier hs-var">v2</span></a></span><span> </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-394"></span><span>
+</span><span id="line-395"></span><span class="hs-comment">-- \| otherwise = Nothing</span><span>
+</span><span id="line-396"></span><span>
+</span><span id="line-397"></span><span class="hs-comment">-- Takes the average of two profiles</span><span>
+</span><span id="line-398"></span><span class="annot"><a href="Probability.html#prodExperts"><span class="hs-identifier hs-type">prodExperts</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">V.Vector</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">V.Vector</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">V.Vector</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span class="hs-special">)</span><span>
+</span><span id="line-399"></span><span id="prodExperts"><span class="annot"><span class="annottext">prodExperts :: Vector Double -&gt; Vector Double -&gt; Maybe (Vector Double)
+</span><a href="Probability.html#prodExperts"><span class="hs-identifier hs-var hs-var">prodExperts</span></a></span></span><span> </span><span id="local-6989586621679522460"><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679522460"><span class="hs-identifier hs-var">v1</span></a></span></span><span> </span><span id="local-6989586621679522459"><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679522459"><span class="hs-identifier hs-var">v2</span></a></span></span><span>
+</span><span id="line-400"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">forall a. Vector a -&gt; Int
+</span><span class="hs-identifier hs-var">V.length</span></span><span> </span><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679522460"><span class="hs-identifier hs-var">v1</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">forall a. Vector a -&gt; Int
+</span><span class="hs-identifier hs-var">V.length</span></span><span> </span><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679522459"><span class="hs-identifier hs-var">v2</span></a></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-401"></span><span>      </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679522457"><span class="annot"><span class="annottext">unNormalised :: Vector Double
+</span><a href="#local-6989586621679522457"><span class="hs-identifier hs-var hs-var">unNormalised</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a b c. (a -&gt; b -&gt; c) -&gt; Vector a -&gt; Vector b -&gt; Vector c
+</span><span class="hs-identifier hs-var">V.zipWith</span></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">(*)</span></span><span> </span><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679522460"><span class="hs-identifier hs-var">v1</span></a></span><span> </span><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679522459"><span class="hs-identifier hs-var">v2</span></a></span><span>
+</span><span id="line-402"></span><span>       </span><span class="hs-keyword">in</span><span> </span><span class="annot"><span class="annottext">forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; Vector a -&gt; Vector b
+</span><span class="hs-identifier hs-var">V.map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Fractional a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">/</span></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; Vector a -&gt; a
+</span><span class="hs-identifier hs-var">V.sum</span></span><span> </span><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679522457"><span class="hs-identifier hs-var">unNormalised</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Vector Double
+</span><a href="#local-6989586621679522457"><span class="hs-identifier hs-var">unNormalised</span></a></span><span>
+</span><span id="line-403"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-404"></span><span>
+</span><span id="line-405"></span><span id="local-6989586621679522942"><span class="annot"><a href="Probability.html#poissonSample"><span class="hs-identifier hs-type">poissonSample</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">StatefulGen</span></span><span> </span><span class="annot"><a href="#local-6989586621679522942"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679522942"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span></span><span>
+</span><span id="line-406"></span><span id="poissonSample"><span class="annot"><span class="annottext">poissonSample :: forall g. StatefulGen g IO =&gt; g -&gt; Double -&gt; IO Int
+</span><a href="Probability.html#poissonSample"><span class="hs-identifier hs-var hs-var">poissonSample</span></a></span></span><span> </span><span id="local-6989586621679522451"><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679522451"><span class="hs-identifier hs-var">g</span></a></span></span><span> </span><span id="local-6989586621679522450"><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679522450"><span class="hs-identifier hs-var">lambda</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-407"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679522447"><span class="annot"><span class="annottext">p :: Double
+</span><a href="#local-6989586621679522447"><span class="hs-identifier hs-var hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. Floating a =&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">exp</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">-</span><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679522450"><span class="hs-identifier hs-var">lambda</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-408"></span><span>      </span><span id="local-6989586621679522433"><span class="annot"><span class="annottext">go :: t -&gt; Double -&gt; m t
+</span><a href="#local-6989586621679522433"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span id="local-6989586621679522432"><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679522432"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span id="local-6989586621679522431"><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679522431"><span class="hs-identifier hs-var">prod</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-409"></span><span>        </span><span id="local-6989586621679522430"><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679522430"><span class="hs-identifier hs-var">u</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall a g (m :: * -&gt; *).
+(UniformRange a, StatefulGen g m) =&gt;
+(a, a) -&gt; g -&gt; m a
+</span><span class="hs-identifier hs-var">uniformRM</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Double
+</span><span class="hs-number">0.0</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Double
+</span><span class="hs-number">1.0</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">g
+</span><a href="#local-6989586621679522451"><span class="hs-identifier hs-var">g</span></a></span><span>
+</span><span id="line-410"></span><span>        </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679522428"><span class="annot"><span class="annottext">prod' :: Double
+</span><a href="#local-6989586621679522428"><span class="hs-identifier hs-var hs-var">prod'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679522431"><span class="hs-identifier hs-var">prod</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">*</span></span><span> </span><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679522430"><span class="hs-identifier hs-var">u</span></a></span><span>
+</span><span id="line-411"></span><span>        </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679522428"><span class="hs-identifier hs-var">prod'</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;</span></span><span> </span><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679522447"><span class="hs-identifier hs-var">p</span></a></span><span>
+</span><span id="line-412"></span><span>          </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679522432"><span class="hs-identifier hs-var">k</span></a></span><span>
+</span><span id="line-413"></span><span>          </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">t -&gt; Double -&gt; m t
+</span><a href="#local-6989586621679522433"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679522432"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">t
+</span><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Double
+</span><a href="#local-6989586621679522428"><span class="hs-identifier hs-var">prod'</span></a></span><span>
+</span><span id="line-414"></span><span>  </span><span class="annot"><span class="annottext">forall {m :: * -&gt; *} {t}.
+(StatefulGen g m, Num t) =&gt;
+t -&gt; Double -&gt; m t
+</span><a href="#local-6989586621679522433"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">Double
+</span><span class="hs-number">1.0</span></span><span>
+</span><span id="line-415"></span></pre></body></html>

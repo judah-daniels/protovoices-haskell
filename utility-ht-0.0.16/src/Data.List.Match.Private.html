@@ -1,0 +1,432 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.List.Match.Private</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Maybe</span></span><span>    </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">fromJust</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">isNothing</span></span><span class="hs-special">,</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-4"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.Maybe.HT.html"><span class="hs-identifier">Data.Maybe.HT</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.Maybe.HT.html#toMaybe"><span class="hs-identifier">toMaybe</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-5"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.Tuple.HT.html"><span class="hs-identifier">Data.Tuple.HT</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.Tuple.Lazy.html#mapFst"><span class="hs-identifier">mapFst</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Tuple.Lazy.html#forcePair"><span class="hs-identifier">forcePair</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-6"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.Bool.HT.html"><span class="hs-identifier">Data.Bool.HT</span></a></span><span>  </span><span class="hs-special">(</span><span class="annot"><a href="Data.Bool.HT.Private.html#if%27"><span class="hs-identifier">if'</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-7"></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.List</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">List</span></span><span>
+</span><span id="line-9"></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Control.Functor.HT.html"><span class="hs-identifier">Control.Functor.HT</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Control.Functor.HT.html#void"><span class="hs-identifier">void</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">take</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">drop</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">splitAt</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">replicate</span></span><span class="hs-special">,</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="hs-comment">-- $setup</span><span>
+</span><span id="line-16"></span><span class="hs-comment">-- &gt;&gt;&gt; import qualified Data.List.Match.Private as Match</span><span>
+</span><span id="line-17"></span><span class="hs-comment">-- &gt;&gt;&gt; import qualified Data.List as List</span><span>
+</span><span id="line-18"></span><span class="hs-comment">-- &gt;&gt;&gt;</span><span>
+</span><span id="line-19"></span><span class="hs-comment">-- &gt;&gt;&gt; import qualified Test.QuickCheck as QC</span><span>
+</span><span id="line-20"></span><span class="hs-comment">-- &gt;&gt;&gt;</span><span>
+</span><span id="line-21"></span><span class="hs-comment">-- &gt;&gt;&gt; newtype List = List [Integer] deriving (Show)</span><span>
+</span><span id="line-22"></span><span class="hs-comment">-- &gt;&gt;&gt; instance QC.Arbitrary List where</span><span>
+</span><span id="line-23"></span><span class="hs-comment">-- &gt;&gt;&gt;    arbitrary = fmap List QC.arbitrary</span><span>
+</span><span id="line-24"></span><span class="hs-comment">-- &gt;&gt;&gt;    shrink (List xs) = map List $ QC.shrink xs</span><span>
+</span><span id="line-25"></span><span class="hs-comment">-- &gt;&gt;&gt;</span><span>
+</span><span id="line-26"></span><span class="hs-comment">-- &gt;&gt;&gt; newtype Shape = Shape [Ordering] deriving (Show)</span><span>
+</span><span id="line-27"></span><span class="hs-comment">-- &gt;&gt;&gt; instance QC.Arbitrary Shape where</span><span>
+</span><span id="line-28"></span><span class="hs-comment">-- &gt;&gt;&gt;    arbitrary = fmap Shape QC.arbitrary</span><span>
+</span><span id="line-29"></span><span class="hs-comment">-- &gt;&gt;&gt;    shrink (Shape xs) = map Shape $ QC.shrink xs</span><span>
+</span><span id="line-30"></span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span class="hs-comment">{- | Make a list as long as another one
+
+prop&gt; \(Shape xs) (List ys) -&gt; Match.take xs ys == List.take (length xs) ys
+-}</span><span>
+</span><span id="line-36"></span><span class="hs-comment">{-
+@flip (zipWith const)@ is not as lazy,
+e.g. would be @take [] undefined = undefined@,
+but it should be @take [] undefined = []@.
+-}</span><span>
+</span><span id="line-41"></span><span id="local-6989586621679043971"><span id="local-6989586621679043972"><span class="annot"><a href="Data.List.Match.Private.html#take"><span class="hs-identifier hs-type">take</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043972"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043971"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043971"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span></span><span>
+</span><span id="line-42"></span><span id="take"><span class="annot"><span class="annottext">take :: forall b a. [b] -&gt; [a] -&gt; [a]
+</span><a href="Data.List.Match.Private.html#take"><span class="hs-identifier hs-var hs-var">take</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a b c. (a -&gt; b -&gt; c) -&gt; [a] -&gt; [b] -&gt; [c]
+</span><span class="hs-identifier hs-var">zipWith</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">forall a b. a -&gt; b -&gt; a
+</span><span class="hs-identifier hs-var">const</span></span><span class="hs-special">)</span><span>
+</span><span id="line-43"></span><span>
+</span><span id="line-44"></span><span class="hs-comment">{- | Drop as many elements as the first list is long
+
+prop&gt; \(Shape xs) (List ys) -&gt; Match.drop xs ys == List.drop (length xs) ys
+prop&gt; \(Shape xs) (List ys) -&gt; Match.take xs ys ++ Match.drop xs ys == ys
+-}</span><span>
+</span><span id="line-49"></span><span id="local-6989586621679043863"><span id="local-6989586621679043864"><span class="annot"><a href="Data.List.Match.Private.html#drop"><span class="hs-identifier hs-type">drop</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043864"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043863"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043863"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span></span><span>
+</span><span id="line-50"></span><span id="drop"><span class="annot"><span class="annottext">drop :: forall b a. [b] -&gt; [a] -&gt; [a]
+</span><a href="Data.List.Match.Private.html#drop"><span class="hs-identifier hs-var hs-var">drop</span></a></span></span><span> </span><span id="local-6989586621679043859"><span class="annot"><span class="annottext">[b]
+</span><a href="#local-6989586621679043859"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span id="local-6989586621679043858"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043858"><span class="hs-identifier hs-var">ys0</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-51"></span><span>   </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) b a.
+Foldable t =&gt;
+(b -&gt; a -&gt; b) -&gt; b -&gt; t a -&gt; b
+</span><span class="hs-identifier hs-var">foldl</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679043856"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043856"><span class="hs-identifier hs-var">ys</span></a></span></span><span> </span><span class="annot"><span class="annottext">b
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a]
+</span><a href="Data.List.Match.Private.html#laxTail"><span class="hs-identifier hs-var">laxTail</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043856"><span class="hs-identifier hs-var">ys</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043858"><span class="hs-identifier hs-var">ys0</span></a></span><span> </span><span class="annot"><span class="annottext">[b]
+</span><a href="#local-6989586621679043859"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-52"></span><span>
+</span><span id="line-53"></span><span>
+</span><span id="line-54"></span><span class="hs-comment">-- | prop&gt; \(Shape xs) (List ys) -&gt; Match.drop xs ys == dropRec xs ys</span><span>
+</span><span id="line-55"></span><span class="hs-comment">{-
+Shares suffix with input,
+that is it is more efficient than the implementations below.
+-}</span><span>
+</span><span id="line-59"></span><span id="local-6989586621679043853"><span id="local-6989586621679043854"><span class="annot"><a href="Data.List.Match.Private.html#dropRec"><span class="hs-identifier hs-type">dropRec</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043854"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043853"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043853"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span></span><span>
+</span><span id="line-60"></span><span id="dropRec"><span class="annot"><span class="annottext">dropRec :: forall b a. [b] -&gt; [a] -&gt; [a]
+</span><a href="Data.List.Match.Private.html#dropRec"><span class="hs-identifier hs-var hs-var">dropRec</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">b
+</span><span class="hs-identifier">_</span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621679043851"><span class="annot"><span class="annottext">[b]
+</span><a href="#local-6989586621679043851"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a
+</span><span class="hs-identifier">_</span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621679043850"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043850"><span class="hs-identifier hs-var">ys</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall b a. [b] -&gt; [a] -&gt; [a]
+</span><a href="Data.List.Match.Private.html#dropRec"><span class="hs-identifier hs-var">dropRec</span></a></span><span> </span><span class="annot"><span class="annottext">[b]
+</span><a href="#local-6989586621679043851"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043850"><span class="hs-identifier hs-var">ys</span></a></span><span>
+</span><span id="line-61"></span><span class="annot"><a href="Data.List.Match.Private.html#dropRec"><span class="hs-identifier hs-var">dropRec</span></a></span><span> </span><span class="annot"><span class="annottext">[b]
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679043849"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043849"><span class="hs-identifier hs-var">ys</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043849"><span class="hs-identifier hs-var">ys</span></a></span><span>
+</span><span id="line-62"></span><span>
+</span><span id="line-63"></span><span class="hs-comment">-- | prop&gt; \(Shape xs) (List ys) -&gt; Match.drop xs ys == drop0 xs ys</span><span>
+</span><span id="line-64"></span><span id="local-6989586621679043847"><span id="local-6989586621679043848"><span class="annot"><a href="Data.List.Match.Private.html#drop0"><span class="hs-identifier hs-type">drop0</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043848"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043847"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043847"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span></span><span>
+</span><span id="line-65"></span><span id="drop0"><span class="annot"><span class="annottext">drop0 :: forall b a. [b] -&gt; [a] -&gt; [a]
+</span><a href="Data.List.Match.Private.html#drop0"><span class="hs-identifier hs-var hs-var">drop0</span></a></span></span><span> </span><span id="local-6989586621679043842"><span class="annot"><span class="annottext">[b]
+</span><a href="#local-6989586621679043842"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span id="local-6989586621679043841"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043841"><span class="hs-identifier hs-var">ys</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-66"></span><span>   </span><span class="hs-comment">-- catMaybes (</span><span>
+</span><span id="line-67"></span><span>   </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">forall a. HasCallStack =&gt; Maybe a -&gt; a
+</span><span class="hs-identifier hs-var">fromJust</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. (a -&gt; Bool) -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">dropWhile</span></span><span> </span><span class="annot"><span class="annottext">forall a. Maybe a -&gt; Bool
+</span><span class="hs-identifier hs-var">isNothing</span></span><span>
+</span><span id="line-68"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a b c. (a -&gt; b -&gt; c) -&gt; [a] -&gt; [b] -&gt; [c]
+</span><span class="hs-identifier hs-var">zipWith</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Bool -&gt; a -&gt; Maybe a
+</span><a href="Data.Maybe.HT.html#toMaybe"><span class="hs-identifier hs-var">toMaybe</span></a></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">null</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. (a -&gt; a) -&gt; a -&gt; [a]
+</span><span class="hs-identifier hs-var">iterate</span></span><span> </span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a]
+</span><a href="Data.List.Match.Private.html#laxTail"><span class="hs-identifier hs-var">laxTail</span></a></span><span> </span><span class="annot"><span class="annottext">[b]
+</span><a href="#local-6989586621679043842"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043841"><span class="hs-identifier hs-var">ys</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-69"></span><span>
+</span><span id="line-70"></span><span class="hs-comment">-- | prop&gt; \(Shape xs) (List ys) -&gt; Match.drop xs ys == drop1 xs ys</span><span>
+</span><span id="line-71"></span><span id="local-6989586621679043835"><span id="local-6989586621679043836"><span class="annot"><a href="Data.List.Match.Private.html#drop1"><span class="hs-identifier hs-type">drop1</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043836"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043835"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043835"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span></span><span>
+</span><span id="line-72"></span><span id="drop1"><span class="annot"><span class="annottext">drop1 :: forall b a. [b] -&gt; [a] -&gt; [a]
+</span><a href="Data.List.Match.Private.html#drop1"><span class="hs-identifier hs-var hs-var">drop1</span></a></span></span><span> </span><span id="local-6989586621679043832"><span class="annot"><span class="annottext">[b]
+</span><a href="#local-6989586621679043832"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span id="local-6989586621679043831"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043831"><span class="hs-identifier hs-var">ys</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-73"></span><span>   </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a, b) -&gt; b
+</span><span class="hs-identifier hs-var">snd</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. (a -&gt; Bool) -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">dropWhile</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">null</span></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a, b) -&gt; a
+</span><span class="hs-identifier hs-var">fst</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a b. [a] -&gt; [b] -&gt; [(a, b)]
+</span><span class="hs-identifier hs-var">zip</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. (a -&gt; a) -&gt; a -&gt; [a]
+</span><span class="hs-identifier hs-var">iterate</span></span><span> </span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a]
+</span><a href="Data.List.Match.Private.html#laxTail"><span class="hs-identifier hs-var">laxTail</span></a></span><span> </span><span class="annot"><span class="annottext">[b]
+</span><a href="#local-6989586621679043832"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043831"><span class="hs-identifier hs-var">ys</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-74"></span><span>
+</span><span id="line-75"></span><span class="hs-comment">-- | prop&gt; \(Shape xs) (List ys) -&gt; Match.drop xs ys == drop2 xs ys</span><span>
+</span><span id="line-76"></span><span id="local-6989586621679043828"><span id="local-6989586621679043829"><span class="annot"><a href="Data.List.Match.Private.html#drop2"><span class="hs-identifier hs-type">drop2</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043829"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043828"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043828"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span></span><span>
+</span><span id="line-77"></span><span id="drop2"><span class="annot"><span class="annottext">drop2 :: forall b a. [b] -&gt; [a] -&gt; [a]
+</span><a href="Data.List.Match.Private.html#drop2"><span class="hs-identifier hs-var hs-var">drop2</span></a></span></span><span> </span><span id="local-6989586621679043825"><span class="annot"><span class="annottext">[b]
+</span><a href="#local-6989586621679043825"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span id="local-6989586621679043824"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043824"><span class="hs-identifier hs-var">ys</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-78"></span><span>   </span><span class="annot"><span class="annottext">forall a b. (a, b) -&gt; b
+</span><span class="hs-identifier hs-var">snd</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall a. [a] -&gt; a
+</span><span class="hs-identifier hs-var">head</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-79"></span><span>   </span><span class="annot"><span class="annottext">forall a. (a -&gt; Bool) -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">dropWhile</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Bool
+</span><span class="hs-identifier hs-var">null</span></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a, b) -&gt; a
+</span><span class="hs-identifier hs-var">fst</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-80"></span><span>   </span><span class="annot"><span class="annottext">forall a b. [a] -&gt; [b] -&gt; [(a, b)]
+</span><span class="hs-identifier hs-var">zip</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. (a -&gt; a) -&gt; a -&gt; [a]
+</span><span class="hs-identifier hs-var">iterate</span></span><span> </span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a]
+</span><a href="Data.List.Match.Private.html#laxTail"><span class="hs-identifier hs-var">laxTail</span></a></span><span> </span><span class="annot"><span class="annottext">[b]
+</span><a href="#local-6989586621679043825"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. (a -&gt; a) -&gt; a -&gt; [a]
+</span><span class="hs-identifier hs-var">iterate</span></span><span> </span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a]
+</span><a href="Data.List.Match.Private.html#laxTail"><span class="hs-identifier hs-var">laxTail</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043824"><span class="hs-identifier hs-var">ys</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-81"></span><span>
+</span><span id="line-82"></span><span>
+</span><span id="line-83"></span><span class="hs-comment">{- |
+&gt;&gt;&gt; laxTail &quot;&quot;
+&quot;&quot;
+&gt;&gt;&gt; laxTail &quot;a&quot;
+&quot;&quot;
+&gt;&gt;&gt; laxTail &quot;ab&quot;
+&quot;b&quot;
+-}</span><span>
+</span><span id="line-91"></span><span id="local-6989586621679043957"><span class="annot"><a href="Data.List.Match.Private.html#laxTail"><span class="hs-identifier hs-type">laxTail</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043957"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043957"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span><span>
+</span><span id="line-92"></span><span id="laxTail"><span class="annot"><span class="annottext">laxTail :: forall a. [a] -&gt; [a]
+</span><a href="Data.List.Match.Private.html#laxTail"><span class="hs-identifier hs-var hs-var">laxTail</span></a></span></span><span> </span><span id="local-6989586621679043822"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043822"><span class="hs-identifier hs-var">xt</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043822"><span class="hs-identifier hs-var">xt</span></a></span><span> </span><span class="hs-keyword">of</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">;</span><span> </span><span class="annot"><span class="annottext">a
+</span><span class="hs-identifier">_</span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621679043821"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043821"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043821"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-93"></span><span>
+</span><span id="line-94"></span><span class="hs-comment">-- | prop&gt; \(List xs) -&gt; Match.laxTail xs == Match.laxTail0 xs</span><span>
+</span><span id="line-95"></span><span id="local-6989586621679043820"><span class="annot"><a href="Data.List.Match.Private.html#laxTail0"><span class="hs-identifier hs-type">laxTail0</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043820"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043820"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span><span>
+</span><span id="line-96"></span><span id="laxTail0"><span class="annot"><span class="annottext">laxTail0 :: forall a. [a] -&gt; [a]
+</span><a href="Data.List.Match.Private.html#laxTail0"><span class="hs-identifier hs-var hs-var">laxTail0</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. Int -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">List.drop</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span>
+</span><span id="line-97"></span><span>
+</span><span id="line-98"></span><span class="hs-comment">{- |
+prop&gt; \(Shape xs) (List ys) -&gt; Match.splitAt xs ys == (Match.take xs ys, Match.drop xs ys)
+prop&gt; \(Shape xs) (List ys) -&gt; Match.splitAt xs ys == List.splitAt (length xs) ys
+-}</span><span>
+</span><span id="line-102"></span><span id="local-6989586621679043922"><span id="local-6989586621679043923"><span class="annot"><a href="Data.List.Match.Private.html#splitAt"><span class="hs-identifier hs-type">splitAt</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043923"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043922"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043922"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span class="hs-special">,</span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043922"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-103"></span><span id="splitAt"><span class="annot"><span class="annottext">splitAt :: forall b a. [b] -&gt; [a] -&gt; ([a], [a])
+</span><a href="Data.List.Match.Private.html#splitAt"><span class="hs-identifier hs-var hs-var">splitAt</span></a></span></span><span> </span><span id="local-6989586621679043817"><span class="annot"><span class="annottext">[b]
+</span><a href="#local-6989586621679043817"><span class="hs-identifier hs-var">nt</span></a></span></span><span> </span><span id="local-6989586621679043816"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043816"><span class="hs-identifier hs-var">xt</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-104"></span><span>   </span><span class="annot"><span class="annottext">forall a b. (a, b) -&gt; (a, b)
+</span><a href="Data.Tuple.Lazy.html#forcePair"><span class="hs-identifier hs-var">forcePair</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-105"></span><span>   </span><span class="hs-keyword">case</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[b]
+</span><a href="#local-6989586621679043817"><span class="hs-identifier hs-var">nt</span></a></span><span class="hs-special">,</span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043816"><span class="hs-identifier hs-var">xt</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-106"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="annottext">b
+</span><span class="hs-identifier">_</span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621679043815"><span class="annot"><span class="annottext">[b]
+</span><a href="#local-6989586621679043815"><span class="hs-identifier hs-var">ns</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679043814"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679043814"><span class="hs-identifier hs-var">x</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621679043813"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043813"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall a c b. (a -&gt; c) -&gt; (a, b) -&gt; (c, b)
+</span><a href="Data.Tuple.Lazy.html#mapFst"><span class="hs-identifier hs-var">mapFst</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679043814"><span class="hs-identifier hs-var">x</span></a></span><span class="annot"><span class="annottext">forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">forall b a. [b] -&gt; [a] -&gt; ([a], [a])
+</span><a href="Data.List.Match.Private.html#splitAt"><span class="hs-identifier hs-var">splitAt</span></a></span><span> </span><span class="annot"><span class="annottext">[b]
+</span><a href="#local-6989586621679043815"><span class="hs-identifier hs-var">ns</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043813"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-107"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[b]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679043812"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043812"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">,</span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043812"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-108"></span><span>
+</span><span id="line-109"></span><span>
+</span><span id="line-110"></span><span class="hs-comment">-- | prop&gt; \(Shape xs) (List ys) -&gt; Match.takeRev xs ys == reverse (Match.take xs (reverse ys))</span><span>
+</span><span id="line-111"></span><span id="local-6989586621679043810"><span id="local-6989586621679043811"><span class="annot"><a href="Data.List.Match.Private.html#takeRev"><span class="hs-identifier hs-type">takeRev</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043811"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043810"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043810"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span></span><span>
+</span><span id="line-112"></span><span id="takeRev"><span class="annot"><span class="annottext">takeRev :: forall b a. [b] -&gt; [a] -&gt; [a]
+</span><a href="Data.List.Match.Private.html#takeRev"><span class="hs-identifier hs-var hs-var">takeRev</span></a></span></span><span> </span><span id="local-6989586621679043808"><span class="annot"><span class="annottext">[b]
+</span><a href="#local-6989586621679043808"><span class="hs-identifier hs-var">ys</span></a></span></span><span> </span><span id="local-6989586621679043807"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043807"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall b a. [b] -&gt; [a] -&gt; [a]
+</span><a href="Data.List.Match.Private.html#drop"><span class="hs-identifier hs-var">drop</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall b a. [b] -&gt; [a] -&gt; [a]
+</span><a href="Data.List.Match.Private.html#drop"><span class="hs-identifier hs-var">drop</span></a></span><span> </span><span class="annot"><span class="annottext">[b]
+</span><a href="#local-6989586621679043808"><span class="hs-identifier hs-var">ys</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043807"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043807"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-113"></span><span>
+</span><span id="line-114"></span><span class="hs-comment">-- | prop&gt; \(Shape xs) (List ys) -&gt; Match.dropRev xs ys == reverse (Match.drop xs (reverse ys))</span><span>
+</span><span id="line-115"></span><span id="local-6989586621679043805"><span id="local-6989586621679043806"><span class="annot"><a href="Data.List.Match.Private.html#dropRev"><span class="hs-identifier hs-type">dropRev</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043806"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043805"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043805"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span></span><span>
+</span><span id="line-116"></span><span id="dropRev"><span class="annot"><span class="annottext">dropRev :: forall b a. [b] -&gt; [a] -&gt; [a]
+</span><a href="Data.List.Match.Private.html#dropRev"><span class="hs-identifier hs-var hs-var">dropRev</span></a></span></span><span> </span><span id="local-6989586621679043803"><span class="annot"><span class="annottext">[b]
+</span><a href="#local-6989586621679043803"><span class="hs-identifier hs-var">ys</span></a></span></span><span> </span><span id="local-6989586621679043802"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043802"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall b a. [b] -&gt; [a] -&gt; [a]
+</span><a href="Data.List.Match.Private.html#take"><span class="hs-identifier hs-var">take</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall b a. [b] -&gt; [a] -&gt; [a]
+</span><a href="Data.List.Match.Private.html#drop"><span class="hs-identifier hs-var">drop</span></a></span><span> </span><span class="annot"><span class="annottext">[b]
+</span><a href="#local-6989586621679043803"><span class="hs-identifier hs-var">ys</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043802"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043802"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-117"></span><span>
+</span><span id="line-118"></span><span class="hs-comment">{- |
+Check whether two lists with different element types have equal length.
+It holds
+
+prop&gt; \(Shape xs) (List ys) -&gt; equalLength xs ys == (length xs == length ys)
+
+but 'equalLength' is more efficient.
+-}</span><span>
+</span><span id="line-126"></span><span id="local-6989586621679043909"><span id="local-6989586621679043910"><span class="annot"><a href="Data.List.Match.Private.html#equalLength"><span class="hs-identifier hs-type">equalLength</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043910"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043909"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span></span><span>
+</span><span id="line-127"></span><span id="equalLength"><span class="annot"><span class="annottext">equalLength :: forall a b. [a] -&gt; [b] -&gt; Bool
+</span><a href="Data.List.Match.Private.html#equalLength"><span class="hs-identifier hs-var hs-var">equalLength</span></a></span></span><span> </span><span id="local-6989586621679043793"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043793"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span id="local-6989586621679043792"><span class="annot"><span class="annottext">[b]
+</span><a href="#local-6989586621679043792"><span class="hs-identifier hs-var">ys</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-128"></span><span>   </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Functor f =&gt; f a -&gt; f ()
+</span><a href="Control.Functor.HT.html#void"><span class="hs-identifier hs-var">void</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043793"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Functor f =&gt; f a -&gt; f ()
+</span><a href="Control.Functor.HT.html#void"><span class="hs-identifier hs-var">void</span></a></span><span> </span><span class="annot"><span class="annottext">[b]
+</span><a href="#local-6989586621679043792"><span class="hs-identifier hs-var">ys</span></a></span><span>
+</span><span id="line-129"></span><span>
+</span><span id="line-130"></span><span class="hs-comment">{- |
+Compare the length of two lists over different types.
+It holds
+
+prop&gt; \(Shape xs) (List ys) -&gt; compareLength xs ys == compare (length xs) (length ys)
+
+but 'compareLength' is more efficient.
+-}</span><span>
+</span><span id="line-138"></span><span id="local-6989586621679043901"><span id="local-6989586621679043902"><span class="annot"><a href="Data.List.Match.Private.html#compareLength"><span class="hs-identifier hs-type">compareLength</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043902"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043901"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ordering</span></span></span></span><span>
+</span><span id="line-139"></span><span id="compareLength"><span class="annot"><span class="annottext">compareLength :: forall a b. [a] -&gt; [b] -&gt; Ordering
+</span><a href="Data.List.Match.Private.html#compareLength"><span class="hs-identifier hs-var hs-var">compareLength</span></a></span></span><span> </span><span id="local-6989586621679043784"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043784"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span id="local-6989586621679043783"><span class="annot"><span class="annottext">[b]
+</span><a href="#local-6989586621679043783"><span class="hs-identifier hs-var">ys</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-140"></span><span>   </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Ordering
+</span><span class="hs-identifier hs-var">compare</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Functor f =&gt; f a -&gt; f ()
+</span><a href="Control.Functor.HT.html#void"><span class="hs-identifier hs-var">void</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043784"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a. Functor f =&gt; f a -&gt; f ()
+</span><a href="Control.Functor.HT.html#void"><span class="hs-identifier hs-var">void</span></a></span><span> </span><span class="annot"><span class="annottext">[b]
+</span><a href="#local-6989586621679043783"><span class="hs-identifier hs-var">ys</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-141"></span><span>
+</span><span id="line-142"></span><span class="hs-comment">{- | this one uses explicit recursion
+
+prop&gt; \(Shape xs) (List ys) -&gt; Match.compareLength xs ys == Match.compareLength0 xs ys
+-}</span><span>
+</span><span id="line-146"></span><span id="local-6989586621679043780"><span id="local-6989586621679043781"><span class="annot"><a href="Data.List.Match.Private.html#compareLength0"><span class="hs-identifier hs-type">compareLength0</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043781"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043780"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ordering</span></span></span></span><span>
+</span><span id="line-147"></span><span id="compareLength0"><span class="annot"><span class="annottext">compareLength0 :: forall a b. [a] -&gt; [b] -&gt; Ordering
+</span><a href="Data.List.Match.Private.html#compareLength0"><span class="hs-identifier hs-var hs-var">compareLength0</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-148"></span><span>   </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679043778"><span class="annot"><span class="annottext">recourse :: [a] -&gt; [a] -&gt; Ordering
+</span><a href="#local-6989586621679043778"><span class="hs-identifier hs-var hs-var">recourse</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a
+</span><span class="hs-identifier">_</span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621679043777"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043777"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a
+</span><span class="hs-identifier">_</span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621679043776"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043776"><span class="hs-identifier hs-var">ys</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[a] -&gt; [a] -&gt; Ordering
+</span><a href="#local-6989586621679043778"><span class="hs-identifier hs-var">recourse</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043777"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043776"><span class="hs-identifier hs-var">ys</span></a></span><span>
+</span><span id="line-149"></span><span>       </span><span class="annot"><a href="#local-6989586621679043778"><span class="hs-identifier hs-var">recourse</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>     </span><span class="hs-special">[</span><span class="hs-special">]</span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">EQ</span></span><span>
+</span><span id="line-150"></span><span>       </span><span class="annot"><a href="#local-6989586621679043778"><span class="hs-identifier hs-var">recourse</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a
+</span><span class="hs-identifier">_</span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span class="annot"><span class="annottext">[a]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span>  </span><span class="hs-special">[</span><span class="hs-special">]</span><span>     </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">GT</span></span><span>
+</span><span id="line-151"></span><span>       </span><span class="annot"><a href="#local-6989586621679043778"><span class="hs-identifier hs-var">recourse</span></a></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>     </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a
+</span><span class="hs-identifier">_</span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span class="annot"><span class="annottext">[a]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">LT</span></span><span>
+</span><span id="line-152"></span><span>   </span><span class="hs-keyword">in</span><span>  </span><span class="annot"><span class="annottext">forall a b. [a] -&gt; [b] -&gt; Ordering
+</span><a href="#local-6989586621679043778"><span class="hs-identifier hs-var">recourse</span></a></span><span>
+</span><span id="line-153"></span><span>
+</span><span id="line-154"></span><span class="hs-comment">{- | strict comparison
+
+prop&gt; \(Shape xs) (List ys) -&gt; Match.compareLength xs ys == Match.compareLength1 xs ys
+-}</span><span>
+</span><span id="line-158"></span><span id="local-6989586621679043774"><span id="local-6989586621679043775"><span class="annot"><a href="Data.List.Match.Private.html#compareLength1"><span class="hs-identifier hs-type">compareLength1</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043775"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043774"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ordering</span></span></span></span><span>
+</span><span id="line-159"></span><span id="compareLength1"><span class="annot"><span class="annottext">compareLength1 :: forall a b. [a] -&gt; [b] -&gt; Ordering
+</span><a href="Data.List.Match.Private.html#compareLength1"><span class="hs-identifier hs-var hs-var">compareLength1</span></a></span></span><span> </span><span id="local-6989586621679043768"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043768"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span id="local-6989586621679043767"><span class="annot"><span class="annottext">[b]
+</span><a href="#local-6989586621679043767"><span class="hs-identifier hs-var">ys</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-160"></span><span>   </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Ordering
+</span><span class="hs-identifier hs-var">compare</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Int
+</span><span class="hs-identifier hs-var">length</span></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043768"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Int
+</span><span class="hs-identifier hs-var">length</span></span><span> </span><span class="annot"><span class="annottext">[b]
+</span><a href="#local-6989586621679043767"><span class="hs-identifier hs-var">ys</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-161"></span><span>
+</span><span id="line-162"></span><span class="hs-comment">{- |
+@lessOrEqualLength x y@ is almost the same as @compareLength x y &lt;= EQ@,
+but
+
+&gt;&gt;&gt; lessOrEqualLength &quot;&quot; undefined
+True
+
+whereas @compareLength [] undefined &lt;= EQ  =  undefined@.
+-}</span><span>
+</span><span id="line-171"></span><span id="local-6989586621679043764"><span id="local-6989586621679043765"><span class="annot"><a href="Data.List.Match.Private.html#lessOrEqualLength"><span class="hs-identifier hs-type">lessOrEqualLength</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043765"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043764"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span></span><span>
+</span><span id="line-172"></span><span id="lessOrEqualLength"><span class="annot"><span class="annottext">lessOrEqualLength :: forall a b. [a] -&gt; [b] -&gt; Bool
+</span><a href="Data.List.Match.Private.html#lessOrEqualLength"><span class="hs-identifier hs-var hs-var">lessOrEqualLength</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">[b]
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>
+</span><span id="line-173"></span><span class="annot"><a href="Data.List.Match.Private.html#lessOrEqualLength"><span class="hs-identifier hs-var">lessOrEqualLength</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span>
+</span><span id="line-174"></span><span class="annot"><a href="Data.List.Match.Private.html#lessOrEqualLength"><span class="hs-identifier hs-var">lessOrEqualLength</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a
+</span><span class="hs-identifier">_</span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621679043762"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043762"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">b
+</span><span class="hs-identifier">_</span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621679043761"><span class="annot"><span class="annottext">[b]
+</span><a href="#local-6989586621679043761"><span class="hs-identifier hs-var">ys</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a b. [a] -&gt; [b] -&gt; Bool
+</span><a href="Data.List.Match.Private.html#lessOrEqualLength"><span class="hs-identifier hs-var">lessOrEqualLength</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043762"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">[b]
+</span><a href="#local-6989586621679043761"><span class="hs-identifier hs-var">ys</span></a></span><span>
+</span><span id="line-175"></span><span>
+</span><span id="line-176"></span><span class="hs-comment">{- |
+Returns the shorter one of two lists.
+It works also for infinite lists as much as possible.
+E.g.
+
+&gt;&gt;&gt; shorterList (shorterList (repeat 'a') (repeat 'b')) &quot;abc&quot;
+&quot;abc&quot;
+
+The trick is, that the skeleton of the resulting list
+is constructed using 'zipWith' without touching the elements.
+The contents is then computed (only) if requested.
+-}</span><span>
+</span><span id="line-188"></span><span id="local-6989586621679043889"><span class="annot"><a href="Data.List.Match.Private.html#shorterList"><span class="hs-identifier hs-type">shorterList</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043889"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043889"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043889"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span><span>
+</span><span id="line-189"></span><span id="shorterList"><span class="annot"><span class="annottext">shorterList :: forall a. [a] -&gt; [a] -&gt; [a]
+</span><a href="Data.List.Match.Private.html#shorterList"><span class="hs-identifier hs-var hs-var">shorterList</span></a></span></span><span> </span><span id="local-6989586621679043759"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043759"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span id="local-6989586621679043758"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043758"><span class="hs-identifier hs-var">ys</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-190"></span><span>   </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679043757"><span class="annot"><span class="annottext">useX :: Bool
+</span><a href="#local-6989586621679043757"><span class="hs-identifier hs-var hs-var">useX</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a b. [a] -&gt; [b] -&gt; Bool
+</span><a href="Data.List.Match.Private.html#lessOrEqualLength"><span class="hs-identifier hs-var">lessOrEqualLength</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043759"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043758"><span class="hs-identifier hs-var">ys</span></a></span><span>
+</span><span id="line-191"></span><span>   </span><span class="hs-keyword">in</span><span>  </span><span class="annot"><span class="annottext">forall a b c. (a -&gt; b -&gt; c) -&gt; [a] -&gt; [b] -&gt; [c]
+</span><span class="hs-identifier hs-var">zipWith</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Bool -&gt; a -&gt; a -&gt; a
+</span><a href="Data.Bool.HT.Private.html#if%27"><span class="hs-identifier hs-var">if'</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621679043757"><span class="hs-identifier hs-var">useX</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043759"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043758"><span class="hs-identifier hs-var">ys</span></a></span><span>
+</span><span id="line-192"></span><span>
+</span><span id="line-193"></span><span class="hs-comment">{- |
+This is lazier than 'shorterList' in a different aspect:
+It returns a common prefix
+even if it is undefined, which list is the shorter one.
+However, it requires a proper 'Eq' instance
+and if elements are undefined, it may fail even earlier.
+
+&gt;&gt;&gt; List.take 3 $ shorterListEq (&quot;abc&quot; ++ repeat 'a') (&quot;abcdef&quot; ++ repeat 'b')
+&quot;abc&quot;
+-}</span><span>
+</span><span id="line-203"></span><span id="local-6989586621679043886"><span class="annot"><a href="Data.List.Match.Private.html#shorterListEq"><span class="hs-identifier hs-type">shorterListEq</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Eq</span></span><span> </span><span class="annot"><a href="#local-6989586621679043886"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043886"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043886"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043886"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span><span>
+</span><span id="line-204"></span><span id="shorterListEq"><span class="annot"><span class="annottext">shorterListEq :: forall a. Eq a =&gt; [a] -&gt; [a] -&gt; [a]
+</span><a href="Data.List.Match.Private.html#shorterListEq"><span class="hs-identifier hs-var hs-var">shorterListEq</span></a></span></span><span> </span><span id="local-6989586621679043753"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043753"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span id="local-6989586621679043752"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043752"><span class="hs-identifier hs-var">ys</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-205"></span><span>   </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679043751"><span class="annot"><span class="annottext">useX :: Bool
+</span><a href="#local-6989586621679043751"><span class="hs-identifier hs-var hs-var">useX</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a b. [a] -&gt; [b] -&gt; Bool
+</span><a href="Data.List.Match.Private.html#lessOrEqualLength"><span class="hs-identifier hs-var">lessOrEqualLength</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043753"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043752"><span class="hs-identifier hs-var">ys</span></a></span><span>
+</span><span id="line-206"></span><span>   </span><span class="hs-keyword">in</span><span>  </span><span class="annot"><span class="annottext">forall a b c. (a -&gt; b -&gt; c) -&gt; [a] -&gt; [b] -&gt; [c]
+</span><span class="hs-identifier hs-var">zipWith</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679043750"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679043750"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621679043749"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679043749"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall a. Bool -&gt; a -&gt; a -&gt; a
+</span><a href="Data.Bool.HT.Private.html#if%27"><span class="hs-identifier hs-var">if'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679043750"><span class="hs-identifier hs-var">x</span></a></span><span class="annot"><span class="annottext">forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679043749"><span class="hs-identifier hs-var">y</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">||</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621679043751"><span class="hs-identifier hs-var">useX</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679043750"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679043749"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043753"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043752"><span class="hs-identifier hs-var">ys</span></a></span><span>
+</span><span id="line-207"></span><span>
+</span><span id="line-208"></span><span>
+</span><span id="line-209"></span><span class="hs-comment">{- |
+Specialisation of 'Data.Functor.$&gt;'.
+-}</span><span>
+</span><span id="line-212"></span><span id="local-6989586621679043883"><span id="local-6989586621679043884"><span class="annot"><a href="Data.List.Match.Private.html#replicate"><span class="hs-identifier hs-type">replicate</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043884"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679043883"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679043883"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">]</span></span></span><span>
+</span><span id="line-213"></span><span id="replicate"><span class="annot"><span class="annottext">replicate :: forall a b. [a] -&gt; b -&gt; [b]
+</span><a href="Data.List.Match.Private.html#replicate"><span class="hs-identifier hs-var hs-var">replicate</span></a></span></span><span> </span><span id="local-6989586621679043746"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043746"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span id="local-6989586621679043745"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621679043745"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-214"></span><span>   </span><span class="annot"><span class="annottext">forall b a. [b] -&gt; [a] -&gt; [a]
+</span><a href="Data.List.Match.Private.html#take"><span class="hs-identifier hs-var">take</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679043746"><span class="hs-identifier hs-var">xs</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. a -&gt; [a]
+</span><span class="hs-identifier hs-var">repeat</span></span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621679043745"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-215"></span></pre></body></html>

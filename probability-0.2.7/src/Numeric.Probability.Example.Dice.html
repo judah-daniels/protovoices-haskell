@@ -1,0 +1,98 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Numeric.Probability.Example.Dice</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Numeric.Probability.Distribution.html"><span class="hs-identifier">Numeric.Probability.Distribution</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Dist</span></span><span>
+</span><span id="line-4"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Numeric.Probability.Distribution.html"><span class="hs-identifier">Numeric.Probability.Distribution</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Numeric.Probability.Distribution.html#%3F%3F"><span class="hs-operator">(??)</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-5"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">liftM2</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">replicateM</span></span><span class="hs-special">)</span><span>
+</span><span id="line-6"></span><span>
+</span><span id="line-7"></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">type</span><span> </span><span id="Die"><span class="annot"><a href="Numeric.Probability.Example.Dice.html#Die"><span class="hs-identifier hs-var">Die</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-9"></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">type</span><span> </span><span id="Probability"><span class="annot"><a href="Numeric.Probability.Example.Dice.html#Probability"><span class="hs-identifier hs-var">Probability</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Rational</span></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">type</span><span> </span><span id="Dist"><span class="annot"><a href="Numeric.Probability.Example.Dice.html#Dist"><span class="hs-identifier hs-var">Dist</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Numeric.Probability.Distribution.html#T"><span class="hs-identifier hs-type">Dist.T</span></a></span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Dice.html#Probability"><span class="hs-identifier hs-type">Probability</span></a></span><span>
+</span><span id="line-12"></span><span>
+</span><span id="line-13"></span><span class="annot"><a href="Numeric.Probability.Example.Dice.html#die"><span class="hs-identifier hs-type">die</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Dice.html#Dist"><span class="hs-identifier hs-type">Dist</span></a></span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Dice.html#Die"><span class="hs-identifier hs-type">Die</span></a></span><span>
+</span><span id="line-14"></span><span id="die"><span class="annot"><span class="annottext">die :: Dist Die
+</span><a href="Numeric.Probability.Example.Dice.html#die"><span class="hs-identifier hs-var hs-var">die</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall prob a. Fractional prob =&gt; Spread prob a
+</span><a href="Numeric.Probability.Distribution.html#uniform"><span class="hs-identifier hs-var">Dist.uniform</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Die
+</span><span class="hs-number">1</span></span><span class="hs-glyph">..</span><span class="annot"><span class="annottext">Die
+</span><span class="hs-number">6</span></span><span class="hs-special">]</span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-comment">-- | product of independent distributions</span><span>
+</span><span id="line-17"></span><span class="annot"><a href="Numeric.Probability.Example.Dice.html#twoDice"><span class="hs-identifier hs-type">twoDice</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Dice.html#Dist"><span class="hs-identifier hs-type">Dist</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Numeric.Probability.Example.Dice.html#Die"><span class="hs-identifier hs-type">Die</span></a></span><span class="hs-special">,</span><span class="annot"><a href="Numeric.Probability.Example.Dice.html#Die"><span class="hs-identifier hs-type">Die</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-18"></span><span id="twoDice"><span class="annot"><span class="annottext">twoDice :: Dist (Die, Die)
+</span><a href="Numeric.Probability.Example.Dice.html#twoDice"><span class="hs-identifier hs-var hs-var">twoDice</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a1 a2 r.
+Monad m =&gt;
+(a1 -&gt; a2 -&gt; r) -&gt; m a1 -&gt; m a2 -&gt; m r
+</span><span class="hs-identifier hs-var">liftM2</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">,</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Dist Die
+</span><a href="Numeric.Probability.Example.Dice.html#die"><span class="hs-identifier hs-var">die</span></a></span><span> </span><span class="annot"><span class="annottext">Dist Die
+</span><a href="Numeric.Probability.Example.Dice.html#die"><span class="hs-identifier hs-var">die</span></a></span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span class="annot"><a href="Numeric.Probability.Example.Dice.html#dice"><span class="hs-identifier hs-type">dice</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Dice.html#Dist"><span class="hs-identifier hs-type">Dist</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Numeric.Probability.Example.Dice.html#Die"><span class="hs-identifier hs-type">Die</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-21"></span><span id="dice"><span class="annot"><span class="annottext">dice :: Die -&gt; Dist [Die]
+</span><a href="Numeric.Probability.Example.Dice.html#dice"><span class="hs-identifier hs-var hs-var">dice</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Applicative m =&gt; Die -&gt; m a -&gt; m [a]
+</span><span class="hs-identifier hs-var">replicateM</span></span><span> </span><span class="annot"><span class="annottext">Dist Die
+</span><a href="Numeric.Probability.Example.Dice.html#die"><span class="hs-identifier hs-var">die</span></a></span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span>
+</span><span id="line-24"></span><span class="annot"><a href="Numeric.Probability.Example.Dice.html#twoSixes"><span class="hs-identifier hs-type">twoSixes</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Dice.html#Probability"><span class="hs-identifier hs-type">Probability</span></a></span><span>
+</span><span id="line-25"></span><span id="twoSixes"><span class="annot"><span class="annottext">twoSixes :: Probability
+</span><a href="Numeric.Probability.Example.Dice.html#twoSixes"><span class="hs-identifier hs-var hs-var">twoSixes</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span class="hs-special">(</span><span class="annot"><span class="annottext">Die
+</span><span class="hs-number">6</span></span><span class="hs-special">,</span><span class="annot"><span class="annottext">Die
+</span><span class="hs-number">6</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall prob a. Num prob =&gt; Event a -&gt; T prob a -&gt; prob
+</span><a href="Numeric.Probability.Distribution.html#%3F%3F"><span class="hs-operator hs-var">??</span></a></span><span> </span><span class="annot"><span class="annottext">Dist (Die, Die)
+</span><a href="Numeric.Probability.Example.Dice.html#twoDice"><span class="hs-identifier hs-var">twoDice</span></a></span><span>
+</span><span id="line-26"></span><span>
+</span><span id="line-27"></span><span class="hs-comment">{- |
+@sixes p n@ computes the probability of getting
+p sixes (@&gt;1@, @==2@, ...) when rolling n dice
+-}</span><span>
+</span><span id="line-31"></span><span class="annot"><a href="Numeric.Probability.Example.Dice.html#sixes"><span class="hs-identifier hs-type">sixes</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Dice.html#Probability"><span class="hs-identifier hs-type">Probability</span></a></span><span>
+</span><span id="line-32"></span><span id="sixes"><span class="annot"><span class="annottext">sixes :: (Die -&gt; Bool) -&gt; Die -&gt; Probability
+</span><a href="Numeric.Probability.Example.Dice.html#sixes"><span class="hs-identifier hs-var hs-var">sixes</span></a></span></span><span> </span><span id="local-6989586621679064866"><span class="annot"><span class="annottext">Die -&gt; Bool
+</span><a href="#local-6989586621679064866"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span id="local-6989586621679064865"><span class="annot"><span class="annottext">Die
+</span><a href="#local-6989586621679064865"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Die -&gt; Bool
+</span><a href="#local-6989586621679064866"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Die
+</span><span class="hs-identifier hs-var">length</span></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall a. (a -&gt; Bool) -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">filter</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span class="annot"><span class="annottext">Die
+</span><span class="hs-number">6</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall prob a. Num prob =&gt; Event a -&gt; T prob a -&gt; prob
+</span><a href="Numeric.Probability.Distribution.html#%3F%3F"><span class="hs-operator hs-var">??</span></a></span><span> </span><span class="annot"><span class="annottext">Die -&gt; Dist [Die]
+</span><a href="Numeric.Probability.Example.Dice.html#dice"><span class="hs-identifier hs-var">dice</span></a></span><span> </span><span class="annot"><span class="annottext">Die
+</span><a href="#local-6989586621679064865"><span class="hs-identifier hs-var">n</span></a></span><span>
+</span><span id="line-33"></span><span>
+</span><span id="line-34"></span><span class="annot"><a href="Numeric.Probability.Example.Dice.html#droll"><span class="hs-identifier hs-type">droll</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Dice.html#Dist"><span class="hs-identifier hs-type">Dist</span></a></span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Dice.html#Die"><span class="hs-identifier hs-type">Die</span></a></span><span>
+</span><span id="line-35"></span><span id="droll"><span class="annot"><span class="annottext">droll :: Dist Die
+</span><a href="Numeric.Probability.Example.Dice.html#droll"><span class="hs-identifier hs-var hs-var">droll</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-36"></span><span>   </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a1 a2 r.
+Monad m =&gt;
+(a1 -&gt; a2 -&gt; r) -&gt; m a1 -&gt; m a2 -&gt; m r
+</span><span class="hs-identifier hs-var">liftM2</span></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">(+)</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall prob a. Fractional prob =&gt; Spread prob a
+</span><a href="Numeric.Probability.Distribution.html#uniform"><span class="hs-identifier hs-var">Dist.uniform</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Die
+</span><span class="hs-number">0</span></span><span class="hs-special">,</span><span class="annot"><span class="annottext">Die
+</span><span class="hs-number">1</span></span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Dist Die
+</span><a href="Numeric.Probability.Example.Dice.html#die"><span class="hs-identifier hs-var">die</span></a></span><span>
+</span><span id="line-37"></span><span>
+</span><span id="line-38"></span><span class="annot"><a href="Numeric.Probability.Example.Dice.html#g3"><span class="hs-identifier hs-type">g3</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Dice.html#Probability"><span class="hs-identifier hs-type">Probability</span></a></span><span>
+</span><span id="line-39"></span><span id="g3"><span class="annot"><span class="annottext">g3 :: Probability
+</span><a href="Numeric.Probability.Example.Dice.html#g3"><span class="hs-identifier hs-var hs-var">g3</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&gt;</span></span><span class="annot"><span class="annottext">Die
+</span><span class="hs-number">3</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall prob a. Num prob =&gt; Event a -&gt; T prob a -&gt; prob
+</span><a href="Numeric.Probability.Distribution.html#%3F%3F"><span class="hs-operator hs-var">??</span></a></span><span> </span><span class="annot"><span class="annottext">Dist Die
+</span><a href="Numeric.Probability.Example.Dice.html#die"><span class="hs-identifier hs-var">die</span></a></span><span>
+</span><span id="line-40"></span><span>
+</span><span id="line-41"></span><span class="annot"><a href="Numeric.Probability.Example.Dice.html#addTwo"><span class="hs-identifier hs-type">addTwo</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Dice.html#Dist"><span class="hs-identifier hs-type">Dist</span></a></span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Dice.html#Die"><span class="hs-identifier hs-type">Die</span></a></span><span>
+</span><span id="line-42"></span><span id="addTwo"><span class="annot"><span class="annottext">addTwo :: Dist Die
+</span><a href="Numeric.Probability.Example.Dice.html#addTwo"><span class="hs-identifier hs-var hs-var">addTwo</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-43"></span><span>   </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a1 a2 r.
+Monad m =&gt;
+(a1 -&gt; a2 -&gt; r) -&gt; m a1 -&gt; m a2 -&gt; m r
+</span><span class="hs-identifier hs-var">liftM2</span></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">(+)</span></span><span> </span><span class="annot"><span class="annottext">Dist Die
+</span><a href="Numeric.Probability.Example.Dice.html#die"><span class="hs-identifier hs-var">die</span></a></span><span> </span><span class="annot"><span class="annottext">Dist Die
+</span><a href="Numeric.Probability.Example.Dice.html#die"><span class="hs-identifier hs-var">die</span></a></span><span>
+</span><span id="line-44"></span></pre></body></html>

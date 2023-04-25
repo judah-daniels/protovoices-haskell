@@ -1,0 +1,105 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.Monoid.HT</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.Monoid.HT.html#cycle"><span class="hs-identifier">cycle</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Monoid.HT.html#%3C%3E"><span class="hs-operator">(&lt;&gt;)</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Monoid.HT.html#when"><span class="hs-identifier">when</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Monoid.HT.html#power"><span class="hs-identifier">power</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Monoid</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Monoid</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">mappend</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">mempty</span></span><span class="hs-special">,</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-4"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Function</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">fix</span></span><span class="hs-special">,</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-5"></span><span>
+</span><span id="line-6"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Integer</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">Bool</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">Ordering</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">compare</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">divMod</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">error</span></span><span class="hs-special">)</span><span>
+</span><span id="line-7"></span><span>
+</span><span id="line-8"></span><span>
+</span><span id="line-9"></span><span class="hs-comment">{- $setup
+&gt;&gt;&gt; import qualified Test.QuickCheck as QC
+&gt;&gt;&gt; import Control.Monad (mfilter)
+&gt;&gt;&gt; import Data.Function.HT (powerAssociative)
+&gt;&gt;&gt; import Data.Monoid (mconcat, mappend, mempty)
+-}</span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-comment">{- |
+Generalization of 'Data.List.cycle' to any monoid.
+-}</span><span>
+</span><span id="line-19"></span><span id="local-6989586621679042700"><span class="annot"><a href="Data.Monoid.HT.html#cycle"><span class="hs-identifier hs-type">cycle</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="#local-6989586621679042700"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679042700"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679042700"><span class="hs-identifier hs-type">m</span></a></span></span><span>
+</span><span id="line-20"></span><span id="cycle"><span class="annot"><span class="annottext">cycle :: forall m. Monoid m =&gt; m -&gt; m
+</span><a href="Data.Monoid.HT.html#cycle"><span class="hs-identifier hs-var hs-var">cycle</span></a></span></span><span> </span><span id="local-6989586621679042676"><span class="annot"><span class="annottext">m
+</span><a href="#local-6989586621679042676"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-21"></span><span>   </span><span class="annot"><span class="annottext">forall a. (a -&gt; a) -&gt; a
+</span><span class="hs-identifier hs-var">fix</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Monoid a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">mappend</span></span><span> </span><span class="annot"><span class="annottext">m
+</span><a href="#local-6989586621679042676"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span>
+</span><span id="line-24"></span><span class="hs-keyword">infixr</span><span> </span><span class="hs-number">6</span><span> </span><span class="annot"><a href="Data.Monoid.HT.html#%3C%3E"><span class="hs-operator hs-type">&lt;&gt;</span></a></span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span class="hs-comment">{- |
+Infix synonym for 'mappend'.
+-}</span><span>
+</span><span id="line-29"></span><span id="local-6989586621679042675"><span class="annot"><a href="Data.Monoid.HT.html#%3C%3E"><span class="hs-operator hs-type">(&lt;&gt;)</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="#local-6989586621679042675"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679042675"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679042675"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679042675"><span class="hs-identifier hs-type">m</span></a></span></span><span>
+</span><span id="line-30"></span><span id="%3C%3E"><span class="annot"><span class="annottext">&lt;&gt; :: forall a. Monoid a =&gt; a -&gt; a -&gt; a
+</span><a href="Data.Monoid.HT.html#%3C%3E"><span class="hs-operator hs-var hs-var">(&lt;&gt;)</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. Monoid a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">mappend</span></span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span class="hs-comment">{- |
+prop&gt; \b m -&gt; when b m == mfilter (const b) (m::Maybe Ordering)
+prop&gt; \b m -&gt; when b m == mfilter (const b) (m::String)
+-}</span><span>
+</span><span id="line-37"></span><span id="local-6989586621679042695"><span class="annot"><a href="Data.Monoid.HT.html#when"><span class="hs-identifier hs-type">when</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="#local-6989586621679042695"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679042695"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679042695"><span class="hs-identifier hs-type">m</span></a></span></span><span>
+</span><span id="line-38"></span><span id="when"><span class="annot"><span class="annottext">when :: forall m. Monoid m =&gt; Bool -&gt; m -&gt; m
+</span><a href="Data.Monoid.HT.html#when"><span class="hs-identifier hs-var hs-var">when</span></a></span></span><span> </span><span id="local-6989586621679042670"><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621679042670"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span id="local-6989586621679042669"><span class="annot"><span class="annottext">m
+</span><a href="#local-6989586621679042669"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621679042670"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">m
+</span><a href="#local-6989586621679042669"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-39"></span><span>
+</span><span id="line-40"></span><span class="hs-comment">{- |
+prop&gt; QC.forAll (QC.choose (0,20)) $ \k xs -&gt; power (fromIntegral k) xs == mconcat (replicate k (xs::String))
+
+In contrast to 'powerAssociative' the 'power' function
+uses 'mempty' only for the zeroth power.
+
+prop&gt; QC.forAll (QC.choose (0,20)) $ \k xs -&gt; power k xs == powerAssociative mappend mempty (xs::String) k
+-}</span><span>
+</span><span id="line-48"></span><span id="local-6989586621679042693"><span class="annot"><a href="Data.Monoid.HT.html#power"><span class="hs-identifier hs-type">power</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="#local-6989586621679042693"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Integer</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679042693"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679042693"><span class="hs-identifier hs-type">m</span></a></span></span><span>
+</span><span id="line-49"></span><span id="power"><span class="annot"><span class="annottext">power :: forall m. Monoid m =&gt; Integer -&gt; m -&gt; m
+</span><a href="Data.Monoid.HT.html#power"><span class="hs-identifier hs-var hs-var">power</span></a></span></span><span> </span><span id="local-6989586621679042656"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621679042656"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span id="local-6989586621679042655"><span class="annot"><span class="annottext">m
+</span><a href="#local-6989586621679042655"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-50"></span><span>   </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Ordering
+</span><span class="hs-identifier hs-var">compare</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621679042656"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">0</span></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-51"></span><span>      </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">LT</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall a. HasCallStack =&gt; [Char] -&gt; a
+</span><span class="hs-identifier hs-var">error</span></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span class="hs-string">&quot;Monoid.power: negative exponent&quot;</span></span><span>
+</span><span id="line-52"></span><span>      </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">EQ</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-53"></span><span>      </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">GT</span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-54"></span><span>         </span><span class="hs-keyword">let</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679042651"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621679042651"><span class="hs-identifier hs-var">k2</span></a></span></span><span class="hs-special">,</span><span id="local-6989586621679042650"><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621679042650"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. Integral a =&gt; a -&gt; a -&gt; (a, a)
+</span><span class="hs-identifier hs-var">divMod</span></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621679042656"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">2</span></span><span>
+</span><span id="line-55"></span><span>             </span><span id="local-6989586621679042648"><span class="annot"><span class="annottext">p :: m
+</span><a href="#local-6989586621679042648"><span class="hs-identifier hs-var hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall m. Monoid m =&gt; Integer -&gt; m -&gt; m
+</span><a href="Data.Monoid.HT.html#power"><span class="hs-identifier hs-var">power</span></a></span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621679042651"><span class="hs-identifier hs-var">k2</span></a></span><span> </span><span class="annot"><span class="annottext">m
+</span><a href="#local-6989586621679042655"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-56"></span><span>             </span><span id="local-6989586621679042646"><span class="annot"><span class="annottext">p2 :: m
+</span><a href="#local-6989586621679042646"><span class="hs-identifier hs-var hs-var">p2</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m
+</span><a href="#local-6989586621679042648"><span class="hs-identifier hs-var">p</span></a></span><span class="annot"><span class="annottext">forall a. Monoid a =&gt; a -&gt; a -&gt; a
+</span><a href="Data.Monoid.HT.html#%3C%3E"><span class="hs-operator hs-var">&lt;&gt;</span></a></span><span class="annot"><span class="annottext">m
+</span><a href="#local-6989586621679042648"><span class="hs-identifier hs-var">p</span></a></span><span>
+</span><span id="line-57"></span><span>         </span><span class="hs-keyword">in</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Integer
+</span><a href="#local-6989586621679042650"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-58"></span><span>               </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-number">0</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">m
+</span><a href="#local-6989586621679042646"><span class="hs-identifier hs-var">p2</span></a></span><span>
+</span><span id="line-59"></span><span>               </span><span class="annot"><span class="annottext">Integer
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">m
+</span><a href="#local-6989586621679042655"><span class="hs-identifier hs-var">m</span></a></span><span class="annot"><span class="annottext">forall a. Monoid a =&gt; a -&gt; a -&gt; a
+</span><a href="Data.Monoid.HT.html#%3C%3E"><span class="hs-operator hs-var">&lt;&gt;</span></a></span><span class="annot"><span class="annottext">m
+</span><a href="#local-6989586621679042646"><span class="hs-identifier hs-var">p2</span></a></span><span>
+</span><span id="line-60"></span></pre></body></html>

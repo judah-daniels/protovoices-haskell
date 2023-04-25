@@ -1,0 +1,58 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Text.Show.HT</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-comment">{-| Show a value using an infix operator. -}</span><span>
+</span><span id="line-4"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Text.Show.HT.html#showsInfixPrec"><span class="hs-pragma hs-type">showsInfixPrec</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-5"></span><span id="local-6989586621679045954"><span id="local-6989586621679045955"><span class="annot"><a href="Text.Show.HT.html#showsInfixPrec"><span class="hs-identifier hs-type">showsInfixPrec</span></a></span><span> </span><span class="hs-glyph">::</span><span>
+</span><span id="line-6"></span><span>   </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="annot"><a href="#local-6989586621679045955"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="annot"><a href="#local-6989586621679045954"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span>
+</span><span id="line-7"></span><span>   </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679045955"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679045954"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ShowS</span></span></span></span><span>
+</span><span id="line-8"></span><span id="showsInfixPrec"><span class="annot"><span class="annottext">showsInfixPrec :: forall a b.
+(Show a, Show b) =&gt;
+String -&gt; Int -&gt; Int -&gt; a -&gt; b -&gt; ShowS
+</span><a href="Text.Show.HT.html#showsInfixPrec"><span class="hs-identifier hs-var hs-var">showsInfixPrec</span></a></span></span><span> </span><span id="local-6989586621679045927"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679045927"><span class="hs-identifier hs-var">opStr</span></a></span></span><span> </span><span id="local-6989586621679045926"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679045926"><span class="hs-identifier hs-var">opPrec</span></a></span></span><span> </span><span id="local-6989586621679045925"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679045925"><span class="hs-identifier hs-var">prec</span></a></span></span><span> </span><span id="local-6989586621679045924"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679045924"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621679045923"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621679045923"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-9"></span><span>   </span><span class="annot"><span class="annottext">Bool -&gt; ShowS -&gt; ShowS
+</span><span class="hs-identifier hs-var">showParen</span></span><span>
+</span><span id="line-10"></span><span>     </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679045925"><span class="hs-identifier hs-var">prec</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&gt;=</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679045926"><span class="hs-identifier hs-var">opPrec</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-11"></span><span>     </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Show a =&gt; Int -&gt; a -&gt; ShowS
+</span><span class="hs-identifier hs-var">showsPrec</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679045926"><span class="hs-identifier hs-var">opPrec</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679045924"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+</span><span class="hs-identifier hs-var">showString</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot; &quot;</span></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span>
+</span><span id="line-12"></span><span>      </span><span class="annot"><span class="annottext">String -&gt; ShowS
+</span><span class="hs-identifier hs-var">showString</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679045927"><span class="hs-identifier hs-var">opStr</span></a></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; ShowS
+</span><span class="hs-identifier hs-var">showString</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot; &quot;</span></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span>
+</span><span id="line-13"></span><span>      </span><span class="annot"><span class="annottext">forall a. Show a =&gt; Int -&gt; a -&gt; ShowS
+</span><span class="hs-identifier hs-var">showsPrec</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679045926"><span class="hs-identifier hs-var">opPrec</span></a></span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621679045923"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="annot"><a href="Text.Show.HT.html#concatS"><span class="hs-identifier hs-type">concatS</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">ShowS</span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ShowS</span></span><span>
+</span><span id="line-16"></span><span id="concatS"><span class="annot"><span class="annottext">concatS :: [ShowS] -&gt; ShowS
+</span><a href="Text.Show.HT.html#concatS"><span class="hs-identifier hs-var hs-var">concatS</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a b.
+Foldable t =&gt;
+(a -&gt; b -&gt; b) -&gt; b -&gt; t a -&gt; b
+</span><span class="hs-identifier hs-var">foldr</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">($)</span></span><span class="hs-special">)</span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span class="hs-comment">{-
+precedences
+
+appPrec :: Int
+appPrec = 10
+-}</span><span>
+</span><span id="line-24"></span></pre></body></html>

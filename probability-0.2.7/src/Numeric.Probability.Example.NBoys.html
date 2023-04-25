@@ -1,0 +1,94 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">{- |
+Ceneralization of &quot;Numeric.Probability.Example.Boys&quot;
+
+Consider a family of n children.  Given that there are k boys in the family,
+what is the probability that there are m boys in the family?
+-}</span><span>
+</span><span id="line-7"></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Numeric.Probability.Example.NBoys</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-9"></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Numeric.Probability.Distribution.html"><span class="hs-identifier">Numeric.Probability.Distribution</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Dist</span></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Numeric.Probability.Distribution.html"><span class="hs-identifier">Numeric.Probability.Distribution</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Numeric.Probability.Distribution.html#Event"><span class="hs-identifier">Event</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Numeric.Probability.Distribution.html#%3F%3F"><span class="hs-operator">(??)</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Numeric.Probability.Distribution.html#%3F%3D%3C%3C"><span class="hs-operator">(?=&lt;&lt;)</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-12"></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Boys.html"><span class="hs-identifier">Numeric.Probability.Example.Boys</span></a></span><span>
+</span><span id="line-14"></span><span>   </span><span class="hs-special">(</span><span class="annot"><a href="Numeric.Probability.Example.Boys.html#Dist"><span class="hs-identifier">Dist</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Boys.html#Probability"><span class="hs-identifier">Probability</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Boys.html#Child"><span class="hs-identifier">Child</span></a></span><span class="hs-special">(</span><span class="annot"><a href="Numeric.Probability.Example.Boys.html#Boy"><span class="hs-identifier">Boy</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Boys.html#birth"><span class="hs-identifier">birth</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">replicateM</span></span><span class="hs-special">)</span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">type</span><span> </span><span id="Family"><span class="annot"><a href="Numeric.Probability.Example.NBoys.html#Family"><span class="hs-identifier hs-var">Family</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Numeric.Probability.Example.Boys.html#Child"><span class="hs-identifier hs-type">Child</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span class="annot"><a href="Numeric.Probability.Example.NBoys.html#family"><span class="hs-keyword hs-type">family</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Boys.html#Dist"><span class="hs-identifier hs-type">Dist</span></a></span><span> </span><span class="annot"><a href="Numeric.Probability.Example.NBoys.html#Family"><span class="hs-identifier hs-type">Family</span></a></span><span>
+</span><span id="line-22"></span><span id="family"><span class="annot"><span class="annottext">family :: Int -&gt; Dist Family
+</span><a href="Numeric.Probability.Example.NBoys.html#family"><span class="hs-keyword hs-var hs-var">family</span></a></span></span><span> </span><span id="local-6989586621679065319"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679065319"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Applicative m =&gt; Int -&gt; m a -&gt; m [a]
+</span><span class="hs-identifier hs-var">replicateM</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679065319"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">Dist Child
+</span><a href="Numeric.Probability.Example.Boys.html#birth"><span class="hs-identifier hs-var">birth</span></a></span><span>
+</span><span id="line-23"></span><span>
+</span><span id="line-24"></span><span class="annot"><a href="Numeric.Probability.Example.NBoys.html#countBoys"><span class="hs-identifier hs-type">countBoys</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.NBoys.html#Family"><span class="hs-identifier hs-type">Family</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-25"></span><span id="countBoys"><span class="annot"><span class="annottext">countBoys :: Family -&gt; Int
+</span><a href="Numeric.Probability.Example.NBoys.html#countBoys"><span class="hs-identifier hs-var hs-var">countBoys</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Int
+</span><span class="hs-identifier hs-var">length</span></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall a. (a -&gt; Bool) -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">filter</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span class="annot"><span class="annottext">Child
+</span><a href="Numeric.Probability.Example.Boys.html#Boy"><span class="hs-identifier hs-var">Boy</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-26"></span><span>
+</span><span id="line-27"></span><span class="annot"><a href="Numeric.Probability.Example.NBoys.html#boys"><span class="hs-identifier hs-type">boys</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Distribution.html#Event"><span class="hs-identifier hs-type">Event</span></a></span><span> </span><span class="annot"><a href="Numeric.Probability.Example.NBoys.html#Family"><span class="hs-identifier hs-type">Family</span></a></span><span>
+</span><span id="line-28"></span><span id="boys"><span class="annot"><span class="annottext">boys :: Int -&gt; Event Family
+</span><a href="Numeric.Probability.Example.NBoys.html#boys"><span class="hs-identifier hs-var hs-var">boys</span></a></span></span><span> </span><span id="local-6989586621679065314"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679065314"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span id="local-6989586621679065313"><span class="annot"><span class="annottext">Family
+</span><a href="#local-6989586621679065313"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Family -&gt; Int
+</span><a href="Numeric.Probability.Example.NBoys.html#countBoys"><span class="hs-identifier hs-var">countBoys</span></a></span><span> </span><span class="annot"><span class="annottext">Family
+</span><a href="#local-6989586621679065313"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&gt;=</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679065314"><span class="hs-identifier hs-var">k</span></a></span><span>
+</span><span id="line-29"></span><span>
+</span><span id="line-30"></span><span class="annot"><a href="Numeric.Probability.Example.NBoys.html#nBoys"><span class="hs-identifier hs-type">nBoys</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Boys.html#Probability"><span class="hs-identifier hs-type">Probability</span></a></span><span>
+</span><span id="line-31"></span><span id="nBoys"><span class="annot"><span class="annottext">nBoys :: Int -&gt; Int -&gt; Int -&gt; Probability
+</span><a href="Numeric.Probability.Example.NBoys.html#nBoys"><span class="hs-identifier hs-var hs-var">nBoys</span></a></span></span><span> </span><span id="local-6989586621679065311"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679065311"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span id="local-6989586621679065310"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679065310"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span id="local-6989586621679065309"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679065309"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>  </span><span class="annot"><span class="annottext">Int -&gt; Event Family
+</span><a href="Numeric.Probability.Example.NBoys.html#boys"><span class="hs-identifier hs-var">boys</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679065309"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">forall prob a. Num prob =&gt; Event a -&gt; T prob a -&gt; prob
+</span><a href="Numeric.Probability.Distribution.html#%3F%3F"><span class="hs-operator hs-var">??</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Event Family
+</span><a href="Numeric.Probability.Example.NBoys.html#boys"><span class="hs-identifier hs-var">boys</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679065310"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">forall prob a.
+Fractional prob =&gt;
+(a -&gt; Bool) -&gt; T prob a -&gt; T prob a
+</span><a href="Numeric.Probability.Distribution.html#%3F%3D%3C%3C"><span class="hs-operator hs-var">?=&lt;&lt;</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Dist Family
+</span><a href="Numeric.Probability.Example.NBoys.html#family"><span class="hs-keyword hs-var">family</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679065311"><span class="hs-identifier hs-var">n</span></a></span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span class="annot"><a href="Numeric.Probability.Example.NBoys.html#numBoys"><span class="hs-identifier hs-type">numBoys</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Boys.html#Dist"><span class="hs-identifier hs-type">Dist</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-34"></span><span id="numBoys"><span class="annot"><span class="annottext">numBoys :: Int -&gt; Int -&gt; Dist Int
+</span><a href="Numeric.Probability.Example.NBoys.html#numBoys"><span class="hs-identifier hs-var hs-var">numBoys</span></a></span></span><span> </span><span id="local-6989586621679065307"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679065307"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span id="local-6989586621679065306"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679065306"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall prob b a.
+(Num prob, Ord b) =&gt;
+(a -&gt; b) -&gt; T prob a -&gt; T prob b
+</span><a href="Numeric.Probability.Distribution.html#map"><span class="hs-identifier hs-var">Dist.map</span></a></span><span> </span><span class="annot"><span class="annottext">Family -&gt; Int
+</span><a href="Numeric.Probability.Example.NBoys.html#countBoys"><span class="hs-identifier hs-var">countBoys</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; Event Family
+</span><a href="Numeric.Probability.Example.NBoys.html#boys"><span class="hs-identifier hs-var">boys</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679065306"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">forall prob a.
+Fractional prob =&gt;
+(a -&gt; Bool) -&gt; T prob a -&gt; T prob a
+</span><a href="Numeric.Probability.Distribution.html#%3F%3D%3C%3C"><span class="hs-operator hs-var">?=&lt;&lt;</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Dist Family
+</span><a href="Numeric.Probability.Example.NBoys.html#family"><span class="hs-keyword hs-var">family</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679065307"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span class="hs-comment">-- * Special cases</span><span>
+</span><span id="line-38"></span><span>
+</span><span id="line-39"></span><span class="hs-comment">-- | only boys in a family that has one boy</span><span>
+</span><span id="line-40"></span><span class="annot"><a href="Numeric.Probability.Example.NBoys.html#onlyBoys1"><span class="hs-identifier hs-type">onlyBoys1</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Boys.html#Probability"><span class="hs-identifier hs-type">Probability</span></a></span><span>
+</span><span id="line-41"></span><span id="onlyBoys1"><span class="annot"><span class="annottext">onlyBoys1 :: Int -&gt; Probability
+</span><a href="Numeric.Probability.Example.NBoys.html#onlyBoys1"><span class="hs-identifier hs-var hs-var">onlyBoys1</span></a></span></span><span> </span><span id="local-6989586621679065303"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679065303"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int -&gt; Probability
+</span><a href="Numeric.Probability.Example.NBoys.html#nBoys"><span class="hs-identifier hs-var">nBoys</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679065303"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679065303"><span class="hs-identifier hs-var">n</span></a></span><span>
+</span><span id="line-42"></span></pre></body></html>

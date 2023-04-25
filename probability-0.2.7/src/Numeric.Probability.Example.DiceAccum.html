@@ -1,0 +1,152 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">{- |
+We play the following game:
+We roll a die until we stop or we get three spots.
+In the first case we own all spots obtained so far,
+in the latter case we own nothing.
+
+What is the strategy for maximizing the expected score?
+-}</span><span>
+</span><span id="line-9"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Numeric.Probability.Example.DiceAccum</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-10"></span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Numeric.Probability.Random.html"><span class="hs-identifier">Numeric.Probability.Random</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Rnd</span></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Numeric.Probability.Distribution.html"><span class="hs-identifier">Numeric.Probability.Distribution</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Dist</span></span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Numeric.Probability.Transition.html"><span class="hs-identifier">Numeric.Probability.Transition</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Trans</span></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Numeric.Probability.Monad.html"><span class="hs-identifier">Numeric.Probability.Monad</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">MonadExt</span></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Numeric.Probability.Trace.html"><span class="hs-identifier">Numeric.Probability.Trace</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Numeric.Probability.Trace.html#Trace"><span class="hs-identifier">Trace</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Dice.html"><span class="hs-identifier">Numeric.Probability.Example.Dice</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Numeric.Probability.Example.Dice.html#Die"><span class="hs-identifier">Die</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">)</span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span class="hs-keyword">type</span><span> </span><span id="Score"><span class="annot"><a href="Numeric.Probability.Example.DiceAccum.html#Score"><span class="hs-identifier hs-var">Score</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span id="local-6989586621679068908"><span class="annot"><a href="Numeric.Probability.Example.DiceAccum.html#die"><span class="hs-identifier hs-type">die</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Fractional</span></span><span> </span><span class="annot"><a href="#local-6989586621679068908"><span class="hs-identifier hs-type">prob</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Distribution.html#T"><span class="hs-identifier hs-type">Dist.T</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679068908"><span class="hs-identifier hs-type">prob</span></a></span><span> </span><span class="annot"><a href="Numeric.Probability.Example.Dice.html#Die"><span class="hs-identifier hs-type">Die</span></a></span></span><span>
+</span><span id="line-24"></span><span id="die"><span class="annot"><span class="annottext">die :: forall prob. Fractional prob =&gt; T prob Score
+</span><a href="Numeric.Probability.Example.DiceAccum.html#die"><span class="hs-identifier hs-var hs-var">die</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall prob a. Fractional prob =&gt; Spread prob a
+</span><a href="Numeric.Probability.Distribution.html#uniform"><span class="hs-identifier hs-var">Dist.uniform</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Score
+</span><span class="hs-number">1</span></span><span class="hs-glyph">..</span><span class="annot"><span class="annottext">Score
+</span><span class="hs-number">6</span></span><span class="hs-special">]</span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span id="local-6989586621679068902"><span class="annot"><a href="Numeric.Probability.Example.DiceAccum.html#roll"><span class="hs-identifier hs-type">roll</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Fractional</span></span><span> </span><span class="annot"><a href="#local-6989586621679068902"><span class="hs-identifier hs-type">prob</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Transition.html#T"><span class="hs-identifier hs-type">Trans.T</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679068902"><span class="hs-identifier hs-type">prob</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Numeric.Probability.Example.DiceAccum.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-27"></span><span id="roll"><span class="annot"><span class="annottext">roll :: forall prob. Fractional prob =&gt; T prob (Maybe Score)
+</span><a href="Numeric.Probability.Example.DiceAccum.html#roll"><span class="hs-identifier hs-var hs-var">roll</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-28"></span><span>   </span><span class="annot"><span class="annottext">forall b a. b -&gt; (a -&gt; b) -&gt; Maybe a -&gt; b
+</span><span class="hs-identifier hs-var">maybe</span></span><span>
+</span><span id="line-29"></span><span>     </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span class="hs-special">)</span><span>
+</span><span id="line-30"></span><span>     </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679068810"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068810"><span class="hs-identifier hs-var">score</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">forall prob. Fractional prob =&gt; T prob Score
+</span><a href="Numeric.Probability.Example.DiceAccum.html#die"><span class="hs-identifier hs-var">die</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-31"></span><span>         </span><span class="hs-glyph">\</span><span id="local-6989586621679068808"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068808"><span class="hs-identifier hs-var">spots</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-32"></span><span>            </span><span class="hs-comment">-- where is my beloved 'toMaybe' ?</span><span>
+</span><span id="line-33"></span><span>            </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068808"><span class="hs-identifier hs-var">spots</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Score
+</span><span class="hs-number">3</span></span><span>
+</span><span id="line-34"></span><span>              </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-35"></span><span>              </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068810"><span class="hs-identifier hs-var">score</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068808"><span class="hs-identifier hs-var">spots</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span class="annot"><a href="Numeric.Probability.Example.DiceAccum.html#continue"><span class="hs-identifier hs-type">continue</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Example.DiceAccum.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-38"></span><span id="continue"><span class="annot"><span class="annottext">continue :: Score -&gt; Bool
+</span><a href="Numeric.Probability.Example.DiceAccum.html#continue"><span class="hs-identifier hs-var hs-var">continue</span></a></span></span><span> </span><span id="local-6989586621679068805"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068805"><span class="hs-identifier hs-var">scoreInt</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-39"></span><span>   </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679068800"><span class="annot"><span class="annottext">score :: Rational
+</span><a href="#local-6989586621679068800"><span class="hs-identifier hs-var hs-var">score</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><span class="hs-identifier hs-var">fromIntegral</span></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068805"><span class="hs-identifier hs-var">scoreInt</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Rational</span></span><span>
+</span><span id="line-40"></span><span>   </span><span class="hs-keyword">in</span><span>  </span><span class="annot"><span class="annottext">forall a. Num a =&gt; T a a -&gt; a
+</span><a href="Numeric.Probability.Distribution.html#expected"><span class="hs-identifier hs-var">Dist.expected</span></a></span><span>
+</span><span id="line-41"></span><span>          </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall prob a. Fractional prob =&gt; Spread prob a
+</span><a href="Numeric.Probability.Distribution.html#uniform"><span class="hs-identifier hs-var">Dist.uniform</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Rational
+</span><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Rational
+</span><a href="#local-6989586621679068800"><span class="hs-identifier hs-var">score</span></a></span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Rational
+</span><span class="hs-number">1</span></span><span class="hs-special">,</span><span class="annot"><span class="annottext">Rational
+</span><span class="hs-number">2</span></span><span class="hs-special">,</span><span class="annot"><span class="annottext">Rational
+</span><span class="hs-number">4</span></span><span class="hs-special">,</span><span class="annot"><span class="annottext">Rational
+</span><span class="hs-number">5</span></span><span class="hs-special">,</span><span class="annot"><span class="annottext">Rational
+</span><span class="hs-number">6</span></span><span class="hs-special">]</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&gt;</span></span><span> </span><span class="annot"><span class="annottext">Rational
+</span><a href="#local-6989586621679068800"><span class="hs-identifier hs-var">score</span></a></span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span class="hs-comment">-- | optimal strategy</span><span>
+</span><span id="line-44"></span><span id="local-6989586621679068797"><span class="annot"><a href="Numeric.Probability.Example.DiceAccum.html#strategy"><span class="hs-identifier hs-type">strategy</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Fractional</span></span><span> </span><span class="annot"><a href="#local-6989586621679068797"><span class="hs-identifier hs-type">prob</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Transition.html#T"><span class="hs-identifier hs-type">Trans.T</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679068797"><span class="hs-identifier hs-type">prob</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Numeric.Probability.Example.DiceAccum.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-45"></span><span id="strategy"><span class="annot"><span class="annottext">strategy :: forall prob. Fractional prob =&gt; T prob (Maybe Score)
+</span><a href="Numeric.Probability.Example.DiceAccum.html#strategy"><span class="hs-identifier hs-var hs-var">strategy</span></a></span></span><span> </span><span id="local-6989586621679068790"><span class="annot"><span class="annottext">Maybe Score
+</span><a href="#local-6989586621679068790"><span class="hs-identifier hs-var">s0</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-46"></span><span>   </span><span class="annot"><span class="annottext">forall b a. b -&gt; (a -&gt; b) -&gt; Maybe a -&gt; b
+</span><span class="hs-identifier hs-var">maybe</span></span><span>
+</span><span id="line-47"></span><span>     </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span class="hs-special">)</span><span>
+</span><span id="line-48"></span><span>     </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679068789"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068789"><span class="hs-identifier hs-var">score</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-49"></span><span>         </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Score -&gt; Bool
+</span><a href="Numeric.Probability.Example.DiceAccum.html#continue"><span class="hs-identifier hs-var">continue</span></a></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068789"><span class="hs-identifier hs-var">score</span></a></span><span>
+</span><span id="line-50"></span><span>           </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">forall prob. Fractional prob =&gt; T prob (Maybe Score)
+</span><a href="Numeric.Probability.Example.DiceAccum.html#roll"><span class="hs-identifier hs-var">roll</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe Score
+</span><a href="#local-6989586621679068790"><span class="hs-identifier hs-var">s0</span></a></span><span>
+</span><span id="line-51"></span><span>           </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">Maybe Score
+</span><a href="#local-6989586621679068790"><span class="hs-identifier hs-var">s0</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Maybe Score
+</span><a href="#local-6989586621679068790"><span class="hs-identifier hs-var">s0</span></a></span><span>
+</span><span id="line-52"></span><span>
+</span><span id="line-53"></span><span class="hs-comment">-- | distribution of the scores that are achieved with the optimal strategy</span><span>
+</span><span id="line-54"></span><span id="local-6989586621679068873"><span class="annot"><a href="Numeric.Probability.Example.DiceAccum.html#game"><span class="hs-identifier hs-type">game</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Fractional</span></span><span> </span><span class="annot"><a href="#local-6989586621679068873"><span class="hs-identifier hs-type">prob</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Numeric.Probability.Distribution.html#T"><span class="hs-identifier hs-type">Dist.T</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679068873"><span class="hs-identifier hs-type">prob</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Numeric.Probability.Example.DiceAccum.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-55"></span><span id="game"><span class="annot"><span class="annottext">game :: forall prob. Fractional prob =&gt; T prob (Maybe Score)
+</span><a href="Numeric.Probability.Example.DiceAccum.html#game"><span class="hs-identifier hs-var hs-var">game</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-56"></span><span>   </span><span class="annot"><span class="annottext">forall prob a. (Num prob, Ord a) =&gt; [T prob a] -&gt; T prob a
+</span><a href="Numeric.Probability.Transition.html#compose"><span class="hs-identifier hs-var">Trans.compose</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. Score -&gt; a -&gt; [a]
+</span><span class="hs-identifier hs-var">replicate</span></span><span> </span><span class="annot"><span class="annottext">Score
+</span><span class="hs-number">18</span></span><span> </span><span class="annot"><span class="annottext">forall prob. Fractional prob =&gt; T prob (Maybe Score)
+</span><a href="Numeric.Probability.Example.DiceAccum.html#strategy"><span class="hs-identifier hs-var">strategy</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">Score
+</span><span class="hs-number">0</span></span><span class="hs-special">)</span><span>
+</span><span id="line-57"></span><span>   </span><span class="hs-comment">-- MonadExt.compose (replicate 8 turn) (Just 0)</span><span>
+</span><span id="line-58"></span><span>
+</span><span id="line-59"></span><span>
+</span><span id="line-60"></span><span class="hs-comment">{- too inefficient
+game :: Fractional prob =&gt; Dist.T prob Score
+game =
+   let turn score =
+          if continue score
+            then roll score &gt;&gt;= \s -&gt; if s==0 then return 0 else turn s
+            else return score
+   in  turn 0
+-}</span><span>
+</span><span id="line-69"></span><span>
+</span><span id="line-70"></span><span>
+</span><span id="line-71"></span><span class="annot"><a href="Numeric.Probability.Example.DiceAccum.html#walk"><span class="hs-identifier hs-type">walk</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Numeric.Probability.Trace.html#Trace"><span class="hs-identifier hs-type">Trace</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Numeric.Probability.Example.DiceAccum.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-72"></span><span id="walk"><span class="annot"><span class="annottext">walk :: Score -&gt; IO (Trace (Maybe Score))
+</span><a href="Numeric.Probability.Example.DiceAccum.html#walk"><span class="hs-identifier hs-var hs-var">walk</span></a></span></span><span> </span><span id="local-6989586621679068775"><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068775"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-73"></span><span>   </span><span class="annot"><span class="annottext">forall a. T a -&gt; IO a
+</span><a href="Numeric.Probability.Random.html#run"><span class="hs-identifier hs-var">Rnd.run</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-74"></span><span>   </span><span class="annot"><span class="annottext">forall (m :: * -&gt; *) a.
+Monad m =&gt;
+Score -&gt; (a -&gt; m a) -&gt; a -&gt; m [a]
+</span><a href="Numeric.Probability.Monad.html#walk"><span class="hs-identifier hs-var">MonadExt.walk</span></a></span><span> </span><span class="annot"><span class="annottext">Score
+</span><a href="#local-6989586621679068775"><span class="hs-identifier hs-var">n</span></a></span><span>
+</span><span id="line-75"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall prob a.
+(Num prob, Ord prob, Random prob) =&gt;
+T prob a -&gt; Change a
+</span><a href="Numeric.Probability.Random.html#change"><span class="hs-identifier hs-var">Rnd.change</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall prob. Fractional prob =&gt; T prob (Maybe Score)
+</span><a href="Numeric.Probability.Example.DiceAccum.html#roll"><span class="hs-identifier hs-var">roll</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Numeric.Probability.Transition.html#T"><span class="hs-identifier hs-type">Trans.T</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Double</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Numeric.Probability.Example.DiceAccum.html#Score"><span class="hs-identifier hs-type">Score</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-76"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="annottext">forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">Score
+</span><span class="hs-number">0</span></span><span class="hs-special">)</span><span>
+</span><span id="line-77"></span></pre></body></html>

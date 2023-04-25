@@ -1,0 +1,103 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.List.Reverse.Private</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Data.List.Key.Private.html"><span class="hs-identifier">Data.List.Key.Private</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Key</span></span><span>
+</span><span id="line-4"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.List.HT.html"><span class="hs-identifier">Data.List.HT</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.List.HT.Private.html#segmentAfter"><span class="hs-identifier">segmentAfter</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.List.HT.Private.html#viewR"><span class="hs-identifier">viewR</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.List.HT.Private.html#groupBy"><span class="hs-identifier">groupBy</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-5"></span><span>
+</span><span id="line-6"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">dropWhile</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">takeWhile</span></span><span class="hs-special">)</span><span>
+</span><span id="line-7"></span><span>
+</span><span id="line-8"></span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- $setup</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- &gt;&gt;&gt; import Test.Utility (forAllPredicates)</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-- &gt;&gt;&gt; import qualified Data.List.Reverse.StrictElement as Rev</span><span>
+</span><span id="line-12"></span><span class="hs-comment">-- &gt;&gt;&gt; import Prelude hiding (dropWhile, takeWhile)</span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span>
+</span><span id="line-15"></span><span class="hs-comment">{- |
+prop&gt; forAllPredicates $ \p xs -&gt; dropWhile p xs == Rev.dropWhile p xs
+-}</span><span>
+</span><span id="line-18"></span><span id="local-6989586621679045265"><span class="annot"><a href="Data.List.Reverse.Private.html#dropWhile"><span class="hs-identifier hs-type">dropWhile</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679045265"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679045265"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679045265"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span><span>
+</span><span id="line-19"></span><span id="dropWhile"><span class="annot"><span class="annottext">dropWhile :: forall a. (a -&gt; Bool) -&gt; [a] -&gt; [a]
+</span><a href="Data.List.Reverse.Private.html#dropWhile"><span class="hs-identifier hs-var hs-var">dropWhile</span></a></span></span><span> </span><span id="local-6989586621679045228"><span class="annot"><span class="annottext">a -&gt; Bool
+</span><a href="#local-6989586621679045228"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-20"></span><span>   </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a. Foldable t =&gt; t [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">concat</span></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">init</span></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall a. (a -&gt; Bool) -&gt; [a] -&gt; [[a]]
+</span><a href="Data.List.HT.Private.html#segmentAfter"><span class="hs-identifier hs-var">segmentAfter</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Bool
+</span><a href="#local-6989586621679045228"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span class="hs-comment">{- |
+prop&gt; forAllPredicates $ \p xs -&gt; takeWhile0 p xs == Rev.takeWhile p xs
+-}</span><span>
+</span><span id="line-25"></span><span id="local-6989586621679045223"><span class="annot"><a href="Data.List.Reverse.Private.html#takeWhile0"><span class="hs-identifier hs-type">takeWhile0</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679045223"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679045223"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679045223"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span><span>
+</span><span id="line-26"></span><span id="takeWhile0"><span class="annot"><span class="annottext">takeWhile0 :: forall a. (a -&gt; Bool) -&gt; [a] -&gt; [a]
+</span><a href="Data.List.Reverse.Private.html#takeWhile0"><span class="hs-identifier hs-var hs-var">takeWhile0</span></a></span></span><span> </span><span id="local-6989586621679045221"><span class="annot"><span class="annottext">a -&gt; Bool
+</span><a href="#local-6989586621679045221"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-27"></span><span>   </span><span class="annot"><span class="annottext">forall a. [a] -&gt; a
+</span><span class="hs-identifier hs-var">last</span></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall a. (a -&gt; Bool) -&gt; [a] -&gt; [[a]]
+</span><a href="Data.List.HT.Private.html#segmentAfter"><span class="hs-identifier hs-var">segmentAfter</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Bool
+</span><a href="#local-6989586621679045221"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span class="hs-comment">{- |
+Doesn't seem to be superior to the naive implementation.
+
+prop&gt; forAllPredicates $ \p xs -&gt; takeWhile1 p xs == Rev.takeWhile p xs
+-}</span><span>
+</span><span id="line-34"></span><span id="local-6989586621679045219"><span class="annot"><a href="Data.List.Reverse.Private.html#takeWhile1"><span class="hs-identifier hs-type">takeWhile1</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679045219"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679045219"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679045219"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span><span>
+</span><span id="line-35"></span><span id="takeWhile1"><span class="annot"><span class="annottext">takeWhile1 :: forall a. (a -&gt; Bool) -&gt; [a] -&gt; [a]
+</span><a href="Data.List.Reverse.Private.html#takeWhile1"><span class="hs-identifier hs-var hs-var">takeWhile1</span></a></span></span><span> </span><span id="local-6989586621679045215"><span class="annot"><span class="annottext">a -&gt; Bool
+</span><a href="#local-6989586621679045215"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-36"></span><span>   </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679045214"><span class="annot"><span class="annottext">Maybe ([[(Bool, a)]], [(Bool, a)])
+</span><a href="#local-6989586621679045214"><span class="hs-identifier hs-var">mx</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-37"></span><span>      </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Maybe ([[(Bool, a)]], [(Bool, a)])
+</span><a href="#local-6989586621679045214"><span class="hs-identifier hs-var">mx</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-38"></span><span>         </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[[(Bool, a)]]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679045213"><span class="annot"><span class="annottext">xs :: [(Bool, a)]
+</span><a href="#local-6989586621679045213"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="hs-special">(</span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span class="hs-special">,</span><span class="annot"><span class="annottext">a
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span class="annot"><span class="annottext">[(Bool, a)]
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a, b) -&gt; b
+</span><span class="hs-identifier hs-var">snd</span></span><span> </span><span class="annot"><span class="annottext">[(Bool, a)]
+</span><a href="#local-6989586621679045213"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-39"></span><span>         </span><span class="annot"><span class="annottext">Maybe ([[(Bool, a)]], [(Bool, a)])
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span>
+</span><span id="line-40"></span><span>   </span><span class="annot"><span class="annottext">forall a. [a] -&gt; Maybe ([a], a)
+</span><a href="Data.List.HT.Private.html#viewR"><span class="hs-identifier hs-var">viewR</span></a></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">forall key a b c.
+(((key, a) -&gt; (key, a) -&gt; b) -&gt; [(key, a)] -&gt; c)
+-&gt; (key -&gt; key -&gt; b) -&gt; (a -&gt; key) -&gt; [a] -&gt; c
+</span><a href="Data.List.Key.Private.html#aux"><span class="hs-identifier hs-var">Key.aux</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. (a -&gt; a -&gt; Bool) -&gt; [a] -&gt; [[a]]
+</span><a href="Data.List.HT.Private.html#groupBy"><span class="hs-identifier hs-var">groupBy</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">(==)</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Bool
+</span><a href="#local-6989586621679045215"><span class="hs-identifier hs-var">p</span></a></span><span>
+</span><span id="line-41"></span><span>
+</span><span id="line-42"></span><span class="hs-comment">{- |
+However it is more inefficient,
+because of repeatedly appending single elements. :-(
+
+prop&gt; forAllPredicates $ \p xs -&gt; takeWhile2 p xs == Rev.takeWhile p xs
+-}</span><span>
+</span><span id="line-48"></span><span id="local-6989586621679045211"><span class="annot"><a href="Data.List.Reverse.Private.html#takeWhile2"><span class="hs-identifier hs-type">takeWhile2</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679045211"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679045211"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679045211"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span><span>
+</span><span id="line-49"></span><span id="takeWhile2"><span class="annot"><span class="annottext">takeWhile2 :: forall a. (a -&gt; Bool) -&gt; [a] -&gt; [a]
+</span><a href="Data.List.Reverse.Private.html#takeWhile2"><span class="hs-identifier hs-var hs-var">takeWhile2</span></a></span></span><span> </span><span id="local-6989586621679045208"><span class="annot"><span class="annottext">a -&gt; Bool
+</span><a href="#local-6989586621679045208"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-50"></span><span>   </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) b a.
+Foldable t =&gt;
+(b -&gt; a -&gt; b) -&gt; b -&gt; t a -&gt; b
+</span><span class="hs-identifier hs-var">foldl</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679045206"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679045206"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span id="local-6989586621679045205"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679045205"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">a -&gt; Bool
+</span><a href="#local-6989586621679045208"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679045205"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679045206"><span class="hs-identifier hs-var">xs</span></a></span><span class="annot"><span class="annottext">forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="hs-special">[</span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679045205"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-keyword">else</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-51"></span></pre></body></html>
