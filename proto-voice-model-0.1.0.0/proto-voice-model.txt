@@ -1425,6 +1425,7 @@ module Harmony
 --   annoation
 evaluateSlice :: Notes SIC -> ChordType -> Double
 rotateVector :: Int -> Vector a -> Maybe (Vector a)
+pChordTones :: ChordLabel -> Maybe (Vector Double)
 mostLikelyLabelFromSliceWithProb :: Notes SPitch -> (ChordLabel, Double)
 probsRegs :: Maybe ChordLabel -> Maybe ChordLabel -> DoubleOrnament -> Maybe (Vector Double)
 probsPassings :: Maybe ChordLabel -> Maybe ChordLabel -> PassingOrnament -> Maybe (Vector Double)
@@ -1686,6 +1687,7 @@ module Algorithm.RandomSampleParser
 -- | Generates a path of random notes for the given number of segments
 randomSamplePath :: Int -> IO (Path (Edges SPitch) (Notes SPitch))
 randomSamplePathSBS :: [[InputSlice SPitch]] -> IO [Notes SPitch]
+perfectReduction :: [[InputSlice SPitch]] -> [ChordLabel] -> IO [Notes SPitch]
 poissonSample :: StatefulGen g IO => g -> Double -> IO Int
 
 module Algorithm.HeuristicSearch
@@ -1717,6 +1719,7 @@ RandomWalk :: AlgoType
 RandomWalkPerSegment :: AlgoType
 RandomSample :: AlgoType
 RandomReduction :: AlgoType
+PerfectReduction :: AlgoType
 BeamSearch :: BeamWidth -> AlgoType
 StochasticBeamSearch :: BeamWidth -> ResevoirSize -> AlgoType
 DualStochasticBeamSearch :: BeamWidth -> ResevoirSize -> AlgoType
