@@ -4,6 +4,7 @@ module Harmony
   (
     evaluateSlice
   , rotateVector
+  , pChordTones
   , mostLikelyLabelFromSliceWithProb
   , probsRegs
   , probsPassings

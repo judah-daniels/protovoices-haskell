@@ -66,7 +66,7 @@ import Musicology.Core
   , Pitched (..)
   , isStep
   )
-import System.Random.Stateful (initStdGen, newIOGenM, StatefulGen)
+import System.Random.Stateful (initStdGen, newIOGenM, StatefulGen, IOGenM, StdGen)
 import Control.Monad.Trans.Maybe
 import Control.Monad.Trans (lift)
 
@@ -305,34 +305,229 @@ pvUnsplit'
   -> Edges n
   -> StartStop (Notes n)
   -> IO [(Edges n, Split n)]
-pvUnsplit' notesl (Edges leftRegs leftPass) (Notes notesm) (Edges rightRegs rightPass) notesr = undefined
---   do 
+pvUnsplit' notesl (Edges leftRegs leftPass) (Notes notesm) (Edges rightRegs rightPass) notesr =
+  do
+  gen <- initStdGen
+  mgen <- newIOGenM gen
+  let options = getOptions mgen notesm
+  combinations <- collectRandomChoice mgen $ getCombinations mgen options
+--   collectRandomChoice mgen $ enumerateAll mgen 
+--   -- pure $ map mkTop combinations
+  pure $ map mkTop combinations
+ where
+  -- preprocessing of the notes left and right of the unsplit
+  !innerL = Reg <$> innerNotes notesl
+  !innerR = Reg <$> innerNotes notesr
+
+  -- find all reduction options for every pitch
+  getOptions mgen notesm = map (noteOptions mgen) $ MS.toOccurList notesm
+
+  -- find all reduction options for every pitch
+  -- noteOptions 
+  --   :: IOGenM StdGen
+  --   -> (n, Int)
+  --   -> [([(Edge n, (n, DoubleOrnament))],
+  --      [(InnerEdge n, (n, PassingOrnament))], [(n, (n, RightOrnament))],
+  --      [(n, (n, LeftOrnament))])]
+  noteOptions mgen (note, nocc)
+    | nocc < MS.size mandatoryLeft || nocc < MS.size mandatoryRight =
+         []
+    | otherwise = do
+      partitionElaborations <$> enumerateOptions mgen mandatoryLeft mandatoryRight nocc
+    -- | nocc < MS.size mandatoryLeft || nocc < MS.size mandatoryRight =
+    --     []
+    -- | otherwise =
+    --     partitionElaborations
+    --       <$> enumerateOptions mandatoryLeft mandatoryRight nocc
+   where
+    -- compute the mandatory edges for the current pitch:
+    mleftRegs = S.map (Reg . fst) $ S.filter ((== Inner note) . snd) leftRegs
+    mleftPass = MS.map (Pass . fst) $ MS.filter ((== note) . snd) leftPass
+    mrightRegs = S.map (Reg . snd) $ S.filter ((== Inner note) . fst) rightRegs
+    mrightPass = MS.map (Pass . snd) $ MS.filter ((== note) . fst) rightPass
+    mandatoryLeft = MS.fromSet mleftRegs <> mleftPass
+    mandatoryRight = MS.fromSet mrightRegs <> mrightPass
+
+    -- the possible reductions of a (multiple) pitch are enumerated in three stages:
+
+    -- stage 1: consume all mandatory edges on the left
+    enumerateOptions mgen ml mr n = do
+      (mr', n', acc) <-  MS.foldM goL (mr, n, []) ml
+      (n'', acc') <-  MS.foldM goR (n', acc) mr'
+      goFree freeOptions n'' acc'
+
+    goL (_, 0, _) _ = []
+    goL (mr, n, acc) l = do
+      (new, mr') <- pickLeft n l mr
+      pure (mr', n - 1, new : acc)
+    -- combine a mandatory left with a mandatory right or free right edge
+    pickLeft n l mr
+      | n > MS.size mr = mand <> opt <> single
+      | otherwise = mand
+     where
+      mand = do
+        r <- MS.distinctElems mr
+        red <- maybeToList $ tryReduction True True l note r
+        pure (red, MS.delete r mr)
+      -- TODO: remove mr options here?
+      tryOpt r = tryReduction True (r `S.member` mrightRegs) l note r
+      opt = (,mr) <$> mapMaybe tryOpt innerR
+      single = fmap (,mr) $ maybeToList $ tryLeftReduction note l
+
+    -- stage 2: consume all remaining mandatory edges on the right
+    goR (0, _) _ = []
+    goR (n, acc) r = do
+      new <- pickRight r
+      pure (n - 1, new : acc)
+    -- combine mandatory right with free left edge
+    pickRight r = opt <> single
+     where
+      tryOpt l = tryReduction (l `S.member` mleftRegs) True l note r
+      opt = mapMaybe tryOpt innerL
+      single = maybeToList $ tryRightReduction note r
+
+    -- stage 3: explain all remaining notes through a combination of unknown edges
+    goFree _ 0 acc = pure acc
+    goFree [] _ _ = []
+    goFree [lastOpt] n acc = pure $ L.replicate n lastOpt <> acc
+    goFree (opt : opts) n acc = do
+      nopt <- [0 .. n]
+      goFree opts (n - nopt) (L.replicate nopt opt <> acc)
+    -- list all options for free reduction
+    freeOptions = pickFreeBoth <> pickFreeLeft <> pickFreeRight
+    -- combine two free edges
+    pickFreeBoth = do
+      l <- innerL
+      r <- innerR
+      maybeToList $
+        tryReduction (l `S.member` mleftRegs) (r `S.member` mrightRegs) l note r
+    -- reduce to left using free edge
+    pickFreeLeft = mapMaybe (tryLeftReduction note) innerL
+    -- reduce to right using free edge
+    pickFreeRight = mapMaybe (tryRightReduction note) innerR
+
+  -- at all stages: try out potential reductions:
+
+  -- two terminal edges: any ornament
+  tryReduction lIsUsed rIsUsed (Reg notel) notem (Reg noter) = do
+    reduction <- findOrnament notel (Inner notem) noter lIsUsed rIsUsed
+    pure $ case reduction of
+      (Reg (orn, parent)) -> EReg (parent, (notem, orn))
+      (Pass (pass, parent)) -> EPass (parent, (notem, pass))
+  -- a non-terminal edge left and a terminal edge right: passing note
+  tryReduction _ _ notel@(Pass _) notem noter@(Reg _) = do
+    (parent, pass) <- findPassing notel notem noter
+    pure $ EPass (parent, (notem, pass))
+  -- a terminal edge left and a non-terminal edge right: passing note
+  tryReduction _ _ notel@(Reg _) notem noter@(Pass _) = do
+    (parent, pass) <- findPassing notel notem noter
+    pure $ EPass (parent, (notem, pass))
+  -- all other combinations are forbidden
+  tryReduction _ _ _ _ _ = Nothing
+
+  -- single reduction to a left parent
+  tryLeftReduction notem (Reg (Inner notel)) = do
+    orn <- findRightOrnament notel notem
+    pure $ ER (notel, (notem, orn))
+  tryLeftReduction _ _ = Nothing
+
+  -- single reduction to a right parent
+  tryRightReduction notem (Reg (Inner noter)) = do
+    orn <- findLeftOrnament notem noter
+    pure $ EL (noter, (notem, orn))
+  tryRightReduction _ _ = Nothing
+
+
+  -- compute all possible combinations of reduction options
+  getCombinations mgen options = do
+    guard $ any L.null options
+    pickRandomChoice mgen $ foldM (pickOption mgen) ([], [], [], []) options -- otherwise, compute all combinations
+
+  -- picks all different options for a single note in the list monad
+  pickOption mgen (accReg, accPass, accL, accR) opts = do
+    (regs, pass, ls, rs) <- opts
+    pure (regs <> accReg, pass <> accPass, ls <> accL, rs <> accR)
+
+  -- convert a combination into a derivation operation:
+  -- turn the accumulated information into the format expected from the evaluator
+  mkTop (regs, pass, rs, ls) =
+    if True -- validate
+      then (top, SplitOp tmap ntmap rmap lmap leftRegs rightRegs passL passR)
+      else
+        error $
+          "invalid unsplit:\n  notesl="
+            <> show notesl
+            <> "\n  notesr="
+            <> show notesr
+            <> "\n  notesm="
+            <> show (Notes notesm)
+            <> "\n  left="
+            <> show (Edges leftRegs leftPass)
+            <> "\n  right="
+            <> show (Edges rightRegs rightPass)
+            <> "\n  top="
+            <> show top
+   where
+    -- validate =
+    --   all ((`L.elem` innerNotes notesl) . fst . fst) regs
+    --     && all ((`L.elem` innerNotes notesr) . snd . fst)   regs
+    --     && all ((`L.elem` innerNotes notesl) . Inner . fst) rs
+    --     && all ((`L.elem` innerNotes notesr) . Inner . fst) ls
+
+    -- collect all operations
+    mapify xs = M.fromListWith (<>) $ fmap (: []) <$> xs
+    tmap = mapify regs
+    ntmap = mapify pass
+    lmap = mapify ls
+    rmap = mapify rs
+    top = Edges (S.fromList (fst <$> regs)) (MS.fromList (fst <$> pass))
+    passL = foldr MS.delete leftPass $ mapMaybe leftPassingChild pass
+    passR = foldr MS.delete rightPass $ mapMaybe rightPassingChild pass
+    leftPassingChild ((l, _r), (m, orn)) =
+      if orn == PassingRight then Just (l, m) else Nothing
+    rightPassingChild ((_l, r), (m, orn)) =
+      if orn == PassingLeft then Just (m, r) else Nothing
+
+  -- undefined 
+-- do
 --   gen <- initStdGen
 --   mgen <- newIOGenM gen
---   options <- collectRandomChoice mgen $ getOptions mgen notesm
---   combinations <- collectRandomChoice mgen $ getCombinations mgen options
--- --   collectRandomChoice mgen $ enumerateAll mgen 
--- --   -- pure $ map mkTop combinations
---   pure $ map mkTop combinations
+--   collectRandomChoice mgen $ enumerateAll mgen 
+--   -- pure $ map mkTop combinations
 --  where
+--   enumerateAll mgen = do  
+--     options <- evalOptions mgen 
+--     combinations <- evalCombinations mgen options
+--     let res = map mkTop combinations
+--     pickRandomChoice mgen res
+--     -- pickRandomChoice mgen $ 
+--
 --   -- preprocessing of the notes left and right of the unsplit
 --   !innerL = Reg <$> innerNotes notesl
 --   !innerR = Reg <$> innerNotes notesr
 --
 --   -- find all reduction options for every pitch
---   getOptions mgen notesm = pickRandomChoice mgen $ 
---     map (noteOptions mgen) $ MS.toOccurList notesm
+--   -- evalOptions 
+--   --   :: StatefulGen g IO 
+--   --   => g 
+--   --   -> MaybeT IO
+--   --      [([(Edge n, (n, DoubleOrnament))],
+--   --        [(InnerEdge n, (n, PassingOrnament))], [(n, (n, RightOrnament))],
+--   --        [(n, (n, LeftOrnament))])]
+--   evalOptions mgen = do 
+--      pickRandomChoice mgen $ mapM (evalNoteOptions mgen) $ MS.toOccurList notesm
 --
---   noteOptions mgen (note, nocc) = do 
---     guard $ nocc < MS.size mandatoryLeft || nocc < MS.size mandatoryRight
---     opts <- pickRandomChoice mgen $ enumerateOptions mgen mandatoryLeft mandatoryRight nocc
---     pure $ partitionElaborations <$> opts
---     -- _ <- partitionElaborations <$> opts
---     -- pure undefined
---     -- | nocc < MS.size mandatoryLeft || nocc < MS.size mandatoryRight =
---     --     []
---     -- | otherwise =
---     --     partitionElaborations
+--   -- evalNoteOptions 
+--   --   :: StatefulGen g IO => g
+--   --   -> (n, Int)
+--   --   -> MaybeT IO ([(Edge n, (n, DoubleOrnament))],
+--   --        [(InnerEdge n, (n, PassingOrnament))], [(n, (n, RightOrnament))],
+--   --        [(n, (n, LeftOrnament))])
+--   evalNoteOptions mgen (note, nocc) = do 
+--     guard (nocc < MS.size mandatoryLeft || nocc < MS.size mandatoryRight )
+--     allOps <- enumerateOptions mgen mandatoryLeft mandatoryRight nocc
+--     pickRandomChoice mgen $ partitionElaborations <$> [allOps]
+--     -- pure $  partitionElaborations <$> allOps
 --    where
 --     -- compute the mandatory edges for the current pitch:
 --     mleftRegs = S.map (Reg . fst) $ S.filter ((== Inner note) . snd) leftRegs
@@ -348,7 +543,8 @@ pvUnsplit' notesl (Edges leftRegs leftPass) (Notes notesm) (Edges rightRegs righ
 --     enumerateOptions mgen ml mr n = do
 --       (mr', n', acc) <- pickRandomChoice mgen $ MS.foldM goL (mr, n, []) ml
 --       (n'', acc') <- pickRandomChoice mgen $ MS.foldM goR (n', acc) mr'
---       pickRandomChoice mgen $ goFree mgen freeOptions n'' acc'
+--       freeOpts <- freeOptions mgen
+--       goFree mgen [freeOpts] n'' acc'
 --     goL (_, 0, _) _ = []
 --     goL (mr, n, acc) l = do
 --       (new, mr') <- pickLeft n l mr
@@ -380,24 +576,31 @@ pvUnsplit' notesl (Edges leftRegs leftPass) (Notes notesm) (Edges rightRegs righ
 --       single = maybeToList $ tryRightReduction note r
 --
 --     -- stage 3: explain all remaining notes through a combination of unknown edges
---     goFree mgen _ 0 acc = pickRandomChoice mgen $ [acc]
---     goFree mgen [] _ _ = pickRandomChoice mgen $ []
---     goFree mgen [lastOpt] n acc = pickRandomChoice mgen $ [L.replicate n lastOpt <> acc]
+--     goFree mgen _ 0 acc = pickRandomChoice mgen acc
+--     goFree mgen [] _ _ = pickRandomChoice mgen []
+--     goFree mgen [lastOpt] n acc = pickRandomChoice mgen $ L.replicate n lastOpt <> acc
 --     goFree mgen (opt : opts) n acc = do
---       nopt <- pickRandomChoice mgen $ [0 .. n]
+--       nopt <- pickRandomChoice mgen [0 .. n]
 --       goFree mgen opts (n - nopt) (L.replicate nopt opt <> acc)
+--
 --     -- list all options for free reduction
---     freeOptions = pickFreeBoth <> pickFreeLeft <> pickFreeRight
+--     freeOptions mgen = do 
+--       freeBoth <- pickFreeBoth mgen 
+--       freeLeft <- pickFreeLeft mgen
+--       freeRight <- pickFreeRight mgen 
+--       pickRandomChoice mgen [freeBoth <> freeLeft <> freeRight]
 --     -- combine two free edges
---     pickFreeBoth = do
---       l <- innerL
---       r <- innerR
---       maybeToList $
+--     pickFreeBoth mgen = do
+--       l <- pickRandomChoice mgen innerL
+--       r <- pickRandomChoice mgen innerR
+--       pickRandomChoice mgen $ maybeToList $
 --         tryReduction (l `S.member` mleftRegs) (r `S.member` mrightRegs) l note r
 --     -- reduce to left using free edge
---     pickFreeLeft = mapMaybe (tryLeftReduction note) innerL
+--     pickFreeLeft mgen = do 
+--       pickRandomChoice mgen $ mapMaybe (tryLeftReduction note) innerL
 --     -- reduce to right using free edge
---     pickFreeRight = mapMaybe (tryRightReduction note) innerR
+--     pickFreeRight mgen = do 
+--       pickRandomChoice mgen $ mapMaybe (tryRightReduction note) innerR
 --
 --   -- at all stages: try out potential reductions:
 --
@@ -430,13 +633,11 @@ pvUnsplit' notesl (Edges leftRegs leftPass) (Notes notesm) (Edges rightRegs righ
 --     pure $ EL (noter, (notem, orn))
 --   tryRightReduction _ _ = Nothing
 --
---
 --   -- compute all possible combinations of reduction options
---   getCombinations mgen options = do 
---     guard $ any L.null options
+--   evalCombinations mgen options = do 
+--     guard $ any L.null options 
 --     pickRandomChoice mgen $ foldM (pickOption mgen) ([], [], [], []) options -- otherwise, compute all combinations
---
---   -- picks all different options for a single note in the list monad
+--       -- picks all different options for a single note in the list monad
 --   pickOption mgen (accReg, accPass, accL, accR) opts = do
 --     (regs, pass, ls, rs) <- opts
 --     pure (regs <> accReg, pass <> accPass, ls <> accL, rs <> accR)
@@ -480,201 +681,7 @@ pvUnsplit' notesl (Edges leftRegs leftPass) (Notes notesm) (Edges rightRegs righ
 --       if orn == PassingRight then Just (l, m) else Nothing
 --     rightPassingChild ((_l, r), (m, orn)) =
 --       if orn == PassingLeft then Just (m, r) else Nothing
---
---   -- undefined 
--- -- do
--- --   gen <- initStdGen
--- --   mgen <- newIOGenM gen
--- --   collectRandomChoice mgen $ enumerateAll mgen 
--- --   -- pure $ map mkTop combinations
--- --  where
--- --   enumerateAll mgen = do  
--- --     options <- evalOptions mgen 
--- --     combinations <- evalCombinations mgen options
--- --     let res = map mkTop combinations
--- --     pickRandomChoice mgen res
--- --     -- pickRandomChoice mgen $ 
--- --
--- --   -- preprocessing of the notes left and right of the unsplit
--- --   !innerL = Reg <$> innerNotes notesl
--- --   !innerR = Reg <$> innerNotes notesr
--- --
--- --   -- find all reduction options for every pitch
--- --   -- evalOptions 
--- --   --   :: StatefulGen g IO 
--- --   --   => g 
--- --   --   -> MaybeT IO
--- --   --      [([(Edge n, (n, DoubleOrnament))],
--- --   --        [(InnerEdge n, (n, PassingOrnament))], [(n, (n, RightOrnament))],
--- --   --        [(n, (n, LeftOrnament))])]
--- --   evalOptions mgen = do 
--- --      pickRandomChoice mgen $ mapM (evalNoteOptions mgen) $ MS.toOccurList notesm
--- --
--- --   -- evalNoteOptions 
--- --   --   :: StatefulGen g IO => g
--- --   --   -> (n, Int)
--- --   --   -> MaybeT IO ([(Edge n, (n, DoubleOrnament))],
--- --   --        [(InnerEdge n, (n, PassingOrnament))], [(n, (n, RightOrnament))],
--- --   --        [(n, (n, LeftOrnament))])
--- --   evalNoteOptions mgen (note, nocc) = do 
--- --     guard (nocc < MS.size mandatoryLeft || nocc < MS.size mandatoryRight )
--- --     allOps <- enumerateOptions mgen mandatoryLeft mandatoryRight nocc
--- --     pickRandomChoice mgen $ partitionElaborations <$> [allOps]
--- --     -- pure $  partitionElaborations <$> allOps
--- --    where
--- --     -- compute the mandatory edges for the current pitch:
--- --     mleftRegs = S.map (Reg . fst) $ S.filter ((== Inner note) . snd) leftRegs
--- --     mleftPass = MS.map (Pass . fst) $ MS.filter ((== note) . snd) leftPass
--- --     mrightRegs = S.map (Reg . snd) $ S.filter ((== Inner note) . fst) rightRegs
--- --     mrightPass = MS.map (Pass . snd) $ MS.filter ((== note) . fst) rightPass
--- --     mandatoryLeft = MS.fromSet mleftRegs <> mleftPass
--- --     mandatoryRight = MS.fromSet mrightRegs <> mrightPass
--- --
--- --     -- the possible reductions of a (multiple) pitch are enumerated in three stages:
--- --
--- --     -- stage 1: consume all mandatory edges on the left
--- --     enumerateOptions mgen ml mr n = do
--- --       (mr', n', acc) <- pickRandomChoice mgen $ MS.foldM goL (mr, n, []) ml
--- --       (n'', acc') <- pickRandomChoice mgen $ MS.foldM goR (n', acc) mr'
--- --       freeOpts <- freeOptions mgen
--- --       goFree mgen [freeOpts] n'' acc'
--- --     goL (_, 0, _) _ = []
--- --     goL (mr, n, acc) l = do
--- --       (new, mr') <- pickLeft n l mr
--- --       pure (mr', n - 1, new : acc)
--- --     -- combine a mandatory left with a mandatory right or free right edge
--- --     pickLeft n l mr
--- --       | n > MS.size mr = mand <> opt <> single
--- --       | otherwise = mand
--- --      where
--- --       mand = do
--- --         r <- MS.distinctElems mr
--- --         red <- maybeToList $ tryReduction True True l note r
--- --         pure (red, MS.delete r mr)
--- --       -- TODO: remove mr options here?
--- --       tryOpt r = tryReduction True (r `S.member` mrightRegs) l note r
--- --       opt = (,mr) <$> mapMaybe tryOpt innerR
--- --       single = fmap (,mr) $ maybeToList $ tryLeftReduction note l
--- --
--- --     -- stage 2: consume all remaining mandatory edges on the right
--- --     goR (0, _) _ = []
--- --     goR (n, acc) r = do
--- --       new <- pickRight r
--- --       pure (n - 1, new : acc)
--- --     -- combine mandatory right with free left edge
--- --     pickRight r = opt <> single
--- --      where
--- --       tryOpt l = tryReduction (l `S.member` mleftRegs) True l note r
--- --       opt = mapMaybe tryOpt innerL
--- --       single = maybeToList $ tryRightReduction note r
--- --
--- --     -- stage 3: explain all remaining notes through a combination of unknown edges
--- --     goFree mgen _ 0 acc = pickRandomChoice mgen acc
--- --     goFree mgen [] _ _ = pickRandomChoice mgen []
--- --     goFree mgen [lastOpt] n acc = pickRandomChoice mgen $ L.replicate n lastOpt <> acc
--- --     goFree mgen (opt : opts) n acc = do
--- --       nopt <- pickRandomChoice mgen [0 .. n]
--- --       goFree mgen opts (n - nopt) (L.replicate nopt opt <> acc)
--- --
--- --     -- list all options for free reduction
--- --     freeOptions mgen = do 
--- --       freeBoth <- pickFreeBoth mgen 
--- --       freeLeft <- pickFreeLeft mgen
--- --       freeRight <- pickFreeRight mgen 
--- --       pickRandomChoice mgen [freeBoth <> freeLeft <> freeRight]
--- --     -- combine two free edges
--- --     pickFreeBoth mgen = do
--- --       l <- pickRandomChoice mgen innerL
--- --       r <- pickRandomChoice mgen innerR
--- --       pickRandomChoice mgen $ maybeToList $
--- --         tryReduction (l `S.member` mleftRegs) (r `S.member` mrightRegs) l note r
--- --     -- reduce to left using free edge
--- --     pickFreeLeft mgen = do 
--- --       pickRandomChoice mgen $ mapMaybe (tryLeftReduction note) innerL
--- --     -- reduce to right using free edge
--- --     pickFreeRight mgen = do 
--- --       pickRandomChoice mgen $ mapMaybe (tryRightReduction note) innerR
--- --
--- --   -- at all stages: try out potential reductions:
--- --
--- --   -- two terminal edges: any ornament
--- --   tryReduction lIsUsed rIsUsed (Reg notel) notem (Reg noter) = do
--- --     reduction <- findOrnament notel (Inner notem) noter lIsUsed rIsUsed
--- --     pure $ case reduction of
--- --       (Reg (orn, parent)) -> EReg (parent, (notem, orn))
--- --       (Pass (pass, parent)) -> EPass (parent, (notem, pass))
--- --   -- a non-terminal edge left and a terminal edge right: passing note
--- --   tryReduction _ _ notel@(Pass _) notem noter@(Reg _) = do
--- --     (parent, pass) <- findPassing notel notem noter
--- --     pure $ EPass (parent, (notem, pass))
--- --   -- a terminal edge left and a non-terminal edge right: passing note
--- --   tryReduction _ _ notel@(Reg _) notem noter@(Pass _) = do
--- --     (parent, pass) <- findPassing notel notem noter
--- --     pure $ EPass (parent, (notem, pass))
--- --   -- all other combinations are forbidden
--- --   tryReduction _ _ _ _ _ = Nothing
--- --
--- --   -- single reduction to a left parent
--- --   tryLeftReduction notem (Reg (Inner notel)) = do
--- --     orn <- findRightOrnament notel notem
--- --     pure $ ER (notel, (notem, orn))
--- --   tryLeftReduction _ _ = Nothing
--- --
--- --   -- single reduction to a right parent
--- --   tryRightReduction notem (Reg (Inner noter)) = do
--- --     orn <- findLeftOrnament notem noter
--- --     pure $ EL (noter, (notem, orn))
--- --   tryRightReduction _ _ = Nothing
--- --
--- --   -- compute all possible combinations of reduction options
--- --   evalCombinations mgen options = do 
--- --     guard $ any L.null options 
--- --     pickRandomChoice mgen $ foldM (pickOption mgen) ([], [], [], []) options -- otherwise, compute all combinations
--- --       -- picks all different options for a single note in the list monad
--- --   pickOption mgen (accReg, accPass, accL, accR) opts = do
--- --     (regs, pass, ls, rs) <- opts
--- --     pure (regs <> accReg, pass <> accPass, ls <> accL, rs <> accR)
--- --
--- --   -- convert a combination into a derivation operation:
--- --   -- turn the accumulated information into the format expected from the evaluator
--- --   mkTop (regs, pass, rs, ls) =
--- --     if True -- validate
--- --       then (top, SplitOp tmap ntmap rmap lmap leftRegs rightRegs passL passR)
--- --       else
--- --         error $
--- --           "invalid unsplit:\n  notesl="
--- --             <> show notesl
--- --             <> "\n  notesr="
--- --             <> show notesr
--- --             <> "\n  notesm="
--- --             <> show (Notes notesm)
--- --             <> "\n  left="
--- --             <> show (Edges leftRegs leftPass)
--- --             <> "\n  right="
--- --             <> show (Edges rightRegs rightPass)
--- --             <> "\n  top="
--- --             <> show top
--- --    where
--- --     -- validate =
--- --     --   all ((`L.elem` innerNotes notesl) . fst . fst) regs
--- --     --     && all ((`L.elem` innerNotes notesr) . snd . fst)   regs
--- --     --     && all ((`L.elem` innerNotes notesl) . Inner . fst) rs
--- --     --     && all ((`L.elem` innerNotes notesr) . Inner . fst) ls
--- --
--- --     -- collect all operations
--- --     mapify xs = M.fromListWith (<>) $ fmap (: []) <$> xs
--- --     tmap = mapify regs
--- --     ntmap = mapify pass
--- --     lmap = mapify ls
--- --     rmap = mapify rs
--- --     top = Edges (S.fromList (fst <$> regs)) (MS.fromList (fst <$> pass))
--- --     passL = foldr MS.delete leftPass $ mapMaybe leftPassingChild pass
--- --     passR = foldr MS.delete rightPass $ mapMaybe rightPassingChild pass
--- --     leftPassingChild ((l, _r), (m, orn)) =
--- --       if orn == PassingRight then Just (l, m) else Nothing
--- --     rightPassingChild ((_l, r), (m, orn)) =
--- --       if orn == PassingLeft then Just (m, r) else Nothing
---
+
 
 {- | Computes all possible unsplits of two child transitions.
  Since transitions here only represent the certain edges,
@@ -896,15 +903,15 @@ protoVoiceEvaluatorNoRepSplit = Eval vm vl vr filterSplit t s
 
 protoVoiceEvaluatorLimitedSize
   :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n)
-  => Int 
+  => Int
   -> Eval (Edges n) (t (Edge n)) (Notes n) (t2 n) (PVLeftmost n)
 protoVoiceEvaluatorLimitedSize n = Eval filterUnspreadM vl vr mg t s
  where
   (Eval vm vl vr mg t s) = protoVoiceEvaluator
 
-  filterUnspreadM (sl, tm, sr) = do 
-    v <- vm (sl, tm, sr) 
-    case v of 
+  filterUnspreadM (sl, tm, sr) = do
+    v <- vm (sl, tm, sr)
+    case v of
       (Notes ns, v')
         |  MS.size ns < n -> Just (Notes ns, v')
         |  otherwise -> Nothing

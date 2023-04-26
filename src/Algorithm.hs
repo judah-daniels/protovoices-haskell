@@ -74,6 +74,7 @@ data AlgoType
   | RandomWalkPerSegment
   | RandomSample
   | RandomReduction
+  | PerfectReduction
   | BeamSearch BeamWidth
   | StochasticBeamSearch BeamWidth ResevoirSize
   | DualStochasticBeamSearch BeamWidth ResevoirSize
@@ -154,6 +155,13 @@ instance ParseAlgo AlgoType where
           path <- randomSamplePath (length chords)
           let slices = pathBetweens path
               chordGuesses = guessChords slices
+           in pure $ Just (AlgoResult slices Nothing chordGuesses)
+
+    PerfectReduction ->
+      let x = splitSlicesIntoSegments eval sliceWrapper inputSlices
+        in do
+          slices <- perfectReduction x chords 
+          let chordGuesses = guessChords slices
            in pure $ Just (AlgoResult slices Nothing chordGuesses)
 
     RandomReduction ->

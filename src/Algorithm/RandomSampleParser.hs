@@ -2,10 +2,11 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-module Algorithm.RandomSampleParser 
+module Algorithm.RandomSampleParser
   (
     randomSamplePath
   , randomSamplePathSBS
+  , perfectReduction
   , poissonSample
   )
     where
@@ -17,7 +18,7 @@ import FileHandling (InputSlice)
 import HeuristicParser (Slice, Trans)
 import Musicology.Pitch ( spelledp, SPitch )
 import PVGrammar ( Edges (..), Notes(..) )
-
+import Data.Vector qualified as V
 import Data.HashSet as S ( empty )
 import Data.Heap qualified as H
 import Data.List qualified as L
@@ -33,6 +34,9 @@ import System.Random.Stateful
   , newIOGenM
   , uniformRM
   )
+import Harmony.ChordLabel
+import Harmony
+import Musicology.Core
 
 {- |
   Generates a path of random notes for the given number of segments
@@ -75,6 +79,31 @@ randomSamplePathSBS inputSlices = do
   gen <- initStdGen
   mgen <- newIOGenM gen
   mapM (genSliceSBS mgen) inputSlices
+
+perfectReduction
+  :: [[InputSlice SPitch]]
+  -> [ChordLabel]
+  -> IO [Notes SPitch]
+perfectReduction inputSlices chords = do
+  gen <- initStdGen
+  mgen <- newIOGenM gen
+  mapM (genSlicePerfect mgen) (zip inputSlices chords)
+
+genSlicePerfect :: StatefulGen g IO => g -> ([InputSlice SPitch], ChordLabel) -> IO (Notes SPitch)
+genSlicePerfect gen (slcs, lbl) = do
+  let profile =  pChordTones lbl
+  -- n <- uniformRM (2 :: Int, 5) gen
+  let notes = filter (filterNote profile) allNotes
+  pure $ Notes $ MS.fromList notes
+ where
+  allNotes = fst <$> concatMap fst slcs
+
+  filterNote Nothing note = True
+  filterNote (Just profile) note = profile V.! notePos > cutoff
+    where
+      cutoff = 0.15
+      notePos = 14 + fifths note
+
 
 
 genSliceSBS :: StatefulGen g IO => g -> [InputSlice SPitch] -> IO (Notes SPitch)

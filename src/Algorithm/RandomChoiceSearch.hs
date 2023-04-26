@@ -20,6 +20,7 @@ import Data.Ord
 import Debug.Trace
 import HeuristicParser (getPathFromState)
 
+import System.Timeout
 import Data.Aeson.KeyMap (singleton)
 import System.Random (initStdGen)
 import System.Random.Stateful
@@ -28,6 +29,8 @@ import System.Random.Stateful
   , uniformRM
   )
 import qualified Data.Text as T
+
+defaultTimeOut = 1200
 
 logD x = lift $ Log.log $ T.pack x
 
@@ -69,7 +72,13 @@ randomChoiceSearch initialState getNextStates isGoalState printOp = do
         -- lift $ print nearestState
 
         -- Find neighboring states
-        nextStates <- getNextStates nearestState
+        nextStates <- getNextStates nearestState 
+      -- mTimedRes <- case algo of 
+      --   StochasticSearch -> timeout (timeOut * 1000000) $ Time.timeItT $ runParse algo (AlgoInputImpure protoVoiceEvaluatorImpure inputSlices inputChords)
+      --   _ -> timeout (timeOut * 1000000) $ Time.timeItT $ runParse algo (AlgoInputPure protoVoiceEvaluator inputSlices inputChords)
+      -- case mTimedRes of
+      --   Nothing -> pure $ nullResultToJSON (show algo)
+          -- runAlgo algo inputChords inputSlices (n - 1)
         let numStates = length nextStates
 
         -- lift $ putStrLn $ "Choosing randomly from " <> show numStates <> " states"

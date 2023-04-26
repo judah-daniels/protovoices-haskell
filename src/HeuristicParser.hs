@@ -40,6 +40,7 @@ module HeuristicParser
   )
     where
 
+import System.Timeout
 import Common
 import Control.Monad.Except (ExceptT, lift, throwError)
 import Data.Bifunctor qualified as BF (second)
