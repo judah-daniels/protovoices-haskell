@@ -81,27 +81,28 @@ randomSamplePathSBS inputSlices = do
   mapM (genSliceSBS mgen) inputSlices
 
 perfectReduction
-  :: [[InputSlice SPitch]]
+  :: Double 
+  -> [[InputSlice SPitch]]
   -> [ChordLabel]
   -> IO [Notes SPitch]
-perfectReduction inputSlices chords = do
+perfectReduction threshold inputSlices chords = do
   gen <- initStdGen
   mgen <- newIOGenM gen
-  mapM (genSlicePerfect mgen) (zip inputSlices chords)
+  mapM (genSlicePerfect mgen threshold) (zip inputSlices chords)
 
-genSlicePerfect :: StatefulGen g IO => g -> ([InputSlice SPitch], ChordLabel) -> IO (Notes SPitch)
-genSlicePerfect gen (slcs, lbl) = do
+genSlicePerfect :: StatefulGen g IO => g -> Double -> ([InputSlice SPitch], ChordLabel) -> IO (Notes SPitch)
+genSlicePerfect gen threshold (slcs, lbl) = do
   let profile =  pChordTones lbl
   -- n <- uniformRM (2 :: Int, 5) gen
-  let notes = filter (filterNote profile) allNotes
+  let notes = filter (filterNote threshold profile) allNotes
   pure $ Notes $ MS.fromList notes
  where
   allNotes = fst <$> concatMap fst slcs
 
-  filterNote Nothing note = True
-  filterNote (Just profile) note = profile V.! notePos > cutoff
+  filterNote _ Nothing _ = True
+  filterNote threshold (Just profile) note = profile V.! notePos > cutoff
     where
-      cutoff = 0.15
+      cutoff = threshold
       notePos = 14 + fifths note
 
 

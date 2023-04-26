@@ -64,6 +64,7 @@ class (Show algo) => ParseAlgo algo where
   runParse :: algo -> AlgoInput -> IO (Maybe AlgoResult)
 
 type BeamWidth = Int
+type Threshold = Double
 type UnspreadWidth = Int
 type UnsplitWidth = Int
 type ResevoirSize = Int
@@ -74,7 +75,7 @@ data AlgoType
   | RandomWalkPerSegment
   | RandomSample
   | RandomReduction
-  | PerfectReduction
+  | PerfectReduction Threshold
   | BeamSearch BeamWidth
   | StochasticBeamSearch BeamWidth ResevoirSize
   | DualStochasticBeamSearch BeamWidth ResevoirSize
@@ -157,10 +158,10 @@ instance ParseAlgo AlgoType where
               chordGuesses = guessChords slices
            in pure $ Just (AlgoResult slices Nothing chordGuesses)
 
-    PerfectReduction ->
+    PerfectReduction threshold ->
       let x = splitSlicesIntoSegments eval sliceWrapper inputSlices
         in do
-          slices <- perfectReduction x chords 
+          slices <- perfectReduction threshold x chords 
           let chordGuesses = guessChords slices
            in pure $ Just (AlgoResult slices Nothing chordGuesses)
 

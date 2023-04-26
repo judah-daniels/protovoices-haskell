@@ -27,6 +27,7 @@ import Control.Logging (LogLevel(LevelDebug))
 import Display
 import PVGrammar.Generate
 import GHC.IO.Handle (NewlineMode(outputNL))
+import Algorithm (AlgoType(PerfectReduction))
 
 data Options = Options
   { _inputPath :: String
@@ -181,6 +182,7 @@ main = Log.withStderrLogging $ do
         DualStochasticBeamSearch width res -> "DualStochasticBeamSearch_" <> show width <> "_" <> show res 
         DualBeamSearch a b -> "DualBeamSearch_" <> show a <> "_" <> show b
         BeamSearchPerSegment width -> "BeamSearchPerSegment_" <> show width 
+        PerfectReduction threshold -> "BeamSearchPerSegment_" <> show threshold 
         _ -> show algo
   -- = RandomWalk
   -- | RandomWalkPerSegment
