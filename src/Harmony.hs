@@ -15,6 +15,7 @@ module Harmony
   , labelLikelihoodGivenSlice
   , allLabelLikelihoodsGivenSlice
   , transposeSlice
+  , transposeNote
   , notePos
   , notesVector
   , noteVector

@@ -182,7 +182,7 @@ main = Log.withStderrLogging $ do
         DualStochasticBeamSearch width res -> "DualStochasticBeamSearch_" <> show width <> "_" <> show res 
         DualBeamSearch a b -> "DualBeamSearch_" <> show a <> "_" <> show b
         BeamSearchPerSegment width -> "BeamSearchPerSegment_" <> show width 
-        PerfectReduction threshold -> "BeamSearchPerSegment_" <> show threshold 
+        -- PerfectReduction threshold -> "BeamSearchPerSegment_" <> show threshold 
         _ -> show algo
   -- = RandomWalk
   -- | RandomWalkPerSegment

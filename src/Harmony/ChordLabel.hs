@@ -2,6 +2,7 @@ module Harmony.ChordLabel
   ( ChordType (..)
   , ChordLabel (..)
   , mkLbl
+  , chordToneProfile
   )
 where
 
@@ -28,6 +29,23 @@ data ChordType
   | MinorMajorSeventh
   | AugmentedSeventh
   deriving (Eq, Enum, Bounded, Ord)
+
+chordToneProfile :: ChordType -> [Int]
+chordToneProfile chordType = case chordType of
+  Major -> [0, 1, 4]
+  Minor -> [0, 1, -3]
+  DominantSeventh -> [0, 1, 4, -2]
+  Diminished -> [0, -3, -6]
+  FullDiminished -> [0, -3, -6, -9]
+  MinorSeventh -> [0, 1, 4, 5]
+  HalfDiminished -> [0, -3, -6, -2]
+  MajorSeventh -> [0, 1, 4, 5]
+  Augmented -> [0, 4, 8]
+  GermanSixth -> [0, -10, -6, -9]
+  ItalianSixth -> [0, -10, -6]
+  FrenchSixth -> [0, 4, -6, -2]
+  MinorMajorSeventh -> [0, 1, -3, 5]
+  AugmentedSeventh -> [0, 4, 8, -2]
 
 instance Read ChordType where
   readsPrec _ str =
