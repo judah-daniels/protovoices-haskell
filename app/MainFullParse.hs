@@ -122,7 +122,7 @@ main = Log.withStderrLogging $ do
   inputChords <- chordsFromFile (inputPath <> "chords/" <> corpus <> "/" <> pieceName <> ".csv")
   inputSlices <- slicesFromFile' (inputPath <> "slices/" <> corpus <> "/" <> pieceName <> ".csv")
   let outputFile = outputPath <> corpus <> "/" <> pieceName <> "/" <> showRoot algo <> "/" <> expId <> ".json"
-  let outputFileDeriv = outputPath <> corpus <> "/" <> pieceName <> "/" <> showRoot algo <> "/" <> expId <> "_deriv"
+  let outputFileDeriv = outputPath <> corpus <> "/" <> pieceName <> "/" <> showRoot algo <> "/" <> expId
   createDirectoryIfMissing True $ outputPath <> corpus <> "/" <> pieceName <> "/" <> showRoot algo <> "/"
 
   res <- replicateM iterations $ runAlgo outputFileDeriv algo timeOut inputChords inputSlices numRetries
@@ -167,7 +167,7 @@ main = Log.withStderrLogging $ do
                 in case ops of 
                      Nothing -> pure $ writeResultsToJSON top lbls ops accuracy likelihood (show algo) time (1 + numRetries - n)
                      Just (Analysis op to) -> do 
-                       plotDeriv (deriv) to op 
+                       -- plotDeriv (deriv) to op 
                        pure $ writeResultsToJSON top lbls ops accuracy likelihood (show algo) time (1 + numRetries - n)
                   -- logD $ "Accuracy: " <> show accuracy
                   -- logD $ "Likelihood: " <> show likelihood
