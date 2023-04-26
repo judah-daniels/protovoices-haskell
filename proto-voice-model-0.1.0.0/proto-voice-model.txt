@@ -1687,7 +1687,7 @@ module Algorithm.RandomSampleParser
 -- | Generates a path of random notes for the given number of segments
 randomSamplePath :: Int -> IO (Path (Edges SPitch) (Notes SPitch))
 randomSamplePathSBS :: [[InputSlice SPitch]] -> IO [Notes SPitch]
-perfectReduction :: [[InputSlice SPitch]] -> [ChordLabel] -> IO [Notes SPitch]
+perfectReduction :: Double -> [[InputSlice SPitch]] -> [ChordLabel] -> IO [Notes SPitch]
 poissonSample :: StatefulGen g IO => g -> Double -> IO Int
 
 module Algorithm.HeuristicSearch
@@ -1719,7 +1719,7 @@ RandomWalk :: AlgoType
 RandomWalkPerSegment :: AlgoType
 RandomSample :: AlgoType
 RandomReduction :: AlgoType
-PerfectReduction :: AlgoType
+PerfectReduction :: Threshold -> AlgoType
 BeamSearch :: BeamWidth -> AlgoType
 StochasticBeamSearch :: BeamWidth -> ResevoirSize -> AlgoType
 DualStochasticBeamSearch :: BeamWidth -> ResevoirSize -> AlgoType
