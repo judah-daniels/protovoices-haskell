@@ -662,6 +662,7 @@ ChordLabel :: ChordType -> SPC -> ChordLabel
 [chordType] :: ChordLabel -> ChordType
 [rootNote] :: ChordLabel -> SPC
 mkLbl :: Int -> ChordType -> ChordLabel
+chordToneProfile :: ChordType -> [Int]
 instance GHC.Classes.Ord Harmony.ChordLabel.ChordType
 instance GHC.Enum.Bounded Harmony.ChordLabel.ChordType
 instance GHC.Enum.Enum Harmony.ChordLabel.ChordType
@@ -1436,6 +1437,7 @@ mostLikelyLabelFromSlice :: Notes SPitch -> ChordLabel
 labelLikelihoodGivenSlice :: ChordLabel -> Notes SPitch -> Double
 allLabelLikelihoodsGivenSlice :: Notes SPitch -> Vector (Double, ChordLabel)
 transposeSlice :: Pitch SIC -> Notes SPitch -> Notes SIC
+transposeNote :: Pitch SIC -> SPitch -> SIC
 notePos :: SPitch -> Maybe Int
 notesVector :: Notes SPitch -> Vector Double
 noteVector :: SPitch -> Maybe (Vector Double)
@@ -1687,7 +1689,7 @@ module Algorithm.RandomSampleParser
 -- | Generates a path of random notes for the given number of segments
 randomSamplePath :: Int -> IO (Path (Edges SPitch) (Notes SPitch))
 randomSamplePathSBS :: [[InputSlice SPitch]] -> IO [Notes SPitch]
-perfectReduction :: Double -> [[InputSlice SPitch]] -> [ChordLabel] -> IO [Notes SPitch]
+perfectReduction :: [[InputSlice SPitch]] -> [ChordLabel] -> IO [Notes SPitch]
 poissonSample :: StatefulGen g IO => g -> Double -> IO Int
 
 module Algorithm.HeuristicSearch
@@ -1719,7 +1721,7 @@ RandomWalk :: AlgoType
 RandomWalkPerSegment :: AlgoType
 RandomSample :: AlgoType
 RandomReduction :: AlgoType
-PerfectReduction :: Threshold -> AlgoType
+PerfectReduction :: AlgoType
 BeamSearch :: BeamWidth -> AlgoType
 StochasticBeamSearch :: BeamWidth -> ResevoirSize -> AlgoType
 DualStochasticBeamSearch :: BeamWidth -> ResevoirSize -> AlgoType
