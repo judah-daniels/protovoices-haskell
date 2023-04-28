@@ -130,7 +130,7 @@ labelLikelihoodGivenSlice :: ChordLabel -> Notes SPitch -> Double
 labelLikelihoodGivenSlice chordLabel@(ChordLabel chordType rootNote) slice
   = sliceLikelihoodGivenLabel + labelLikelihood
   where
-    sliceVector =  notesVector slice
+    sliceVector = notesVector slice
     sliceLikelihoodGivenLabel = case pChordTones chordLabel of
                                   Just p -> multinomialLogProb sliceVector p
                                   Nothing -> -1000

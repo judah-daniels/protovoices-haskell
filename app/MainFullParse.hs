@@ -125,7 +125,7 @@ main = Log.withStderrLogging $ do
   let outputFileDeriv = outputPath <> corpus <> "/" <> pieceName <> "/" <> showRoot algo <> "/" <> expId
   createDirectoryIfMissing True $ outputPath <> corpus <> "/" <> pieceName <> "/" <> showRoot algo <> "/"
 
-  res <- replicateM iterations $ runAlgo outputFileDeriv algo timeOut inputChords inputSlices numRetries
+  res <- mapM (runAlgo outputFileDeriv algo timeOut inputChords inputSlices numRetries) [1 .. iterations]
 
   writeJSONToFile outputFile $ concatResults expId (showRoot algo) corpus pieceName inputChords res
 
@@ -150,8 +150,8 @@ main = Log.withStderrLogging $ do
     --
     --               pure $ writeResultsToJSON top lbls ops accuracy likelihood (show algo) time (1 + numRetries - n)
 
-    runAlgo deriv algo _ _ _ 0 = pure $ nullResultToJSON algo
-    runAlgo deriv algo timeOut inputChords inputSlices n = do
+    runAlgo deriv algo _ _ _ 0 id = pure $ nullResultToJSON algo
+    runAlgo deriv algo timeOut inputChords inputSlices n id = do
       mTimedRes <- case algo of 
         StochasticSearch -> timeout (timeOut * 1000000) $ Time.timeItT $ runParse algo (AlgoInputImpure protoVoiceEvaluatorImpure inputSlices inputChords)
         _ -> timeout (timeOut * 1000000) $ Time.timeItT $ runParse algo (AlgoInputPure protoVoiceEvaluator inputSlices inputChords)
@@ -160,15 +160,15 @@ main = Log.withStderrLogging $ do
           -- runAlgo algo inputChords inputSlices (n - 1)
         Just (time, mRes) ->
           case mRes of
-            Nothing -> runAlgo deriv algo timeOut inputChords inputSlices (n - 1)
+            Nothing -> runAlgo deriv algo timeOut inputChords inputSlices (n - 1) id
             Just (AlgoResult top ops lbls) ->
               let accuracy = chordAccuracy inputChords lbls
                   likelihood = scoreSegments top lbls
                 in case ops of 
-                     Nothing -> pure $ writeResultsToJSON top lbls ops accuracy likelihood (show algo) time (1 + numRetries - n)
+                     Nothing -> pure $ writeResultsToJSON top lbls ops accuracy likelihood (show algo) time (1 + numRetries - n) id
                      Just (Analysis op to) -> do 
                        -- plotDeriv (deriv) to op 
-                       pure $ writeResultsToJSON top lbls ops accuracy likelihood (show algo) time (1 + numRetries - n)
+                       pure $ writeResultsToJSON top lbls ops accuracy likelihood (show algo) time (1 + numRetries - n) id
                   -- logD $ "Accuracy: " <> show accuracy
                   -- logD $ "Likelihood: " <> show likelihood
 

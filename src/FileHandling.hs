@@ -269,8 +269,9 @@ writeResultsToJSON
   -> String
   -> Time
   -> Int
+  -> Int
   -> A.Value
-writeResultsToJSON slices chords derivation accuracy likelihood name runTime reruns =
+writeResultsToJSON slices chords derivation accuracy likelihood name runTime reruns id =
   A.object
     [ 
     -- "algorithm" .= A.fromString name
@@ -281,6 +282,7 @@ writeResultsToJSON slices chords derivation accuracy likelihood name runTime rer
     -- , "derivation" .= derivation
     , "runTime" .= runTime
     , "reruns" .= reruns
+    , "id" .= id
     ]
 
 -- | Concatenates all results for a given piece into an object, inlucuding the piece and corpus in the JSON value.
