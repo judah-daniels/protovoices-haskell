@@ -88,7 +88,7 @@ scoreSegments
   -> Double
 scoreSegments segments labels =
   let
-    scores = zipWith scoreSegment' segments labels
+    scores = zipWith labelLikelihoodGivenSlice labels segments 
    in
     sum scores / fromIntegral (length scores)
 
