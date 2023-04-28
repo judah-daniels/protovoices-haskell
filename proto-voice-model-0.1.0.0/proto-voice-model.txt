@@ -1674,7 +1674,7 @@ chordsFromFile :: FilePath -> IO [ChordLabel]
 writeJSONToFile :: ToJSON a => FilePath -> a -> IO ()
 
 -- | Coverts the results of a parsing algorithm to a JSON value
-writeResultsToJSON :: [Notes SPitch] -> [ChordLabel] -> Maybe (PVAnalysis SPitch) -> Accuracy -> LogLikelihood -> String -> Time -> Int -> Value
+writeResultsToJSON :: [Notes SPitch] -> [ChordLabel] -> Maybe (PVAnalysis SPitch) -> Accuracy -> LogLikelihood -> String -> Time -> Int -> Int -> Value
 
 -- | Used when the algorithm fails. Contains NANs in all fields.
 nullResultToJSON :: Show a => a -> Value
