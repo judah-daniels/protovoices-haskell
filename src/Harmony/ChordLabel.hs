@@ -37,7 +37,7 @@ chordToneProfile chordType = case chordType of
   DominantSeventh -> [0, 1, 4, -2]
   Diminished -> [0, -3, -6]
   FullDiminished -> [0, -3, -6, -9]
-  MinorSeventh -> [0, 1, 4, 5]
+  MinorSeventh -> [0, 1, -2, -3]
   HalfDiminished -> [0, -3, -6, -2]
   MajorSeventh -> [0, 1, 4, 5]
   Augmented -> [0, 4, 8]

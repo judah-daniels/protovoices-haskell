@@ -185,33 +185,32 @@ dualStochasticBeamSearch beamWidth reservoir initialState getNextStates isGoalSt
         nextStatesAll <- mapM
           (\(oldcost, s) -> do
             n <- getNextStates s
-            pure $ map ((oldcost,s),) n
+            pure $ ((oldcost,s),) <$> n
           ) open
-        let allNextStatesWithNan = concat nextStatesAll
-        logD $ "All states: " <> show (length allNextStatesWithNan)
-        let allNextStates = allNextStatesWithNan
-        logD $ "All valid states: " <> show (length allNextStates)
+
+        let allNextStates = concat nextStatesAll
+        logD $ "All states: " <> show (length allNextStates)
 
         nextUnfreezeStates <- do
           let filtered = filter (isFreeze . snd) allNextStates
           logD $ "Unfreezes: " <> show (length filtered)
           r <- mapM doHeuristic filtered
           logD $ "Selected: " <> show (length r)
-          pure $ r
+          pure r
+
         nextUnspreadStates <- do
           let filtered = filter (isSpread . snd) allNextStates
           logD $ "Unspreads: " <> show (length filtered)
           -- x <- lift $ reservoirSample mgen reservoir filtered
           -- logD $ "Selected: " <> show (length x)
-          r <- mapM doHeuristic filtered
-          pure $ r
+          mapM doHeuristic filtered
+
         nextUnsplitStates <- do
           let filtered = filter (isSplit . snd) allNextStates
           logD $ "Unsplits: " <> show (length filtered)
           x <- lift $ reservoirSample mgen reservoir filtered
           logD $ "Unsplits: " <> show (length x)
-          r <- mapM doHeuristic x
-          pure $ r
+          mapM doHeuristic x
 
         let nextStates = concatMap (minElems beamWidth []) [nextUnfreezeStates,nextUnsplitStates,nextUnspreadStates]
 
@@ -279,7 +278,7 @@ dualStochasticBeamSearch' beamWidth reservoir initialState getNextStates isGoalS
           ) open
 
         let allNextStatesWithNan = concat nextStatesAll
-        nextStates' <- replicateM beamWidth $ pickRandom mgen $ allNextStatesWithNan
+        nextStates' <- replicateM beamWidth $ pickRandom mgen allNextStatesWithNan
         let nextStates'' = catMaybes nextStates'
         let nextStates = minElems beamWidth [] nextStates''
 
