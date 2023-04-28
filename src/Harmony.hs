@@ -62,8 +62,8 @@ transposeNote root = Music.pto root . spc . fifths
 transposeSlice :: Music.Pitch SIC -> Notes SPitch -> Notes SIC
 transposeSlice root (Notes slice) = Notes $ MS.map (transposeNote root) slice
 
-scoreSegment' :: Notes SPitch -> ChordLabel -> Double
-scoreSegment' (Notes slc) (ChordLabel chordType rootNote) = mlp + clp
+scoreSegment'' :: Notes SPitch -> ChordLabel -> Double
+scoreSegment'' (Notes slc) (ChordLabel chordType rootNote) = mlp + clp
  where
   slc' = Notes $ MS.map (transposeNote rootNote) slc
   valueVector = genSliceVector slc'
@@ -71,6 +71,16 @@ scoreSegment' (Notes slc) (ChordLabel chordType rootNote) = mlp + clp
   pChordTones = chordToneParams V.! chordTypeIndex
   mlp = (multinomialLogProb valueVector <$> chordToneParams) V.! chordTypeIndex
   clp = fromJust $ categoricalLogProb chordTypeIndex pChordTones
+
+scoreSegment' :: Notes SPitch -> ChordLabel -> Double
+scoreSegment' (Notes slc) (ChordLabel chordType rootNote) = mlp + clp
+ where
+  slc' = Notes $ MS.map (transposeNote rootNote) slc
+  valueVector = genSliceVector slc'
+  chordTypeIndex = fromEnum chordType
+  -- pChordTones = chordToneParams V.! chordTypeIndex
+  mlp = (multinomialLogProb valueVector <$> chordToneParams) V.! chordTypeIndex
+  clp = fromJust $ categoricalLogProb (fromEnum chordType) labelParams
 
 scoreSegments
   :: [Notes SPitch]

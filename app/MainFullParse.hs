@@ -27,7 +27,6 @@ import Control.Logging (LogLevel(LevelDebug))
 import Display
 import PVGrammar.Generate
 import GHC.IO.Handle (NewlineMode(outputNL))
-import Algorithm (AlgoType(PerfectReduction))
 
 data Options = Options
   { _inputPath :: String
