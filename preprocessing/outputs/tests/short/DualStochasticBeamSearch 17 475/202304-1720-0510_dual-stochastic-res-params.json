@@ -1,0 +1,1 @@
+{"algorithm":"DualStochasticBeamSearch 17 475","corpus":"tests","groundTruth":["FM","CM","FM","EM","CMm7","FM","Dm","Gm","CM","FM","CM"],"id":"202304-1720-0510_dual-stochastic-res-params","piece":"short","results":[{"accuracy":null,"chordLabels":null,"likelihood":null,"reRuns":null,"runTime":null,"slices":null}]}

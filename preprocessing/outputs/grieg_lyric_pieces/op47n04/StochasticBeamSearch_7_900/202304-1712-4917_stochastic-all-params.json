@@ -1,0 +1,1 @@
+{"algorithm":"StochasticBeamSearch_7_900","corpus":"grieg_lyric_pieces","groundTruth":["DM","AM","AM","AMm7","DM","AM","AM","AMm7","DM","AM","AMm7","DM","AMm7","DM","AM","AMm7","DM","AMm7","DM","AM","DM"],"id":"202304-1712-4917_stochastic-all-params","piece":"op47n04","results":[{"accuracy":null,"chordLabels":null,"likelihood":null,"reRuns":null,"runTime":null,"slices":null}]}

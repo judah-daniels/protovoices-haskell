@@ -1,0 +1,1 @@
+{"algorithm":"DualStochasticBeamSearch 15 400","corpus":"tests","groundTruth":[],"id":"202304-1719-0219_stochastic-all-params","piece":"shortest","results":[{"accuracy":null,"chordLabels":[],"likelihood":null,"reruns":1,"runTime":6.58801e-4,"slices":[]}]}
