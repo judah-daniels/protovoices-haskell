@@ -3,6 +3,7 @@ module Harmony.ChordLabel
   , ChordLabel (..)
   , mkLbl
   , chordToneProfile
+  , allChordLabels
   )
 where
 
@@ -92,5 +93,11 @@ data ChordLabel = ChordLabel
 
 instance Show ChordLabel where
   show (ChordLabel lbl root) = showNotation root <> show lbl
+
+allChordLabels :: [ChordLabel]
+allChordLabels = do
+  chordType <- [minBound .. maxBound]
+  rootNote <- map spc [-14 .. 14]
+  pure $ ChordLabel chordType rootNote
 
 mkLbl rootInt chordType = ChordLabel chordType (spc (rootInt - 14))

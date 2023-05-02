@@ -40,6 +40,7 @@ import Control.Monad.Trans.Except (runExceptT)
 import Heuristics
 import PVGrammar.Parse (protoVoiceEvaluatorLimitedSize)
 import qualified Internal.MultiSet as MS
+import Algorithm.Templating (templatingBaseline)
 
 data AlgoInput 
   = AlgoInputPure
@@ -83,6 +84,7 @@ data AlgoType
   | BeamSearchPerSegment BeamWidth
   | DualBeamSearch UnspreadWidth UnsplitWidth
   | StochasticSearch
+  | Templating
   deriving (Show, Read, Eq)
 
 
@@ -165,6 +167,12 @@ instance ParseAlgo AlgoType where
           let chordGuesses = guessChords slices
            in pure $ Just (AlgoResult slices Nothing chordGuesses)
 
+    Templating ->
+      let x = splitSlicesIntoSegments eval sliceWrapper inputSlices
+       in Log.timedLog "Running Random Sample SBS Parse" $ do
+        let slices = templatingBaseline x
+        let chordGuesses = guessChords slices
+         in pure $ Just $ AlgoResult slices Nothing chordGuesses
     RandomReduction ->
       let x = splitSlicesIntoSegments eval sliceWrapper inputSlices
        in Log.timedLog "Running Random Sample SBS Parse" $ do

@@ -105,25 +105,12 @@ mostLikelyLabelFromSlice slice = snd . maximum $ V.toList $ allLabelLikelihoodsG
   --   argmax f = V.foldl1' (\acc x -> if f x > f acc then x else acc)
 
 mostLikelyLabelFromSliceWithProb :: Notes SPitch -> (ChordLabel, Double)
-
--- mostLikelyLabelFromSlice slice = argmax allLabelLikelihoodsGivenSlice
-  -- where 
-    -- argmax :: V.Vector (Double, ChordLabel) -> ChordLabel
-    -- argmax = V.foldl1' (\acc )
 mostLikelyLabelFromSliceWithProb slice = swap . maximum $ V.toList $ allLabelLikelihoodsGivenSlice slice
--- let l = argmax (`labelLikelihoodGivenSlice` slice) allChordLabels
---   in
---     (l, labelLikelihoodGivenSlice l slice)
---   where
---     argmax :: (a -> Double) -> V.Vector a -> a
---     argmax f = V.foldl1' (\acc x -> if f x > f acc then x else acc)
 
 allLabelLikelihoodsGivenSlice :: Notes SPitch -> V.Vector (Double, ChordLabel)
-allLabelLikelihoodsGivenSlice slice =
-  V.zip (V.map (`labelLikelihoodGivenSlice` slice) allChordLabels) allChordLabels
-  -- where
-  --   argmax :: (a -> Double) -> V.Vector a -> a
-  --   argmax f = V.foldl1' (\acc x -> if f x > f acc then x else acc)
+allLabelLikelihoodsGivenSlice slice = let allLabels = V.fromList allChordLabels in 
+  V.zip (V.map (`labelLikelihoodGivenSlice` slice) allLabels) allLabels
+
 
 
 labelLikelihoodGivenSlice :: ChordLabel -> Notes SPitch -> Double
@@ -141,12 +128,6 @@ allIntervals = V.fromList $ map sic [-14 .. 14]
 
 allNotes :: V.Vector SPC
 allNotes = V.fromList $ map spc [-14 .. 14]
-
-allChordLabels :: V.Vector ChordLabel
-allChordLabels = V.fromList $ do
-    chordType <- [minBound..maxBound]
-    rootNote <- map spc [-14 .. 14]
-    pure $ ChordLabel chordType rootNote
 
 -- | Provides a score measuring how much the slice matches the chord annoation
 evaluateSlice :: Notes SIC -> ChordType -> Double
