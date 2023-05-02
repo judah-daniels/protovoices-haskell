@@ -7,6 +7,12 @@
 @package proto-voice-model
 @version 0.1.0.0
 
+module Algorithm.RandomChoiceSearch
+
+-- | Entry point to the search algorithm Picks random choice from a split
+--   or spread operation Skewed towards splits.
+randomChoiceSearch :: Show state => state -> (state -> ExceptT String IO [state]) -> (state -> Bool) -> (state -> String) -> ExceptT String IO state
+
 
 -- | Common types and functionality that are used throughout the model.
 module Common
@@ -1355,7 +1361,7 @@ protoVoiceEvaluatorImpure :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, No
 -- | A restricted version of the PV evaluator that prohibits split
 --   operations in which one of the parent slices is repeated entirely.
 protoVoiceEvaluatorNoRepSplit :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n) => Eval (Edges n) (t (Edge n)) (Notes n) (t2 n) (PVLeftmost n)
-protoVoiceEvaluatorLimitedSize :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n) => Int -> Eval (Edges n) (t (Edge n)) (Notes n) (t2 n) (PVLeftmost n)
+protoVoiceEvaluatorLimitedSize :: Int -> Eval (Edges n) (t (Edge n)) (Notes n) (t2 n) (PVLeftmost n) -> Eval (Edges n) (t (Edge n)) (Notes n) (t2 n) (PVLeftmost n)
 
 -- | An evaluator for protovoices that produces values in the
 --   <a>Derivations</a> semiring.
@@ -1642,12 +1648,6 @@ applyHeuristic :: ((State SPitch, State SPitch) -> ExceptT String IO Double) -> 
 heuristicZero :: (State SPitch, State SPitch) -> ExceptT String IO Double
 type State ns = SearchState (Edges ns) [Edge ns] (Notes ns) (PVLeftmost ns)
 
-module Algorithm.RandomChoiceSearch
-
--- | Entry point to the search algorithm Picks random choice from a split
---   or spread operation Skewed towards splits.
-randomChoiceSearch :: Show state => state -> (state -> ExceptT String IO [state]) -> (state -> Bool) -> (state -> String) -> ExceptT String IO state
-
 
 -- | This module contains functionality for reading chord and slice data
 --   from csv files, as output by 'preprocess.py'. This also contains
@@ -1688,12 +1688,14 @@ instance Data.Csv.Conversion.FromField GHC.Types.Bool
 module Algorithm.Templating
 templatingBaseline :: [[InputSlice SPitch]] -> ([Notes SPitch], [ChordLabel])
 
+module Algorithm.InformedReduction
+informedReduction :: [[InputSlice SPitch]] -> [ChordLabel] -> [Notes SPitch]
+
 module Algorithm.RandomSampleParser
 
 -- | Generates a path of random notes for the given number of segments
 randomSamplePath :: Int -> IO (Path (Edges SPitch) (Notes SPitch))
 randomSamplePathSBS :: [[InputSlice SPitch]] -> IO [Notes SPitch]
-perfectReduction :: [[InputSlice SPitch]] -> [ChordLabel] -> IO [Notes SPitch]
 poissonSample :: StatefulGen g IO => g -> Double -> IO Int
 
 module Algorithm.HeuristicSearch
