@@ -1,0 +1,1 @@
+{"algorithm":"BeamSearchPerSegment_1.25","corpus":"tests","groundTruth":["FM","CM","DMm7","Gm"],"id":"20230426111026_perfectreduction","piece":"shortest","results":[{"accuracy":0,"chordLabels":["C♯♯M","C♯♯M","C♯♯M","C♯♯M"],"likelihood":-110.58812264945384,"reruns":1,"runTime":1.9778e-4,"slices":[[],[],[],[]]}]}

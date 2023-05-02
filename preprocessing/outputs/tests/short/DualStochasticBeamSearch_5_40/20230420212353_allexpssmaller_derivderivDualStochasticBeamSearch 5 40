@@ -1,0 +1,145 @@
+\documentclass{standalone}
+\usepackage[svgnames]{xcolor}
+\usepackage{tikz}
+\usepackage{amssymb}
+\begin{document}
+\tikzstyle{slice} = [rectangle,draw,fill=WhiteSmoke,semithick,minimum size=0.4cm,inner xsep=0,inner ysep=3pt,align=center]
+\tikzstyle{transition} = [line width=2pt,draw=lightgray]
+\tikzstyle{non-terminal} = []
+\tikzstyle{terminal} = [double]
+\tikzstyle{hori} = [lightgray,dashed,line width=2pt]
+
+\begin{tikzpicture}
+\node[slice] (slice0) at (0.0,0) {$\rtimes$};
+\node[slice] (slice1) at (1.0,0) {\{F4×2,F5×2\}};
+\node[slice] (slice2) at (6.0,0) {\{F4×2,F5×2\}};
+\node[slice] (slice3) at (7.0,0) {\{C5×2,C4×2\}};
+\node[slice] (slice4) at (8.0,0) {\{F4×2,F5×2\}};
+\node[slice] (slice5) at (14.0,0) {\{D5×2,D4×2\}};
+\node[slice] (slice6) at (21.0,0) {\{E4,C5,B$\flat$5,G6\}};
+\node[slice] (slice7) at (23.0,0) {\{F4,F5,C5,A5\}};
+\node[slice] (slice8) at (24.0,0) {\{D5,D4,F5,A5\}};
+\node[slice] (slice9) at (26.0,0) {\{B$\flat$5,B$\flat$3,G4,G5\}};
+\node[slice] (slice10) at (29.0,0) {\{F5,C5,C4,A5\}};
+\node[slice] (slice11) at (37.0,0) {\{F4×2,F5×2\}};
+\node[slice] (slice12) at (38.0,0) {$\ltimes$};
+\node[slice] (slice13) at (3.0,-1) {\{F4×2,F5×2\}};
+\node[slice] (slice18) at (13.0,-1) {\{F4×2,F5×2\}};
+\node[slice] (slice24) at (18.9375,-1) {\{D5,D4,E6,F6,B$\flat$5\}};
+\node[slice] (slice34) at (22.0,-1) {\{E4,C5,B$\flat$5,G5\}};
+\node[slice] (slice35) at (25.0,-1) {\{D6,B$\flat$5,B$\flat$3,G4\}};
+\node[slice] (slice36) at (27.0,-1) {\{F5,C5,C4,A5\}};
+\node[slice] (slice38) at (31.0,-1) {\{E5,C5,C4,G5\}};
+\node[slice] (slice14) at (5.0,-2) {\{E5×2,E4×2\}};
+\node[slice] (slice19) at (10.0,-2) {\{F4×2,F5×2\}};
+\node[slice] (slice25) at (17.875,-2) {\{D5,D4,E6,F6,B$\flat$5\}};
+\node[slice] (slice26) at (20.0,-2) {\{D5,D4,F6,B$\flat$5\}};
+\node[slice] (slice37) at (28.0,-2) {\{F5,C4,B4,A5\}};
+\node[slice] (slice39) at (30.0,-2) {\{F5,C4,B4,A5\}};
+\node[slice] (slice40) at (32.0,-2) {\{F4×2,F5×2\}};
+\node[slice] (slice15) at (2.0,-3) {\{F4×2,F5×2\}};
+\node[slice] (slice16) at (4.0,-3) {\{F4×2,F5×2\}};
+\node[slice] (slice20) at (12.0,-3) {\{E5×2,E4×2\}};
+\node[slice] (slice27) at (16.75,-3) {\{D5,D4,F6,B$\flat$5\}};
+\node[slice] (slice28) at (19.0,-3) {\{D5,D4,E6,B$\flat$5\}};
+\node[slice] (slice41) at (34.0,-3) {\{F4×2,F5×2\}};
+\node[slice] (slice17) at (3.0,-4) {\{G4×2,G5×2\}};
+\node[slice] (slice21) at (9.0,-4) {\{F4×2,F5×2\}};
+\node[slice] (slice22) at (11.0,-4) {\{F4×2,F5×2\}};
+\node[slice] (slice29) at (15.5,-4) {\{D5,D4,F6,B$\flat$5\}};
+\node[slice] (slice30) at (18.0,-4) {\{D5,D4,F6,B$\flat$5\}};
+\node[slice] (slice42) at (33.0,-4) {\{F4×2,F5×2\}};
+\node[slice] (slice43) at (35.0,-4) {\{F4×2,F5×2\}};
+\node[slice] (slice23) at (10.0,-5) {\{G4×2,G5×2\}};
+\node[slice] (slice31) at (17.0,-5) {\{D5,D4,B$\flat$5,G6\}};
+\node[slice] (slice44) at (34.0,-5) {\{G4×2,G5×2\}};
+\node[slice] (slice45) at (36.0,-5) {\{E5×2,E4×2\}};
+\node[slice] (slice32) at (15.0,-6) {\{D5,D4,F6,B$\flat$5\}};
+\node[slice] (slice33) at (16.0,-6) {\{D5,D4,F6,B$\flat$5\}};
+\draw[transition,terminal] (slice0) -- (slice1) node[midway,below,sloped] {\{\}};
+\draw[transition,non-terminal] (slice1) -- (slice13) node[midway,below,sloped] {\{F4-F4,F5-F5\}};
+\draw[transition,terminal] (slice1) -- (slice15) node[midway,below,sloped] {\{F4-F4,F5-F5\}};
+\draw[transition,non-terminal] (slice1) -- (slice2) node[midway,below,sloped] {\{F4-F4,F5-F4\}};
+\draw[transition,terminal] (slice2) -- (slice3) node[midway,below,sloped] {\{\}};
+\draw[transition,terminal] (slice3) -- (slice4) node[midway,below,sloped] {\{\}};
+\draw[transition,non-terminal] (slice4) -- (slice5) node[midway,below,sloped] {\{\}};
+\draw[transition,non-terminal] (slice4) -- (slice19) node[midway,below,sloped] {\{F4-F4,F5-F5\}};
+\draw[transition,terminal] (slice4) -- (slice21) node[midway,below,sloped] {\{F4-F4,F5-F5\}};
+\draw[transition,non-terminal] (slice4) -- (slice18) node[midway,below,sloped] {\{F5-F5,F5-F4\}};
+\draw[transition,non-terminal] (slice5) -- (slice6) node[midway,below,sloped] {\{\}};
+\draw[transition,non-terminal] (slice5) -- (slice24) node[midway,below,sloped] {\{\}};
+\draw[transition,non-terminal] (slice5) -- (slice25) node[midway,below,sloped] {\{\}};
+\draw[transition,non-terminal] (slice5) -- (slice27) node[midway,below,sloped] {\{\}};
+\draw[transition,non-terminal] (slice5) -- (slice29) node[midway,below,sloped] {\{\}};
+\draw[transition,terminal] (slice5) -- (slice32) node[midway,below,sloped] {\{\}};
+\draw[transition,terminal] (slice6) -- (slice34) node[midway,below,sloped] {\{B$\flat$5-B$\flat$5,C5-C5\}};
+\draw[transition,non-terminal] (slice6) -- (slice7) node[midway,below,sloped] {\{C5-C5\}};
+\draw[transition,terminal] (slice7) -- (slice8) node[midway,below,sloped] {\{C5-C5\}};
+\draw[transition,non-terminal] (slice8) -- (slice9) node[midway,below,sloped] {\{\}};
+\draw[transition,terminal] (slice8) -- (slice35) node[midway,below,sloped] {\{\}};
+\draw[transition,non-terminal] (slice9) -- (slice10) node[midway,below,sloped] {\{\}};
+\draw[transition,terminal] (slice9) -- (slice36) node[midway,below,sloped] {\{\}};
+\draw[transition,non-terminal] (slice10) -- (slice11) node[midway,below,sloped] {\{\}};
+\draw[transition,non-terminal] (slice10) -- (slice38) node[midway,below,sloped] {\{\}};
+\draw[transition,terminal] (slice10) -- (slice39) node[midway,below,sloped] {\{\}};
+\draw[transition,terminal] (slice11) -- (slice12) node[midway,below,sloped] {\{\}};
+\draw[transition,non-terminal] (slice13) -- (slice14) node[midway,below,sloped] {\{\}};
+\draw[transition,non-terminal] (slice13) -- (slice2) node[midway,below,sloped] {\{F4-F4,F5-F4\}};
+\draw[transition,terminal] (slice18) -- (slice5) node[midway,below,sloped] {\{\}};
+\draw[transition,non-terminal] (slice24) -- (slice6) node[midway,below,sloped] {\{B$\flat$5-B$\flat$5\}};
+\draw[transition,terminal] (slice34) -- (slice7) node[midway,below,sloped] {\{C5-C5\}};
+\draw[transition,terminal] (slice35) -- (slice9) node[midway,below,sloped] {\{\}};
+\draw[transition,non-terminal] (slice36) -- (slice10) node[midway,below,sloped] {\{\}};
+\draw[transition,terminal] (slice36) -- (slice37) node[midway,below,sloped] {\{\}};
+\draw[transition,non-terminal] (slice38) -- (slice11) node[midway,below,sloped] {\{\}};
+\draw[transition,terminal] (slice38) -- (slice40) node[midway,below,sloped] {\{\}};
+\draw[transition,terminal] (slice14) -- (slice2) node[midway,below,sloped] {\{\}};
+\draw[transition,non-terminal] (slice19) -- (slice20) node[midway,below,sloped] {\{\}};
+\draw[transition,non-terminal] (slice19) -- (slice18) node[midway,below,sloped] {\{F4-F4,F5-F5,F5-F4\}};
+\draw[transition,non-terminal] (slice25) -- (slice26) node[midway,below,sloped] {\{B$\flat$5-B$\flat$5\}};
+\draw[transition,terminal] (slice26) -- (slice6) node[midway,below,sloped] {\{B$\flat$5-B$\flat$5\}};
+\draw[transition,terminal] (slice37) -- (slice10) node[midway,below,sloped] {\{\}};
+\draw[transition,terminal] (slice39) -- (slice38) node[midway,below,sloped] {\{\}};
+\draw[transition,non-terminal] (slice40) -- (slice11) node[midway,below,sloped] {\{F4-F5,F5-F4\}};
+\draw[transition,non-terminal] (slice40) -- (slice41) node[midway,below,sloped] {\{F4-F4,F5-F5\}};
+\draw[transition,terminal] (slice40) -- (slice42) node[midway,below,sloped] {\{F4-F4,F5-F5\}};
+\draw[transition,non-terminal] (slice15) -- (slice16) node[midway,below,sloped] {\{F4-F5,F5-F5\}};
+\draw[transition,terminal] (slice15) -- (slice17) node[midway,below,sloped] {\{F4-F4,F5-F5\}};
+\draw[transition,terminal] (slice16) -- (slice14) node[midway,below,sloped] {\{\}};
+\draw[transition,terminal] (slice20) -- (slice18) node[midway,below,sloped] {\{\}};
+\draw[transition,non-terminal] (slice27) -- (slice28) node[midway,below,sloped] {\{B$\flat$5-B$\flat$5\}};
+\draw[transition,terminal] (slice28) -- (slice26) node[midway,below,sloped] {\{B$\flat$5-B$\flat$5\}};
+\draw[transition,non-terminal] (slice41) -- (slice11) node[midway,below,sloped] {\{F4-F5,F4-F4,F5-F4\}};
+\draw[transition,terminal] (slice17) -- (slice16) node[midway,below,sloped] {\{\}};
+\draw[transition,terminal] (slice21) -- (slice23) node[midway,below,sloped] {\{F4-F4,F5-F5\}};
+\draw[transition,non-terminal] (slice21) -- (slice22) node[midway,below,sloped] {\{F4-F4,F5-F4\}};
+\draw[transition,terminal] (slice22) -- (slice20) node[midway,below,sloped] {\{\}};
+\draw[transition,non-terminal] (slice29) -- (slice30) node[midway,below,sloped] {\{B$\flat$5-B$\flat$5\}};
+\draw[transition,non-terminal] (slice29) -- (slice31) node[midway,below,sloped] {\{B$\flat$5-B$\flat$5,F6-F6\}};
+\draw[transition,terminal] (slice30) -- (slice28) node[midway,below,sloped] {\{B$\flat$5-B$\flat$5\}};
+\draw[transition,non-terminal] (slice42) -- (slice43) node[midway,below,sloped] {\{F4-F4,F5-F5\}};
+\draw[transition,terminal] (slice42) -- (slice44) node[midway,below,sloped] {\{F4-F4,F5-F5\}};
+\draw[transition,terminal] (slice43) -- (slice45) node[midway,below,sloped] {\{\}};
+\draw[transition,non-terminal] (slice43) -- (slice11) node[midway,below,sloped] {\{F4-F5,F4-F4,F5-F4\}};
+\draw[transition,terminal] (slice23) -- (slice22) node[midway,below,sloped] {\{\}};
+\draw[transition,terminal] (slice31) -- (slice30) node[midway,below,sloped] {\{B$\flat$5-B$\flat$5\}};
+\draw[transition,terminal] (slice44) -- (slice43) node[midway,below,sloped] {\{\}};
+\draw[transition,terminal] (slice45) -- (slice11) node[midway,below,sloped] {\{\}};
+\draw[transition,terminal] (slice32) -- (slice33) node[midway,below,sloped] {\{B$\flat$5-B$\flat$5,F6-F6\}};
+\draw[transition,terminal] (slice33) -- (slice31) node[midway,below,sloped] {\{B$\flat$5-B$\flat$5,F6-F6\}};
+\draw[hori] (slice13) -- (slice15);
+\draw[hori] (slice13) -- (slice16);
+\draw[hori] (slice24) -- (slice25);
+\draw[hori] (slice24) -- (slice26);
+\draw[hori] (slice19) -- (slice21);
+\draw[hori] (slice19) -- (slice22);
+\draw[hori] (slice25) -- (slice27);
+\draw[hori] (slice25) -- (slice28);
+\draw[hori] (slice27) -- (slice29);
+\draw[hori] (slice27) -- (slice30);
+\draw[hori] (slice41) -- (slice42);
+\draw[hori] (slice41) -- (slice43);
+\draw[hori] (slice29) -- (slice32);
+\draw[hori] (slice29) -- (slice33);
+\end{tikzpicture}
+\end{document}

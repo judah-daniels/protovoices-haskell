@@ -1,0 +1,41 @@
+\documentclass{standalone}
+\usepackage[svgnames]{xcolor}
+\usepackage{tikz}
+\usepackage{amssymb}
+\begin{document}
+\tikzstyle{slice} = [rectangle,draw,fill=WhiteSmoke,semithick,minimum size=0.4cm,inner xsep=0,inner ysep=3pt,align=center]
+\tikzstyle{transition} = [line width=2pt,draw=lightgray]
+\tikzstyle{non-terminal} = []
+\tikzstyle{terminal} = [double]
+\tikzstyle{hori} = [lightgray,dashed,line width=2pt]
+
+\begin{tikzpicture}
+\node[slice] (slice0) at (0.0,0) {$\rtimes$};
+\node[slice] (slice1) at (1.5,0) {\{F3,F5,C5,A3,A4\}};
+\node[slice] (slice2) at (4.0,0) {\{F5,C5,C4,G4\}};
+\node[slice] (slice3) at (6.0,0) {\{D5,C5,B$\flat$3,F$\sharp$5\}};
+\node[slice] (slice4) at (8.0,0) {\{D5,B$\flat$4,G3\}};
+\node[slice] (slice5) at (9.0,0) {$\ltimes$};
+\node[slice] (slice6) at (1.0,-1) {\{F3,F5,C5,A4\}};
+\node[slice] (slice7) at (2.0,-1) {\{F5,C5,A3,A4\}};
+\node[slice] (slice9) at (5.0,-1) {\{E5,C5,C4,G4\}};
+\node[slice] (slice10) at (7.0,-1) {\{D5,C5,A3,F$\sharp$5\}};
+\node[slice] (slice8) at (3.0,-2) {\{F5,C5,B$\flat$3,A4\}};
+\draw[transition,non-terminal] (slice0) -- (slice1) node[midway,below,sloped] {\{\}};
+\draw[transition,terminal] (slice0) -- (slice6) node[midway,below,sloped] {\{\}};
+\draw[transition,non-terminal] (slice1) -- (slice2) node[midway,below,sloped] {\{F5-F5,C5-C5,A4>C5×1\}};
+\draw[transition,terminal] (slice2) -- (slice9) node[midway,below,sloped] {\{F5-F5,C5-C5\}};
+\draw[transition,non-terminal] (slice2) -- (slice3) node[midway,below,sloped] {\{C5-C5\}};
+\draw[transition,terminal] (slice3) -- (slice10) node[midway,below,sloped] {\{\}};
+\draw[transition,non-terminal] (slice3) -- (slice4) node[midway,below,sloped] {\{D5-D5,B$\flat$3-B$\flat$4\}};
+\draw[transition,terminal] (slice4) -- (slice5) node[midway,below,sloped] {\{\}};
+\draw[transition,terminal] (slice6) -- (slice7) node[midway,below,sloped] {\{F5-F5,C5-C5\}};
+\draw[transition,terminal] (slice7) -- (slice8) node[midway,below,sloped] {\{F5-F5,C5-C5\}};
+\draw[transition,non-terminal] (slice7) -- (slice2) node[midway,below,sloped] {\{F5-F5,C5-C5,A4>C5×1\}};
+\draw[transition,terminal] (slice9) -- (slice3) node[midway,below,sloped] {\{C5-C5\}};
+\draw[transition,terminal] (slice10) -- (slice4) node[midway,below,sloped] {\{\}};
+\draw[transition,terminal] (slice8) -- (slice2) node[midway,below,sloped] {\{F5-F5,C5-C5\}};
+\draw[hori] (slice1) -- (slice6);
+\draw[hori] (slice1) -- (slice7);
+\end{tikzpicture}
+\end{document}
