@@ -663,6 +663,7 @@ ChordLabel :: ChordType -> SPC -> ChordLabel
 [rootNote] :: ChordLabel -> SPC
 mkLbl :: Int -> ChordType -> ChordLabel
 chordToneProfile :: ChordType -> [Int]
+allChordLabels :: [ChordLabel]
 instance GHC.Classes.Ord Harmony.ChordLabel.ChordType
 instance GHC.Enum.Bounded Harmony.ChordLabel.ChordType
 instance GHC.Enum.Enum Harmony.ChordLabel.ChordType
@@ -1684,6 +1685,9 @@ instance Data.Csv.Conversion.FromNamedRecord FileHandling.SalamiNote
 instance Data.Csv.Conversion.FromField Musicology.Core.RightTied
 instance Data.Csv.Conversion.FromField GHC.Types.Bool
 
+module Algorithm.Templating
+templatingBaseline :: [[InputSlice SPitch]] -> ([Notes SPitch], [ChordLabel])
+
 module Algorithm.RandomSampleParser
 
 -- | Generates a path of random notes for the given number of segments
@@ -1729,6 +1733,7 @@ StochasticBeamSearchLimited :: BeamWidth -> ResevoirSize -> MaxNotesPerSlice -> 
 BeamSearchPerSegment :: BeamWidth -> AlgoType
 DualBeamSearch :: UnspreadWidth -> UnsplitWidth -> AlgoType
 StochasticSearch :: AlgoType
+Templating :: AlgoType
 type UnsplitWidth = Int
 type UnspreadWidth = Int
 type BeamWidth = Int
