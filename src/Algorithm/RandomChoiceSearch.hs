@@ -10,25 +10,20 @@ module Algorithm.RandomChoiceSearch
     where
 
 import Control.Logging qualified as Log
+import qualified Data.Text as T
 
-import Common
 import Control.Monad.Except (ExceptT, lift, throwError)
-import Data.Foldable
-import Data.Heap qualified as H
+
 import Data.Maybe (fromMaybe)
 import Data.Ord
 import Debug.Trace
-import HeuristicParser (getPathFromState)
 
-import System.Timeout
-import Data.Aeson.KeyMap (singleton)
 import System.Random (initStdGen)
 import System.Random.Stateful
   ( StatefulGen
   , newIOGenM
   , uniformRM
   )
-import qualified Data.Text as T
 
 defaultTimeOut = 1200
 
@@ -67,22 +62,9 @@ randomChoiceSearch initialState getNextStates isGoalState printOp = do
         logD $ "Goal found: " <> show nearestState 
         pure nearestState
     | otherwise = do
-        -- lift $ putStrLn "___________________________________________________"
-        -- lift $ putStrLn "Head: "
-        -- lift $ print nearestState
-
         -- Find neighboring states
         nextStates <- getNextStates nearestState 
-      -- mTimedRes <- case algo of 
-      --   StochasticSearch -> timeout (timeOut * 1000000) $ Time.timeItT $ runParse algo (AlgoInputImpure protoVoiceEvaluatorImpure inputSlices inputChords)
-      --   _ -> timeout (timeOut * 1000000) $ Time.timeItT $ runParse algo (AlgoInputPure protoVoiceEvaluator inputSlices inputChords)
-      -- case mTimedRes of
-      --   Nothing -> pure $ nullResultToJSON (show algo)
-          -- runAlgo algo inputChords inputSlices (n - 1)
         let numStates = length nextStates
-
-        -- lift $ putStrLn $ "Choosing randomly from " <> show numStates <> " states"
-
         case nextStates of
           [] -> do 
             logD $ "Stuck at: " <> show nearestState
@@ -113,19 +95,13 @@ randomChoiceSearchSingleSegment initialState getNextStates isGoalState printOp =
  where
   search maxN g hs
     | isGoalState nearestState = do
-        -- lift $ putStrLn $ "Max number of options reached " <> show maxN
         pure nearestState
     | otherwise = do
-        -- lift $ putStrLn "___________________________________________________"
-        -- lift $ putStrLn "Head: "
         lift $ print nearestState
-
         -- Find neighboring states
         nextStates <- getNextStates nearestState
         let numStates = length nextStates
-
         -- lift $ putStrLn $ "Choosing randomly from " <> show numStates <> " states"
-
         case nextStates of
           [] -> throwError "Parse Stuck! Perhaps the number of chords and segments are not the same?"
           xs -> do
@@ -138,6 +114,7 @@ randomChoiceSearchSingleSegment initialState getNextStates isGoalState printOp =
               hs{rsHead = newHead}
    where
     nearestState = rsHead hs
+
 pickRandom :: StatefulGen g m => g -> [slc] -> m (Maybe slc)
 pickRandom _ [] = pure Nothing
 pickRandom gen xs = do

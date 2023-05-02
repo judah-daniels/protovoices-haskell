@@ -6,7 +6,6 @@ module Algorithm.RandomSampleParser
   (
     randomSamplePath
   , randomSamplePathSBS
-  , perfectReduction
   , poissonSample
   )
     where
@@ -79,32 +78,6 @@ randomSamplePathSBS inputSlices = do
   gen <- initStdGen
   mgen <- newIOGenM gen
   mapM (genSliceSBS mgen) inputSlices
-
-perfectReduction
-  :: [[InputSlice SPitch]]
-  -> [ChordLabel]
-  -> IO [Notes SPitch]
-perfectReduction  inputSlices chords = do
-  gen <- initStdGen
-  mgen <- newIOGenM gen
-  mapM (genSlicePerfect mgen)  (zip inputSlices chords)
-
-genSlicePerfect :: StatefulGen g IO => g -> ([InputSlice SPitch], ChordLabel) -> IO (Notes SPitch)
-genSlicePerfect gen (slcs, lbl) = do
-  let profile =  pChordTones lbl
-  -- n <- uniformRM (2 :: Int, 5) gen
-  let notes = filter (filterNote (lbl)) allNotes
-  pure $ Notes $ MS.fromList notes
- where
-  allNotes = fst <$> concatMap fst slcs
-
-  -- filterNote Nothing _ = True
-  filterNote lbl note = fifths (transposeNote rootNote' note) `elem` chordToneProfile chordType'
-    where
-      chordType' = chordType lbl
-      rootNote' = rootNote lbl
-
-      -- notePos = elem (14 + fifths note) (chordToneProfile lbl)
 
 genSliceSBS :: StatefulGen g IO => g -> [InputSlice SPitch] -> IO (Notes SPitch)
 genSliceSBS gen slcs = do

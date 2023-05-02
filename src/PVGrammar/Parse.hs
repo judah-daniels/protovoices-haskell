@@ -901,20 +901,22 @@ protoVoiceEvaluatorNoRepSplit = Eval vm vl vr filterSplit t s
       all (check isRepetitionOnRight) (M.toList regs) && allSinglesRepeat
   check fpred (_, os) = all (fpred . snd) os
 
-protoVoiceEvaluatorLimitedSize
-  :: (Foldable t, Foldable t2, Eq n, Ord n, IsNote n, Notation n, Hashable n)
-  => Int
-  -> Eval (Edges n) (t (Edge n)) (Notes n) (t2 n) (PVLeftmost n)
-protoVoiceEvaluatorLimitedSize n = Eval filterUnspreadM vl vr mg t s
- where
-  (Eval vm vl vr mg t s) = protoVoiceEvaluator
 
-  filterUnspreadM (sl, tm, sr) = do
-    v <- vm (sl, tm, sr)
-    case v of
+protoVoiceEvaluatorLimitedSize
+  :: Int 
+  -> Eval (Edges n) (t (Edge n)) (Notes n) (t2 n) (PVLeftmost n)
+  -> Eval (Edges n) (t (Edge n)) (Notes n) (t2 n) (PVLeftmost n)
+protoVoiceEvaluatorLimitedSize n e = Eval filterUnspreadM vl vr mg t s
+ where
+  (Eval vm vl vr mg t s) = e
+
+  filterUnspreadM (sl, tm, sr) = do 
+    v <- vm (sl, tm, sr) 
+    case v of 
       (Notes ns, v')
         |  MS.size ns < n -> Just (Notes ns, v')
         |  otherwise -> Nothing
+
 
 -- | An evaluator for protovoices that produces values in the 'Derivations' semiring.
 pvDerivUnrestricted

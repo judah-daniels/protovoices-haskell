@@ -20,6 +20,9 @@ import Data.Text qualified as T
 
 import FileHandling ( InputSlice (..), pathFromSlices, splitSlicesIntoSegments)
 
+import Heuristics
+import HeuristicParser 
+
 import Harmony
 import Harmony.ChordLabel
 import Harmony.Params
@@ -27,20 +30,19 @@ import Harmony.Params
 import Algorithm.RandomChoiceSearch
 import Algorithm.RandomSampleParser
 import Algorithm.HeuristicSearch
+import Algorithm.InformedReduction
+import Algorithm.Templating
 
-import Common ( Leftmost(..) , LeftmostDouble(..) , LeftmostSingle(..), Eval (Eval), pathBetweens, Path (Path), Analysis (Analysis), EvalImpure (EvalImpure))
-import PVGrammar ( Edge, PVAnalysis, Edges, Freeze, Notes (Notes), Split, Spread, PVLeftmost )
-
-import Control.Monad.Except (ExceptT, lift, throwError)
-import Data.Maybe (fromMaybe, fromJust)
-
-import HeuristicParser 
-import Musicology.Core ( SPitch, showNotation )
-import Control.Monad.Trans.Except (runExceptT)
-import Heuristics
-import PVGrammar.Parse (protoVoiceEvaluatorLimitedSize)
+import Data.Maybe 
 import qualified Internal.MultiSet as MS
-import Algorithm.Templating (templatingBaseline)
+import Control.Monad.Except 
+
+import Common 
+import PVGrammar 
+
+import Musicology.Core 
+import PVGrammar.Parse
+
 
 data AlgoInput 
   = AlgoInputPure
@@ -58,8 +60,6 @@ data AlgoResult = AlgoResult
   , arLabels :: [ChordLabel]
   }
   deriving (Show)
-
-
 
 class (Show algo) => ParseAlgo algo where
   runParse :: algo -> AlgoInput -> IO (Maybe AlgoResult)
@@ -136,8 +136,7 @@ instance ParseAlgo AlgoType where
 
     RandomWalkPerSegment ->
       let initialState = SSFrozen $ pathFromSlices eval idWrapper inputSlices
-       in
-        do
+       in do
           res <- runExceptT
             (randomChoiceSearch initialState (exploreStates idWrapper eval) (goalTest chords) (showOp . getOpsFromState))
           case res of
@@ -152,31 +151,28 @@ instance ParseAlgo AlgoType where
                in
                pure $ Just $ AlgoResult slices (Just (Analysis ops path)) chordGuesses
 
-    RandomSample ->
-      let x = splitSlicesIntoSegments eval sliceWrapper inputSlices
-        in do
-          path <- randomSamplePath (length chords)
-          let slices = pathBetweens path
-              chordGuesses = guessChords slices
-           in pure $ Just (AlgoResult slices Nothing chordGuesses)
+    RandomSample -> do
+        path <- randomSamplePath (length chords)
+        let slices = pathBetweens path
+            chordGuesses = guessChords slices
+         in pure $ Just (AlgoResult slices Nothing chordGuesses)
 
     PerfectReduction ->
       let x = splitSlicesIntoSegments eval sliceWrapper inputSlices
-        in do
-          slices <- perfectReduction x chords 
-          let chordGuesses = guessChords slices
-           in pure $ Just (AlgoResult slices Nothing chordGuesses)
+          slices = informedReduction x chords 
+          chordGuesses = guessChords slices
+        in pure $ Just (AlgoResult slices Nothing chordGuesses)
 
     Templating ->
       let x = splitSlicesIntoSegments eval sliceWrapper inputSlices
        in Log.timedLog "Running Templating Baseline" $ do
         let (slices, chordGuesses)  = templatingBaseline x
          in pure $ Just $ AlgoResult slices Nothing chordGuesses
+
     RandomReduction ->
       let x = splitSlicesIntoSegments eval sliceWrapper inputSlices
        in Log.timedLog "Running Random Sample SBS Parse" $ do
         slices <- randomSamplePathSBS x
-
         let chordGuesses = guessChords slices
          in pure $ Just $ AlgoResult slices Nothing chordGuesses
 
@@ -241,7 +237,7 @@ instance ParseAlgo AlgoType where
               beamWidth
               resevoirSize
               initialState
-              (exploreStates sliceWrapper (protoVoiceEvaluatorLimitedSize' maxNotesPerSlice eval))
+              (exploreStates sliceWrapper (protoVoiceEvaluatorLimitedSize maxNotesPerSlice eval))
               (goalTest chords)
               (applyHeuristic heuristicZero)
             )
@@ -282,19 +278,3 @@ instance ParseAlgo AlgoType where
                   chordGuesses = guessChords  slices
                in
                pure $ Just $ AlgoResult slices (Just (Analysis ops p)) chordGuesses
-
-protoVoiceEvaluatorLimitedSize'
-  :: Int 
-  -> Eval (Edges n) (t (Edge n)) (Notes n) (t2 n) (PVLeftmost n)
-  -> Eval (Edges n) (t (Edge n)) (Notes n) (t2 n) (PVLeftmost n)
-protoVoiceEvaluatorLimitedSize' n e = Eval filterUnspreadM vl vr mg t s
- where
-  (Eval vm vl vr mg t s) = e
-
-  filterUnspreadM (sl, tm, sr) = do 
-    v <- vm (sl, tm, sr) 
-    case v of 
-      (Notes ns, v')
-        |  MS.size ns < n -> Just (Notes ns, v')
-        |  otherwise -> Nothing
-
