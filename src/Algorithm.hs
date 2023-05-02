@@ -169,9 +169,8 @@ instance ParseAlgo AlgoType where
 
     Templating ->
       let x = splitSlicesIntoSegments eval sliceWrapper inputSlices
-       in Log.timedLog "Running Random Sample SBS Parse" $ do
-        let slices = templatingBaseline x
-        let chordGuesses = guessChords slices
+       in Log.timedLog "Running Templating Baseline" $ do
+        let (slices, chordGuesses)  = templatingBaseline x
          in pure $ Just $ AlgoResult slices Nothing chordGuesses
     RandomReduction ->
       let x = splitSlicesIntoSegments eval sliceWrapper inputSlices
