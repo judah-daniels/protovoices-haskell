@@ -1658,12 +1658,37 @@ module FileHandling
 -- | Slice type for reading from csv
 type InputSlice ns = ([(ns, RightTied)], Bool)
 
+-- | Stores raw info for the json object of a specific run
+data JsonResult
+JsonResult :: [Notes SPitch] -> [ChordLabel] -> Maybe (PVAnalysis SPitch) -> Accuracy -> LogLikelihood -> String -> Time -> Int -> Int -> Maybe [Time] -> JsonResult
+[jrSlices] :: JsonResult -> [Notes SPitch]
+[jrLabels] :: JsonResult -> [ChordLabel]
+[jrDeriv] :: JsonResult -> Maybe (PVAnalysis SPitch)
+[jrAccuracy] :: JsonResult -> Accuracy
+[jrLogLikelihood] :: JsonResult -> LogLikelihood
+[jrAlgoName] :: JsonResult -> String
+[jrRunTime] :: JsonResult -> Time
+[jrReRuns] :: JsonResult -> Int
+[jrId] :: JsonResult -> Int
+[jrSegmentTimes] :: JsonResult -> Maybe [Time]
+
+-- | Stores all the info required to output the results from running an
+--   algorithm n times on a single piece
+data PieceResults
+PieceResults :: String -> String -> String -> String -> [ChordLabel] -> [Value] -> PieceResults
+[prExpId] :: PieceResults -> String
+[prAlgoName] :: PieceResults -> String
+[prCorpus] :: PieceResults -> String
+[prPiece] :: PieceResults -> String
+[prGroundTruth] :: PieceResults -> [ChordLabel]
+[prJsonResultObjects] :: PieceResults -> [Value]
+
 -- | Create a <a>Path</a> given a list of slices
 pathFromSlices :: forall ns o. Eval (Edges ns) [Edge ns] (Notes ns) [ns] o -> SliceWrapper (Notes ns) -> [InputSlice ns] -> Path (Maybe [Edge ns], Bool) (SliceWrapped (Notes ns))
 
--- | Concatenates all results for a given piece into an object, inlucuding
---   the piece and corpus in the JSON value.
-concatResults :: String -> String -> String -> String -> [ChordLabel] -> [Value] -> Value
+-- | Concatenates all results for an algo on a given piece into an object,
+--   inlucuding the piece and corpus in the JSON value.
+concatResults :: PieceResults -> Value
 
 -- | Loads slices from filepath
 slicesFromFile' :: FilePath -> IO [(Slice', Bool)]
@@ -1675,7 +1700,7 @@ chordsFromFile :: FilePath -> IO [ChordLabel]
 writeJSONToFile :: ToJSON a => FilePath -> a -> IO ()
 
 -- | Coverts the results of a parsing algorithm to a JSON value
-writeResultsToJSON :: [Notes SPitch] -> [ChordLabel] -> Maybe (PVAnalysis SPitch) -> Accuracy -> LogLikelihood -> String -> Time -> Int -> Int -> Value
+writeResultsToJSON :: JsonResult -> Value
 
 -- | Used when the algorithm fails. Contains NANs in all fields.
 nullResultToJSON :: Show a => a -> Value
@@ -1736,6 +1761,7 @@ BeamSearchPerSegment :: BeamWidth -> AlgoType
 DualBeamSearch :: UnspreadWidth -> UnsplitWidth -> AlgoType
 StochasticSearch :: AlgoType
 Templating :: AlgoType
+showRoot :: AlgoType -> String
 type UnsplitWidth = Int
 type UnspreadWidth = Int
 type BeamWidth = Int
