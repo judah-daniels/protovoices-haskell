@@ -18,7 +18,7 @@ informedReduction
   :: [[InputSlice SPitch]]
   -> [ChordLabel]
   -> [Notes SPitch]
-informedReduction  inputSlices chords = genSlicePerfect <$> zip inputSlices chords
+informedReduction inputSlices chords = genSlicePerfect <$> zip inputSlices chords
  where 
   filterNote lbl note = 
     let chordToneProfile' = chordToneProfile $ chordType lbl

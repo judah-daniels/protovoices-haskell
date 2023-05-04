@@ -98,6 +98,7 @@ instance FromField Bool where
     "True" -> pure True
     _ -> pure False
 
+
 -- | Data Structure for parsing individual notes
 data SalamiNote = SalamiNote
   { _new_segment :: !Bool
@@ -110,7 +111,7 @@ data SalamiNote = SalamiNote
 data ChordLabel' = ChordLabel'
   { _segment_id' :: !Int
   , _chordtype :: !String
-  , _rootoffset :: !Int
+  , _rootnote :: !String
   , _globalkey :: !String
   }
 
@@ -127,7 +128,7 @@ instance FromNamedRecord ChordLabel' where
     ChordLabel'
       <$> r .: "segment_id"
       <*> r .: "chord_type"
-      <*> r .: "rootoffset"
+      <*> r .: "rootnote"
       <*> r .: "globalkey"
 
 -- | Data type for a chord type. TODO specialise this datatype.
@@ -148,20 +149,23 @@ chordsFromFile file = do
       pure $ fmap parseChordLabel (V.toList v)
  where
   parseChordLabel :: ChordLabel' -> ChordLabel
-  parseChordLabel r = ChordLabel cType ((Music.+^) globalKey' rootOffset')
+  parseChordLabel r = ChordLabel cType rootNote'
    where
     -- (Music.sic $ _rootoffset r) (fromMaybe undefined (Music.readNotation $ _globalkey r))
 
     cType :: ChordType
-    cType = case readMaybe $ _chordtype r of 
+    cType = case readMaybe $ _chordtype r of
               Nothing -> trace "Cant read chord type" Major -- BUGBUG BUG BGU TODO FIX
               Just c -> c
-    rootOffset' :: SIC
-    rootOffset' = Music.sic $ _rootoffset r
-    globalKey' :: SPC
-    globalKey' = case Music.readNotation $ _globalkey r of
+
+    rootNote' :: SPC
+    rootNote' = case Music.readNotation $ _rootnote r of
       Just note -> note
-      Nothing -> Log.errorL (T.concat ["Can't Read notation of global key from ", T.pack file, " key: ", T.pack $ _globalkey r])
+      Nothing -> Log.errorL (T.concat ["Can't Read notation of rootnote from ", T.pack file, " key: ", T.pack $ _globalkey r])
+    -- globalKey' :: SPC
+    -- globalKey' = case Music.readNotation $ _globalkey r of
+    --   Just note -> note
+    --   Nothing -> Log.errorL (T.concat ["Can't Read notation of global key from ", T.pack file, " key: ", T.pack $ _globalkey r])
 
 -- | Loads slices from filepath
 slicesFromFile' :: FilePath -> IO [(Slice', Bool)]
@@ -266,47 +270,47 @@ data JsonResult = JsonResult
   { jrSlices :: [Notes SPitch]
   , jrLabels :: [ChordLabel]
   , jrDeriv :: Maybe (PVAnalysis SPitch)
-  , jrAccuracy :: Accuracy 
-  , jrLogLikelihood :: LogLikelihood 
-  , jrAlgoName :: String 
-  , jrRunTime :: Time 
-  , jrReRuns :: Int 
-  , jrId :: Int 
+  , jrAccuracy :: Accuracy
+  , jrLogLikelihood :: LogLikelihood
+  , jrAlgoName :: String
+  , jrRunTime :: Time
+  , jrReRuns :: Int
+  , jrId :: Int
   , jrSegmentTimes :: Maybe [Time]
   }
 
 -- | Stores all the info required to output the results from running an algorithm n times on a single piece
-data PieceResults = PieceResults 
-  { prExpId :: String 
-  , prAlgoName :: String 
-  , prCorpus :: String 
-  , prPiece :: String 
+data PieceResults = PieceResults
+  { prExpId :: String
+  , prAlgoName :: String
+  , prCorpus :: String
+  , prPiece :: String
   , prGroundTruth :: [ChordLabel]
-  , prJsonResultObjects :: [A.Value] 
+  , prJsonResultObjects :: [A.Value]
   }
 
 -- | Coverts the results of a parsing algorithm to a JSON value
 writeResultsToJSON
-  :: JsonResult 
+  :: JsonResult
   -> A.Value
-writeResultsToJSON res = 
+writeResultsToJSON res =
 -- (JsonResult slices chords derivation accuracy likelihood name runTime reruns id segmentTimes) =
   A.object
-    [ 
+    [
      "slices" .= ((\(Notes x) -> show <$> MS.toList x) <$> jrSlices res)
     , "chordLabels" .= (show <$> jrLabels res)
-    , "accuracy" .= jrAccuracy res 
+    , "accuracy" .= jrAccuracy res
     , "likelihood" .= jrLogLikelihood res
     , "runTime" .= jrRunTime res
-    , "reruns" .= jrReRuns res 
+    , "reruns" .= jrReRuns res
     , "iteration" .= jrId res
     , "segmentTimes" .= jrSegmentTimes res
     ]
 
 -- | Concatenates all results for an algo on a given piece into an object, inlucuding the piece and corpus in the JSON value.
 concatResults :: PieceResults -> A.Value
-concatResults (PieceResults expId algoName corpus piece trueLabels results) = 
-  A.object 
+concatResults (PieceResults expId algoName corpus piece trueLabels results) =
+  A.object
     ["id" .= A.fromString expId
     , "algorithm" .= A.fromString algoName
     , "corpus" .= A.fromString corpus
@@ -333,5 +337,6 @@ nullResultToJSON a =
       , "likelihood" .= (Nothing :: Maybe Float)
       , "reRuns" .= (Nothing :: Maybe Int)
       , "runTime" .= (Nothing :: Maybe Time)
+      , "iteration" .= (Nothing :: Maybe Int)
     , "segmentTimes" .= (Nothing :: Maybe Time)
       ]
