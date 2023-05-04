@@ -669,6 +669,7 @@ ChordLabel :: ChordType -> SPC -> ChordLabel
 [chordType] :: ChordLabel -> ChordType
 [rootNote] :: ChordLabel -> SPC
 mkLbl :: Int -> ChordType -> ChordLabel
+enharmonicLabels :: ChordLabel -> [ChordLabel]
 chordToneProfile :: ChordType -> [Int]
 allChordLabels :: [ChordLabel]
 instance GHC.Classes.Ord Harmony.ChordLabel.ChordType
