@@ -19,57 +19,57 @@
 </span><span id="line-19"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Harmony.ChordLabel.html#ChordLabel"><span class="hs-identifier hs-type">ChordLabel</span></a></span><span class="hs-special">]</span><span>
 </span><span id="line-20"></span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="PVGrammar.html#Notes"><span class="hs-identifier hs-type">Notes</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">SPitch</span></span><span class="hs-special">]</span><span>
 </span><span id="line-21"></span><span id="informedReduction"><span class="annot"><span class="annottext">informedReduction :: [[InputSlice SPitch]] -&gt; [ChordLabel] -&gt; [Notes SPitch]
-</span><a href="Algorithm.InformedReduction.html#informedReduction"><span class="hs-identifier hs-var hs-var">informedReduction</span></a></span></span><span>  </span><span id="local-6989586621679531401"><span class="annot"><span class="annottext">[[InputSlice SPitch]]
-</span><a href="#local-6989586621679531401"><span class="hs-identifier hs-var">inputSlices</span></a></span></span><span> </span><span id="local-6989586621679531400"><span class="annot"><span class="annottext">[ChordLabel]
-</span><a href="#local-6989586621679531400"><span class="hs-identifier hs-var">chords</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall {t :: * -&gt; *} {b} {b}.
+</span><a href="Algorithm.InformedReduction.html#informedReduction"><span class="hs-identifier hs-var hs-var">informedReduction</span></a></span></span><span> </span><span id="local-6989586621679531395"><span class="annot"><span class="annottext">[[InputSlice SPitch]]
+</span><a href="#local-6989586621679531395"><span class="hs-identifier hs-var">inputSlices</span></a></span></span><span> </span><span id="local-6989586621679531394"><span class="annot"><span class="annottext">[ChordLabel]
+</span><a href="#local-6989586621679531394"><span class="hs-identifier hs-var">chords</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall {t :: * -&gt; *} {b} {b}.
 Foldable t =&gt;
 (t ([(SPitch, b)], b), ChordLabel) -&gt; Notes SPitch
-</span><a href="#local-6989586621679531399"><span class="hs-identifier hs-var">genSlicePerfect</span></a></span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><a href="#local-6989586621679531393"><span class="hs-identifier hs-var">genSlicePerfect</span></a></span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
 </span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">forall a b. [a] -&gt; [b] -&gt; [(a, b)]
 </span><span class="hs-identifier hs-var">zip</span></span><span> </span><span class="annot"><span class="annottext">[[InputSlice SPitch]]
-</span><a href="#local-6989586621679531401"><span class="hs-identifier hs-var">inputSlices</span></a></span><span> </span><span class="annot"><span class="annottext">[ChordLabel]
-</span><a href="#local-6989586621679531400"><span class="hs-identifier hs-var">chords</span></a></span><span>
+</span><a href="#local-6989586621679531395"><span class="hs-identifier hs-var">inputSlices</span></a></span><span> </span><span class="annot"><span class="annottext">[ChordLabel]
+</span><a href="#local-6989586621679531394"><span class="hs-identifier hs-var">chords</span></a></span><span>
 </span><span id="line-22"></span><span> </span><span class="hs-keyword">where</span><span> </span><span>
-</span><span id="line-23"></span><span>  </span><span id="local-6989586621679531392"><span class="annot"><span class="annottext">filterNote :: ChordLabel -&gt; SPitch -&gt; Bool
-</span><a href="#local-6989586621679531392"><span class="hs-identifier hs-var hs-var">filterNote</span></a></span></span><span> </span><span id="local-6989586621679531391"><span class="annot"><span class="annottext">ChordLabel
-</span><a href="#local-6989586621679531391"><span class="hs-identifier hs-var">lbl</span></a></span></span><span> </span><span id="local-6989586621679531390"><span class="annot"><span class="annottext">SPitch
-</span><a href="#local-6989586621679531390"><span class="hs-identifier hs-var">note</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span>
-</span><span id="line-24"></span><span>    </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679531389"><span class="annot"><span class="annottext">chordToneProfile' :: [Int]
-</span><a href="#local-6989586621679531389"><span class="hs-identifier hs-var hs-var">chordToneProfile'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ChordType -&gt; [Int]
+</span><span id="line-23"></span><span>  </span><span id="local-6989586621679531386"><span class="annot"><span class="annottext">filterNote :: ChordLabel -&gt; SPitch -&gt; Bool
+</span><a href="#local-6989586621679531386"><span class="hs-identifier hs-var hs-var">filterNote</span></a></span></span><span> </span><span id="local-6989586621679531385"><span class="annot"><span class="annottext">ChordLabel
+</span><a href="#local-6989586621679531385"><span class="hs-identifier hs-var">lbl</span></a></span></span><span> </span><span id="local-6989586621679531384"><span class="annot"><span class="annottext">SPitch
+</span><a href="#local-6989586621679531384"><span class="hs-identifier hs-var">note</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span>
+</span><span id="line-24"></span><span>    </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679531383"><span class="annot"><span class="annottext">chordToneProfile' :: [Int]
+</span><a href="#local-6989586621679531383"><span class="hs-identifier hs-var hs-var">chordToneProfile'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ChordType -&gt; [Int]
 </span><a href="Harmony.ChordLabel.html#chordToneProfile"><span class="hs-identifier hs-var">chordToneProfile</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">ChordLabel -&gt; ChordType
 </span><a href="Harmony.ChordLabel.html#chordType"><span class="hs-identifier hs-var">chordType</span></a></span><span> </span><span class="annot"><span class="annottext">ChordLabel
-</span><a href="#local-6989586621679531391"><span class="hs-identifier hs-var">lbl</span></a></span><span>
-</span><span id="line-25"></span><span>        </span><span id="local-6989586621679531386"><span class="annot"><span class="annottext">noteRelRoot :: SIC
-</span><a href="#local-6989586621679531386"><span class="hs-identifier hs-var hs-var">noteRelRoot</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Pitch SIC -&gt; SPitch -&gt; SIC
+</span><a href="#local-6989586621679531385"><span class="hs-identifier hs-var">lbl</span></a></span><span>
+</span><span id="line-25"></span><span>        </span><span id="local-6989586621679531380"><span class="annot"><span class="annottext">noteRelRoot :: SIC
+</span><a href="#local-6989586621679531380"><span class="hs-identifier hs-var hs-var">noteRelRoot</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Pitch SIC -&gt; SPitch -&gt; SIC
 </span><a href="Harmony.html#transposeNote"><span class="hs-identifier hs-var">transposeNote</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ChordLabel -&gt; Pitch SIC
 </span><a href="Harmony.ChordLabel.html#rootNote"><span class="hs-identifier hs-var">rootNote</span></a></span><span> </span><span class="annot"><span class="annottext">ChordLabel
-</span><a href="#local-6989586621679531391"><span class="hs-identifier hs-var">lbl</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">SPitch
-</span><a href="#local-6989586621679531390"><span class="hs-identifier hs-var">note</span></a></span><span>
+</span><a href="#local-6989586621679531385"><span class="hs-identifier hs-var">lbl</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">SPitch
+</span><a href="#local-6989586621679531384"><span class="hs-identifier hs-var">note</span></a></span><span>
 </span><span id="line-26"></span><span>      </span><span class="hs-keyword">in</span><span> </span><span>
 </span><span id="line-27"></span><span>        </span><span class="annot"><span class="annottext">forall i. Spelled i =&gt; i -&gt; Int
 </span><span class="hs-identifier hs-var">fifths</span></span><span> </span><span class="annot"><span class="annottext">SIC
-</span><a href="#local-6989586621679531386"><span class="hs-identifier hs-var">noteRelRoot</span></a></span><span> </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a. (Foldable t, Eq a) =&gt; a -&gt; t a -&gt; Bool
+</span><a href="#local-6989586621679531380"><span class="hs-identifier hs-var">noteRelRoot</span></a></span><span> </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a. (Foldable t, Eq a) =&gt; a -&gt; t a -&gt; Bool
 </span><span class="hs-operator hs-var">`elem`</span></span><span> </span><span class="annot"><span class="annottext">[Int]
-</span><a href="#local-6989586621679531389"><span class="hs-identifier hs-var">chordToneProfile'</span></a></span><span>
+</span><a href="#local-6989586621679531383"><span class="hs-identifier hs-var">chordToneProfile'</span></a></span><span>
 </span><span id="line-28"></span><span>
-</span><span id="line-29"></span><span>  </span><span id="local-6989586621679531399"><span class="annot"><span class="annottext">genSlicePerfect :: (t ([(SPitch, b)], b), ChordLabel) -&gt; Notes SPitch
-</span><a href="#local-6989586621679531399"><span class="hs-identifier hs-var hs-var">genSlicePerfect</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679531371"><span class="annot"><span class="annottext">t ([(SPitch, b)], b)
-</span><a href="#local-6989586621679531371"><span class="hs-identifier hs-var">slcs</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679531370"><span class="annot"><span class="annottext">ChordLabel
-</span><a href="#local-6989586621679531370"><span class="hs-identifier hs-var">lbl</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
-</span><span id="line-30"></span><span>    </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679531367"><span class="annot"><span class="annottext">allNotes :: [SPitch]
-</span><a href="#local-6989586621679531367"><span class="hs-identifier hs-var hs-var">allNotes</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a b. (a, b) -&gt; a
+</span><span id="line-29"></span><span>  </span><span id="local-6989586621679531393"><span class="annot"><span class="annottext">genSlicePerfect :: (t ([(SPitch, b)], b), ChordLabel) -&gt; Notes SPitch
+</span><a href="#local-6989586621679531393"><span class="hs-identifier hs-var hs-var">genSlicePerfect</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679531365"><span class="annot"><span class="annottext">t ([(SPitch, b)], b)
+</span><a href="#local-6989586621679531365"><span class="hs-identifier hs-var">slcs</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679531364"><span class="annot"><span class="annottext">ChordLabel
+</span><a href="#local-6989586621679531364"><span class="hs-identifier hs-var">lbl</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-30"></span><span>    </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679531361"><span class="annot"><span class="annottext">allNotes :: [SPitch]
+</span><a href="#local-6989586621679531361"><span class="hs-identifier hs-var hs-var">allNotes</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a b. (a, b) -&gt; a
 </span><span class="hs-identifier hs-var">fst</span></span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
 </span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">forall (t :: * -&gt; *) a b. Foldable t =&gt; (a -&gt; [b]) -&gt; t a -&gt; [b]
 </span><span class="hs-identifier hs-var">concatMap</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a, b) -&gt; a
 </span><span class="hs-identifier hs-var">fst</span></span><span> </span><span class="annot"><span class="annottext">t ([(SPitch, b)], b)
-</span><a href="#local-6989586621679531371"><span class="hs-identifier hs-var">slcs</span></a></span><span>
-</span><span id="line-31"></span><span>        </span><span id="local-6989586621679531365"><span class="annot"><span class="annottext">notes :: [SPitch]
-</span><a href="#local-6989586621679531365"><span class="hs-identifier hs-var hs-var">notes</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. (a -&gt; Bool) -&gt; [a] -&gt; [a]
+</span><a href="#local-6989586621679531365"><span class="hs-identifier hs-var">slcs</span></a></span><span>
+</span><span id="line-31"></span><span>        </span><span id="local-6989586621679531359"><span class="annot"><span class="annottext">notes :: [SPitch]
+</span><a href="#local-6989586621679531359"><span class="hs-identifier hs-var hs-var">notes</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall a. (a -&gt; Bool) -&gt; [a] -&gt; [a]
 </span><span class="hs-identifier hs-var">filter</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ChordLabel -&gt; SPitch -&gt; Bool
-</span><a href="#local-6989586621679531392"><span class="hs-identifier hs-var">filterNote</span></a></span><span> </span><span class="annot"><span class="annottext">ChordLabel
-</span><a href="#local-6989586621679531370"><span class="hs-identifier hs-var">lbl</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[SPitch]
-</span><a href="#local-6989586621679531367"><span class="hs-identifier hs-var">allNotes</span></a></span><span>
+</span><a href="#local-6989586621679531386"><span class="hs-identifier hs-var">filterNote</span></a></span><span> </span><span class="annot"><span class="annottext">ChordLabel
+</span><a href="#local-6989586621679531364"><span class="hs-identifier hs-var">lbl</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[SPitch]
+</span><a href="#local-6989586621679531361"><span class="hs-identifier hs-var">allNotes</span></a></span><span>
 </span><span id="line-32"></span><span>      </span><span class="hs-keyword">in</span><span> </span><span>
 </span><span id="line-33"></span><span>        </span><span class="annot"><span class="annottext">forall n. MultiSet n -&gt; Notes n
 </span><a href="PVGrammar.html#Notes"><span class="hs-identifier hs-var">Notes</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
@@ -77,5 +77,5 @@ Foldable t =&gt;
 (Foldable t, Eq a, Hashable a) =&gt;
 t a -&gt; MultiSet a
 </span><a href="Internal.MultiSet.html#fromList"><span class="hs-identifier hs-var">MS.fromList</span></a></span><span> </span><span class="annot"><span class="annottext">[SPitch]
-</span><a href="#local-6989586621679531365"><span class="hs-identifier hs-var">notes</span></a></span><span>
+</span><a href="#local-6989586621679531359"><span class="hs-identifier hs-var">notes</span></a></span><span>
 </span><span id="line-34"></span></pre></body></html>
