@@ -2,6 +2,7 @@ module Harmony.ChordLabel
   ( ChordType (..)
   , ChordLabel (..)
   , mkLbl
+  , enharmonicLabels
   , chordToneProfile
   , allChordLabels
   )
@@ -96,6 +97,17 @@ data ChordLabel = ChordLabel
 
 instance Show ChordLabel where
   show (ChordLabel lbl root) = showNotation root <> show lbl
+
+enharmonicLabels :: ChordLabel -> [ChordLabel]
+enharmonicLabels lbl = [lbl, shiftProfileLeft lbl, shiftProfileRight lbl]
+ where
+  shiftProfileLeft lbl@(ChordLabel chordType rootNote) =
+    let rootNote' = transpose (sic 12) rootNote
+     in ChordLabel chordType rootNote'
+
+  shiftProfileRight lbl@(ChordLabel chordType rootNote) =
+    let rootNote' = transpose (sic (-12)) rootNote
+     in ChordLabel chordType rootNote'
 
 allChordLabels :: [ChordLabel]
 allChordLabels = do

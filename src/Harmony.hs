@@ -72,8 +72,8 @@ scoreSegments segments labels =
    in
     sum scores / fromIntegral (length scores)
       where 
-        scoreLabel lbl@(ChordLabel NoChord _ ) = const 0
-        scoreLabel lbl = labelLikelihoodGivenSlice lbl
+        scoreLabel lbl@(ChordLabel NoChord _ ) ns = 0
+        scoreLabel lbl ns = maximum $ (`labelLikelihoodGivenSlice` ns) <$> enharmonicLabels lbl
 
 
 -- | Returns the most likely chord labels for each input group of notes
