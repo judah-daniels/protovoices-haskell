@@ -29,6 +29,7 @@ data ChordType
   | FrenchSixth
   | MinorMajorSeventh
   | AugmentedSeventh
+  | NoChord
   deriving (Eq, Enum, Bounded, Ord)
 
 chordToneProfile :: ChordType -> [Int]
@@ -47,6 +48,7 @@ chordToneProfile chordType = case chordType of
   FrenchSixth -> [0, 4, -6, -2]
   MinorMajorSeventh -> [0, 1, -3, 5]
   AugmentedSeventh -> [0, 4, 8, -2]
+  NoChord -> [-14 .. 14]
 
 instance Read ChordType where
   readsPrec _ str =
@@ -65,7 +67,7 @@ instance Read ChordType where
       "Fr" -> [(FrenchSixth, "")]
       "mM7" -> [(MinorMajorSeventh, "")]
       "+7" -> [(AugmentedSeventh, "")]
-      _ -> []
+      _ -> [(NoChord, "")]
 
 instance Show ChordType where
   show chordType =
@@ -84,6 +86,7 @@ instance Show ChordType where
       FrenchSixth -> "Fr"
       MinorMajorSeventh -> "mM7"
       AugmentedSeventh -> "+7"
+      NoChord -> "NC"
 
 data ChordLabel = ChordLabel
   { chordType :: ChordType
