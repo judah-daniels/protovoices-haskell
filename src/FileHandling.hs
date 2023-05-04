@@ -7,6 +7,8 @@
 -}
 module FileHandling
   ( InputSlice
+  , JsonResult (..)
+  , PieceResults (..)
   , pathFromSlices
   , concatResults
   , slicesFromFile'
@@ -259,35 +261,58 @@ type LogLikelihood = Double
 -- | Alias for how long the algorithm ran for, measured in TODO
 type Time = Double
 
+-- | Stores raw info for the json object of a specific run
+data JsonResult = JsonResult
+  { jrSlices :: [Notes SPitch]
+  , jrLabels :: [ChordLabel]
+  , jrDeriv :: Maybe (PVAnalysis SPitch)
+  , jrAccuracy :: Accuracy 
+  , jrLogLikelihood :: LogLikelihood 
+  , jrAlgoName :: String 
+  , jrRunTime :: Time 
+  , jrReRuns :: Int 
+  , jrId :: Int 
+  , jrSegmentTimes :: Maybe [Time]
+  }
+
+-- | Stores all the info required to output the results from running an algorithm n times on a single piece
+data PieceResults = PieceResults 
+  { prExpId :: String 
+  , prAlgoName :: String 
+  , prCorpus :: String 
+  , prPiece :: String 
+  , prGroundTruth :: [ChordLabel]
+  , prJsonResultObjects :: [A.Value] 
+  }
+
 -- | Coverts the results of a parsing algorithm to a JSON value
 writeResultsToJSON
-  :: [Notes SPitch]
-  -> [ChordLabel]
-  -> Maybe (PVAnalysis SPitch)
-  -> Accuracy
-  -> LogLikelihood
-  -> String
-  -> Time
-  -> Int
-  -> Int
+  :: JsonResult 
   -> A.Value
-writeResultsToJSON slices chords derivation accuracy likelihood name runTime reruns id =
+writeResultsToJSON res = 
+-- (JsonResult slices chords derivation accuracy likelihood name runTime reruns id segmentTimes) =
   A.object
     [ 
-    -- "algorithm" .= A.fromString name
-     "slices" .= ((\(Notes x) -> show <$> MS.toList x) <$> slices)
-    , "chordLabels" .= (show <$> chords)
-    , "accuracy" .= accuracy
-    , "likelihood" .= likelihood
-    -- , "derivation" .= derivation
-    , "runTime" .= runTime
-    , "reruns" .= reruns
-    , "iteration" .= id
+     "slices" .= ((\(Notes x) -> show <$> MS.toList x) <$> jrSlices res)
+    , "chordLabels" .= (show <$> jrLabels res)
+    , "accuracy" .= jrAccuracy res 
+    , "likelihood" .= jrLogLikelihood res
+    , "runTime" .= jrRunTime res
+    , "reruns" .= jrReRuns res 
+    , "iteration" .= jrId res
+    , "segmentTimes" .= jrSegmentTimes res
     ]
 
--- | Concatenates all results for a given piece into an object, inlucuding the piece and corpus in the JSON value.
-concatResults :: String -> String -> String -> String -> [ChordLabel] -> [A.Value] -> A.Value
-concatResults expId algoName corpus piece trueLabels results = A.object ["id" .= A.fromString expId, "algorithm" .= A.fromString algoName, "corpus" .= A.fromString corpus, "piece" .= A.fromString piece, "results" .= results, "groundTruth" .= (show <$> trueLabels)]
+-- | Concatenates all results for an algo on a given piece into an object, inlucuding the piece and corpus in the JSON value.
+concatResults :: PieceResults -> A.Value
+concatResults (PieceResults expId algoName corpus piece trueLabels results) = 
+  A.object 
+    ["id" .= A.fromString expId
+    , "algorithm" .= A.fromString algoName
+    , "corpus" .= A.fromString corpus
+    , "piece" .= A.fromString piece
+    , "results" .= results
+    , "groundTruth" .= (show <$> trueLabels)]
 
 -- | Write JSON value to the given file
 writeJSONToFile :: A.ToJSON a => FilePath -> a -> IO ()
@@ -307,5 +332,6 @@ nullResultToJSON a =
       -- , "ops" .= (Nothing :: Maybe )
       , "likelihood" .= (Nothing :: Maybe Float)
       , "reRuns" .= (Nothing :: Maybe Int)
-      , "runTime" .= (Nothing :: Maybe Double)
+      , "runTime" .= (Nothing :: Maybe Time)
+    , "segmentTimes" .= (Nothing :: Maybe Time)
       ]

@@ -9,6 +9,7 @@ module Algorithm
   , ParseAlgo (..)
   , AlgoResult (..)
   , AlgoType (..)
+  , showRoot
   , UnsplitWidth
   , UnspreadWidth
   , BeamWidth
@@ -87,6 +88,16 @@ data AlgoType
   | Templating
   deriving (Show, Read, Eq)
 
+showRoot algo =
+  case algo of
+    BeamSearch width -> "BeamSearch_" <> show width
+    StochasticBeamSearch width res -> "StochasticBeamSearch_" <> show width <> "_" <> show res
+    StochasticBeamSearchLimited width res n-> "StochasticBeamSearchLimited_" <> show width <> "_" <> show res <> "_" <> show n
+    DualStochasticBeamSearch width res -> "DualStochasticBeamSearch_" <> show width <> "_" <> show res 
+    DualBeamSearch a b -> "DualBeamSearch_" <> show a <> "_" <> show b
+    BeamSearchPerSegment width -> "BeamSearchPerSegment_" <> show width 
+    -- PerfectReduction threshold -> "BeamSearchPerSegment_" <> show threshold 
+    _ -> show algo
 
 instance ParseAlgo AlgoType where
   runParse algoType (AlgoInputImpure eval'@(EvalImpure eval evalUnsplitImpure) inputSlices chords) = case algoType of

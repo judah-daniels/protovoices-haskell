@@ -79,7 +79,7 @@ stochasticSearch
   -> (SearchState' -> ExceptT String IO [SearchState']) -- get adjacent states
   -> (SearchState' -> Bool) -- goal test
   -> ((SearchState', SearchState') -> ExceptT String IO Double) -- heuristic
-  -> ExceptT String IO SearchState' -- output
+  -> ExceptT String IO (SearchState') -- output
 stochasticSearch beamWidth initialState getNextStates isGoalState heuristic = do
   gen <- lift initStdGen
   mgen <- lift $ newIOGenM gen
@@ -194,15 +194,11 @@ dualStochasticBeamSearch beamWidth reservoir initialState getNextStates isGoalSt
         nextUnfreezeStates <- do
           let filtered = filter (isFreeze . snd) allNextStates
           logD $ "Unfreezes: " <> show (length filtered)
-          r <- mapM doHeuristic filtered
-          logD $ "Selected: " <> show (length r)
-          pure r
+          mapM doHeuristic filtered
 
         nextUnspreadStates <- do
           let filtered = filter (isSpread . snd) allNextStates
           logD $ "Unspreads: " <> show (length filtered)
-          -- x <- lift $ reservoirSample mgen reservoir filtered
-          -- logD $ "Selected: " <> show (length x)
           mapM doHeuristic filtered
 
         nextUnsplitStates <- do

@@ -127,32 +127,14 @@ main = Log.withStderrLogging $ do
 
   res <- mapM (runAlgo outputFileDeriv algo timeOut inputChords inputSlices numRetries) [1 .. iterations]
 
-  writeJSONToFile outputFile $ concatResults expId (showRoot algo) corpus pieceName inputChords res
+  writeJSONToFile outputFile $ concatResults (PieceResults expId (showRoot algo) corpus pieceName inputChords res)
 
   where
     numRetries = 3 :: Int
 
-    -- findBeam algo _ _ _ 0 = pure $ nullResultToJSON algo
-    -- findBeam algo timeOut inputChords inputSlices n = do
-    --   mTimedRes <- timeout (timeOut * 1000000) $ Time.timeItT $ runParse algo (AlgoInput protoVoiceEvaluator inputSlices inputChords)
-    --   case mTimedRes of
-    --     Nothing -> pure $ nullResultToJSON (show algo)
-    --       -- runAlgo algo inputChords inputSlices (n - 1)
-    --     Just (time, mRes) ->
-    --       case mRes of
-    --         Nothing -> runAlgo expId algo timeOut inputChords inputSlices (n - 1)
-    --         Just (AlgoResult top ops lbls) ->
-    --           let accuracy = chordAccuracy inputChords lbls
-    --               likelihood = scoreSegments top lbls
-    --             in do
-    --               logD $ "Accuracy: " <> show accuracy
-    --               logD $ "Likelihood: " <> show likelihood
-    --
-    --               pure $ writeResultsToJSON top lbls ops accuracy likelihood (show algo) time (1 + numRetries - n)
-
     runAlgo deriv algo _ _ _ 0 id = pure $ nullResultToJSON algo
     runAlgo deriv algo timeOut inputChords inputSlices n id = do
-      mTimedRes <- case algo of 
+      mTimedRes <- case algo of
         StochasticSearch -> timeout (timeOut * 1000000) $ Time.timeItT $ runParse algo (AlgoInputImpure protoVoiceEvaluatorImpure inputSlices inputChords)
         _ -> timeout (timeOut * 1000000) $ Time.timeItT $ runParse algo (AlgoInputPure protoVoiceEvaluator inputSlices inputChords)
       case mTimedRes of
@@ -163,36 +145,17 @@ main = Log.withStderrLogging $ do
             Nothing -> runAlgo deriv algo timeOut inputChords inputSlices (n - 1) id
             Just (AlgoResult top ops lbls) ->
               let accuracy = chordAccuracy inputChords lbls
-                  likelihood = scoreSegments top lbls
-                in case ops of 
-                     Nothing -> pure $ writeResultsToJSON top lbls ops accuracy likelihood (show algo) time (1 + numRetries - n) id
-                     Just (Analysis op to) -> do 
+                  likelihood = scoreSegments top inputChords
+                in case ops of
+                     Nothing -> let res = JsonResult top lbls ops accuracy likelihood (show algo) time (1 + numRetries - n) id Nothing
+                                  in
+                                    pure $ writeResultsToJSON res
+                     Just (Analysis op to) -> do
                        -- plotDeriv (deriv) to op 
-                       pure $ writeResultsToJSON top lbls ops accuracy likelihood (show algo) time (1 + numRetries - n) id
+                       pure $ writeResultsToJSON (JsonResult top lbls ops accuracy likelihood (show algo) time (1 + numRetries - n) id Nothing)
                   -- logD $ "Accuracy: " <> show accuracy
                   -- logD $ "Likelihood: " <> show likelihood
 
-
-    showRoot algo =
-      case algo of
-        BeamSearch width -> "BeamSearch_" <> show width
-        StochasticBeamSearch width res -> "StochasticBeamSearch_" <> show width <> "_" <> show res
-        StochasticBeamSearchLimited width res n-> "StochasticBeamSearchLimited_" <> show width <> "_" <> show res <> "_" <> show n
-        DualStochasticBeamSearch width res -> "DualStochasticBeamSearch_" <> show width <> "_" <> show res 
-        DualBeamSearch a b -> "DualBeamSearch_" <> show a <> "_" <> show b
-        BeamSearchPerSegment width -> "BeamSearchPerSegment_" <> show width 
-        -- PerfectReduction threshold -> "BeamSearchPerSegment_" <> show threshold 
-        _ -> show algo
-  -- = RandomWalk
-  -- | RandomWalkPerSegment
-  -- | RandomSample
-  -- | RandomReduction
-  -- | BeamSearch BeamWidth
-  -- | StochasticBeamSearch BeamWidth ResevoirSize
-  -- | DualStochasticBeamSearch BeamWidth ResevoirSize
-  -- | StochasticBeamSearchLimited BeamWidth ResevoirSize MaxNotesPerSlice
-  -- | BeamSearchPerSegment BeamWidth
-  -- | DualBeamSearch UnspreadWidth UnsplitWidth
 
 plotDeriv fn top deriv = do
   case replayDerivation' top derivationPlayerPV deriv of
