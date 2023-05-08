@@ -32,9 +32,9 @@ def run_command(command):
 def ext_pieces_small():  
     pairsStrat = [('schumann_kinderszenen', 'n13'),
              ('schumann_kinderszenen', 'n04'),
-             ('chopin_mazurkas', 'BI162-3op63-3'),
-             ('grieg_lyric_pieces', 'op47n07'),
-             ('chopin_mazurkas', 'BI89-3op24-3'),
+             #('chopin_mazurkas', 'BI162-3op63-3'),
+             #('grieg_lyric_pieces', 'op47n07'),
+             #('chopin_mazurkas', 'BI89-3op24-3'),
              ('grieg_lyric_pieces', 'op43n04'),
              ('chopin_mazurkas', 'BI16-2'),
              ('chopin_mazurkas', 'BI167op67-2'),
@@ -291,7 +291,7 @@ def parseable_pieces():
     return pairsStrat
             
 def run_Experiment(commands,name,iterations, threads):
-    timeout=700
+    timeout=1300
     
     uk_tz = pytz.timezone('Europe/London')
     id = datetime.now(uk_tz).strftime('%Y%m%d%H%M%S_')+ name
@@ -457,10 +457,10 @@ def exp_parseable(iterations=2, threads=28):
     run_Experiment(commands, "exppareablee", iterations,threads)
     
     
-def baseline_exp(iterations=4,threads=28):
+def baseline_exp(iterations=8,threads=28):
     commands = []
     for (corpus, piece) in baseline_pieces():
-        algos = ["RandomWalk", "PerfectReduction", "RandomSample", "RandomReduction", "RandomWalkPerSegment"]
+        algos = ["RandomWalk", "PerfectReduction", "RandomReduction", "Templating"]
         for a in algos: 
             commands.append([ corpus, piece,a ])
     print("Running {} experiments on all scores with random walk".format(len(commands)))
@@ -470,10 +470,10 @@ def baseline_exp(iterations=4,threads=28):
     run_Experiment(commands, "baselineExp", iterations,threads)
     
     
-def extension_exp(iterations=7,threads=28):
+def extension_exp(iterations=8,threads=28):
     commands = []
     for (corpus, piece) in ext_pieces_small():
-        algos = ["RandomWalk", "DualStochasticBeamSearch 9 50","DualStochasticBeamSearch 12 50"]
+        algos = ["RandomWalk", "RandomReduction", "DualStochasticBeamSearch 18 65"]
         for a in algos: 
             commands.append([ corpus, piece,a ])
     print("Running {} experiments on all scores with walk and extn".format(len(commands)))
@@ -565,9 +565,26 @@ def perfectredutions(iterations=1,threads=28):
             commands.append([ corpus, piece, "PerfectReduction"])
     print("Running {} experiments on all scores with random walk".format(len(commands)*iterations))
     print("Experiment will take approx {}-{} hours\n".format(len(commands)*iterations/ 28 * 0.08, len(commands)*iterations/ 28 * 0.2))
-
+    
+def perfectvstemplating(iterations=8,threads=28):
+    commands = []
+    for (corpus,piece) in parseable_pieces():
+        commands.append([ corpus, piece, "PerfectReduction"])
+        commands.append([ corpus, piece, "Templating"])
+    print("Running {} experiments on all scores with templating and perfect".format(len(commands)*iterations))
+    print("Experiment will take approx {}-{} hours\n".format(len(commands)*iterations/ 28 * 0.08, len(commands)*iterations/ 28 * 0.2))
     random.shuffle(commands)
-    run_Experiment(commands, "perfectreduction", iterations,threads)
+    run_Experiment(commands, "perfectvstemplating", iterations,threads)
+    
+def extLengthPiece(iterations=5,threads=28):
+    commands = []
+    for (corpus,piece) in parseable_pieces():
+        commands.append([ corpus, piece, "DualStochasticBeamSearch 5 25"])
+    print("Running {} experiments to mesuare legnth of pice, beam 5 res 25".format(len(commands)*iterations))
+    print("Experiment will take approx {}-{} hours\n".format(len(commands)*iterations/ 28 * 0.08, len(commands)*iterations/ 28 * 0.2))
+    random.shuffle(commands)
+    run_Experiment(commands, "extlengthpiece", iterations,threads)
+    
 #if __name__ == '__main__':
 #    beamWidthRange = range (10,510,50)
 #    reservoirSizeRange = range(50,750,50)
@@ -578,9 +595,11 @@ if __name__ == '__main__':
     #parseable_pieces_randomwalk(iterations=3,threads=28) 
     #exp_parseable(iterations=3,threads=28) 
     #baseline_exp()
-    perfectredutions()  
-    extension_params_fine()
-    extension_exp()
+    #perfectredutions()  
+    #extension_params_fine()
+    #perfectvstemplating()
+    #extension_exp()
+    extLengthPiece()
     #extension_reservoir()
     #extension_beamwidth()
     
