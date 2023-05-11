@@ -1,4 +1,4 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span id="local-6989586621679514935"><span id="local-6989586621679514936"></span></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Harmony.ChordLabel</span><span>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span id="local-6989586621679514886"><span id="local-6989586621679514887"></span></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Harmony.ChordLabel</span><span>
 </span><span id="line-2"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Harmony.ChordLabel.html#ChordType"><span class="hs-identifier">ChordType</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
 </span><span id="line-3"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Harmony.ChordLabel.html#ChordLabel"><span class="hs-identifier">ChordLabel</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
 </span><span id="line-4"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Harmony.ChordLabel.html#mkLbl"><span class="hs-identifier">mkLbl</span></a></span><span>
@@ -46,13 +46,13 @@
 </span><span id="line-31"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="MinorMajorSeventh"><span class="annot"><a href="Harmony.ChordLabel.html#MinorMajorSeventh"><span class="hs-identifier hs-var">MinorMajorSeventh</span></a></span></span><span>
 </span><span id="line-32"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="AugmentedSeventh"><span class="annot"><a href="Harmony.ChordLabel.html#AugmentedSeventh"><span class="hs-identifier hs-var">AugmentedSeventh</span></a></span></span><span>
 </span><span id="line-33"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="NoChord"><span class="annot"><a href="Harmony.ChordLabel.html#NoChord"><span class="hs-identifier hs-var">NoChord</span></a></span></span><span>
-</span><span id="line-34"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679514851"><span id="local-6989586621679514853"><span class="annot"><span class="annottext">ChordType -&gt; ChordType -&gt; Bool
+</span><span id="line-34"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679514802"><span id="local-6989586621679514804"><span class="annot"><span class="annottext">ChordType -&gt; ChordType -&gt; Bool
 forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
 /= :: ChordType -&gt; ChordType -&gt; Bool
 $c/= :: ChordType -&gt; ChordType -&gt; Bool
 == :: ChordType -&gt; ChordType -&gt; Bool
 $c== :: ChordType -&gt; ChordType -&gt; Bool
-</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679514814"><span id="local-6989586621679514816"><span id="local-6989586621679514820"><span id="local-6989586621679514823"><span id="local-6989586621679514825"><span id="local-6989586621679514835"><span id="local-6989586621679514841"><span id="local-6989586621679514848"><span class="annot"><span class="annottext">Int -&gt; ChordType
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679514765"><span id="local-6989586621679514767"><span id="local-6989586621679514771"><span id="local-6989586621679514774"><span id="local-6989586621679514776"><span id="local-6989586621679514786"><span id="local-6989586621679514792"><span id="local-6989586621679514799"><span class="annot"><span class="annottext">Int -&gt; ChordType
 ChordType -&gt; Int
 ChordType -&gt; [ChordType]
 ChordType -&gt; ChordType
@@ -84,13 +84,13 @@ pred :: ChordType -&gt; ChordType
 $cpred :: ChordType -&gt; ChordType
 succ :: ChordType -&gt; ChordType
 $csucc :: ChordType -&gt; ChordType
-</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Enum</span></span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679514809"><span id="local-6989586621679514811"><span class="annot"><span class="annottext">ChordType
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Enum</span></span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679514760"><span id="local-6989586621679514762"><span class="annot"><span class="annottext">ChordType
 forall a. a -&gt; a -&gt; Bounded a
 maxBound :: ChordType
 $cmaxBound :: ChordType
 minBound :: ChordType
 $cminBound :: ChordType
-</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Bounded</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679514789"><span id="local-6989586621679514791"><span id="local-6989586621679514794"><span id="local-6989586621679514797"><span id="local-6989586621679514800"><span id="local-6989586621679514802"><span id="local-6989586621679514804"><span class="annot"><span class="annottext">Eq ChordType
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Bounded</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679514740"><span id="local-6989586621679514742"><span id="local-6989586621679514745"><span id="local-6989586621679514748"><span id="local-6989586621679514751"><span id="local-6989586621679514753"><span id="local-6989586621679514755"><span class="annot"><span class="annottext">Eq ChordType
 ChordType -&gt; ChordType -&gt; Bool
 ChordType -&gt; ChordType -&gt; Ordering
 ChordType -&gt; ChordType -&gt; ChordType
@@ -122,9 +122,9 @@ $ccompare :: ChordType -&gt; ChordType -&gt; Ordering
 </span><span id="line-35"></span><span>
 </span><span id="line-36"></span><span class="annot"><a href="Harmony.ChordLabel.html#chordToneProfile"><span class="hs-identifier hs-type">chordToneProfile</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Harmony.ChordLabel.html#ChordType"><span class="hs-identifier hs-type">ChordType</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">]</span><span>
 </span><span id="line-37"></span><span id="chordToneProfile"><span class="annot"><span class="annottext">chordToneProfile :: ChordType -&gt; [Int]
-</span><a href="Harmony.ChordLabel.html#chordToneProfile"><span class="hs-identifier hs-var hs-var">chordToneProfile</span></a></span></span><span> </span><span id="local-6989586621679514787"><span class="annot"><span class="annottext">ChordType
-</span><a href="#local-6989586621679514787"><span class="hs-identifier hs-var">chordType</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">ChordType
-</span><a href="#local-6989586621679514787"><span class="hs-identifier hs-var">chordType</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><a href="Harmony.ChordLabel.html#chordToneProfile"><span class="hs-identifier hs-var hs-var">chordToneProfile</span></a></span></span><span> </span><span id="local-6989586621679514738"><span class="annot"><span class="annottext">ChordType
+</span><a href="#local-6989586621679514738"><span class="hs-identifier hs-var">chordType</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">ChordType
+</span><a href="#local-6989586621679514738"><span class="hs-identifier hs-var">chordType</span></a></span><span> </span><span class="hs-keyword">of</span><span>
 </span><span id="line-38"></span><span>  </span><span class="annot"><span class="annottext">ChordType
 </span><a href="Harmony.ChordLabel.html#Major"><span class="hs-identifier hs-var">Major</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Int
 </span><span class="hs-number">0</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Int
@@ -209,13 +209,13 @@ $ccompare :: ChordType -&gt; ChordType -&gt; Ordering
 </span><span class="hs-number">14</span></span><span> </span><span class="hs-glyph">..</span><span> </span><span class="annot"><span class="annottext">Int
 </span><span class="hs-number">14</span></span><span class="hs-special">]</span><span>
 </span><span id="line-53"></span><span>
-</span><span id="line-54"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679514780"><span id="local-6989586621679514782"><span id="local-6989586621679514784"><span class="annot"><span class="hs-identifier hs-type">Read</span></span><span> </span><span class="annot"><a href="Harmony.ChordLabel.html#ChordType"><span class="hs-identifier hs-type">ChordType</span></a></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
-</span><span id="line-55"></span><span>  </span><span id="local-6989586621679514778"><span class="annot"><span class="annottext">readsPrec :: Int -&gt; ReadS ChordType
+</span><span id="line-54"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679514731"><span id="local-6989586621679514733"><span id="local-6989586621679514735"><span class="annot"><span class="hs-identifier hs-type">Read</span></span><span> </span><span class="annot"><a href="Harmony.ChordLabel.html#ChordType"><span class="hs-identifier hs-type">ChordType</span></a></span></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-55"></span><span>  </span><span id="local-6989586621679514729"><span class="annot"><span class="annottext">readsPrec :: Int -&gt; ReadS ChordType
 </span><span class="hs-identifier hs-var hs-var hs-var hs-var">readsPrec</span></span></span><span> </span><span class="annot"><span class="annottext">Int
-</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679514776"><span class="annot"><span class="annottext">String
-</span><a href="#local-6989586621679514776"><span class="hs-identifier hs-var">str</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679514727"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679514727"><span class="hs-identifier hs-var">str</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
 </span><span id="line-56"></span><span>    </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">String
-</span><a href="#local-6989586621679514776"><span class="hs-identifier hs-var">str</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><a href="#local-6989586621679514727"><span class="hs-identifier hs-var">str</span></a></span><span> </span><span class="hs-keyword">of</span><span>
 </span><span id="line-57"></span><span>      </span><span class="annot"><span class="annottext">String
 </span><span class="hs-string">&quot;M&quot;</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="annottext">ChordType
 </span><a href="Harmony.ChordLabel.html#Major"><span class="hs-identifier hs-var">Major</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String
@@ -277,12 +277,12 @@ $ccompare :: ChordType -&gt; ChordType -&gt; Ordering
 </span><a href="Harmony.ChordLabel.html#NoChord"><span class="hs-identifier hs-var">NoChord</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">String
 </span><span class="hs-string">&quot;&quot;</span></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
 </span><span id="line-72"></span><span>
-</span><span id="line-73"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679514771"><span id="local-6989586621679514774"><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="annot"><a href="Harmony.ChordLabel.html#ChordType"><span class="hs-identifier hs-type">ChordType</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
-</span><span id="line-74"></span><span>  </span><span id="local-6989586621679514769"><span class="annot"><span class="annottext">show :: ChordType -&gt; String
-</span><span class="hs-identifier hs-var hs-var hs-var hs-var">show</span></span></span><span> </span><span id="local-6989586621679514767"><span class="annot"><span class="annottext">ChordType
-</span><a href="#local-6989586621679514767"><span class="hs-identifier hs-var">chordType</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-73"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679514722"><span id="local-6989586621679514725"><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="annot"><a href="Harmony.ChordLabel.html#ChordType"><span class="hs-identifier hs-type">ChordType</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-74"></span><span>  </span><span id="local-6989586621679514720"><span class="annot"><span class="annottext">show :: ChordType -&gt; String
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">show</span></span></span><span> </span><span id="local-6989586621679514718"><span class="annot"><span class="annottext">ChordType
+</span><a href="#local-6989586621679514718"><span class="hs-identifier hs-var">chordType</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
 </span><span id="line-75"></span><span>    </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">ChordType
-</span><a href="#local-6989586621679514767"><span class="hs-identifier hs-var">chordType</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><a href="#local-6989586621679514718"><span class="hs-identifier hs-var">chordType</span></a></span><span> </span><span class="hs-keyword">of</span><span>
 </span><span id="line-76"></span><span>      </span><span class="annot"><span class="annottext">ChordType
 </span><a href="Harmony.ChordLabel.html#Major"><span class="hs-identifier hs-var">Major</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String
 </span><span class="hs-string">&quot;M&quot;</span></span><span>
@@ -329,7 +329,7 @@ $ccompare :: ChordType -&gt; ChordType -&gt; Ordering
 </span><a href="Harmony.ChordLabel.html#NoChord"><span class="hs-identifier hs-var">NoChord</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String
 </span><span class="hs-string">&quot;NC&quot;</span></span><span>
 </span><span id="line-91"></span><span>
-</span><span id="line-92"></span><span id="local-6989586621679514765"><span id="local-6989586621679514766"></span></span><span class="hs-keyword">data</span><span> </span><span id="ChordLabel"><span class="annot"><a href="Harmony.ChordLabel.html#ChordLabel"><span class="hs-identifier hs-var">ChordLabel</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="ChordLabel"><span class="annot"><a href="Harmony.ChordLabel.html#ChordLabel"><span class="hs-identifier hs-var">ChordLabel</span></a></span></span><span>
+</span><span id="line-92"></span><span id="local-6989586621679514716"><span id="local-6989586621679514717"></span></span><span class="hs-keyword">data</span><span> </span><span id="ChordLabel"><span class="annot"><a href="Harmony.ChordLabel.html#ChordLabel"><span class="hs-identifier hs-var">ChordLabel</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="ChordLabel"><span class="annot"><a href="Harmony.ChordLabel.html#ChordLabel"><span class="hs-identifier hs-var">ChordLabel</span></a></span></span><span>
 </span><span id="line-93"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="chordType"><span class="annot"><span class="annottext">ChordLabel -&gt; ChordType
 </span><a href="Harmony.ChordLabel.html#chordType"><span class="hs-identifier hs-var hs-var">chordType</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Harmony.ChordLabel.html#ChordType"><span class="hs-identifier hs-type">ChordType</span></a></span><span>
 </span><span id="line-94"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="rootNote"><span class="annot"><span class="annottext">ChordLabel -&gt; SPC
@@ -341,13 +341,13 @@ forall a.
 (forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
 $cto :: forall x. Rep ChordLabel x -&gt; ChordLabel
 $cfrom :: forall x. ChordLabel -&gt; Rep ChordLabel x
-</span><span class="hs-identifier hs-var hs-var hs-var hs-var">Generic</span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679514750"><span id="local-6989586621679514756"><span class="annot"><span class="annottext">ChordLabel -&gt; ChordLabel -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">Generic</span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679514701"><span id="local-6989586621679514707"><span class="annot"><span class="annottext">ChordLabel -&gt; ChordLabel -&gt; Bool
 forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
 /= :: ChordLabel -&gt; ChordLabel -&gt; Bool
 $c/= :: ChordLabel -&gt; ChordLabel -&gt; Bool
 == :: ChordLabel -&gt; ChordLabel -&gt; Bool
 $c== :: ChordLabel -&gt; ChordLabel -&gt; Bool
-</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679514723"><span id="local-6989586621679514725"><span id="local-6989586621679514728"><span id="local-6989586621679514731"><span id="local-6989586621679514734"><span id="local-6989586621679514739"><span id="local-6989586621679514745"><span class="annot"><span class="annottext">Eq ChordLabel
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679514674"><span id="local-6989586621679514676"><span id="local-6989586621679514679"><span id="local-6989586621679514682"><span id="local-6989586621679514685"><span id="local-6989586621679514690"><span id="local-6989586621679514696"><span class="annot"><span class="annottext">Eq ChordLabel
 ChordLabel -&gt; ChordLabel -&gt; Bool
 ChordLabel -&gt; ChordLabel -&gt; Ordering
 ChordLabel -&gt; ChordLabel -&gt; ChordLabel
@@ -377,68 +377,78 @@ compare :: ChordLabel -&gt; ChordLabel -&gt; Ordering
 $ccompare :: ChordLabel -&gt; ChordLabel -&gt; Ordering
 </span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">)</span><span>
 </span><span id="line-97"></span><span>
-</span><span id="line-98"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679514717"><span id="local-6989586621679514720"><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="annot"><a href="Harmony.ChordLabel.html#ChordLabel"><span class="hs-identifier hs-type">ChordLabel</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
-</span><span id="line-99"></span><span>  </span><span id="local-6989586621679514711"><span class="annot"><span class="annottext">show :: ChordLabel -&gt; String
-</span><a href="#local-6989586621679514711"><span class="hs-identifier hs-var hs-var hs-var hs-var">show</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Harmony.ChordLabel.html#ChordLabel"><span class="hs-identifier hs-type">ChordLabel</span></a></span><span> </span><span id="local-6989586621679514710"><span class="annot"><span class="annottext">ChordType
-</span><a href="#local-6989586621679514710"><span class="hs-identifier hs-var">lbl</span></a></span></span><span> </span><span id="local-6989586621679514709"><span class="annot"><span class="annottext">SPC
-</span><a href="#local-6989586621679514709"><span class="hs-identifier hs-var">root</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall i. Notation i =&gt; i -&gt; String
+</span><span id="line-98"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679514668"><span id="local-6989586621679514671"><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="annot"><a href="Harmony.ChordLabel.html#ChordLabel"><span class="hs-identifier hs-type">ChordLabel</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-99"></span><span>  </span><span id="local-6989586621679514662"><span class="annot"><span class="annottext">show :: ChordLabel -&gt; String
+</span><a href="#local-6989586621679514662"><span class="hs-identifier hs-var hs-var hs-var hs-var">show</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Harmony.ChordLabel.html#ChordLabel"><span class="hs-identifier hs-type">ChordLabel</span></a></span><span> </span><span id="local-6989586621679514661"><span class="annot"><span class="annottext">ChordType
+</span><a href="#local-6989586621679514661"><span class="hs-identifier hs-var">lbl</span></a></span></span><span> </span><span id="local-6989586621679514660"><span class="annot"><span class="annottext">SPC
+</span><a href="#local-6989586621679514660"><span class="hs-identifier hs-var">root</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall i. Notation i =&gt; i -&gt; String
 </span><span class="hs-identifier hs-var">showNotation</span></span><span> </span><span class="annot"><span class="annottext">SPC
-</span><a href="#local-6989586621679514709"><span class="hs-identifier hs-var">root</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><a href="#local-6989586621679514660"><span class="hs-identifier hs-var">root</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Semigroup a =&gt; a -&gt; a -&gt; a
 </span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">forall a. Show a =&gt; a -&gt; String
 </span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">ChordType
-</span><a href="#local-6989586621679514710"><span class="hs-identifier hs-var">lbl</span></a></span><span>
+</span><a href="#local-6989586621679514661"><span class="hs-identifier hs-var">lbl</span></a></span><span>
 </span><span id="line-100"></span><span>
 </span><span id="line-101"></span><span class="annot"><a href="Harmony.ChordLabel.html#enharmonicLabels"><span class="hs-identifier hs-type">enharmonicLabels</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Harmony.ChordLabel.html#ChordLabel"><span class="hs-identifier hs-type">ChordLabel</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Harmony.ChordLabel.html#ChordLabel"><span class="hs-identifier hs-type">ChordLabel</span></a></span><span class="hs-special">]</span><span>
 </span><span id="line-102"></span><span id="enharmonicLabels"><span class="annot"><span class="annottext">enharmonicLabels :: ChordLabel -&gt; [ChordLabel]
-</span><a href="Harmony.ChordLabel.html#enharmonicLabels"><span class="hs-identifier hs-var hs-var">enharmonicLabels</span></a></span></span><span> </span><span id="local-6989586621679514707"><span class="annot"><span class="annottext">ChordLabel
-</span><a href="#local-6989586621679514707"><span class="hs-identifier hs-var">lbl</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">ChordLabel
-</span><a href="#local-6989586621679514707"><span class="hs-identifier hs-var">lbl</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">ChordLabel -&gt; ChordLabel
-</span><a href="#local-6989586621679514706"><span class="hs-identifier hs-var">shiftProfileLeft</span></a></span><span> </span><span class="annot"><span class="annottext">ChordLabel
-</span><a href="#local-6989586621679514707"><span class="hs-identifier hs-var">lbl</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">ChordLabel -&gt; ChordLabel
-</span><a href="#local-6989586621679514705"><span class="hs-identifier hs-var">shiftProfileRight</span></a></span><span> </span><span class="annot"><span class="annottext">ChordLabel
-</span><a href="#local-6989586621679514707"><span class="hs-identifier hs-var">lbl</span></a></span><span class="hs-special">]</span><span>
+</span><a href="Harmony.ChordLabel.html#enharmonicLabels"><span class="hs-identifier hs-var hs-var">enharmonicLabels</span></a></span></span><span> </span><span id="local-6989586621679514658"><span class="annot"><span class="annottext">ChordLabel
+</span><a href="#local-6989586621679514658"><span class="hs-identifier hs-var">lbl</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">ChordLabel
+</span><a href="#local-6989586621679514658"><span class="hs-identifier hs-var">lbl</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">ChordLabel -&gt; ChordLabel
+</span><a href="#local-6989586621679514657"><span class="hs-identifier hs-var">shiftProfileLeft</span></a></span><span> </span><span class="annot"><span class="annottext">ChordLabel
+</span><a href="#local-6989586621679514658"><span class="hs-identifier hs-var">lbl</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">ChordLabel -&gt; ChordLabel
+</span><a href="#local-6989586621679514656"><span class="hs-identifier hs-var">shiftProfileRight</span></a></span><span> </span><span class="annot"><span class="annottext">ChordLabel
+</span><a href="#local-6989586621679514658"><span class="hs-identifier hs-var">lbl</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">ChordLabel -&gt; ChordLabel
+</span><a href="#local-6989586621679514657"><span class="hs-identifier hs-var">shiftProfileLeft</span></a></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">ChordLabel -&gt; ChordLabel
+</span><a href="#local-6989586621679514657"><span class="hs-identifier hs-var">shiftProfileLeft</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">ChordLabel
+</span><a href="#local-6989586621679514658"><span class="hs-identifier hs-var">lbl</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">ChordLabel -&gt; ChordLabel
+</span><a href="#local-6989586621679514656"><span class="hs-identifier hs-var">shiftProfileRight</span></a></span><span> </span><span class="annot"><span class="annottext">forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">ChordLabel -&gt; ChordLabel
+</span><a href="#local-6989586621679514656"><span class="hs-identifier hs-var">shiftProfileRight</span></a></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">ChordLabel
+</span><a href="#local-6989586621679514658"><span class="hs-identifier hs-var">lbl</span></a></span><span class="hs-special">]</span><span>
 </span><span id="line-103"></span><span> </span><span class="hs-keyword">where</span><span>
-</span><span id="line-104"></span><span>  </span><span id="local-6989586621679514706"><span class="annot"><span class="annottext">shiftProfileLeft :: ChordLabel -&gt; ChordLabel
-</span><a href="#local-6989586621679514706"><span class="hs-identifier hs-var hs-var">shiftProfileLeft</span></a></span></span><span> </span><span id="local-6989586621679514704"><span class="annot"><span class="annottext">lbl :: ChordLabel
-</span><a href="#local-6989586621679514704"><span class="hs-identifier hs-var">lbl</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="Harmony.ChordLabel.html#ChordLabel"><span class="hs-identifier hs-type">ChordLabel</span></a></span><span> </span><span id="local-6989586621679514703"><span class="annot"><span class="annottext">ChordType
-</span><a href="#local-6989586621679514703"><span class="hs-identifier hs-var">chordType</span></a></span></span><span> </span><span id="local-6989586621679514702"><span class="annot"><span class="annottext">SPC
-</span><a href="#local-6989586621679514702"><span class="hs-identifier hs-var">rootNote</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
-</span><span id="line-105"></span><span>    </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679514697"><span class="annot"><span class="annottext">rootNote' :: SPC
-</span><a href="#local-6989586621679514697"><span class="hs-identifier hs-var hs-var">rootNote'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) i. (Functor f, Interval i) =&gt; i -&gt; f i -&gt; f i
+</span><span id="line-104"></span><span>  </span><span id="local-6989586621679514657"><span class="annot"><span class="annottext">shiftProfileLeft :: ChordLabel -&gt; ChordLabel
+</span><a href="#local-6989586621679514657"><span class="hs-identifier hs-var hs-var">shiftProfileLeft</span></a></span></span><span> </span><span id="local-6989586621679514654"><span class="annot"><span class="annottext">lbl :: ChordLabel
+</span><a href="#local-6989586621679514654"><span class="hs-identifier hs-var">lbl</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="Harmony.ChordLabel.html#ChordLabel"><span class="hs-identifier hs-type">ChordLabel</span></a></span><span> </span><span id="local-6989586621679514653"><span class="annot"><span class="annottext">ChordType
+</span><a href="#local-6989586621679514653"><span class="hs-identifier hs-var">chordType</span></a></span></span><span> </span><span id="local-6989586621679514652"><span class="annot"><span class="annottext">SPC
+</span><a href="#local-6989586621679514652"><span class="hs-identifier hs-var">rootNote</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-105"></span><span>    </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679514647"><span class="annot"><span class="annottext">rootNote' :: SPC
+</span><a href="#local-6989586621679514647"><span class="hs-identifier hs-var hs-var">rootNote'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) i. (Functor f, Interval i) =&gt; i -&gt; f i -&gt; f i
 </span><span class="hs-identifier hs-var">transpose</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; SIC
 </span><span class="hs-identifier hs-var">sic</span></span><span> </span><span class="annot"><span class="annottext">Int
 </span><span class="hs-number">12</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">SPC
-</span><a href="#local-6989586621679514702"><span class="hs-identifier hs-var">rootNote</span></a></span><span>
+</span><a href="#local-6989586621679514652"><span class="hs-identifier hs-var">rootNote</span></a></span><span>
 </span><span id="line-106"></span><span>     </span><span class="hs-keyword">in</span><span> </span><span class="annot"><span class="annottext">ChordType -&gt; SPC -&gt; ChordLabel
 </span><a href="Harmony.ChordLabel.html#ChordLabel"><span class="hs-identifier hs-var">ChordLabel</span></a></span><span> </span><span class="annot"><span class="annottext">ChordType
-</span><a href="#local-6989586621679514703"><span class="hs-identifier hs-var">chordType</span></a></span><span> </span><span class="annot"><span class="annottext">SPC
-</span><a href="#local-6989586621679514697"><span class="hs-identifier hs-var">rootNote'</span></a></span><span>
+</span><a href="#local-6989586621679514653"><span class="hs-identifier hs-var">chordType</span></a></span><span> </span><span class="annot"><span class="annottext">SPC
+</span><a href="#local-6989586621679514647"><span class="hs-identifier hs-var">rootNote'</span></a></span><span>
 </span><span id="line-107"></span><span>
-</span><span id="line-108"></span><span>  </span><span id="local-6989586621679514705"><span class="annot"><span class="annottext">shiftProfileRight :: ChordLabel -&gt; ChordLabel
-</span><a href="#local-6989586621679514705"><span class="hs-identifier hs-var hs-var">shiftProfileRight</span></a></span></span><span> </span><span id="local-6989586621679514694"><span class="annot"><span class="annottext">lbl :: ChordLabel
-</span><a href="#local-6989586621679514694"><span class="hs-identifier hs-var">lbl</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="Harmony.ChordLabel.html#ChordLabel"><span class="hs-identifier hs-type">ChordLabel</span></a></span><span> </span><span id="local-6989586621679514693"><span class="annot"><span class="annottext">ChordType
-</span><a href="#local-6989586621679514693"><span class="hs-identifier hs-var">chordType</span></a></span></span><span> </span><span id="local-6989586621679514692"><span class="annot"><span class="annottext">SPC
-</span><a href="#local-6989586621679514692"><span class="hs-identifier hs-var">rootNote</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
-</span><span id="line-109"></span><span>    </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679514687"><span class="annot"><span class="annottext">rootNote' :: SPC
-</span><a href="#local-6989586621679514687"><span class="hs-identifier hs-var hs-var">rootNote'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) i. (Functor f, Interval i) =&gt; i -&gt; f i -&gt; f i
+</span><span id="line-108"></span><span>  </span><span id="local-6989586621679514656"><span class="annot"><span class="annottext">shiftProfileRight :: ChordLabel -&gt; ChordLabel
+</span><a href="#local-6989586621679514656"><span class="hs-identifier hs-var hs-var">shiftProfileRight</span></a></span></span><span> </span><span id="local-6989586621679514644"><span class="annot"><span class="annottext">lbl :: ChordLabel
+</span><a href="#local-6989586621679514644"><span class="hs-identifier hs-var">lbl</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="Harmony.ChordLabel.html#ChordLabel"><span class="hs-identifier hs-type">ChordLabel</span></a></span><span> </span><span id="local-6989586621679514643"><span class="annot"><span class="annottext">ChordType
+</span><a href="#local-6989586621679514643"><span class="hs-identifier hs-var">chordType</span></a></span></span><span> </span><span id="local-6989586621679514642"><span class="annot"><span class="annottext">SPC
+</span><a href="#local-6989586621679514642"><span class="hs-identifier hs-var">rootNote</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-109"></span><span>    </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679514637"><span class="annot"><span class="annottext">rootNote' :: SPC
+</span><a href="#local-6989586621679514637"><span class="hs-identifier hs-var hs-var">rootNote'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">forall (f :: * -&gt; *) i. (Functor f, Interval i) =&gt; i -&gt; f i -&gt; f i
 </span><span class="hs-identifier hs-var">transpose</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; SIC
 </span><span class="hs-identifier hs-var">sic</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">-</span><span class="annot"><span class="annottext">Int
 </span><span class="hs-number">12</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">SPC
-</span><a href="#local-6989586621679514692"><span class="hs-identifier hs-var">rootNote</span></a></span><span>
+</span><a href="#local-6989586621679514642"><span class="hs-identifier hs-var">rootNote</span></a></span><span>
 </span><span id="line-110"></span><span>     </span><span class="hs-keyword">in</span><span> </span><span class="annot"><span class="annottext">ChordType -&gt; SPC -&gt; ChordLabel
 </span><a href="Harmony.ChordLabel.html#ChordLabel"><span class="hs-identifier hs-var">ChordLabel</span></a></span><span> </span><span class="annot"><span class="annottext">ChordType
-</span><a href="#local-6989586621679514693"><span class="hs-identifier hs-var">chordType</span></a></span><span> </span><span class="annot"><span class="annottext">SPC
-</span><a href="#local-6989586621679514687"><span class="hs-identifier hs-var">rootNote'</span></a></span><span>
+</span><a href="#local-6989586621679514643"><span class="hs-identifier hs-var">chordType</span></a></span><span> </span><span class="annot"><span class="annottext">SPC
+</span><a href="#local-6989586621679514637"><span class="hs-identifier hs-var">rootNote'</span></a></span><span>
 </span><span id="line-111"></span><span>
 </span><span id="line-112"></span><span class="annot"><a href="Harmony.ChordLabel.html#allChordLabels"><span class="hs-identifier hs-type">allChordLabels</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Harmony.ChordLabel.html#ChordLabel"><span class="hs-identifier hs-type">ChordLabel</span></a></span><span class="hs-special">]</span><span>
 </span><span id="line-113"></span><span id="allChordLabels"><span class="annot"><span class="annottext">allChordLabels :: [ChordLabel]
 </span><a href="Harmony.ChordLabel.html#allChordLabels"><span class="hs-identifier hs-var hs-var">allChordLabels</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-114"></span><span>  </span><span id="local-6989586621679514686"><span class="annot"><span class="annottext">ChordType
-</span><a href="#local-6989586621679514686"><span class="hs-identifier hs-var">chordType</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">forall a. Bounded a =&gt; a
+</span><span id="line-114"></span><span>  </span><span id="local-6989586621679514636"><span class="annot"><span class="annottext">ChordType
+</span><a href="#local-6989586621679514636"><span class="hs-identifier hs-var">chordType</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">forall a. Bounded a =&gt; a
 </span><span class="hs-identifier hs-var">minBound</span></span><span> </span><span class="hs-glyph">..</span><span> </span><span class="annot"><span class="annottext">forall a. Bounded a =&gt; a
 </span><span class="hs-identifier hs-var">maxBound</span></span><span class="hs-special">]</span><span>
-</span><span id="line-115"></span><span>  </span><span id="local-6989586621679514683"><span class="annot"><span class="annottext">SPC
-</span><a href="#local-6989586621679514683"><span class="hs-identifier hs-var">rootNote</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span id="line-115"></span><span>  </span><span id="local-6989586621679514633"><span class="annot"><span class="annottext">SPC
+</span><a href="#local-6989586621679514633"><span class="hs-identifier hs-var">rootNote</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
 </span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; SPC
 </span><span class="hs-identifier hs-var">spc</span></span><span> </span><span class="hs-special">[</span><span class="hs-glyph">-</span><span class="annot"><span class="annottext">Int
 </span><span class="hs-number">14</span></span><span> </span><span class="hs-glyph">..</span><span> </span><span class="annot"><span class="annottext">Int
@@ -447,17 +457,17 @@ $ccompare :: ChordLabel -&gt; ChordLabel -&gt; Ordering
 </span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">ChordType -&gt; SPC -&gt; ChordLabel
 </span><a href="Harmony.ChordLabel.html#ChordLabel"><span class="hs-identifier hs-var">ChordLabel</span></a></span><span> </span><span class="annot"><span class="annottext">ChordType
-</span><a href="#local-6989586621679514686"><span class="hs-identifier hs-var">chordType</span></a></span><span> </span><span class="annot"><span class="annottext">SPC
-</span><a href="#local-6989586621679514683"><span class="hs-identifier hs-var">rootNote</span></a></span><span>
+</span><a href="#local-6989586621679514636"><span class="hs-identifier hs-var">chordType</span></a></span><span> </span><span class="annot"><span class="annottext">SPC
+</span><a href="#local-6989586621679514633"><span class="hs-identifier hs-var">rootNote</span></a></span><span>
 </span><span id="line-117"></span><span>
 </span><span id="line-118"></span><span id="mkLbl"><span class="annot"><span class="annottext">mkLbl :: Int -&gt; ChordType -&gt; ChordLabel
-</span><a href="Harmony.ChordLabel.html#mkLbl"><span class="hs-identifier hs-var hs-var">mkLbl</span></a></span></span><span> </span><span id="local-6989586621679514679"><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679514679"><span class="hs-identifier hs-var">rootInt</span></a></span></span><span> </span><span id="local-6989586621679514678"><span class="annot"><span class="annottext">ChordType
-</span><a href="#local-6989586621679514678"><span class="hs-identifier hs-var">chordType</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ChordType -&gt; SPC -&gt; ChordLabel
+</span><a href="Harmony.ChordLabel.html#mkLbl"><span class="hs-identifier hs-var hs-var">mkLbl</span></a></span></span><span> </span><span id="local-6989586621679514629"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679514629"><span class="hs-identifier hs-var">rootInt</span></a></span></span><span> </span><span id="local-6989586621679514628"><span class="annot"><span class="annottext">ChordType
+</span><a href="#local-6989586621679514628"><span class="hs-identifier hs-var">chordType</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ChordType -&gt; SPC -&gt; ChordLabel
 </span><a href="Harmony.ChordLabel.html#ChordLabel"><span class="hs-identifier hs-var">ChordLabel</span></a></span><span> </span><span class="annot"><span class="annottext">ChordType
-</span><a href="#local-6989586621679514678"><span class="hs-identifier hs-var">chordType</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; SPC
+</span><a href="#local-6989586621679514628"><span class="hs-identifier hs-var">chordType</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; SPC
 </span><span class="hs-identifier hs-var">spc</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679514679"><span class="hs-identifier hs-var">rootInt</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><a href="#local-6989586621679514629"><span class="hs-identifier hs-var">rootInt</span></a></span><span> </span><span class="annot"><span class="annottext">forall a. Num a =&gt; a -&gt; a -&gt; a
 </span><span class="hs-glyph hs-var">-</span></span><span> </span><span class="annot"><span class="annottext">Int
 </span><span class="hs-number">14</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
 </span><span id="line-119"></span></pre></body></html>

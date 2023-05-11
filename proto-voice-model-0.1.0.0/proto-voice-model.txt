@@ -1323,6 +1323,7 @@ sampleR :: StatefulGen g IO => g -> Int -> [a] -> IO [a]
 categoricalLogProb :: Int -> Vector Double -> Maybe Double
 pickRandomChoice :: StatefulGen g IO => g -> [slc] -> MaybeT IO slc
 pickReservoir10 :: StatefulGen g IO => g -> [slc] -> MaybeT IO [slc]
+pickRandomN :: StatefulGen g m => g -> Int -> [a] -> m [a]
 collectRandomSample :: StatefulGen g IO => g -> MaybeT IO [a] -> IO [a]
 collectRandomChoice :: StatefulGen g IO => g -> MaybeT IO a -> IO [a]
 mixture :: Maybe (Vector Double) -> Maybe (Vector Double) -> Maybe (Vector Double)
@@ -1433,11 +1434,11 @@ module Harmony
 rotateVector :: Int -> Vector a -> Maybe (Vector a)
 pChordTones :: ChordLabel -> Maybe (Vector Double)
 mostLikelyLabelFromSliceWithProb :: Notes SPitch -> (ChordLabel, Double)
-probsRegs :: Maybe ChordLabel -> Maybe ChordLabel -> DoubleOrnament -> Maybe (Vector Double)
-probsPassings :: Maybe ChordLabel -> Maybe ChordLabel -> PassingOrnament -> Maybe (Vector Double)
-probsFromLeft :: Maybe ChordLabel -> RightOrnament -> Maybe (Vector Double)
-probsFromRight :: Maybe ChordLabel -> LeftOrnament -> Maybe (Vector Double)
-probsParent :: Maybe ChordLabel -> Maybe (Vector Double)
+probsRegs :: Maybe ChordLabel -> Maybe ChordLabel -> DoubleOrnament -> [Vector Double]
+probsPassings :: Maybe ChordLabel -> Maybe ChordLabel -> PassingOrnament -> [Vector Double]
+probsFromLeft :: Maybe ChordLabel -> RightOrnament -> [Vector Double]
+probsFromRight :: Maybe ChordLabel -> LeftOrnament -> [Vector Double]
+probsParent :: Maybe ChordLabel -> [Vector Double]
 mostLikelyLabelFromSlice :: Notes SPitch -> ChordLabel
 labelLikelihoodGivenSlice :: ChordLabel -> Notes SPitch -> Double
 allLabelLikelihoodsGivenSlice :: Notes SPitch -> Vector (Double, ChordLabel)
@@ -1642,7 +1643,7 @@ applyHeuristic :: ((State SPitch, State SPitch) -> ExceptT String IO Double) -> 
 --   P(n|p,l), the probability of each child note considering the parent
 --   notes. P(p|l) the plausibility of the parent notes being chord tones
 --   of the corresponding parent slices.
-heuristicZero :: (State SPitch, State SPitch) -> ExceptT String IO Double
+heuristicZero :: Double -> Double -> (State SPitch, State SPitch) -> ExceptT String IO Double
 type State ns = SearchState (Edges ns) [Edge ns] (Notes ns) (PVLeftmost ns)
 
 
@@ -1737,8 +1738,8 @@ module Algorithm
 data AlgoInput
 AlgoInputPure :: Eval (Edges SPitch) [Edge SPitch] (Notes SPitch) [SPitch] (PVLeftmost SPitch) -> [InputSlice SPitch] -> [ChordLabel] -> AlgoInput
 AlgoInputImpure :: EvalImpure (Edges SPitch) [Edge SPitch] (Notes SPitch) [SPitch] (PVLeftmost SPitch) -> [InputSlice SPitch] -> [ChordLabel] -> AlgoInput
-class (Show algo) => ParseAlgo algo
-runParse :: ParseAlgo algo => algo -> AlgoInput -> IO (Maybe AlgoResult)
+class ParseAlgo algo
+runParse :: ParseAlgo algo => Double -> Double -> algo -> AlgoInput -> IO (Maybe AlgoResult)
 data AlgoResult
 AlgoResult :: [Notes SPitch] -> Maybe (PVAnalysis SPitch) -> [ChordLabel] -> AlgoResult
 [arTop] :: AlgoResult -> [Notes SPitch]
@@ -1755,12 +1756,11 @@ StochasticBeamSearch :: BeamWidth -> ResevoirSize -> AlgoType
 DualStochasticBeamSearch :: BeamWidth -> ResevoirSize -> AlgoType
 StochasticBeamSearchLimited :: BeamWidth -> ResevoirSize -> MaxNotesPerSlice -> AlgoType
 BeamSearchPerSegment :: BeamWidth -> AlgoType
-DualBeamSearch :: UnspreadWidth -> UnsplitWidth -> AlgoType
 StochasticSearch :: AlgoType
 Templating :: AlgoType
 showRoot :: AlgoType -> String
-type UnsplitWidth = Int
-type UnspreadWidth = Int
+type UnsplitBias = Double
+type ChildBias = Double
 type BeamWidth = Int
 instance GHC.Show.Show Algorithm.AlgoResult
 instance GHC.Classes.Eq Algorithm.AlgoType
