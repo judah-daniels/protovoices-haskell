@@ -81,6 +81,7 @@ data AlgoType
   | BeamSearch BeamWidth
   | StochasticBeamSearch BeamWidth ResevoirSize
   | DualStochasticBeamSearch BeamWidth ResevoirSize
+  | DualStochasticBeamSearch' BeamWidth ResevoirSize UnsplitBias ChildBias
   | StochasticBeamSearchLimited BeamWidth ResevoirSize MaxNotesPerSlice
   | BeamSearchPerSegment BeamWidth
   | StochasticSearch
@@ -93,6 +94,7 @@ showRoot algo =
     StochasticBeamSearch width res -> "StochasticBeamSearch_" <> show width <> "_" <> show res
     StochasticBeamSearchLimited width res n-> "StochasticBeamSearchLimited_" <> show width <> "_" <> show res <> "_" <> show n
     DualStochasticBeamSearch width res -> "DualStochasticBeamSearch_" <> show width <> "_" <> show res 
+    DualStochasticBeamSearch' width res a b -> "DualStochasticBeamSearch_" <> show width <> "_" <> show res <> "_" <> show a <> "_" <> show b 
     -- DualBeamSearch a b -> "DualBeamSearch_" <> show a <> "_" <> show b
     BeamSearchPerSegment width -> "BeamSearchPerSegment_" <> show width 
     -- PerfectReduction threshold -> "BeamSearchPerSegment_" <> show threshold 
@@ -126,6 +128,32 @@ instance ParseAlgo AlgoType where
                pure $ Just $ AlgoResult slices (Just (Analysis ops p)) chordGuesses
 
   runParse unsplitBias childBias algoType (AlgoInputPure eval inputSlices chords) = case algoType of
+    DualStochasticBeamSearch' beamWidth resevoirSize unsplitBias childBias ->
+      let initialState = SSFrozen $ pathFromSlices eval sliceWrapper inputSlices
+       in
+        Log.timedLog "Running Heuristic Search" $ do
+          res <- runExceptT
+            (dualStochasticBeamSearch
+              beamWidth
+              resevoirSize
+              initialState
+              (exploreStates sliceWrapper eval)
+              (goalTest chords)
+              (applyHeuristic (heuristicZero unsplitBias childBias))
+            )
+
+          case res of
+            Left err -> do
+              Log.warn $ T.pack err
+              pure Nothing
+            Right finalState ->
+              let p = fromJust $ getPathFromState finalState
+                  ops = getOpsFromState finalState
+                  slices = pathBetweens p
+                  chordGuesses = guessChords  slices
+               in
+               pure $ Just $ AlgoResult slices (Just (Analysis ops p)) chordGuesses
+
     DualStochasticBeamSearch beamWidth resevoirSize ->
       let initialState = SSFrozen $ pathFromSlices eval sliceWrapper inputSlices
        in

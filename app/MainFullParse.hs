@@ -117,7 +117,7 @@ main = Log.withStderrLogging $ do
   inputChords <- chordsFromFile (inputPath <> "chords/" <> corpus <> "/" <> pieceName <> ".csv")
   inputSlices <- slicesFromFile' (inputPath <> "slices/" <> corpus <> "/" <> pieceName <> ".csv")
   let outputFile = outputPath <> corpus <> "/" <> pieceName <> "/" <> showRoot algo <> "/" <> expId <> ".json"
-  let outputFileDeriv = "testing3" -- outputPath <> corpus <> "/" <> pieceName <> "/" <> showRoot algo <> "/" <> expId
+  let outputFileDeriv = outputPath <> corpus <> "/" <> pieceName <> "/" <> showRoot algo <> "/" <> expId
   createDirectoryIfMissing True $ outputPath <> corpus <> "/" <> pieceName <> "/" <> showRoot algo <> "/"
 
   res <- mapM (runAlgo unsplitBias childBias outputFileDeriv algo timeOut inputChords inputSlices numRetries) [1 .. iterations]
