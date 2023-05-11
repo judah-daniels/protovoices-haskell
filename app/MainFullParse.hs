@@ -146,7 +146,7 @@ main = Log.withStderrLogging $ do
                                   in
                                     pure $ writeResultsToJSON res
                      Just (Analysis op to) -> do
-                       plotDeriv (deriv) to op 
+                       -- plotDeriv (deriv) to op 
                        pure $ writeResultsToJSON (JsonResult top lbls ops accuracy likelihood (show algo) time (1 + numRetries - n) id Nothing)
                   -- logD $ "Accuracy: " <> show accuracy
                   -- logD $ "Likelihood: " <> show likelihood
