@@ -29,7 +29,7 @@ import Data.HashSet qualified as S
 import Data.List qualified as L
 import Data.Map qualified as M
 
-import Data.Maybe (fromJust, isNothing, maybeToList, mapMaybe)
+import Data.Maybe (fromJust, isNothing, maybeToList, mapMaybe, listToMaybe)
 import Data.Vector qualified as V
 import Musicology.Core qualified as Music
 import Musicology.Pitch.Spelled
@@ -40,8 +40,12 @@ import Harmony.ChordLabel
 import Harmony.Params
 import Debug.Trace
 import Streamly.Internal.Data.Array.Foreign.Mut (fromForeignPtrUnsafe)
+import Musicology.Pitch.Class (transpose)
 
 type State ns = SearchState (Edges ns) [Edge ns] (Notes ns) (PVLeftmost ns)
+
+-- alpha = 1.3 -- Child not weighting - lower means children are cared about less
+--splitWeight = 1.4 -- Extra costs for splits
 
 applyHeuristic
   :: ((State SPitch, State SPitch) -> ExceptT String IO Double)
@@ -64,8 +68,8 @@ log = lift . Log.debug . T.pack
 --   Consists of two factors: P(n|p,l), the probability of each child note considering the parent notes. 
 --   P(p|l) the plausibility of the parent notes being chord tones of the corresponding parent slices.
 
-heuristicZero :: ( State SPitch, State SPitch) -> ExceptT String IO Double
-heuristicZero (prevState, state) = case getOpFromState state of
+heuristicZero :: Double -> Double -> ( State SPitch, State SPitch) -> ExceptT String IO Double
+heuristicZero alpha splitWeight (prevState, state) = case getOpFromState state of
   Nothing -> pure 0 -- Initial state
   Just op -> do
     log $ "Prev State: " <> show (prevState)
@@ -139,7 +143,7 @@ heuristicZero (prevState, state) = case getOpFromState state of
             ,(\(SliceWrapped _ sLbl _) -> sLbl) <$> slcR)
           leftScore = scoreParent (probsParent lbll) leftParents
           rightScore = scoreParent (probsParent lblr) rightParents
-          bothScores =  (maybeToList leftScore ++ maybeToList rightScore)
+          bothScores =  (leftScore ++ rightScore)
           n = fromIntegral $ length bothScores
         in
           if n == 0 then 0 else sum bothScores / n
@@ -171,9 +175,16 @@ heuristicZero (prevState, state) = case getOpFromState state of
         in
          if n == 0 then -100 else sum allScores / fromIntegral (length allScores)
       where
-        scoreChild v (n, orn) = do
+
+        
+        scoreChild v (n, orn) = maximumMaybe $ scoreChildList v (n,orn)
+
+        scoreChildList v (n, orn) = do
           res <- v orn
-          categoricalLogProb (fifths n) res
+          maybeToList $ categoricalLogProb (fifths n) res
+
+
+
 
     -- Need to find all the parent on the left of the child slice 
     -- And all the parents form the right of the child slice
@@ -209,12 +220,12 @@ heuristicZero (prevState, state) = case getOpFromState state of
                   (Notes $ MS.fromList rightParents) slcL slcR
 
               childFactor = scoreChildren childRegs childPasses childFromLefts childFromRights slcL slcR
-              score = - (childFactor + parentFactor) -- parentFactor bug
+              score = - (childFactor*alpha + parentFactor)*(splitWeight) -- parentFactor bug
            in
              score
 
     scoreSpread
-      :: Spread n
+      :: Spread SPitch
       -> Maybe (SliceWrapped (Notes SPitch))
       -> SliceWrapped (Notes SPitch)
       -> Maybe (SliceWrapped (Notes SPitch))
@@ -225,13 +236,17 @@ heuristicZero (prevState, state) = case getOpFromState state of
       slc
       slcR
         = let (lbll, lblr) = ((\(SliceWrapped _ sLbl probl) -> probl) <$> slcL ,(\(SliceWrapped _ sLbl probr) -> probr) <$> slcR)
+              childPasses = (\(l, r) -> (l, PassingMid)) <$> allInnerEdges edgesPass
+              childRegs = (\(Inner l,r) -> (l, FullRepeat)) <$> allRegEdges edgesReg
+              childFactor = scoreChildren childRegs childPasses [] [] slcL slcR
+              --     (Notes $ MS.fromList rightParents) slcL slcR
            -- in trace ("spread: " <> (show $ (-50 * go lbll lblr) )) (- go lbll lblr) * 50
-           in (- go lbll lblr) * 50
+           in - (childFactor * alpha + (go slcL slcR))
           where
-            go Nothing Nothing = 5
-            go (Just a) Nothing = a
-            go Nothing (Just a) = a
-            go (Just a ) (Just b) = (a + b)/2
+            go Nothing Nothing = 100
+            go (Just a) Nothing = 100
+            go Nothing (Just a) = 100
+            go (Just a ) (Just b) = ((scoreParents (sWContent a) (sWContent b) (slcL) (slcR)))
           -- let
           -- probsRegs = map scoreReg (S.toList edgesReg)
               -- probsPasses = map scorePass (MS.toList edgesPass)
@@ -377,5 +392,23 @@ heuristicZero (prevState, state) = case getOpFromState state of
       (parent, child) <- MS.toList opset
       pure (parent, child)
 
+    allRegEdges opset = do
+      (parent, child) <- S.toList opset
+      pure (parent, child)
 
+maximumMaybe :: (Ord a, Foldable f) => f a -> Maybe a
+maximumMaybe xs
+  | null xs   = Nothing
+  | otherwise = Just $ maximum xs
 
+-- Workaround cus this made the heuristic worse
+enharmonicLabels :: ChordLabel -> [ChordLabel]
+enharmonicLabels lbl = [lbl]
+ where
+  shiftProfileLeft lbl@(ChordLabel chordType rootNote) =
+    let rootNote' = transpose (sic 12) rootNote
+     in ChordLabel chordType rootNote'
+
+  shiftProfileRight lbl@(ChordLabel chordType rootNote) =
+    let rootNote' = transpose (sic (-12)) rootNote
+     in ChordLabel chordType rootNote'

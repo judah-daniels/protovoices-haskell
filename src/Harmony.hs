@@ -122,50 +122,88 @@ pOrnaments (ChordLabel chordType rootNote) =
   let profile = ornamentParams V.! fromEnum chordType in
       rotateVector (fifths rootNote) profile
 
-probsRegs :: Maybe ChordLabel -> Maybe ChordLabel -> DoubleOrnament -> Maybe (V.Vector Double)
+probsRegs :: Maybe ChordLabel -> Maybe ChordLabel -> DoubleOrnament -> [V.Vector Double]
 probsRegs slcL slcR orn
     -- Chord tone mixture on both sies
   | isRepetitionOnLeft orn && isRepetitionOnRight orn =
     case (slcL, slcR) of
-      (Just lblL, Just lblR)
-        -> mixture (pChordTones lblL) (pChordTones lblR)
-      _ -> Nothing
+      (Just lblL, Just lblR) -> do 
+            lblsL <- enharmonicLabels lblL 
+            lblsR <- enharmonicLabels lblR
+            maybeToList $ mixture (pChordTones lblsL) (pChordTones lblsR)
+      _ -> []
     -- Chord tone on right, ornament of left
   | isRepetitionOnRight orn =
     case (slcL, slcR) of
-      (Just lblL, Just lblR) -> mixture (pOrnaments lblL) (pChordTones lblR)
-      (Just lblL , _) ->  pChordTones lblL
-      (_ , Just lblR) ->  pOrnaments lblR
-      (_ , _) -> Nothing
+      (Just lblL, Just lblR) -> do 
+            lblsL <- enharmonicLabels lblL 
+            lblsR <- enharmonicLabels lblR
+            maybeToList $ mixture (pOrnaments lblsL) (pChordTones lblsR)
+
+      (Just lblL , _) -> do 
+        lbls <- enharmonicLabels lblL 
+        maybeToList $ pOrnaments lbls
+
+      (_ , Just lblR) -> do 
+        lbls <- enharmonicLabels lblR 
+        maybeToList $ pOrnaments lbls
+      (_ , _) -> []
     -- Chord tone on right, ornament of left
   | isRepetitionOnLeft orn =
     case (slcL, slcR) of
-      (Just lblL, Just lblR) -> mixture (pOrnaments lblR) (pChordTones lblL)
-      (Just lblL , _) ->  pOrnaments lblL
-      (_ , Just lblR) ->  pChordTones lblR
-      (_ , _) -> Nothing
+      (Just lblL, Just lblR) -> do
+        lblsL <- enharmonicLabels lblL 
+        lblsR <- enharmonicLabels lblR 
+        maybeToList $ mixture (pOrnaments lblsR) (pChordTones lblsL)
+      (Just lblL , _) -> do
+        lbls <- enharmonicLabels lblL 
+        maybeToList $ pOrnaments lbls
+      (_ , Just lblR) ->  do 
+        lbls <- enharmonicLabels lblR 
+        maybeToList $ pChordTones lbls
+      (_ , _) -> []
     -- Chord tone on left, ornament of right
-  | otherwise = Nothing
+  | otherwise = []
 
-probsPassings :: Maybe ChordLabel -> Maybe ChordLabel -> PassingOrnament -> Maybe (V.Vector Double)
-probsPassings (Just lblL) (Just lblR) PassingMid = mixture (pOrnaments lblL) (pOrnaments lblR)
-probsPassings (Just lblL) _ PassingLeft = pOrnaments lblL
-probsPassings _ (Just lblR) PassingRight = pOrnaments lblR
-probsPassings _ _ _  =  Nothing
+-- Ignore Enharmonics! I think this will make a big difference. 
+probsPassings :: Maybe ChordLabel -> Maybe ChordLabel -> PassingOrnament -> [V.Vector Double]
+probsPassings (Just lblL) (Just lblR) PassingMid = do 
+  lblsL <- enharmonicLabels lblL 
+  lblsR <- enharmonicLabels lblL 
+  maybeToList $ mixture (pOrnaments lblsL) (pOrnaments lblsR)
 
-probsFromLeft :: Maybe ChordLabel -> RightOrnament -> Maybe (V.Vector Double)
-probsFromLeft Nothing _ =  Nothing
-probsFromLeft (Just lbl) RightRepeat = pChordTones lbl
-probsFromLeft (Just lbl) RightNeighbor = pOrnaments lbl
+probsPassings (Just lblL) _ PassingLeft  = do 
+  lbls <- enharmonicLabels lblL
+  maybeToList $ pOrnaments lbls
+probsPassings _ (Just lblR) PassingRight = do 
+  lbls <- enharmonicLabels lblR
+  maybeToList $ pOrnaments lbls
 
-probsFromRight :: Maybe ChordLabel -> LeftOrnament -> Maybe (V.Vector Double)
-probsFromRight Nothing _ =  Nothing
-probsFromRight (Just lbl) LeftRepeat =  pChordTones lbl
-probsFromRight (Just lbl) LeftNeighbor =  pOrnaments lbl
+probsPassings _ _ _  =  []
 
-probsParent :: Maybe ChordLabel -> Maybe (V.Vector Double)
-probsParent Nothing = Nothing
-probsParent (Just lbl) = pChordTones lbl
+probsFromLeft :: Maybe ChordLabel -> RightOrnament -> [V.Vector Double]
+probsFromLeft Nothing _ =  []
+probsFromLeft (Just lbl) RightRepeat = do 
+  lbls <- enharmonicLabels lbl 
+  maybeToList $ pChordTones lbls
+probsFromLeft (Just lbl) RightNeighbor = do
+  lbls <- enharmonicLabels lbl 
+  maybeToList $ pOrnaments lbls
+
+probsFromRight :: Maybe ChordLabel -> LeftOrnament -> [ V.Vector Double ]
+probsFromRight Nothing _ =  []
+probsFromRight (Just lbl) LeftRepeat = do 
+  lbls <- enharmonicLabels lbl  
+  maybeToList $ pChordTones lbls
+probsFromRight (Just lbl) LeftNeighbor = do 
+  lbls <- enharmonicLabels lbl 
+  maybeToList $ pOrnaments lbls
+
+probsParent :: Maybe ChordLabel -> [ V.Vector Double ]
+probsParent Nothing = []
+probsParent (Just lbl) = do 
+  lbls <- enharmonicLabels lbl  
+  maybeToList $ pChordTones lbls
 
 
 -- Rotates a vector left might have to right idk lets see top tip DONT USE CHATGPT FOR SIMPLE CODE

@@ -10,8 +10,8 @@ module Algorithm
   , AlgoResult (..)
   , AlgoType (..)
   , showRoot
-  , UnsplitWidth
-  , UnspreadWidth
+  , UnsplitBias
+  , ChildBias
   , BeamWidth
   )
   where
@@ -62,13 +62,13 @@ data AlgoResult = AlgoResult
   }
   deriving (Show)
 
-class (Show algo) => ParseAlgo algo where
-  runParse :: algo -> AlgoInput -> IO (Maybe AlgoResult)
+class ParseAlgo algo where
+  runParse :: Double -> Double -> algo -> AlgoInput -> IO (Maybe AlgoResult)
 
 type BeamWidth = Int
 type Threshold = Double
-type UnspreadWidth = Int
-type UnsplitWidth = Int
+type ChildBias = Double
+type UnsplitBias = Double
 type ResevoirSize = Int
 type MaxNotesPerSlice = Int
 
@@ -83,7 +83,6 @@ data AlgoType
   | DualStochasticBeamSearch BeamWidth ResevoirSize
   | StochasticBeamSearchLimited BeamWidth ResevoirSize MaxNotesPerSlice
   | BeamSearchPerSegment BeamWidth
-  | DualBeamSearch UnspreadWidth UnsplitWidth
   | StochasticSearch
   | Templating
   deriving (Show, Read, Eq)
@@ -94,13 +93,13 @@ showRoot algo =
     StochasticBeamSearch width res -> "StochasticBeamSearch_" <> show width <> "_" <> show res
     StochasticBeamSearchLimited width res n-> "StochasticBeamSearchLimited_" <> show width <> "_" <> show res <> "_" <> show n
     DualStochasticBeamSearch width res -> "DualStochasticBeamSearch_" <> show width <> "_" <> show res 
-    DualBeamSearch a b -> "DualBeamSearch_" <> show a <> "_" <> show b
+    -- DualBeamSearch a b -> "DualBeamSearch_" <> show a <> "_" <> show b
     BeamSearchPerSegment width -> "BeamSearchPerSegment_" <> show width 
     -- PerfectReduction threshold -> "BeamSearchPerSegment_" <> show threshold 
     _ -> show algo
 
 instance ParseAlgo AlgoType where
-  runParse algoType (AlgoInputImpure eval'@(EvalImpure eval evalUnsplitImpure) inputSlices chords) = case algoType of
+  runParse unsplitBias childBias algoType (AlgoInputImpure eval'@(EvalImpure eval evalUnsplitImpure) inputSlices chords) = case algoType of
     StochasticSearch ->
       let initialState = SSFrozen $ pathFromSlices eval sliceWrapper inputSlices
        in
@@ -111,7 +110,7 @@ instance ParseAlgo AlgoType where
               initialState
               (exploreStates' sliceWrapper eval')
               (goalTest chords)
-              (applyHeuristic heuristicZero)
+              (applyHeuristic (heuristicZero unsplitBias childBias))
             )
 
           case res of
@@ -126,7 +125,33 @@ instance ParseAlgo AlgoType where
                in
                pure $ Just $ AlgoResult slices (Just (Analysis ops p)) chordGuesses
 
-  runParse algoType (AlgoInputPure eval inputSlices chords) = case algoType of
+  runParse unsplitBias childBias algoType (AlgoInputPure eval inputSlices chords) = case algoType of
+    DualStochasticBeamSearch beamWidth resevoirSize ->
+      let initialState = SSFrozen $ pathFromSlices eval sliceWrapper inputSlices
+       in
+        Log.timedLog "Running Heuristic Search" $ do
+          res <- runExceptT
+            (dualStochasticBeamSearch
+              beamWidth
+              resevoirSize
+              initialState
+              (exploreStates sliceWrapper eval)
+              (goalTest chords)
+              (applyHeuristic (heuristicZero unsplitBias childBias))
+            )
+
+          case res of
+            Left err -> do
+              Log.warn $ T.pack err
+              pure Nothing
+            Right finalState ->
+              let p = fromJust $ getPathFromState finalState
+                  ops = getOpsFromState finalState
+                  slices = pathBetweens p
+                  chordGuesses = guessChords  slices
+               in
+               pure $ Just $ AlgoResult slices (Just (Analysis ops p)) chordGuesses
+
     RandomWalk ->
       let initialState = SSFrozen $ pathFromSlices eval idWrapper inputSlices
        in
@@ -187,105 +212,79 @@ instance ParseAlgo AlgoType where
         let chordGuesses = guessChords slices
          in pure $ Just $ AlgoResult slices Nothing chordGuesses
 
-    StochasticBeamSearch beamWidth resevoirSize ->
-      let initialState = SSFrozen $ pathFromSlices eval sliceWrapper inputSlices
-       in
-        Log.timedLog "Running Heuristic Search" $ do
-          res <- runExceptT
-            (stochasticBeamSearch
-              beamWidth
-              resevoirSize
-              initialState
-              (exploreStates sliceWrapper eval)
-              (goalTest chords)
-              (applyHeuristic heuristicZero)
-            )
-
-          case res of
-            Left err -> do
-              Log.warn $ T.pack err
-              pure Nothing
-            Right finalState ->
-              let p = fromJust $ getPathFromState finalState
-                  ops = getOpsFromState finalState
-                  slices = pathBetweens p
-                  chordGuesses = guessChords  slices
-               in
-               pure $ Just $ AlgoResult slices (Just (Analysis ops p)) chordGuesses
-
-    DualStochasticBeamSearch beamWidth resevoirSize ->
-      let initialState = SSFrozen $ pathFromSlices eval sliceWrapper inputSlices
-       in
-        Log.timedLog "Running Heuristic Search" $ do
-          res <- runExceptT
-            (dualStochasticBeamSearch
-              beamWidth
-              resevoirSize
-              initialState
-              (exploreStates sliceWrapper eval)
-              (goalTest chords)
-              (applyHeuristic heuristicZero)
-            )
-
-          case res of
-            Left err -> do
-              Log.warn $ T.pack err
-              pure Nothing
-            Right finalState ->
-              let p = fromJust $ getPathFromState finalState
-                  ops = getOpsFromState finalState
-                  slices = pathBetweens p
-                  chordGuesses = guessChords  slices
-               in
-               pure $ Just $ AlgoResult slices (Just (Analysis ops p)) chordGuesses
-
-    StochasticBeamSearchLimited beamWidth resevoirSize maxNotesPerSlice ->
-      let initialState = SSFrozen $ pathFromSlices eval sliceWrapper inputSlices
-       in
-        Log.timedLog "Running Heuristic Search" $ do
-          res <- runExceptT
-            (stochasticBeamSearchLimited
-              beamWidth
-              resevoirSize
-              initialState
-              (exploreStates sliceWrapper (protoVoiceEvaluatorLimitedSize maxNotesPerSlice eval))
-              (goalTest chords)
-              (applyHeuristic heuristicZero)
-            )
-
-          case res of
-            Left err -> do
-              Log.warn $ T.pack err
-              pure Nothing
-            Right finalState ->
-              let p = fromJust $ getPathFromState finalState
-                  ops = getOpsFromState finalState
-                  slices = pathBetweens p
-                  chordGuesses = guessChords  slices
-               in
-               pure $ Just $ AlgoResult slices (Just (Analysis ops p)) chordGuesses
-
-    BeamSearch beamWidth ->
-      let initialState = SSFrozen $ pathFromSlices eval sliceWrapper inputSlices
-       in
-        Log.timedLog "Running Heuristic Search" $ do
-          res <- runExceptT
-            (beamSearch
-              beamWidth
-              initialState
-              (exploreStates sliceWrapper eval)
-              (goalTest chords)
-              (applyHeuristic heuristicZero)
-            )
-
-          case res of
-            Left err -> do
-              Log.warn $ T.pack err
-              pure Nothing
-            Right finalState ->
-              let p = fromJust $ getPathFromState finalState
-                  ops = getOpsFromState finalState
-                  slices = pathBetweens p
-                  chordGuesses = guessChords  slices
-               in
-               pure $ Just $ AlgoResult slices (Just (Analysis ops p)) chordGuesses
+    -- StochasticBeamSearch beamWidth resevoirSize ->
+    --   let initialState = SSFrozen $ pathFromSlices eval sliceWrapper inputSlices
+    --    in
+    --     Log.timedLog "Running Heuristic Search" $ do
+    --       res <- runExceptT
+    --         (stochasticBeamSearch
+    --           beamWidth
+    --           resevoirSize
+    --           initialState
+    --           (exploreStates sliceWrapper eval)
+    --           (goalTest chords)
+    --           (applyHeuristic heuristicZero)
+    --         )
+    --
+    --       case res of
+    --         Left err -> do
+    --           Log.warn $ T.pack err
+    --           pure Nothing
+    --         Right finalState ->
+    --           let p = fromJust $ getPathFromState finalState
+    --               ops = getOpsFromState finalState
+    --               slices = pathBetweens p
+    --               chordGuesses = guessChords  slices
+    --            in
+    --            pure $ Just $ AlgoResult slices (Just (Analysis ops p)) chordGuesses
+    --
+    -- StochasticBeamSearchLimited beamWidth resevoirSize maxNotesPerSlice ->
+    --   let initialState = SSFrozen $ pathFromSlices eval sliceWrapper inputSlices
+    --    in
+    --     Log.timedLog "Running Heuristic Search" $ do
+    --       res <- runExceptT
+    --         (stochasticBeamSearchLimited
+    --           beamWidth
+    --           resevoirSize
+    --           initialState
+    --           (exploreStates sliceWrapper (protoVoiceEvaluatorLimitedSize maxNotesPerSlice eval))
+    --           (goalTest chords)
+    --           (applyHeuristic heuristicZero)
+    --         )
+    --
+    --       case res of
+    --         Left err -> do
+    --           Log.warn $ T.pack err
+    --           pure Nothing
+    --         Right finalState ->
+    --           let p = fromJust $ getPathFromState finalState
+    --               ops = getOpsFromState finalState
+    --               slices = pathBetweens p
+    --               chordGuesses = guessChords  slices
+    --            in
+    --            pure $ Just $ AlgoResult slices (Just (Analysis ops p)) chordGuesses
+    --
+    -- BeamSearch beamWidth ->
+    --   let initialState = SSFrozen $ pathFromSlices eval sliceWrapper inputSlices
+    --    in
+    --     Log.timedLog "Running Heuristic Search" $ do
+    --       res <- runExceptT
+    --         (beamSearch
+    --           beamWidth
+    --           initialState
+    --           (exploreStates sliceWrapper eval)
+    --           (goalTest chords)
+    --           (applyHeuristic heuristicZero)
+    --         )
+    --
+    --       case res of
+    --         Left err -> do
+    --           Log.warn $ T.pack err
+    --           pure Nothing
+    --         Right finalState ->
+    --           let p = fromJust $ getPathFromState finalState
+    --               ops = getOpsFromState finalState
+    --               slices = pathBetweens p
+    --               chordGuesses = guessChords  slices
+    --            in
+    --            pure $ Just $ AlgoResult slices (Just (Analysis ops p)) chordGuesses

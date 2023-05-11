@@ -33,9 +33,8 @@ data Options = Options
   , _outputPath :: String
   , _iterations :: Int
   , _timeOut :: Int
-  , _beamWidth :: BeamWidth
-  , _unsplitWidth :: UnsplitWidth
-  , _unspreadWidth :: UnspreadWidth
+  , _unsplitBias :: UnsplitBias
+  , _childBias :: ChildBias
   , _expId :: String
   }
 
@@ -52,9 +51,8 @@ parseArgs options ("-i" : inputPath : rst) = parseArgs (options{_inputPath = inp
 parseArgs options ("-t" : timeOut : rst) = parseArgs (options{_timeOut = read timeOut}) rst
 parseArgs options ("-o" : outputPath : rst) = parseArgs (options{_outputPath = outputPath}) rst
 parseArgs options ("-n" : numIterations : rst) = parseArgs (options{_iterations = read numIterations}) rst
-parseArgs options ("-p" : "beamWidth" : val : rst) = parseArgs (options{_beamWidth = read val}) rst
-parseArgs options ("-p" : "unsplitWidth" : val : rst) = parseArgs (options{_unsplitWidth = read val}) rst
-parseArgs options ("-p" : "unspreadWidth" : val : rst) = parseArgs (options{_unspreadWidth = read val}) rst
+parseArgs options ("-p" : "unsplitBias" : val : rst) = parseArgs (options{_unsplitBias = read val}) rst
+parseArgs options ("-p" : "childBias" : val : rst) = parseArgs (options{_childBias = read val}) rst
 parseArgs options [corpus, pieceName, algoName] = pure (corpus, pieceName, read algoName, options) -- concat `fmap` mapM readFile fs
 parseArgs _ _ = usage >> exit
 
@@ -62,9 +60,8 @@ defaultInputPath = "preprocessing/inputs/"
 defaultOutputPath = "preprocessing/outputs/"
 defaultTimeOut = 1200
 defaultNumIterations = 1
-defaultUnspreadWidth = 7
-defaultUnsplitWidth = 3
-defaultBeamWidth = 10
+defaultUnsplitBias = 1
+defaultChildBias = 1
 defaultId = "000"
 
 usage =
@@ -103,9 +100,8 @@ main = Log.withStderrLogging $ do
      outputPath
      iterations
      timeOut
-     beamWidth
-     unsplitWidth
-     unSpreadWidth
+     unsplitBias
+     childBias
      expId ) <-
     getArgs
       >>= parseArgs
@@ -114,35 +110,34 @@ main = Log.withStderrLogging $ do
           defaultOutputPath
           defaultNumIterations
           defaultTimeOut
-          defaultBeamWidth
-          defaultUnsplitWidth
-          defaultUnspreadWidth
+          defaultUnsplitBias
+          defaultChildBias
           defaultId)
 
   inputChords <- chordsFromFile (inputPath <> "chords/" <> corpus <> "/" <> pieceName <> ".csv")
   inputSlices <- slicesFromFile' (inputPath <> "slices/" <> corpus <> "/" <> pieceName <> ".csv")
   let outputFile = outputPath <> corpus <> "/" <> pieceName <> "/" <> showRoot algo <> "/" <> expId <> ".json"
-  let outputFileDeriv = outputPath <> corpus <> "/" <> pieceName <> "/" <> showRoot algo <> "/" <> expId
+  let outputFileDeriv = "testing3" -- outputPath <> corpus <> "/" <> pieceName <> "/" <> showRoot algo <> "/" <> expId
   createDirectoryIfMissing True $ outputPath <> corpus <> "/" <> pieceName <> "/" <> showRoot algo <> "/"
 
-  res <- mapM (runAlgo outputFileDeriv algo timeOut inputChords inputSlices numRetries) [1 .. iterations]
+  res <- mapM (runAlgo unsplitBias childBias outputFileDeriv algo timeOut inputChords inputSlices numRetries) [1 .. iterations]
 
   writeJSONToFile outputFile $ concatResults (PieceResults expId (showRoot algo) corpus pieceName inputChords res)
 
   where
     numRetries = 3 :: Int
 
-    runAlgo deriv algo _ _ _ 0 id = pure $ nullResultToJSON algo
-    runAlgo deriv algo timeOut inputChords inputSlices n id = do
+    runAlgo unsplitBias childBias deriv algo _ _ _ 0 id = pure $ nullResultToJSON algo
+    runAlgo unsplitBias childBias deriv algo timeOut inputChords inputSlices n id = do
       mTimedRes <- case algo of
-        StochasticSearch -> timeout (timeOut * 1000000) $ Time.timeItT $ runParse algo (AlgoInputImpure protoVoiceEvaluatorImpure inputSlices inputChords)
-        _ -> timeout (timeOut * 1000000) $ Time.timeItT $ runParse algo (AlgoInputPure protoVoiceEvaluator inputSlices inputChords)
+        StochasticSearch -> timeout (timeOut * 1000000) $ Time.timeItT $ runParse unsplitBias childBias algo (AlgoInputImpure protoVoiceEvaluatorImpure inputSlices inputChords)
+        _ -> timeout (timeOut * 1000000) $ Time.timeItT $ runParse unsplitBias childBias algo (AlgoInputPure protoVoiceEvaluator inputSlices inputChords)
       case mTimedRes of
         Nothing -> pure $ nullResultToJSON (show algo)
           -- runAlgo algo inputChords inputSlices (n - 1)
         Just (time, mRes) ->
           case mRes of
-            Nothing -> runAlgo deriv algo timeOut inputChords inputSlices (n - 1) id
+            Nothing -> runAlgo unsplitBias childBias deriv algo timeOut inputChords inputSlices (n - 1) id
             Just (AlgoResult top ops lbls) ->
               let accuracy = chordAccuracy inputChords lbls
                   likelihood = scoreSegments top inputChords

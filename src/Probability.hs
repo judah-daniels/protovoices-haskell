@@ -6,6 +6,7 @@ module Probability
   , categoricalLogProb
   , pickRandomChoice
   , pickReservoir10
+  , pickRandomN
   , collectRandomSample
   , collectRandomChoice
   , mixture
@@ -384,6 +385,20 @@ pickRandom _ [] = pure Nothing
 pickRandom gen xs = do
   i <- uniformRM (0, length xs - 1) gen
   pure $ Just $ xs !! i
+
+pickRandom' :: StatefulGen g m => g -> [a] -> m a
+pickRandom' _ [] = error "unsafe pickRandom'"
+pickRandom' gen xs = do
+  i <- uniformRM (0, length xs - 1) gen
+  pure $ xs !! i
+
+pickRandomN :: StatefulGen g m => g -> Int -> [a] -> m [a]
+pickRandomN _ _ [] = pure []
+pickRandomN gen 0 xs = pure []
+pickRandomN gen n xs = replicateM n (pickRandom' gen xs)
+
+-- i <- uniformRM (0, length xs - 1) gen
+-- pure $ Just $ xs !! i
 
 -- Takes the average of two profiles
 mixture :: Maybe (V.Vector Double) -> Maybe (V.Vector Double) -> Maybe (V.Vector Double)

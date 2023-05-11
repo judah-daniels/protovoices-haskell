@@ -99,7 +99,7 @@ instance Show ChordLabel where
   show (ChordLabel lbl root) = showNotation root <> show lbl
 
 enharmonicLabels :: ChordLabel -> [ChordLabel]
-enharmonicLabels lbl = [lbl, shiftProfileLeft lbl, shiftProfileRight lbl]
+enharmonicLabels lbl = [lbl, shiftProfileLeft lbl, shiftProfileRight lbl, shiftProfileLeft . shiftProfileLeft $ lbl, shiftProfileRight . shiftProfileRight $ lbl]
  where
   shiftProfileLeft lbl@(ChordLabel chordType rootNote) =
     let rootNote' = transpose (sic 12) rootNote

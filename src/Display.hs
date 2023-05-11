@@ -453,7 +453,7 @@ viewGraph
   :: (Eq slc, Eq tr, Show slc, Show tr) => FilePath -> DerivationGraph slc tr -> IO ()
 viewGraph fn g = do
   writeGraph fn g
-  callCommand $ "pdflatex -interaction=nonstopmode" <> fn
+  callCommand $ "pdflatex " <> fn
 
 -- | Write a several derivation graphs to a @tex@ file.
 writeGraphs
@@ -471,4 +471,4 @@ viewGraphs
   :: (Show tr, Show slc, Eq slc, Eq tr) => FilePath -> [DerivationGraph slc tr] -> IO ()
 viewGraphs fn gs = do
   writeGraphs fn gs
-  callCommand $ "pdflatex -interaction=nonstopmode" <> fn
+  callCommand $ "pdflatex " <> fn
