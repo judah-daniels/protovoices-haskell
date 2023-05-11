@@ -1754,6 +1754,7 @@ PerfectReduction :: AlgoType
 BeamSearch :: BeamWidth -> AlgoType
 StochasticBeamSearch :: BeamWidth -> ResevoirSize -> AlgoType
 DualStochasticBeamSearch :: BeamWidth -> ResevoirSize -> AlgoType
+DualStochasticBeamSearch' :: BeamWidth -> ResevoirSize -> UnsplitBias -> ChildBias -> AlgoType
 StochasticBeamSearchLimited :: BeamWidth -> ResevoirSize -> MaxNotesPerSlice -> AlgoType
 BeamSearchPerSegment :: BeamWidth -> AlgoType
 StochasticSearch :: AlgoType
