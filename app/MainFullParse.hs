@@ -16,7 +16,7 @@ import System.Exit
 import System.TimeIt qualified as Time
 import System.Timeout
 import Algorithm
-import PVGrammar.Parse (protoVoiceEvaluator, protoVoiceEvaluatorImpure)
+import PVGrammar.Parse (protoVoiceEvaluator, protoVoiceEvaluatorImpure, protoVoiceEvaluatorLimitedSize)
 import qualified Algorithm as Core
 import Control.Monad (replicateM)
 import HeuristicParser (chordAccuracy)
@@ -131,7 +131,7 @@ main = Log.withStderrLogging $ do
     runAlgo unsplitBias childBias deriv algo timeOut inputChords inputSlices n id = do
       mTimedRes <- case algo of
         StochasticSearch -> timeout (timeOut * 1000000) $ Time.timeItT $ runParse unsplitBias childBias algo (AlgoInputImpure protoVoiceEvaluatorImpure inputSlices inputChords)
-        _ -> timeout (timeOut * 1000000) $ Time.timeItT $ runParse unsplitBias childBias algo (AlgoInputPure protoVoiceEvaluator inputSlices inputChords)
+        _ -> timeout (timeOut * 1000000) $ Time.timeItT $ runParse unsplitBias childBias algo (AlgoInputPure (protoVoiceEvaluatorLimitedSize 6 protoVoiceEvaluator) inputSlices inputChords)
       case mTimedRes of
         Nothing -> pure $ nullResultToJSON (show algo)
           -- runAlgo algo inputChords inputSlices (n - 1)
@@ -146,7 +146,7 @@ main = Log.withStderrLogging $ do
                                   in
                                     pure $ writeResultsToJSON res
                      Just (Analysis op to) -> do
-                       -- plotDeriv (deriv) to op 
+                       plotDeriv (deriv) to op 
                        pure $ writeResultsToJSON (JsonResult top lbls ops accuracy likelihood (show algo) time (1 + numRetries - n) id Nothing)
                   -- logD $ "Accuracy: " <> show accuracy
                   -- logD $ "Likelihood: " <> show likelihood
