@@ -134,16 +134,26 @@ heuristicZero alpha splitWeight (prevState, state) = case getOpFromState state o
     scoreParents
       :: Notes SPitch
       -> Notes SPitch
-      -> Maybe (SliceWrapped nx)
-      -> Maybe (SliceWrapped nx)
+      -> Maybe (SliceWrapped (Notes ns))
+      -> Maybe (SliceWrapped (Notes ns))
       -> Double
     scoreParents leftParents rightParents slcL slcR =
-      let (lbll, lblr) =
-            ((\(SliceWrapped _ sLbl _) -> sLbl) <$> slcL
-            ,(\(SliceWrapped _ sLbl _) -> sLbl) <$> slcR)
-          leftScore = scoreParent (probsParent lbll) leftParents
-          rightScore = scoreParent (probsParent lblr) rightParents
-          bothScores =  (leftScore ++ rightScore)
+      let (probl, probr) =
+            ((\(SliceWrapped lns sLbl prob) -> prob) <$> slcL
+            ,(\(SliceWrapped lns sLbl prob) -> prob) <$> slcR)
+          (lbll, lblr) =
+            ((\(SliceWrapped lns sLbl prob) -> sLbl) <$> slcL
+            ,(\(SliceWrapped lns sLbl prob) -> sLbl) <$> slcR)
+          leftScore' = scoreParent (probsParent lbll) leftParents
+          rightScore' = scoreParent (probsParent lblr) rightParents
+          leftScore = case probl of 
+                         Nothing -> [] 
+                         Just a -> [a ]
+          rightScore = case probr of 
+                         Nothing -> [] 
+                         Just a -> [a ]
+          -- scoreParent (probsParent lblr) rightParents
+          bothScores =  (leftScore ++ rightScore ++ leftScore' ++ rightScore')
           n = fromIntegral $ length bothScores
         in
           if n == 0 then 0 else sum bothScores / n
@@ -175,8 +185,6 @@ heuristicZero alpha splitWeight (prevState, state) = case getOpFromState state o
         in
          if n == 0 then -100 else sum allScores / fromIntegral (length allScores)
       where
-
-        
         scoreChild v (n, orn) = maximumMaybe $ scoreChildList v (n,orn)
 
         scoreChildList v (n, orn) = do
@@ -203,6 +211,7 @@ heuristicZero alpha splitWeight (prevState, state) = case getOpFromState state o
               -- Parents are all evaluated using chord-tone profiles
               leftParents = leftRegParents <> leftPassingParents <> fromLeftParents
               rightParents = rightRegParents <> rightPassingParents <> fromRightParents
+              
 
               -- Single children are evaluated using the profiles from parents/ chordtone or ornament
               childFromRights = allSingleChildren fromRight
