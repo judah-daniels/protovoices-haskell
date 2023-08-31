@@ -6,11 +6,16 @@ This project is dissertation.
 
 To run experiments, ensure python, pip, haskell, and stack are installed:
 
+## Installation
 Install Requirements:
 ```
 pip3 install -r requirements.txt
-
 ```
+
+
+## Usage
+
+
 Head to experiments:
 Run preprocess.py then experiments.py. 
 Analysis of results is in analysis.py
