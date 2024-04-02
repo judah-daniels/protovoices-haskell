@@ -22,7 +22,7 @@ import Data.Text qualified as T
 import FileHandling ( InputSlice (..), pathFromSlices, splitSlicesIntoSegments)
 
 import Heuristics
-import HeuristicParser 
+import Parser.HeuristicParser
 
 import Harmony
 import Harmony.ChordLabel
@@ -34,32 +34,34 @@ import Algorithm.HeuristicSearch
 import Algorithm.InformedReduction
 import Algorithm.Templating
 
-import Data.Maybe 
+import Data.Maybe
 import qualified Internal.MultiSet as MS
-import Control.Monad.Except 
+import Control.Monad.Except
 
-import Common 
-import PVGrammar 
+import Common
+import PVGrammar
 
-import Musicology.Core 
+import Musicology.Core
 import PVGrammar.Parse
 
 
-data AlgoInput 
+data AlgoInput
   = AlgoInputPure
       (Eval (Edges SPitch) [Edge SPitch] (Notes SPitch) [SPitch] (PVLeftmost SPitch))
       [InputSlice SPitch]
-      [ChordLabel] 
+      [ChordLabel]
   | AlgoInputImpure
       (EvalImpure (Edges SPitch) [Edge SPitch] (Notes SPitch) [SPitch] (PVLeftmost SPitch))
       [InputSlice SPitch]
       [ChordLabel]
 
-data AlgoResult = AlgoResult
-  { arTop :: [Notes SPitch]
-  , arOps :: Maybe (PVAnalysis SPitch)
-  , arLabels :: [ChordLabel]
-  }
+
+type ReductionAnalysis = [Notes SPitch]
+
+data AlgoResult
+  = BlackBoxResult [ChordLabel]
+  | ReductionResult ReductionAnalysis
+  | PVResult (PVAnalysis SPitch)
   deriving (Show)
 
 class ParseAlgo algo where
@@ -77,7 +79,7 @@ data AlgoType
   | RandomWalkPerSegment
   | RandomSample
   | RandomReduction
-  | PerfectReduction 
+  | PerfectReduction
   | BeamSearch BeamWidth
   | StochasticBeamSearch BeamWidth ResevoirSize
   | DualStochasticBeamSearch BeamWidth ResevoirSize
@@ -93,10 +95,10 @@ showRoot algo =
     BeamSearch width -> "BeamSearch_" <> show width
     StochasticBeamSearch width res -> "StochasticBeamSearch_" <> show width <> "_" <> show res
     StochasticBeamSearchLimited width res n-> "StochasticBeamSearchLimited_" <> show width <> "_" <> show res <> "_" <> show n
-    DualStochasticBeamSearch width res -> "DualStochasticBeamSearch_" <> show width <> "_" <> show res 
-    DualStochasticBeamSearch' width res a b -> "DualStochasticBeamSearch_" <> show width <> "_" <> show res <> "_" <> show a <> "_" <> show b 
+    DualStochasticBeamSearch width res -> "DualStochasticBeamSearch_" <> show width <> "_" <> show res
+    DualStochasticBeamSearch' width res a b -> "DualStochasticBeamSearch_" <> show width <> "_" <> show res <> "_" <> show a <> "_" <> show b
+    BeamSearchPerSegment width -> "BeamSearchPerSegment_" <> show width
     -- DualBeamSearch a b -> "DualBeamSearch_" <> show a <> "_" <> show b
-    BeamSearchPerSegment width -> "BeamSearchPerSegment_" <> show width 
     -- PerfectReduction threshold -> "BeamSearchPerSegment_" <> show threshold 
     _ -> show algo
 
@@ -125,7 +127,7 @@ instance ParseAlgo AlgoType where
                   slices = pathBetweens p
                   chordGuesses = guessChords  slices
                in
-               pure $ Just $ AlgoResult slices (Just (Analysis ops p)) chordGuesses
+               pure $ Just $ PVResult (Analysis ops p)
 
   runParse unsplitBias childBias algoType (AlgoInputPure eval inputSlices chords) = case algoType of
     DualStochasticBeamSearch' beamWidth resevoirSize unsplitBias childBias ->
@@ -152,7 +154,7 @@ instance ParseAlgo AlgoType where
                   slices = pathBetweens p
                   chordGuesses = guessChords  slices
                in
-               pure $ Just $ AlgoResult slices (Just (Analysis ops p)) chordGuesses
+               pure $ Just $ PVResult (Analysis ops p)
 
     DualStochasticBeamSearch beamWidth resevoirSize ->
       let initialState = SSFrozen $ pathFromSlices eval sliceWrapper inputSlices
@@ -178,7 +180,7 @@ instance ParseAlgo AlgoType where
                   slices = pathBetweens p
                   chordGuesses = guessChords  slices
                in
-               pure $ Just $ AlgoResult slices (Just (Analysis ops p)) chordGuesses
+               pure $ Just $ PVResult (Analysis ops p) 
 
     RandomWalk ->
       let initialState = SSFrozen $ pathFromSlices eval idWrapper inputSlices
@@ -196,7 +198,7 @@ instance ParseAlgo AlgoType where
                   slices = pathBetweens path
                   chordGuesses = guessChords slices
                in
-               pure $ Just $ AlgoResult slices (Just (Analysis ops path)) chordGuesses
+               pure $ Just $ PVResult (Analysis ops path)
 
     RandomWalkPerSegment ->
       let initialState = SSFrozen $ pathFromSlices eval idWrapper inputSlices
@@ -213,32 +215,32 @@ instance ParseAlgo AlgoType where
                   slices = pathBetweens path
                   chordGuesses = guessChords slices
                in
-               pure $ Just $ AlgoResult slices (Just (Analysis ops path)) chordGuesses
+               pure $ Just $ PVResult (Analysis ops path)
 
     RandomSample -> do
         path <- randomSamplePath (length chords)
         let slices = pathBetweens path
             chordGuesses = guessChords slices
-         in pure $ Just (AlgoResult slices Nothing chordGuesses)
+         in pure $ Just (ReductionResult slices)
 
     PerfectReduction ->
       let x = splitSlicesIntoSegments eval sliceWrapper inputSlices
-          slices = informedReduction x chords 
+          slices = informedReduction x chords
           chordGuesses = guessChords slices
-        in pure $ Just (AlgoResult slices Nothing chordGuesses)
+        in pure $ Just (ReductionResult slices )
 
     Templating ->
       let x = splitSlicesIntoSegments eval sliceWrapper inputSlices
        in Log.timedLog "Running Templating Baseline" $ do
         let (slices, chordGuesses)  = templatingBaseline x
-         in pure $ Just $ AlgoResult slices Nothing chordGuesses
+         in pure $ Just $ ReductionResult slices
 
     RandomReduction ->
       let x = splitSlicesIntoSegments eval sliceWrapper inputSlices
        in Log.timedLog "Running Random Sample SBS Parse" $ do
         slices <- randomSamplePathSBS x
         let chordGuesses = guessChords slices
-         in pure $ Just $ AlgoResult slices Nothing chordGuesses
+         in pure $ Just $ ReductionResult slices
 
     -- StochasticBeamSearch beamWidth resevoirSize ->
     --   let initialState = SSFrozen $ pathFromSlices eval sliceWrapper inputSlices

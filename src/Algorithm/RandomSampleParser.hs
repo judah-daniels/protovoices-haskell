@@ -14,7 +14,7 @@ module Algorithm.RandomSampleParser
 import Common ( Path (..) )
 import Control.Monad.Except (ExceptT, lift, runExceptT, throwError)
 import FileHandling (InputSlice)
-import HeuristicParser (Slice, Trans)
+import Parser.HeuristicParser (Slice, Trans)
 import Musicology.Pitch ( spelledp, SPitch )
 import PVGrammar ( Edges (..), Notes(..) )
 import Data.Vector qualified as V

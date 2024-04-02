@@ -34,7 +34,7 @@ import Data.Vector qualified as V
 import Musicology.Core qualified as Music
 import Musicology.Pitch.Spelled
 
-import HeuristicParser
+import Parser.HeuristicParser
 import Harmony
 import Harmony.ChordLabel
 import Harmony.Params
@@ -43,9 +43,6 @@ import Streamly.Internal.Data.Array.Foreign.Mut (fromForeignPtrUnsafe)
 import Musicology.Pitch.Class (transpose)
 
 type State ns = SearchState (Edges ns) [Edge ns] (Notes ns) (PVLeftmost ns)
-
--- alpha = 1.3 -- Child not weighting - lower means children are cared about less
---splitWeight = 1.4 -- Extra costs for splits
 
 applyHeuristic
   :: ((State SPitch, State SPitch) -> ExceptT String IO Double)
@@ -161,8 +158,6 @@ heuristicZero alpha splitWeight (prevState, state) = case getOpFromState state o
           scoreParent mps v = do
             multinomialLogProb (notesVector v) <$> mps
 
-
-
     scoreChildren
       :: [(SPitch, DoubleOrnament)]
       -> [(SPitch, PassingOrnament)]
@@ -190,8 +185,6 @@ heuristicZero alpha splitWeight (prevState, state) = case getOpFromState state o
         scoreChildList v (n, orn) = do
           res <- v orn
           maybeToList $ categoricalLogProb (fifths n) res
-
-
 
 
     -- Need to find all the parent on the left of the child slice 
@@ -229,7 +222,7 @@ heuristicZero alpha splitWeight (prevState, state) = case getOpFromState state o
                   (Notes $ MS.fromList rightParents) slcL slcR
 
               childFactor = scoreChildren childRegs childPasses childFromLefts childFromRights slcL slcR
-              score = - (childFactor*alpha + parentFactor)*(splitWeight) -- parentFactor bug
+              score = - (childFactor*alpha + parentFactor) -- *(defaultUnsplitBias) -- parentFactor bug
            in
              score
 
@@ -381,11 +374,6 @@ heuristicZero alpha splitWeight (prevState, state) = case getOpFromState state o
     startStopToMaybe Stop = Nothing
     startStopToMaybe (Inner a) = Just a
 
-
-      -- pure 
-      -- (parent, children) <- M.toList regSet
-      -- child <- children
-      -- pure (parent, child)
 
     allPassings ornamentSet = do
       (parent, children) <- M.toList ornamentSet

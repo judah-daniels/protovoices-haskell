@@ -19,7 +19,7 @@ import Algorithm
 import PVGrammar.Parse (protoVoiceEvaluator, protoVoiceEvaluatorImpure, protoVoiceEvaluatorLimitedSize)
 import qualified Algorithm as Core
 import Control.Monad (replicateM)
-import HeuristicParser (chordAccuracy)
+import Parser.HeuristicParser (chordAccuracy, guessChords)
 import Harmony
 import Harmony.ChordLabel
 import Harmony.Params
@@ -135,21 +135,33 @@ main = Log.withStderrLogging $ do
       case mTimedRes of
         Nothing -> pure $ nullResultToJSON (show algo)
           -- runAlgo algo inputChords inputSlices (n - 1)
-        Just (time, mRes) ->
+        Just (time, mRes) -> do 
           case mRes of
             Nothing -> runAlgo unsplitBias childBias deriv algo timeOut inputChords inputSlices (n - 1) id
-            Just (AlgoResult top ops lbls) ->
+            Just (PVResult ana@(Analysis ops top)) -> 
+              let slices = pathBetweens top
+                  lbls = guessChords slices
+                  accuracy = chordAccuracy inputChords lbls
+                  likelihood = scoreSegments slices inputChords
+                in
+                do 
+                  -- Plot derivation as PDF
+                  plotDeriv deriv top ops
+                  -- Write results to json file
+                  pure $ writeResultsToJSON (JsonResult slices lbls (Just ana) accuracy likelihood (show algo) time (1 + numRetries - n) id Nothing)
+
+            Just (BlackBoxResult lbls) ->
               let accuracy = chordAccuracy inputChords lbls
+                in 
+                   pure $ writeResultsToJSON (JsonResult [] lbls Nothing accuracy 0 (show algo) time (1 + numRetries - n) id Nothing)
+
+            Just (ReductionResult top) ->
+              let lbls = guessChords top
+                  accuracy = chordAccuracy inputChords lbls
                   likelihood = scoreSegments top inputChords
-                in case ops of
-                     Nothing -> let res = JsonResult top lbls ops accuracy likelihood (show algo) time (1 + numRetries - n) id Nothing
-                                  in
-                                    pure $ writeResultsToJSON res
-                     Just (Analysis op to) -> do
-                       -- plotDeriv (deriv) to op 
-                       pure $ writeResultsToJSON (JsonResult top lbls ops accuracy likelihood (show algo) time (1 + numRetries - n) id Nothing)
-                  -- logD $ "Accuracy: " <> show accuracy
-                  -- logD $ "Likelihood: " <> show likelihood
+                  res = JsonResult top lbls Nothing accuracy likelihood (show algo) time (1 + numRetries - n) id Nothing
+                  in
+                    pure $ writeResultsToJSON res
 
 
 plotDeriv fn top deriv = do

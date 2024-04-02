@@ -46,7 +46,7 @@ import Data.Vector qualified as V
 import Debug.Trace
 import Display
 import GHC.Generics
-import HeuristicParser
+import Parser.HeuristicParser
 import Heuristics
 import Internal.MultiSet qualified as MS
 import Language.Haskell.DoNotation

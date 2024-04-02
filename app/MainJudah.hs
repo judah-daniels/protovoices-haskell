@@ -35,10 +35,3 @@ main = do
   & Stream.fromAhead    -- mapM is cocnurrent using Ahead style
   & Stream.drain
 
-  -- jeff <- ST.toList $ ST.mapM myf $ ST.fromList [0 .. 10000000] 
-  -- putStrLn $ show $ length jeff
-
-
-myf :: Int -> IO Int
-myf x = pure $ x + 2
-

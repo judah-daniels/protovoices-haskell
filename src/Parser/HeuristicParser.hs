@@ -3,7 +3,7 @@
 {- | A parser for the protovoice model, representials partial reductions as a search state that can be traversed
     by applying operations such as 'Unspread', 'Unfreeze' and 'Unsplit'.
 -}
-module HeuristicParser 
+module Parser.HeuristicParser 
   (
     Slice (..)
   , SliceWrapped (..)

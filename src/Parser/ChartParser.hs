@@ -1,77 +1,74 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE LambdaCase #-}
 
-{- | A chart-based semiring parser for path grammars (e.g. the PV grammar).
-Path grammars operate on "paths"
-consisting of nodes (slices) and edges (transitions),
-both of which can contain arbitrary content.
-Paths are elaborated through two operations,
-@split@ting transitions and @spread@ing slices
-(plus @freeze@, which terminates generation on a transition).
-
-The parser is polymorphic in the grammar
-as well as the contents of slices (path nodes) and transitions (path edges).
-The grammar to parse is definend in an "evaluator" ('Common.Eval')
-which provides completions for parsing the splits, spreads and freezes.
--}
-module ChartParser
+-- | A chart-based semiring parser for path grammars (e.g. the PV grammar).
+-- Path grammars operate on "paths"
+-- consisting of nodes (slices) and edges (transitions),
+-- both of which can contain arbitrary content.
+-- Paths are elaborated through two operations,
+-- @split@ting transitions and @spread@ing slices
+-- (plus @freeze@, which terminates generation on a transition).
+--
+-- The parser is polymorphic in the grammar
+-- as well as the contents of slices (path nodes) and transitions (path edges).
+-- The grammar to parse is definend in an "evaluator" ('Common.Eval')
+-- which provides completions for parsing the splits, spreads and freezes.
+module Parser.ChartParser
   ( -- * Parsing Interface
-    parse
-  , parseSize
-  , parseSilent
-  , logSize
-  , logTikz
+    parse,
+    parseSize,
+    parseSilent,
+    logSize,
+    logTikz,
 
     -- * Charts
 
     -- ** Basic Elements
-  , Slice
-  , Transition
-  , transLen
-  , Item
-  , TItem
+    Slice,
+    Transition,
+    transLen,
+    Item,
+    TItem,
 
     -- ** Transition Chart
-  , TContents
-  , TChart
-  , tcGetByLength
+    TContents,
+    TChart,
+    tcGetByLength,
 
     -- ** Verticalization Chart
-  , Vert
-  , VChart
-  , vcGetByLength
+    Vert,
+    VChart,
+    vcGetByLength,
 
     -- * Constraint Aliases
-  , Parsable
-  , Normal
-  , Normal'
-  ) where
+    Parsable,
+    Normal,
+    Normal',
+  )
+where
 
 import Common
-import Scoring.FunTyped qualified as S
-
-import Data.HashMap.Strict qualified as HM
-import Data.IntMap.Strict qualified as IM
-import Data.Semiring qualified as R
-
-import Control.Monad.State as ST
-
 import Control.DeepSeq
+import Control.Monad.State as ST
 import Control.Parallel.Strategies qualified as P
 import Data.Foldable (foldl')
+import Data.HashMap.Strict qualified as HM
 import Data.Hashable
-  ( Hashable
-  , hash
-  , hashWithSalt
+  ( Hashable,
+    hash,
+    hashWithSalt,
   )
+import Data.IntMap.Strict qualified as IM
 import Data.Kind (Constraint, Type)
 import Data.Maybe
-  ( catMaybes
-  , fromMaybe
-  , mapMaybe
+  ( catMaybes,
+    fromMaybe,
+    mapMaybe,
   )
+import Data.Semiring qualified as R
 import Data.Set qualified as Set
 import GHC.Generics (Generic)
+import Scoring.FunTyped qualified as S
 
 -- Basic Types
 -- ===========
@@ -91,20 +88,19 @@ type Parsable tr slc v = (Normal tr, Normal slc, Normal' v)
 -- Slices
 ---------
 
-{- | A slice during chart parsing.
- Besides the slice content (e.g., notes),
- it maintains indices to the first and last surface slice covered,
- as well as an ID that is used for matching compatible parents of a spread.
--}
+-- | A slice during chart parsing.
+-- Besides the slice content (e.g., notes),
+-- it maintains indices to the first and last surface slice covered,
+-- as well as an ID that is used for matching compatible parents of a spread.
 data Slice slc = Slice
-  { sFirst :: !Int
-  -- ^ index of the first surface slice covered
-  , sContent :: !(StartStop slc)
-  -- ^ slice content (or 'Start'/'Stop')
-  , sID :: !Int
-  -- ^ unique slice ID
-  , sLast :: !Int
-  -- ^ index of the last surface slice covered
+  { -- | index of the first surface slice covered
+    sFirst :: !Int,
+    -- | slice content (or 'Start'/'Stop')
+    sContent :: !(StartStop slc),
+    -- | unique slice ID
+    sID :: !Int,
+    -- | index of the last surface slice covered
+    sLast :: !Int
   }
   deriving (Eq, Ord, Generic, NFData)
 
@@ -118,16 +114,15 @@ instance Show slc => Show (Slice slc) where
 -- Transitions
 --------------
 
-{- | A transition during chart parsing.
- Has pointers to the two slices it connects,
- a content (e.g., protovoice connections),
- and a flag indicating whether it is the second (right) parent of a spread.
--}
+-- | A transition during chart parsing.
+-- Has pointers to the two slices it connects,
+-- a content (e.g., protovoice connections),
+-- and a flag indicating whether it is the second (right) parent of a spread.
 data Transition tr slc = Transition
-  { tLeftSlice :: !(Slice slc)
-  , tContent :: !tr
-  , tRightSlice :: !(Slice slc)
-  , t2nd :: !Bool
+  { tLeftSlice :: !(Slice slc),
+    tContent :: !tr,
+    tRightSlice :: !(Slice slc),
+    t2nd :: !Bool
   }
   deriving (Eq, Ord, Generic, NFData, Hashable)
 
@@ -151,12 +146,11 @@ transLen (Transition l _ r _) = sLast r - sFirst l + 1
 -- Items
 --------
 
-{- | A parsing item.
- Combines an intermediate value (e.g. a transition) with a semiring score.
--}
+-- | A parsing item.
+-- Combines an intermediate value (e.g. a transition) with a semiring score.
 data Item i v = (:=)
-  { iItem :: !i
-  , iScore :: !(S.Score v Int)
+  { iItem :: !i,
+    iScore :: !(S.Score v Int)
   }
   deriving (Generic, NFData)
 
@@ -168,21 +162,20 @@ type TItem tr slc v = Item (Transition tr slc) v
 
 -- Vert Items
 
-{- | Represents the middle part of an incomplete unspread ("verticalization").
- Expresses how the middle transition and the two child slices (@vMiddle@)
- are derived from the parent slice (@vTop@) using a spread operation (@vOp@).
-
- 'Vert' objects are stored in the 'VChart'
- to record the intermediate steps of an unspread,
- which is found by first parsing the middle transition into the parent slice
- (generating a 'Vert')
- and then combining the 'Vert' with the left and right child transitions
- to generate the left and right parent transitions, respectively.
--}
+-- | Represents the middle part of an incomplete unspread ("verticalization").
+-- Expresses how the middle transition and the two child slices (@vMiddle@)
+-- are derived from the parent slice (@vTop@) using a spread operation (@vOp@).
+--
+-- 'Vert' objects are stored in the 'VChart'
+-- to record the intermediate steps of an unspread,
+-- which is found by first parsing the middle transition into the parent slice
+-- (generating a 'Vert')
+-- and then combining the 'Vert' with the left and right child transitions
+-- to generate the left and right parent transitions, respectively.
 data Vert tr slc v = Vert
-  { vTop :: !(Slice slc)
-  , vOp :: !v
-  , vMiddle :: !(TItem tr slc v)
+  { vTop :: !(Slice slc),
+    vOp :: !v,
+    vMiddle :: !(TItem tr slc v)
   }
   deriving (Generic, NFData)
 
@@ -208,60 +201,59 @@ instance (Show e, Show a, Show v) => Show (Vert e a v) where
 -- - get all with right child = x
 -- - check ID for (top,left,leftid)
 
-{- | A verticalization chart.
- Stores 'Vert' objects at certain chart positions.
- To support efficient lookup of 'Vert' objects from different indices,
- each 'Vert' is redundantly stored in several hash maps,
- one for each index:
-
- - by surface length
- - by surface length (only left border of a 'Vert')
- - by left child slice ID and mid transition length
- - by right child ID
-
- In addition, the 'VChart' maintains IDs of new slices.
- (Every new slice is the parent of an unspread.)
--}
+-- | A verticalization chart.
+-- Stores 'Vert' objects at certain chart positions.
+-- To support efficient lookup of 'Vert' objects from different indices,
+-- each 'Vert' is redundantly stored in several hash maps,
+-- one for each index:
+--
+-- - by surface length
+-- - by surface length (only left border of a 'Vert')
+-- - by left child slice ID and mid transition length
+-- - by right child ID
+--
+-- In addition, the 'VChart' maintains IDs of new slices.
+-- (Every new slice is the parent of an unspread.)
 data VChart tr slc v = VChart
-  { vcNextId :: !Int
-  -- ^ next free ID
-  , vcIDs :: !(HM.HashMap (Int, Int) Int)
-  -- ^ a mapping from child slice ids to the corresponding parent id
-  , vcByLength :: !(IM.IntMap [Vert tr slc v])
-  -- ^ maps surface length to the 'Vert' with that length
-  , vcByLengthLeft :: !(IM.IntMap (Set.Set (Slice slc, Slice slc)))
-  -- ^ maps surface length to the "left borders" of 'Vert' objects with that length
-  -- (parent slice, left child slice)
-  , vcByLeftChild :: !(HM.HashMap (Int, Int) (Set.Set (Slice slc)))
-  -- ^ maps a left child slice ID and the surface length of the middle transition
-  -- to its potential parent slices
-  , vcByRightChild :: !(HM.HashMap (Int, Int) [Vert tr slc v])
-  -- ^ maps a right child slice ID and the surface length of the middle transition
-  -- to all 'Vert' objects it is part of.
+  { -- | next free ID
+    vcNextId :: !Int,
+    -- | a mapping from child slice ids to the corresponding parent id
+    vcIDs :: !(HM.HashMap (Int, Int) Int),
+    -- | maps surface length to the 'Vert' with that length
+    vcByLength :: !(IM.IntMap [Vert tr slc v]),
+    -- | maps surface length to the "left borders" of 'Vert' objects with that length
+    -- (parent slice, left child slice)
+    vcByLengthLeft :: !(IM.IntMap (Set.Set (Slice slc, Slice slc))),
+    -- | maps a left child slice ID and the surface length of the middle transition
+    -- to its potential parent slices
+    vcByLeftChild :: !(HM.HashMap (Int, Int) (Set.Set (Slice slc))),
+    -- | maps a right child slice ID and the surface length of the middle transition
+    -- to all 'Vert' objects it is part of.
+    vcByRightChild :: !(HM.HashMap (Int, Int) [Vert tr slc v])
   }
   deriving (Generic, NFData)
 
 instance (Show e, Show a, Show v) => Show (VChart e a v) where
   show (VChart n _ is _ _ _) = "VChart (next id: " <> show n <> ")" <> levels
-   where
-    levels = concatMap showLevel $ IM.toAscList is
-    showLevel (l, items) = "\nlevel " <> show l <> ":" <> sitems
-     where
-      sitems = concatMap (("\n  " <>) . show) items
+    where
+      levels = concatMap showLevel $ IM.toAscList is
+      showLevel (l, items) = "\nlevel " <> show l <> ":" <> sitems
+        where
+          sitems = concatMap (("\n  " <>) . show) items
 
 -- | Returns an empty 'VChart' with the next free ID set to @n + 1@.
 vcEmpty :: Int -> VChart e a v
 vcEmpty n = VChart (n + 1) HM.empty IM.empty IM.empty HM.empty HM.empty
 
 -- | Insert a new 'Vert' object into a 'VChart'.
-vcInsert
-  :: (Hashable slc, Ord slc)
-  => VChart tr slc v
-  -- ^ the old chart
-  -> (slc, v, TItem tr slc v)
-  -- ^ the new 'Vert' item's parent slice, operation, and middle child transition.
-  -> VChart tr slc v
-  -- ^ the new chart
+vcInsert ::
+  (Hashable slc, Ord slc) =>
+  -- | the old chart
+  VChart tr slc v ->
+  -- | the new 'Vert' item's parent slice, operation, and middle child transition.
+  (slc, v, TItem tr slc v) ->
+  -- | the new chart
+  VChart tr slc v
 vcInsert (VChart nextid ids bylen bylenleft byleft byright) (topContent, op, mid@(tmid := _)) =
   let left = tLeftSlice tmid
       right = tRightSlice tmid
@@ -280,66 +272,64 @@ vcInsert (VChart nextid ids bylen bylenleft byleft byright) (topContent, op, mid
    in VChart nextid' ids' bylen' bylenleft' byleft' byright'
 
 -- | Merge a sequence of new items into a 'VChart'
-vcMerge
-  :: (Foldable t, Ord slc, Hashable slc)
-  => VChart tr slc v
-  -> t (slc, v, TItem tr slc v)
-  -> VChart tr slc v
+vcMerge ::
+  (Foldable t, Ord slc, Hashable slc) =>
+  VChart tr slc v ->
+  t (slc, v, TItem tr slc v) ->
+  VChart tr slc v
 vcMerge = foldl' vcInsert
 
 -- | Returns all 'Vert' objects in the 'VChart' with the same length.
-vcGetByLength
-  :: VChart tr slc v
-  -- ^ the chart
-  -> Int
-  -- ^ surface length of a middle transition
-  -> [Vert tr slc v]
-  -- ^ all corresponding 'Vert' objects
+vcGetByLength ::
+  -- | the chart
+  VChart tr slc v ->
+  -- | surface length of a middle transition
+  Int ->
+  -- | all corresponding 'Vert' objects
+  [Vert tr slc v]
 vcGetByLength chart len = fromMaybe [] $ IM.lookup len $ vcByLength chart
 
 -- | Returns the "left borders" of all 'Vert' objects in the 'VChart' with the same length.
-vcGetByLengthLeft
-  :: VChart tr slc v
-  -- ^ the chart
-  -> Int
-  -- ^ the surface length of a middle transition
-  -> [(Slice slc, Slice slc)]
-  -- ^ (parent slice, left slice) of all corresponding 'Vert' objects (without duplicates)
+vcGetByLengthLeft ::
+  -- | the chart
+  VChart tr slc v ->
+  -- | the surface length of a middle transition
+  Int ->
+  -- | (parent slice, left slice) of all corresponding 'Vert' objects (without duplicates)
+  [(Slice slc, Slice slc)]
 vcGetByLengthLeft chart len =
   maybe [] Set.toList $ IM.lookup len (vcByLengthLeft chart)
 
-{- | Returns the all potential parents of a left child slice
- up to a certain middle transition length.
--}
-vcGetByLeftChild
-  :: (Ord slc, Hashable slc)
-  => Int
-  -- ^ maximum middle transition length
-  -> VChart tr slc v
-  -- ^ the chart
-  -> Slice slc
-  -- ^ the left child slice
-  -> [Slice slc]
-  -- ^ all potential parent slices
+-- | Returns the all potential parents of a left child slice
+-- up to a certain middle transition length.
+vcGetByLeftChild ::
+  (Ord slc, Hashable slc) =>
+  -- | maximum middle transition length
+  Int ->
+  -- | the chart
+  VChart tr slc v ->
+  -- | the left child slice
+  Slice slc ->
+  -- | all potential parent slices
+  [Slice slc]
 vcGetByLeftChild maxn chart left =
   Set.toList $ Set.unions $ mapMaybe getN [2 .. maxn]
- where
-  getN n = HM.lookup (sID left, n) $ vcByLeftChild chart
+  where
+    getN n = HM.lookup (sID left, n) $ vcByLeftChild chart
 
-{- | Returns all 'Vert' objects with the same right child
- up to a certain middle transition length.
--}
-vcGetByRightChild
-  :: (Ord slc, Hashable slc)
-  => Int
-  -- ^ ID of the right child
-  -> VChart tr slc v
-  -> Slice slc
-  -> [Vert tr slc v]
+-- | Returns all 'Vert' objects with the same right child
+-- up to a certain middle transition length.
+vcGetByRightChild ::
+  (Ord slc, Hashable slc) =>
+  -- | ID of the right child
+  Int ->
+  VChart tr slc v ->
+  Slice slc ->
+  [Vert tr slc v]
 vcGetByRightChild maxn chart right =
   concat $ mapMaybe getN [2 .. maxn]
- where
-  getN n = HM.lookup (sID right, n) $ vcByRightChild chart
+  where
+    getN n = HM.lookup (sID right, n) $ vcByRightChild chart
 
 -- transition chart
 -------------------
@@ -349,32 +339,30 @@ vcGetByRightChild maxn chart right =
 -- - get all with left slice l
 -- - get all with right slice r
 
-{- | The contents of a transition chart (under a particular index).
- A mapping from transitions (with score ID constraints left and right)
- to (partial) semiring scores.
- This mapping usually contains all transition items that satisfy a certain criterion,
- irrespective of their position in the chart (which is encoded in the transitions themselves).
-
- When new transition items are added, if the transition already exists in the chart
- (as the result of a different partial parse),
- the scores of the new and existing items are "added" (this also requires the score IDs to match).
--}
+-- | The contents of a transition chart (under a particular index).
+-- A mapping from transitions (with score ID constraints left and right)
+-- to (partial) semiring scores.
+-- This mapping usually contains all transition items that satisfy a certain criterion,
+-- irrespective of their position in the chart (which is encoded in the transitions themselves).
+--
+-- When new transition items are added, if the transition already exists in the chart
+-- (as the result of a different partial parse),
+-- the scores of the new and existing items are "added" (this also requires the score IDs to match).
 type TContents tr slc v =
   HM.HashMap
     (Transition tr slc, Maybe (S.LeftId Int), Maybe (S.RightId Int))
     (S.Score v Int)
 
-{- | A transition chart.
- Stores intermediate transition items redundantly under several indices:
-
- - by surface length
- - by left slice
- - by right slice
--}
+-- | A transition chart.
+-- Stores intermediate transition items redundantly under several indices:
+--
+-- - by surface length
+-- - by left slice
+-- - by right slice
 data TChart tr slc v = TChart
-  { tcByLength :: !(IM.IntMap (TContents tr slc v))
-  , tcByLeft :: !(HM.HashMap (Slice slc) (TContents tr slc v))
-  , tcByRight :: !(HM.HashMap (Slice slc) (TContents tr slc v))
+  { tcByLength :: !(IM.IntMap (TContents tr slc v)),
+    tcByLeft :: !(HM.HashMap (Slice slc) (TContents tr slc v)),
+    tcByRight :: !(HM.HashMap (Slice slc) (TContents tr slc v))
   }
   deriving (Show, Generic, NFData)
 
@@ -384,9 +372,8 @@ tcEmpty = TChart IM.empty HM.empty HM.empty
 
 -- TODO: there might be room for improvement here
 
-{- | Insert a new transition item into the transition chart.
- If the item's transition already exists, the existing and new score are "added".
--}
+-- | Insert a new transition item into the transition chart.
+-- If the item's transition already exists, the existing and new score are "added".
 tcInsert :: (Parsable tr slc v) => TChart tr slc v -> TItem tr slc v -> TChart tr slc v
 tcInsert (TChart len left right) (t := v) =
   let new = HM.singleton (t, S.leftSide v, S.rightSide v) v
@@ -394,28 +381,28 @@ tcInsert (TChart len left right) (t := v) =
       left' = HM.insertWith insert (tLeftSlice t) new left
       right' = HM.insertWith insert (tRightSlice t) new right
    in TChart len' left' right'
- where
-  insert = HM.unionWithKey (\_ s1 s2 -> S.addScores s1 s2)
+  where
+    insert = HM.unionWithKey (\_ s1 s2 -> S.addScores s1 s2)
 
 -- | Insert several transition items into the transition chart.
-tcMerge
-  :: (Foldable t, Parsable tr slc v)
-  => TChart tr slc v
-  -> t (TItem tr slc v)
-  -> TChart tr slc v
+tcMerge ::
+  (Foldable t, Parsable tr slc v) =>
+  TChart tr slc v ->
+  t (TItem tr slc v) ->
+  TChart tr slc v
 tcMerge = foldl' tcInsert
 
 -- | Helper function for getting transition items from the transition chart.
-tcGetAny
-  :: (TChart tr slc v -> m)
-  -> (TContents tr slc v -> k -> m -> TContents tr slc v)
-  -> TChart tr slc v
-  -> k
-  -> [TItem tr slc v]
+tcGetAny ::
+  (TChart tr slc v -> m) ->
+  (TContents tr slc v -> k -> m -> TContents tr slc v) ->
+  TChart tr slc v ->
+  k ->
+  [TItem tr slc v]
 tcGetAny field getter chart key =
   fmap mkItem $ HM.toList $ getter HM.empty key $ field chart
- where
-  mkItem ((t, _, _), v) = t := v
+  where
+    mkItem ((t, _, _), v) = t := v
 
 -- | Returns all transition items with the same length.
 tcGetByLength :: TChart tr slc v -> Int -> [TItem tr slc v]
@@ -437,14 +424,14 @@ tcGetByRight = tcGetAny tcByRight HM.findWithDefault
 -- TODO: add checks that adjacent transitions and slices match?
 
 -- | Unspreads the two slices of a (middle) transition, if possible.
-unspreadMiddle
-  :: UnspreadMiddle tr slc v
-  -- ^ the UnspreadMiddle evaluator
-  -> TItem tr slc v
-  -- ^ the middle transition
-  -> Maybe (slc, v, TItem tr slc v)
-  -- ^ the top slice, unspread operation,
+unspreadMiddle ::
+  -- | the UnspreadMiddle evaluator
+  UnspreadMiddle tr slc v ->
+  -- | the middle transition
+  TItem tr slc v ->
+  -- | the top slice, unspread operation,
   -- and middle transition
+  Maybe (slc, v, TItem tr slc v)
 unspreadMiddle unspreadm im@((Transition l m r _) := _) = do
   il <- getInner $ sContent l
   ir <- getInner $ sContent r
@@ -452,79 +439,79 @@ unspreadMiddle unspreadm im@((Transition l m r _) := _) = do
   pure (top, op, im)
 
 -- | Infers the possible left parent transitions of an unspread.
-unspreadLeft
-  :: (Show slc, Show tr, R.Semiring v, Show v)
-  => UnspreadLeft tr slc
-  -- ^ the UnspreadLeft evaluator
-  -> TItem tr slc v
-  -- ^ the left child transition
-  -> Slice slc
-  -- ^ the Vert's top slice and ID
-  -> [TItem tr slc v]
-  -- ^ all possible left parent transitions
+unspreadLeft ::
+  (Show slc, Show tr, R.Semiring v, Show v) =>
+  -- | the UnspreadLeft evaluator
+  UnspreadLeft tr slc ->
+  -- | the left child transition
+  TItem tr slc v ->
+  -- | the Vert's top slice and ID
+  Slice slc ->
+  -- | all possible left parent transitions
+  [TItem tr slc v]
 unspreadLeft unspreadl (tleft@(Transition ll lt lr is2nd) := vleft) top
   | is2nd = []
   | otherwise = fromMaybe err $ do
       ir <- getInner $ sContent lr
       itop <- getInner $ sContent top
       pure $ mkParent v' <$> unspreadl (lt, ir) itop
- where
-  err =
-    error $
-      "Illegal left-unspread: left="
-        <> show tleft
-        <> ", top="
-        <> show top
-  v' = S.unspreadScoresLeft (sID top) vleft
-  mkParent v t = Transition ll t top False := v
+  where
+    err =
+      error $
+        "Illegal left-unspread: left="
+          <> show tleft
+          <> ", top="
+          <> show top
+    v' = S.unspreadScoresLeft (sID top) vleft
+    mkParent v t = Transition ll t top False := v
 
 -- | Infers the possible right parent transitions of an unspread.
-unspreadRight
-  :: (R.Semiring v, NFData slc, NFData tr, NFData v, Show tr, Show slc, Show v)
-  => UnspreadRight tr slc
-  -- ^ the UnspreadRight evaluator
-  -> Vert tr slc v
-  -- ^ the center 'Vert'
-  -> TItem tr slc v
-  -- ^ the right child transition
-  -> [TItem tr slc v]
-  -- ^ all possible right parent transitions
+unspreadRight ::
+  (R.Semiring v, NFData slc, NFData tr, NFData v, Show tr, Show slc, Show v) =>
+  -- | the UnspreadRight evaluator
+  UnspreadRight tr slc ->
+  -- | the center 'Vert'
+  Vert tr slc v ->
+  -- | the right child transition
+  TItem tr slc v ->
+  -- | all possible right parent transitions
+  [TItem tr slc v]
 unspreadRight unspreadr vert@(Vert top op (_ := vm)) tright@((Transition rl rt rr _) := vr) =
   fromMaybe err $ do
     ir <- getInner $ sContent rl
     pure $ force $ mkParent v' <$> unspreadr (ir, rt) ir
- where
-  err =
-    error $
-      "Illegal right-unspread: vert="
-        <> show vert
-        <> ", right="
-        <> show tright
-  v' = S.unspreadScoresRight (sID top) op vm vr
-  mkParent v t = Transition top t rr True := v
+  where
+    err =
+      error $
+        "Illegal right-unspread: vert="
+          <> show vert
+          <> ", right="
+          <> show tright
+    v' = S.unspreadScoresRight (sID top) op vm vr
+    mkParent v t = Transition top t rr True := v
 
 -- | Infers the possible parent transitions of a split.
-unsplit
-  :: (R.Semiring v, NFData slc, NFData tr, NFData v, Show v)
-  => Unsplit tr slc v
-  -- ^ the Unsplit evaluator
-  -> TItem tr slc v
-  -- ^ the left child transition
-  -> TItem tr slc v
-  -- ^ the right child transition
-  -> [TItem tr slc v]
-  -- ^ all possible parent transitions
+unsplit ::
+  (R.Semiring v, NFData slc, NFData tr, NFData v, Show v) =>
+  -- | the Unsplit evaluator
+  Unsplit tr slc v ->
+  -- | the left child transition
+  TItem tr slc v ->
+  -- | the right child transition
+  TItem tr slc v ->
+  -- | all possible parent transitions
+  [TItem tr slc v]
 unsplit mg ((Transition ll lt lr l2nd) := vl) ((Transition _ !rt !rr _) := vr) =
   case getInner $ sContent lr of
     Just m ->
       force $ mkItem <$> mg (sContent ll) lt m rt (sContent rr) splitType
     Nothing -> error "trying to unsplit at a non-content slice"
- where
-  splitType
-    | l2nd = RightOfTwo
-    | isStop (sContent rr) = SingleOfOne
-    | otherwise = LeftOfTwo
-  mkItem (!top, !op) = Transition ll top rr l2nd := S.unsplitScores op vl vr
+  where
+    splitType
+      | l2nd = RightOfTwo
+      | isStop (sContent rr) = SingleOfOne
+      | otherwise = LeftOfTwo
+    mkItem (!top, !op) = Transition ll top rr l2nd := S.unsplitScores op vl vr
 
 -- the parsing main loop
 ------------------------
@@ -535,29 +522,27 @@ pmap f = P.withStrategy (P.parList P.rdeepseq) . map f
 
 -- pmap = map
 
-{- | A type alias for  pair of transition chart ('TChart')
- and verticalization chart ('VChart').
--}
+-- | A type alias for  pair of transition chart ('TChart')
+-- and verticalization chart ('VChart').
 type ParseState tr slc v = (TChart tr slc v, VChart tr slc v)
 
-{- | Type alias for a monadic parsing operation.
- A function that takes a level and a 'ParseState'
- and produces a monadic parsing action yielding a new state.
-
- Used to express the main parsing loop
- as well as all substeps that transform the charts on a specific level.
--}
+-- | Type alias for a monadic parsing operation.
+-- A function that takes a level and a 'ParseState'
+-- and produces a monadic parsing action yielding a new state.
+--
+-- Used to express the main parsing loop
+-- as well as all substeps that transform the charts on a specific level.
 type ParseOp m tr slc v = Int -> ParseState tr slc v -> m (ParseState tr slc v)
 
 -- | A single level iteration of the chart parser.
-parseStep
-  :: (Parsable tr slc v)
-  => (TChart tr slc v -> VChart tr slc v -> Int -> IO ())
-  -- ^ a logging function that takes charts and level number.
-  -> Eval tr tr' slc slc' v
-  -- ^ the grammar's evaluator
-  -> ParseOp IO tr slc v
-  -- ^ the parsing operation (from level number and charts to new charts).
+parseStep ::
+  (Parsable tr slc v) =>
+  -- | a logging function that takes charts and level number.
+  (TChart tr slc v -> VChart tr slc v -> Int -> IO ()) ->
+  -- | the grammar's evaluator
+  Eval tr tr' slc slc' v ->
+  -- | the parsing operation (from level number and charts to new charts).
+  ParseOp IO tr slc v
 parseStep logCharts (Eval eMid eLeft eRight eUnsplit _ _) n charts = do
   uncurry logCharts charts n
   unspreadAllMiddles eMid n charts
@@ -566,8 +551,8 @@ parseStep logCharts (Eval eMid eLeft eRight eUnsplit _ _) n charts = do
     >>= unsplitAll eUnsplit n
 
 -- | Verticalizes all edges of length @n@.
-unspreadAllMiddles
-  :: (Monad m, Parsable tr slc v) => UnspreadMiddle tr slc v -> ParseOp m tr slc v
+unspreadAllMiddles ::
+  (Monad m, Parsable tr slc v) => UnspreadMiddle tr slc v -> ParseOp m tr slc v
 unspreadAllMiddles evalMid n (!tchart, !vchart) = do
   let ts = tcGetByLength tchart n
       !newVerts = catMaybes $ pmap (unspreadMiddle evalMid) $!! ts
@@ -575,65 +560,63 @@ unspreadAllMiddles evalMid n (!tchart, !vchart) = do
   return (tchart, vchart')
 
 -- | Perform all left unspreads where either @l@ or @m@ have length @n@.
-unspreadAllLefts
-  :: (Monad m, Parsable tr slc v) => UnspreadLeft tr slc -> ParseOp m tr slc v
+unspreadAllLefts ::
+  (Monad m, Parsable tr slc v) => UnspreadLeft tr slc -> ParseOp m tr slc v
 unspreadAllLefts evalLeft n (!tchart, !vchart) = do
-  let
-    -- left = n (and middle <= n)
-    leftn =
-      pmap (uncurry $ unspreadLeft evalLeft) $!! do
-        -- in list monad
-        left <- tcGetByLength tchart n
-        top <- vcGetByLeftChild n vchart (tRightSlice $ iItem left)
-        pure (left, top)
+  let -- left = n (and middle <= n)
+      leftn =
+        pmap (uncurry $ unspreadLeft evalLeft) $!! do
+          -- in list monad
+          left <- tcGetByLength tchart n
+          top <- vcGetByLeftChild n vchart (tRightSlice $ iItem left)
+          pure (left, top)
 
-    -- middle = n (and left < n)
-    midn =
-      pmap (uncurry $ unspreadLeft evalLeft) $!! do
-        -- in list monad
-        (top, lslice) <- vcGetByLengthLeft vchart n
-        left <-
-          filter (\item -> transLen (iItem item) < n) $
-            tcGetByRight tchart lslice
-        pure (left, top)
+      -- middle = n (and left < n)
+      midn =
+        pmap (uncurry $ unspreadLeft evalLeft) $!! do
+          -- in list monad
+          (top, lslice) <- vcGetByLengthLeft vchart n
+          left <-
+            filter (\item -> transLen (iItem item) < n) $
+              tcGetByRight tchart lslice
+          pure (left, top)
 
-    -- insert new transitions into chart
-    tchart' = foldl' tcMerge (foldl' tcMerge tchart leftn) midn
+      -- insert new transitions into chart
+      tchart' = foldl' tcMerge (foldl' tcMerge tchart leftn) midn
   return (tchart', vchart)
 
 -- | Perform all right unspreads where either @r@ or @m@ have length @n@
-unspreadAllRights
-  :: (Monad m, Parsable tr slc v) => UnspreadRight tr slc -> ParseOp m tr slc v
+unspreadAllRights ::
+  (Monad m, Parsable tr slc v) => UnspreadRight tr slc -> ParseOp m tr slc v
 unspreadAllRights evalRight n (!tchart, !vchart) = do
-  let
-    -- right = n (and middle <= n)
-    !rightn =
-      force $ pmap (uncurry $ unspreadRight evalRight) $!! do
-        -- in list monad
-        right <- tcGetByLength tchart n
-        vert <- vcGetByRightChild n vchart (tLeftSlice $ iItem right)
-        pure (vert, right)
+  let -- right = n (and middle <= n)
+      !rightn =
+        force $ pmap (uncurry $ unspreadRight evalRight) $!! do
+          -- in list monad
+          right <- tcGetByLength tchart n
+          vert <- vcGetByRightChild n vchart (tLeftSlice $ iItem right)
+          pure (vert, right)
 
-    -- middle = n (and left < n)
-    !midn =
-      force $ pmap (uncurry $ unspreadRight evalRight) $!! do
-        -- in list monad
-        vert <- vcGetByLength vchart n
-        right <-
-          filter (\i -> transLen (iItem i) < n) $
-            tcGetByLeft tchart (tRightSlice $ iItem $ vMiddle vert)
-        pure (vert, right)
+      -- middle = n (and left < n)
+      !midn =
+        force $ pmap (uncurry $ unspreadRight evalRight) $!! do
+          -- in list monad
+          vert <- vcGetByLength vchart n
+          right <-
+            filter (\i -> transLen (iItem i) < n) $
+              tcGetByLeft tchart (tRightSlice $ iItem $ vMiddle vert)
+          pure (vert, right)
 
-    -- insert new transitions into chart
-    !tchart' = foldl' tcMerge (foldl' tcMerge tchart rightn) midn
+      -- insert new transitions into chart
+      !tchart' = foldl' tcMerge (foldl' tcMerge tchart rightn) midn
   return (tchart', vchart)
 
 -- | perform all unsplits where either @l@ or @r@ have length @n@
-unsplitAll
-  :: forall tr slc v m
-   . (Monad m, Parsable tr slc v)
-  => Unsplit tr slc v
-  -> ParseOp m tr slc v
+unsplitAll ::
+  forall tr slc v m.
+  (Monad m, Parsable tr slc v) =>
+  Unsplit tr slc v ->
+  ParseOp m tr slc v
 unsplitAll unsplitter n (!tchart, !vchart) = do
   let !byLen = force $ tcGetByLength tchart n
 
@@ -662,21 +645,20 @@ unsplitAll unsplitter n (!tchart, !vchart) = do
 -- parsing entry point
 ----------------------
 
-{- | The main entrypoint to the parser.
- Expects an evaluator for the specific grammar
- and an input path.
- Returns the combined semiring value of all full derivations.
--}
-parse
-  :: Parsable tr slc v
-  => (TChart tr slc v -> Either (VChart tr slc v) [Slice slc] -> Int -> IO ())
-  -- ^ logging function
-  -> Eval tr tr' slc slc' v
-  -- ^ the grammar's evaluator
-  -> Path slc' tr'
-  -- ^ the input path (from first to last slice, excluding 'Start' and 'Stop')
-  -> IO v
-  -- ^ the semiring value at the top
+-- | The main entrypoint to the parser.
+-- Expects an evaluator for the specific grammar
+-- and an input path.
+-- Returns the combined semiring value of all full derivations.
+parse ::
+  Parsable tr slc v =>
+  -- | logging function
+  (TChart tr slc v -> Either (VChart tr slc v) [Slice slc] -> Int -> IO ()) ->
+  -- | the grammar's evaluator
+  Eval tr tr' slc slc' v ->
+  -- | the input path (from first to last slice, excluding 'Start' and 'Stop')
+  Path slc' tr' ->
+  -- | the semiring value at the top
+  IO v
 parse logCharts eval path = do
   logCharts tinit (Right $ pathArounds slicePath) 1
   (tfinal, vfinal) <-
@@ -687,32 +669,32 @@ parse logCharts eval path = do
   logCharts tfinal (Left vfinal) len
   let goals = tcGetByLength tfinal len
   return $ R.sum $ S.getScoreVal . iScore <$> goals
- where
-  wrapPath (Path a e rst) = Path (Inner a) (Just e) $ wrapPath rst
-  wrapPath (PathEnd a) = Path (Inner a) Nothing $ PathEnd Stop
-  path' = Path Start Nothing $ wrapPath path
-  len = pathLen path'
-  slicePath =
-    mapAroundsWithIndex
-      0
-      (\i notes -> Slice i (evalSlice eval <$> notes) i i)
-      path'
-  mkTrans l esurf r =
-    mk
-      <$> evalUnfreeze
-        eval
-        (sContent l)
-        esurf
-        (sContent r)
-        (isStop $ sContent r)
-   where
-    mk (e, v) = Transition l e r False := S.val v
-  trans0 = mapBetweens mkTrans slicePath
-  tinit = tcMerge tcEmpty $ concat trans0
+  where
+    wrapPath (Path a e rst) = Path (Inner a) (Just e) $ wrapPath rst
+    wrapPath (PathEnd a) = Path (Inner a) Nothing $ PathEnd Stop
+    path' = Path Start Nothing $ wrapPath path
+    len = pathLen path'
+    slicePath =
+      mapAroundsWithIndex
+        0
+        (\i notes -> Slice i (evalSlice eval <$> notes) i i)
+        path'
+    mkTrans l esurf r =
+      mk
+        <$> evalUnfreeze
+          eval
+          (sContent l)
+          esurf
+          (sContent r)
+          (isStop $ sContent r)
+      where
+        mk (e, v) = Transition l e r False := S.val v
+    trans0 = mapBetweens mkTrans slicePath
+    tinit = tcMerge tcEmpty $ concat trans0
 
 -- | A logging function that logs the sice of the charts at each level.
-logSize
-  :: TChart tr1 slc1 v1 -> Either (VChart tr2 slc2 v2) [Slice slc2] -> Int -> IO ()
+logSize ::
+  TChart tr1 slc1 v1 -> Either (VChart tr2 slc2 v2) [Slice slc2] -> Int -> IO ()
 logSize tc vc n = do
   putStrLn $ "parsing level " <> show n
   putStrLn $ "transitions: " <> show (length $ tcGetByLength tc n)

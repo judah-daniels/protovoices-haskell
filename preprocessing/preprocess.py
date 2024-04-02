@@ -1,21 +1,19 @@
-r"""°°°
-# Imports
-°°°"""
-# |%%--%%| <nmn2Sinrnp|F7iRptmN8b>
-r"""°°°
-Dependencies:
-ms3 == 1.2.3
-dimcat==0.0.post1.dev122+gd1e90a1
-This is installed from github main branch March 29th
-setuptools=65.6.3
+# %% [markdown]
+# # Imports
 
-°°°"""
-# |%%--%%| <F7iRptmN8b|bHPZ739zX3>
+# %% [markdown]
+# Dependencies:
+# ms3 == 1.2.3
+# dimcat==0.0.post1.dev122+gd1e90a1
+# This is installed from github main branch March 29th
+# setuptools=65.6.3
 
+# %%
 import numpy as np
 import ms3 as ms
 import dimcat as dc
 import os
+import pitchtypes as pt
 
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -23,12 +21,10 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 import pandas as pd
 pd.options.mode.chained_assignment = None
 
-# |%%--%%| <bHPZ739zX3|sZbKt7tuyW>
-r"""°°°
-# Load dataset
-°°°"""
-# |%%--%%| <sZbKt7tuyW|cAVB9NxDgH>
+# %% [markdown]
+# # Load dataset
 
+# %%
 def createDataset(corpi):
     dataset = dc.Dataset()
 
@@ -37,60 +33,81 @@ def createDataset(corpi):
 
     return dataset
 
-# |%%--%%| <cAVB9NxDgH|S1f4uM9ksc>
+# %%
 
+
+# %%
+dataset.get_indices()
+
+# %%
 # Corpuses to analyse
 corpi = [ "../../romantic_piano_corpus/grieg_lyric_pieces"
         , "../../ABC/"
         , "../../romantic_piano_corpus/schumann_kinderszenen"
-        , "../../romantic_piano_corpus/chopin_mazurkas"
-        , ]
+        , "../../romantic_piano_corpus/chopin_mazurkas"]
 
 # Initialise dataset
 dataset = createDataset(corpi)
 
-# |%%--%%| <S1f4uM9ksc|hQl82FAXdp>
-r"""°°°
-# Helper Functions
+# %% [markdown]
+# # Helper Functions
 
-°°°"""
-# |%%--%%| <hQl82FAXdp|7m7xrdkNyw>
-
+# %%
 def to_pitch(midi, tpc):
     pitch_class = ms.fifths2name(tpc)
     octave = str(midi // 12)
     return pitch_class + octave 
 
-# Returns the offset using semitones
-def get_chord_offset(numeral: str, globalkey_is_minor):
+# Returns the offset using tpc
+def get_chord_root_interval(numeral: str, globalkey_is_minor):
     try:
-        alteration = (numeral.count("#") - numeral.count("b")) * 7
+        sharps = numeral.count("#")
+        flats = numeral.count("b")
     except:
         ## NOTE TO SELF WARNING : BUG INDUCED
         ## sometimes numeral is just NAN. in which case i just return 0 as a hack.
-        return 0
-    #print(alteration)
+        return pt.SpelledIntervalClass("1")
 
     numeral = numeral.strip("#b")
     numeral = numeral.upper()
-    #numeral_to_interval_major = {"I": 0, "II": 2, "III": 4, "IV": 5, "V":7, "VI":9, "VII":11}
-    #numeral_to_interval_minor = {"I": 0, "II": 2, "III": 3, "IV": 5, "V":7, "VI":8, "VII":10}
-    numeral_to_interval_major = {"I": 0, "II": 2, "III": 4, "IV": -1, "V":1, "VI":3, "VII":8}
-    numeral_to_interval_minor = {"I": 0, "II": 2, "III": -3, "IV": -1, "V":1, "VI":8, "VII":-2}
+
+    numeral_to_interval_major = {"I": "P1", "II": "M2", "III": "M3", "IV": "P4", "V":"P5", "VI":"M6", "VII":"M7"}
+    numeral_to_interval_minor = {"I": "P1", "II": "M2", "III": "m3", "IV": "P4", "V":"P5", "VI":"m6", "VII":"m7"}
 
     if globalkey_is_minor:
-        return (numeral_to_interval_minor[numeral] + alteration) % 12
+        x = pt.SpelledIntervalClass(numeral_to_interval_minor[numeral])
     else:
-        return (numeral_to_interval_major[numeral] + alteration) % 12
+        x = pt.SpelledIntervalClass(numeral_to_interval_major[numeral])
+    return x + (sharps * pt.SpelledIntervalClass.chromatic_semitone()) - (flats * pt.SpelledIntervalClass.chromatic_semitone())
 
 def interval_union(i1,i2):
     return pd.Interval(i1.left,i2.right,'left')
 
+def fix_global_key(x):
+
+    if x == "b":
+        return "B"
+    elif x == "bb":
+        return "Bb"
+    elif x == "b#":
+        return "B#"
+    else:
+        sharps = x.count("#")
+        flats = x.count("b")
+        x = x.strip("b#").upper()
+        for i in range(sharps): 
+            x += "#"
+        for i in range(flats):
+            x += "b"
+        return x
+
 def transform_chords_abs(df):
-    df['rootoffset'] = df.apply(lambda x: int(get_chord_offset(x.numeral,x.globalkey_is_minor)), axis = 1)
+    df['rootnote'] = df.apply(lambda x: pt.SpelledPitchClass(fix_global_key(x.globalkey)) + get_chord_root_interval(x.numeral,x.globalkey_is_minor), axis = 1)
 
-# |%%--%%| <7m7xrdkNyw|ntpUNEOfIt>
+# %%
+pt.SpelledPitchClass(fix_global_key("c#"))
 
+# %%
 # Returns two dataframes, one for the chords, one for the slices
 # Splits the piece into slices, simplyifing chord labels.
 def preprocessPiece(corpus : str, piece : str, labels, salami_notes):
@@ -103,19 +120,25 @@ def preprocessPiece(corpus : str, piece : str, labels, salami_notes):
     chordz = chords.copy().reset_index()
     chordz = chordz.reset_index()
 
-    chords_abs_columns = ['chord', 'globalkey','globalkey_is_minor']
+    #chords_abs_columns = ['chord', 'globalkey','globalkey_is_minor']
 
+    chordz = chordz[chordz['chord'] != '{']
     clean_chords = chordz[chordz['chord'] != '@none']
+    #clean_chords['globalkey']= clean_chords.apply(lambda x: str(x.globalkey).upper())
+
     ms.labels2global_tonic(clean_chords, inplace=True)
+    
     clean_chords.to_csv("chordsbefore.csv")
+        
+        
     transform_chords_abs(clean_chords)
 
     # Recombine the segments with @None labels
     full_chords_abs = pd.concat([clean_chords, chordz[chordz['chord'] == '@none']]).sort_index()
-    full_chords_abs.rootoffset.fillna(0, inplace=True)
+    full_chords_abs.rootnote.fillna(pt.SpelledPitchClass("C"), inplace=True)
 
     # Now we merge repeated chords
-    relavant_columns = ["interval", "chord_type", "rootoffset", "globalkey"]
+    relavant_columns = ["interval", "chord_type", "rootnote", "globalkey"]
 
     dfs = pd.DataFrame()
     ind = 0
@@ -123,22 +146,21 @@ def preprocessPiece(corpus : str, piece : str, labels, salami_notes):
     for row in full_chords_abs[relavant_columns].iterrows():
         v = row[1]
         ii = len(dfs.index) - 1
-        if prev and (v.chord_type == prev[1].chord_type and v.rootoffset == prev[1].rootoffset):
+        if prev and (v.chord_type == prev[1].chord_type and v.rootnote == prev[1].rootnote):
             dfs.at[ii, 'interval'] = pd.Interval(dfs.iloc[ii].interval.left, v.interval.right, "left")
         else:
-            new_row = pd.DataFrame({'interval':row[1].interval, 'chord_type':v.chord_type,'rootoffset':v.rootoffset,'globalkey':v.globalkey},index=[ind])
+            new_row = pd.DataFrame({'interval':row[1].interval, 'chord_type':v.chord_type,'rootnote':v.rootnote,'globalkey':v.globalkey},index=[ind])
             dfs = pd.concat([dfs, new_row])
             ind += 1
     prev = row
 
-    dfs.rootoffset = dfs.rootoffset.astype(int)
     full_chords_abs = dfs
 
-    relavant_columns = [ "interval", "chord_type", "rootoffset", "globalkey"]
+    relavant_columns = [ "interval", "chord_type", "rootnote", "globalkey"]
 
     full_chords_abs = full_chords_abs.reset_index()[relavant_columns]
     full_chords_abs.index.name ='segment_id'
-    full_chords_abs[["chord_type", "rootoffset", "globalkey"]].to_csv('chords.csv')
+    full_chords_abs[["chord_type", "rootnote", "globalkey"]].to_csv('chords.csv')
 
 
     salamis = salami_notes.loc[(corpus, piece)]
@@ -176,18 +198,29 @@ def preprocessPiece(corpus : str, piece : str, labels, salami_notes):
 
     final_salamis.to_csv('salamis.csv',columns=["new_segment", "new_slice", "pitch","tied"], index=False)
 
-    return (full_chords_abs[["chord_type", "rootoffset", "globalkey"]], final_salamis[["new_segment", "new_slice", "pitch", "tied"]])
+    return (full_chords_abs[["chord_type", "rootnote", "globalkey"]], final_salamis[["new_segment", "new_slice", "pitch", "tied"]])
 
-# |%%--%%| <ntpUNEOfIt|catvy1VO1i>
+# %%
 
+labels = dataset.get_facet("expanded")
+
+# %%
+labels.head(200).to_csv("test.csv")
+
+# %%
+# Process slices 
+salami_crp = dc.NoteSlicer().process_data(dataset)
+salami_notes = salami_crp.get_facet("notes")
+
+# %%
 # Given a dataset, process all pieces and return labels and slices
-def processDataset(dataset):
-    # 3mins
-    labels = dataset.get_facet("expanded")
+def processDataset(dataset, labels, salami):
     
-    # Process slices 
-    salami_crp = dc.NoteSlicer().process_data(dataset)
-    salami_notes = salami_crp.get_facet("notes")
+    if not os.path.isdir("inputs"):
+        os.makedirs("inputs")
+        os.makedirs("inputs/chords")         
+        os.makedirs("inputs/slices")
+
 
     corpi = labels.index.unique(0).tolist()
     for corpus in corpi:
@@ -195,6 +228,7 @@ def processDataset(dataset):
         for piece in pieces:
             (chords, slices) = preprocessPiece(corpus, piece, labels, salami_notes)
             # Create Folders if necessary
+           
             if not os.path.isdir("inputs/chords/{}".format(corpus)):
                 os.makedirs("inputs/chords/{}".format(corpus))
             if not os.path.isdir("inputs/slices/{}".format(corpus)):
@@ -205,10 +239,13 @@ def processDataset(dataset):
     
     return (labels, salami_notes)
 
-# |%%--%%| <catvy1VO1i|rYAHoMQXiT>
-r"""°°°
-## Generate all input data
-°°°"""
-# |%%--%%| <rYAHoMQXiT|xvVXToEfKO>
+# %% [markdown]
+# ## Generate all input data
 
-processDataset(dataset)
+# %%
+processDataset(dataset, labels,salami_notes)
+
+# %%
+
+
+

@@ -2,11 +2,11 @@
 {-# OPTIONS_HADDOCK ignore-exports #-}
 
 {- | This module contains a simple greedy parser for path grammars.
- The grammar is provided by an evaluator ('Eval').
- In addition, the parser takes a policy function
- that picks a reduction option in each step.
+The grammar is provided by an evaluator ('Eval').
+In addition, the parser takes a policy function
+that picks a reduction option in each step.
 -}
-module GreedyParser where
+module Parser.GreedyParser where
 
 -- TODO: add back export list once haddock's ignore-exports works again.
 -- ( parseGreedy
@@ -16,7 +16,6 @@ module GreedyParser where
 -- ) where
 
 import Common
-
 import Control.Monad.Except
   ( ExceptT
   , MonadError (throwError)
@@ -40,8 +39,8 @@ import System.Random.Stateful
 -- * Parsing State
 
 {- | A transition during greedy parsing.
- Augments transition data with a flag
- that indicates whether the transition is a transitive right (2nd) parent of a spread.
+Augments transition data with a flag
+that indicates whether the transition is a transitive right (2nd) parent of a spread.
 -}
 data Trans tr = Trans
   { _tContent :: !tr
@@ -52,43 +51,43 @@ data Trans tr = Trans
   deriving (Show)
 
 {- | The state of the greedy parse between steps.
- Generally, the current reduction consists of frozen transitions
- between the ⋊ and the current location
- and open transitions between the current location and ⋉.
+Generally, the current reduction consists of frozen transitions
+between the ⋊ and the current location
+and open transitions between the current location and ⋉.
 
- > ⋊==[1]==[2]==[3]——[4]——[5]——⋉
- >   └ frozen  ┘  | └   open  ┘
- >             midSlice (current position)
- >
- > frozen:   ==[2]==[1]==
- > midSlice: [3]
- > open:     ——[4]——[5]——
+> ⋊==[1]==[2]==[3]——[4]——[5]——⋉
+>   └ frozen  ┘  | └   open  ┘
+>             midSlice (current position)
+>
+> frozen:   ==[2]==[1]==
+> midSlice: [3]
+> open:     ——[4]——[5]——
 
- This is the 'GSSemiOpen' case:
- The slice at the current pointer (@[3]@)
- is represented as an individual slice (@midSlice@).
- The frozen part is represented by a 'Path' of frozen transitions (@tr'@) and slices (@slc@).
- __in reverse direction__, i.e. from @midslice@ back to ⋊ (excluding ⋊).
- The open part is a 'Path' of open transitions (@tr@) and slices (@slc@)
- in forward direction from @midSlice@ up to ⋉.
+This is the 'GSSemiOpen' case:
+The slice at the current pointer (@[3]@)
+is represented as an individual slice (@midSlice@).
+The frozen part is represented by a 'Path' of frozen transitions (@tr'@) and slices (@slc@).
+__in reverse direction__, i.e. from @midslice@ back to ⋊ (excluding ⋊).
+The open part is a 'Path' of open transitions (@tr@) and slices (@slc@)
+in forward direction from @midSlice@ up to ⋉.
 
- There are two special cases.
- All transitions can be frozen ('GSFrozen'),
- in which case state only contains the backward 'Path' of frozen transitions
- (excluding ⋊ and ⋉):
+There are two special cases.
+All transitions can be frozen ('GSFrozen'),
+in which case state only contains the backward 'Path' of frozen transitions
+(excluding ⋊ and ⋉):
 
- > ⋊==[1]==[2]==[3]==⋉
- >                    └ current position
- > represented as: ==[3]==[2]==[1]==
+> ⋊==[1]==[2]==[3]==⋉
+>                    └ current position
+> represented as: ==[3]==[2]==[1]==
 
- Or all transitions can be open ('GSOpen'),
- in which case the state is just the forward path of open transitions:
+Or all transitions can be open ('GSOpen'),
+in which case the state is just the forward path of open transitions:
 
- > ⋊——[1]——[2]——[3]——⋉
- > └ current position
- > represented as: ——[1]——[2]——[3]——
+> ⋊——[1]——[2]——[3]——⋉
+> └ current position
+> represented as: ——[1]——[2]——[3]——
 
- The open and semiopen case additionally have a list of operations in generative order.
+The open and semiopen case additionally have a list of operations in generative order.
 -}
 data GreedyState tr tr' slc op
   = GSFrozen !(Path (Maybe tr') slc)
@@ -111,7 +110,7 @@ instance (Show slc, Show o) => Show (GreedyState tr tr' slc o) where
     showFrozen frozen <> show mid <> showOpen open -- <> " " <> show ops
 
 -- | Helper function for showing the frozen part of a piece.
-showFrozen :: Show slc => Path tr' slc -> String
+showFrozen :: (Show slc) => Path tr' slc -> String
 showFrozen path = "⋊" <> go 5 path
  where
   go _ (PathEnd _) = "="
@@ -119,7 +118,7 @@ showFrozen path = "⋊" <> go 5 path
   go n (Path _ a rst) = go (n - 1) rst <> show a <> "="
 
 -- | Helper function for showing the open part of a piece.
-showOpen :: Show slc => Path tr slc -> String
+showOpen :: (Show slc) => Path tr slc -> String
 showOpen path = go 5 path <> "⋉"
  where
   go _ (PathEnd _) = "-"
@@ -129,7 +128,7 @@ showOpen path = go 5 path <> "⋉"
 -- * Parsing Actions
 
 {- | A parsing action (reduction step) with a single parent transition.
- Combines the parent elements with a single-transition derivation operation.
+Combines the parent elements with a single-transition derivation operation.
 -}
 data ActionSingle slc tr s f
   = ActionSingle
@@ -140,7 +139,7 @@ data ActionSingle slc tr s f
   deriving (Show)
 
 {- | A parsing action (reduction step) with two parent transitions.
- Combines the parent elements with a double-transition derivation operation.
+Combines the parent elements with a double-transition derivation operation.
 -}
 data ActionDouble slc tr s f h
   = ActionDouble
@@ -161,10 +160,10 @@ type Action slc tr s f h = Either (ActionSingle slc tr s f) (ActionDouble slc tr
 -- * Parsing Algorithm
 
 {- | Parse a piece in a greedy fashion.
- At each step, a policy chooses from the possible reduction actions,
- the reduction is applied, and parsing continues
- until the piece is fully reduced or no more reduction operations are available.
- Returns the full derivation from the top (@⋊——⋉@) or an error message.
+At each step, a policy chooses from the possible reduction actions,
+the reduction is applied, and parsing continues
+until the piece is fully reduced or no more reduction operations are available.
+Returns the full derivation from the top (@⋊——⋉@) or an error message.
 -}
 parseGreedy
   :: forall m tr tr' slc slc' s f h
@@ -250,15 +249,13 @@ parseGreedy eval pick input = do
                 (LMDouble op : ops)
         -- two open transitions: thaw or unsplit single
         Path topenl sopen (PathEnd topenr) -> do
-          let
-            unsplits =
-              Left <$> collectUnsplitSingle (Inner mid) topenl sopen topenr Stop
+          let unsplits =
+                Left <$> collectUnsplitSingle (Inner mid) topenl sopen topenr Stop
           case frozen of
             PathEnd tfrozen -> do
-              let
-                thaws =
-                  Right
-                    <$> collectThawLeft Start tfrozen mid topenl (Inner sopen)
+              let thaws =
+                    Right
+                      <$> collectThawLeft Start tfrozen mid topenl (Inner sopen)
               action <- pick $ thaws <> unsplits
               case action of
                 -- picked unsplit
@@ -321,14 +318,13 @@ parseGreedy eval pick input = do
                       (Path topl tops (pathSetHead rstOpen topr))
                       (LMDouble op : ops)
             Path tfrozen sfrozen rstFrozen -> do
-              let
-                thaws =
-                  collectThawLeft
-                    (Inner sfrozen)
-                    tfrozen
-                    mid
-                    topenl
-                    (Inner sopenl)
+              let thaws =
+                    collectThawLeft
+                      (Inner sfrozen)
+                      tfrozen
+                      mid
+                      topenl
+                      (Inner sopenl)
               action <- pickDouble $ thaws <> doubles
               case action of
                 -- picked thaw
@@ -492,9 +488,9 @@ parseGreedy eval pick input = do
     unspreads = collectUnspreads sstart tl sl tm sr tr send
 
 {- | A policy that picks the next action at random.
- Must be partially applied with a random generator before passing to 'parseGreedy'.
+Must be partially applied with a random generator before passing to 'parseGreedy'.
 -}
-pickRandom :: StatefulGen g m => g -> [slc] -> ExceptT String m slc
+pickRandom :: (StatefulGen g m) => g -> [slc] -> ExceptT String m slc
 pickRandom _ [] = throwError "No candidates for pickRandom!"
 pickRandom gen xs = do
   i <- lift $ uniformRM (0, length xs - 1) gen

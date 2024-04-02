@@ -7,11 +7,11 @@
 module Algorithm.HeuristicSearch
   (
     -- heuristicSearch
-    aab
-      , stochasticSearch
-    ,stochasticBeamSearch
-    ,dualStochasticBeamSearch
-    ,stochasticBeamSearchLimited
+      aab
+    , stochasticSearch
+    , stochasticBeamSearch
+    , dualStochasticBeamSearch
+    , stochasticBeamSearchLimited
     , beamSearch
   )
     where
@@ -38,7 +38,7 @@ import Common
 
 import Control.Monad.Except (ExceptT, lift, throwError)
 
-import HeuristicParser (SearchState, getOpFromState)
+import Parser.HeuristicParser (SearchState, getOpFromState)
 import Data.List (sortBy)
 import Data.Function
 import System.Random.Stateful (newIOGenM, StatefulGen, uniformRM)

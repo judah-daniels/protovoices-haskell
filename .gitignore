@@ -6,6 +6,7 @@ fourmolu.yaml
 .venv
 testdata/.mscbackup/
 .DS_Store
+*.json
 *.lock
 __pycache__
 preprocessing/inputs/*
