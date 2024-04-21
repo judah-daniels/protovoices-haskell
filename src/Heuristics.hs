@@ -8,7 +8,6 @@ module Heuristics
   )
     where
 
--- LOGGING
 import Control.Logging qualified as Log
 import Data.Text qualified as T
 import Common hiding (log)
@@ -69,7 +68,7 @@ heuristicZero :: Double -> Double -> ( State SPitch, State SPitch) -> ExceptT St
 heuristicZero alpha splitWeight (prevState, state) = case getOpFromState state of
   Nothing -> pure 0 -- Initial state
   Just op -> do
-    log $ "Prev State: " <> show (prevState)
+    log $ "Prev State: " <> show prevState
     log $ "Next State: " <> show state
     let t = evalOP op
     log $ show op
@@ -143,11 +142,11 @@ heuristicZero alpha splitWeight (prevState, state) = case getOpFromState state o
             ,(\(SliceWrapped lns sLbl prob) -> sLbl) <$> slcR)
           leftScore' = scoreParent (probsParent lbll) leftParents
           rightScore' = scoreParent (probsParent lblr) rightParents
-          leftScore = case probl of 
-                         Nothing -> [] 
+          leftScore = case probl of
+                         Nothing -> []
                          Just a -> [a ]
-          rightScore = case probr of 
-                         Nothing -> [] 
+          rightScore = case probr of
+                         Nothing -> []
                          Just a -> [a ]
           -- scoreParent (probsParent lblr) rightParents
           bothScores =  (leftScore ++ rightScore ++ leftScore' ++ rightScore')
@@ -204,7 +203,7 @@ heuristicZero alpha splitWeight (prevState, state) = case getOpFromState state o
               -- Parents are all evaluated using chord-tone profiles
               leftParents = leftRegParents <> leftPassingParents <> fromLeftParents
               rightParents = rightRegParents <> rightPassingParents <> fromRightParents
-              
+
 
               -- Single children are evaluated using the profiles from parents/ chordtone or ornament
               childFromRights = allSingleChildren fromRight
@@ -241,49 +240,13 @@ heuristicZero alpha splitWeight (prevState, state) = case getOpFromState state o
               childPasses = (\(l, r) -> (l, PassingMid)) <$> allInnerEdges edgesPass
               childRegs = (\(Inner l,r) -> (l, FullRepeat)) <$> allRegEdges edgesReg
               childFactor = scoreChildren childRegs childPasses [] [] slcL slcR
-              --     (Notes $ MS.fromList rightParents) slcL slcR
-           -- in trace ("spread: " <> (show $ (-50 * go lbll lblr) )) (- go lbll lblr) * 50
-           in - (childFactor * alpha + (go slcL slcR))
+           in - (childFactor * alpha + go slcL slcR)
           where
             go Nothing Nothing = 100
             go (Just a) Nothing = 100
             go Nothing (Just a) = 100
-            go (Just a ) (Just b) = ((scoreParents (sWContent a) (sWContent b) (slcL) (slcR)))
-          -- let
-          -- probsRegs = map scoreReg (S.toList edgesReg)
-              -- probsPasses = map scorePass (MS.toList edgesPass)
-              -- aggregateProbs = probsRegs <> probsPasses
-              -- l = length aggregateProbs
-              -- score = if l == 0 then 5 else - (sum aggregateProbs / fromIntegral (length aggregateProbs))
-            -- in
-        -- scoreReg :: Edge n -> Float
-        -- scoreReg (Start ,Inner y) = evaluateChordTone slcR y
-        -- scoreReg (Inner x ,Stop) = evaluateChordTone slcL x
-        -- scoreReg (Inner x , Inner y) = evaluateChordTone slcL x + evaluateChordTone slcR y
-        --
-        -- -- scorePass :: InnerEdge n -> Float
-        -- scorePass (x , y) = evaluateChordTone slcL x + evaluateChordTone slcR y
+            go (Just a ) (Just b) = scoreParents (sWContent a) (sWContent b) slcL slcR
 
-    -- scoreParents
-    --   :: Notes SPitch
-    --   -> Notes SPitch
-    --   -> Maybe (SliceWrapped nx)
-    --   -> Maybe (SliceWrapped nx)
-    --   -> Double
-    -- scoreParents leftParents rightParents slcL slcR =
-    --   let (lbll, lblr) =
-    --         ((\(SliceWrapped _ sLbl _) -> sLbl) <$> slcL
-    --         ,(\(SliceWrapped _ sLbl _) -> sLbl) <$> slcR)
-    --       leftScore = scoreParent (probsParent lbll) leftParents
-    --       rightScore = scoreParent (probsParent lblr) rightParents
-    --       bothScores =  (maybeToList leftScore ++ maybeToList rightScore)
-    --       n = fromIntegral $ length bothScores
-    --     in
-    --       if n == 0 then 0 else sum bothScores / n
-    --     where
-    --       scoreParent mps v = do
-    --         multinomialLogProb (notesVector v) <$> mps
-    --
     getParentDouble
       :: State ns
       -> ( StartStop (SliceWrapped (Notes ns)) --midslice or start (in open case)

@@ -45,16 +45,7 @@ genSlice slc =
     -- segment
     -- 2. PRIOR PROBABILITY: Choose the template with higher prior probability of occurence
     -- 3. DIM7 RESOLUTION: If al top templates are fully diminished 7th chords, select the template whose roott is one
-    -- half-step below the root of the top scorig template in the following segment.
-
-    -- maxElems 0 mins [] = mins
-    -- maxElems n mins [] = mins
-    -- maxElems 0 (m : mins) (x : rst)
-    --   | fst x < fst m = maxElems 0 (ins x mins) rst
-    --   | otherwise = maxElems 0 (m : mins) rst
-    -- maxElems n mins (x : rst) = maxElems (n - 1) (ins x mins) rst
-    --
-    -- ins = L.insertBy ((flip . comparing) fst)
+    -- half-step below the root of the top scoring template in the following segment.
 
 scoreTemplate
   :: [InputSlice SPitch]

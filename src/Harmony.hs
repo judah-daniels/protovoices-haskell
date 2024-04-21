@@ -4,7 +4,6 @@
 {-# HLINT ignore "Use second" #-}
 module Harmony
   (
-   
    rotateVector
   , pChordTones
   , mostLikelyLabelFromSliceWithProb
@@ -21,39 +20,25 @@ module Harmony
   , notePos
   , notesVector
   , noteVector
-  -- , ornamentLogLikelihoodDouble
-  -- , sliceChordLogLikelihood
-  -- , sliceChordWeightedLogLikelihoods
-  -- , sliceChordWeightedLogLikelihood
   , ornamentLogLikelihood
   , chordToneLogLikelihood
-  -- , scoreSegment
   , scoreSegments
   )
   where
 
+import PVGrammar
 import Probability
+
 import Harmony.Params
 import Harmony.ChordLabel
-import Common
-import Data.Aeson
-import Data.ByteString.Lazy qualified as BL
-import Data.Maybe
-import Data.Ord
-import Debug.Trace
-import GHC.Float (double2Int)
-import GHC.Generics
-import Internal.MultiSet qualified as MS
-import Musicology.Core (AdditiveGroup)
 import Musicology.Core qualified as Music
 import Musicology.Pitch.Spelled
-import Numeric.Log (Log (..))
-import PVGrammar
-import System.Random.MWC.Probability (multinomial, categorical)
+
+import Data.Maybe
+import Internal.MultiSet qualified as MS
 import Data.Vector qualified as V
-import Data.Bifunctor (bimap)
 import Data.Tuple (swap)
-import Data.List
+
 
 
 transposeNote :: Music.Pitch SIC -> SPitch -> SIC
